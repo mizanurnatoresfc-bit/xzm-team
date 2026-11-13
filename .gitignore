@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+supabase/.branches/
+supabase/.temp/
+*.log
+.DS_Store
+coverage/
+playwright-report/
+# old single-file demo backups (kept on disk, not in the repo)
+demo/*.backup-*.html
+# local test database data
+pgdata/
+# Netlify CLI link state (never commit)
+.netlify/
+# Android app build output
+XZM-TEAM.apk

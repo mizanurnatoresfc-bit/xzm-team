@@ -1,0 +1,13 @@
+{
+  "appId": "com.xzmteam.erp",
+  "appName": "XZM-TEAM",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

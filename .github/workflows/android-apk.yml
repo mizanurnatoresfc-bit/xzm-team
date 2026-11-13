@@ -1,0 +1,80 @@
+# Builds the Android app (APK) on GitHub's servers - no Android Studio needed on the PC.
+# Runs on every push that changes the app, or by hand: Actions -> "Android APK" -> Run workflow.
+# Download: open the finished run -> "Artifacts" -> XZM-TEAM-apk (a zip with XZM-TEAM.apk inside).
+#
+# Supabase settings come from web/.env.production (public values). Repository variables
+# VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY, if set, take precedence.
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Check settings
+        env:
+          URL: ${{ vars.VITE_SUPABASE_URL }}
+          KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          # Repository variables win; otherwise web/.env.production (public values) is used.
+          if [ -n "$URL" ] && [ -n "$KEY" ]; then
+            printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_ANON_KEY=%s\n' "$URL" "$KEY" > .env.production.local
+          elif [ ! -f .env.production ]; then
+            echo "::error::No Supabase settings: add web/.env.production or repository variables VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY."
+            exit 1
+          fi
+          if grep -qE 'sb_secret|service_role' .env.production* 2>/dev/null; then echo "::error::A SECRET key was found. Use the publishable key only."; exit 1; fi
+
+      - name: Install packages
+        run: npm install --no-audit --no-fund
+
+      - name: Build the app pages
+        run: npm run build
+
+      - name: Android project
+        run: |
+          if [ ! -d android ]; then npx cap add android; fi
+          npx -y @capacitor/assets generate --android || echo "icons skipped"
+          npx cap sync android
+
+      - name: Build APK
+        working-directory: web/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/XZM-TEAM.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XZM-TEAM-apk
+          path: XZM-TEAM.apk
+          retention-days: 30
