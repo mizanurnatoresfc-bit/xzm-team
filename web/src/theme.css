@@ -166,7 +166,12 @@ body.print-list #print-box th,body.print-list #print-box td{border:1px solid #99
 .login-card label{font-weight:600}
 .pw{position:relative}.pw button{position:absolute;right:6px;top:11px;min-height:30px;padding:2px 8px}
 
-/* Android app (Capacitor): keep content clear of the status bar / gesture bar on edge-to-edge phones. */
-.native-app body { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-.native-app .app-frame .side { padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
-.native-app { -webkit-tap-highlight-color: transparent; }
+/* Android app (Capacitor): keep content clear of the status bar / gesture bar on edge-to-edge phones.
+   --sat/--sab come from the WebView's safe-area insets; lib/native.ts sets them in px when the
+   WebView draws under the status bar but reports no inset (older Android System WebView). */
+.native-app { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); -webkit-tap-highlight-color: transparent; }
+.native-app body { padding-top: var(--sat); padding-bottom: var(--sab); }
+.native-app body::before { content: ''; position: fixed; top: 0; left: 0; right: 0; height: var(--sat); background: var(--surface); z-index: 100; pointer-events: none; }
+.native-app .top { top: var(--sat); }
+.native-app .app-frame .side { padding-top: calc(14px + var(--sat)); }
+.native-app .da-actionbar { padding-bottom: calc(12px + var(--sab)); }

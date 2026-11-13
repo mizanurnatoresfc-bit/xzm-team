@@ -9,5 +9,12 @@
   },
   "server": {
     "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": false,
+      "backgroundColor": "#ffffff",
+      "style": "LIGHT"
+    }
   }
 }

@@ -4,7 +4,11 @@ type Listener = { remove: () => void }
 type CapacitorGlobal = {
   isNativePlatform?: () => boolean
   getPlatform?: () => string
-  Plugins?: { App?: {
+  Plugins?: { StatusBar?: {
+    setOverlaysWebView: (o: { overlay: boolean }) => Promise<void>
+    setBackgroundColor: (o: { color: string }) => Promise<void>
+    setStyle: (o: { style: 'DARK' | 'LIGHT' | 'DEFAULT' }) => Promise<void>
+  }, App?: {
     addListener: (event: 'backButton', cb: (e: { canGoBack: boolean }) => void) => Promise<Listener> | Listener
     exitApp: () => Promise<void>
     minimizeApp?: () => Promise<void>
@@ -22,6 +26,7 @@ export const isNativeApp = (): boolean => Boolean(cap()?.isNativePlatform?.())
 export function setupNativeApp(): void {
   if (!isNativeApp()) return
   document.documentElement.classList.add('native-app')
+  fitStatusBar()
   const app = cap()?.Plugins?.App
   if (!app) return
   void app.addListener('backButton', () => {
@@ -38,4 +43,31 @@ export function setupNativeApp(): void {
     }
     window.history.back()
   })
+}
+
+/** Status bar: ask Android not to draw the page under it, colour it like the app bar, and if the
+ *  page still runs under it (Android 15 edge-to-edge) without reporting an inset, pad by hand. */
+function fitStatusBar(): void {
+  const sb = cap()?.Plugins?.StatusBar
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark'
+    || (!document.documentElement.getAttribute('data-theme') && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+  if (sb) {
+    void sb.setOverlaysWebView({ overlay: false }).catch(() => undefined)
+    void sb.setBackgroundColor({ color: dark ? '#111a15' : '#ffffff' }).catch(() => undefined)
+    void sb.setStyle({ style: dark ? 'DARK' : 'LIGHT' }).catch(() => undefined)
+  }
+  const check = () => {
+    const probe = document.createElement('div')
+    probe.style.cssText = 'position:fixed;top:0;height:env(safe-area-inset-top,0px);visibility:hidden'
+    document.body.appendChild(probe)
+    const inset = probe.getBoundingClientRect().height
+    probe.remove()
+    const root = document.documentElement
+    // The page covers the whole screen (status bar included) but the WebView reports no inset.
+    const fullScreen = Math.abs(window.screen.height - window.innerHeight) < 16
+    if (inset < 1 && fullScreen) { root.style.setProperty('--sat', '40px'); root.style.setProperty('--sab', '16px') }
+    else { root.style.removeProperty('--sat'); root.style.removeProperty('--sab') }
+  }
+  if (document.body) check(); else window.addEventListener('DOMContentLoaded', check, { once: true })
+  window.addEventListener('orientationchange', () => window.setTimeout(check, 300))
 }
