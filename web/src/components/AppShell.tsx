@@ -37,6 +37,7 @@ const GROUPS: Group[] = [
   { key: 'sys', icon: 'shield', bn: 'সিস্টেম', en: 'System', items: [
     { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
     { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
+    { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
   ] },
 ]
 

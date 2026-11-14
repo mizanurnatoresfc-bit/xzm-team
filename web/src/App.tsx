@@ -19,6 +19,7 @@ import { ImportEmployees } from './pages/hr/ImportEmployees'
 import { FieldSettings } from './pages/hr/FieldSettings'
 import { Referrals } from './pages/hr/Referrals'
 import { ZonalStaff } from './pages/zonal/ZonalStaff'
+import { RoleDashboards } from './pages/users/RoleDashboards'
 import { MyProfile } from './pages/MyProfile'
 import './styles.css'
 import './accounts.css'
@@ -64,6 +65,7 @@ export default function App() {
     <Route element={<ProtectedRoute permission="system.role.view" />}>
       <Route path="/app/roles" element={<Roles />} />
       <Route path="/app/roles/:id" element={<RoleEditor />} />
+      <Route path="/app/role-dashboards" element={<RoleDashboards />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>
       <Route path="/app/accounts/reports" element={<AccountsReports />} />
