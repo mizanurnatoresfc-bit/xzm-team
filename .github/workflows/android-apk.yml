@@ -4,7 +4,7 @@
 #
 # Supabase settings come from web/.env.production (public values). Repository variables
 # VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY, if set, take precedence.
-name: Android APK
+name: Android APK and site build
 
 on:
   workflow_dispatch:
@@ -59,6 +59,12 @@ jobs:
 
       - name: Build the app pages
         run: npm run build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-dist
+          path: web/dist
+          retention-days: 30
 
       - name: Android project
         run: |
