@@ -6,7 +6,7 @@ import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
-import { hrFriendly } from '../../lib/hr'
+import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import {
   ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, office, ROOM_DEFAULT, ROOM_KIND,
@@ -151,10 +151,10 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   async function save() {
     if (!f) return
-    if (!f.code?.trim() || !f.name?.trim() || !f.zone_id) return setErr(L('কোড, নাম ও জোন দিন', 'Give code, name and zone'))
+    if (!f.name?.trim() || !f.zone_id) return setErr(L('নাম ও জোন দিন', 'Give name and zone'))
     setBusy(true); setErr('')
     try {
-      await office.saveProperty({ code: f.code.trim().toUpperCase(), name: f.name.trim(), kind: f.kind ?? 'office', zone_id: f.zone_id, hub_id: f.hub_id || null,
+      await office.saveProperty({ code: autoCode(f.name, f.code), name: f.name.trim(), kind: f.kind ?? 'office', zone_id: f.zone_id, hub_id: f.hub_id || null,
         address: f.address || null, floor_note: f.floor_note || null, owner_name: f.owner_name || null, owner_phone: f.owner_phone || null,
         rent: f.rent ? Number(f.rent) : null, front_direction: f.front_direction || null, note: f.note || null }, f.id)
       setF(null); await reload(); toast(L('সেভ হয়েছে', 'Saved'))
@@ -173,7 +173,6 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
       cols={[
         { key: 'kind', label: L('ধরন', 'Kind'), value: r => r.kind === 'office' ? L('অফিস', 'Office') : L('আবাসিক', 'Residence'),
           render: r => <Badge tone={r.kind === 'office' ? 'info' : 'neutral'}>{r.kind === 'office' ? L('অফিস', 'Office') : L('আবাসিক', 'Residence')}</Badge> },
-        { key: 'code', label: L('কোড', 'Code'), value: r => r.code },
         { key: 'name', label: L('নাম', 'Name'), value: r => r.name },
         { key: 'hub', label: L('হাব', 'Hub'), value: r => r.hub_id ? o.names.hub[r.hub_id] ?? '' : '' },
         { key: 'addr', label: L('ঠিকানা', 'Address'), value: r => r.address ?? '' },
@@ -188,7 +187,6 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
       <div className="hr-form">
         <Field label={L('ধরন', 'Kind')}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Property['kind'] })}>
           <option value="office">{L('অফিস', 'Office')}</option><option value="residence">{L('আবাসিক (ফ্ল্যাট / মেস)', 'Residence (flat / mess)')}</option></select></Field>
-        <Field label={L('কোড', 'Code')}><input value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="NAT-OFF" /></Field>
         <Field label={L('নাম', 'Name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
         <Field label={L('জোন', 'Zone')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value, hub_id: null })}>
           {o.data?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
@@ -281,10 +279,10 @@ function Desks({ ctx }: { ctx: Ctx }) {
   const roomName = Object.fromEntries(ctx.rooms.map(r => [r.id, r.name])) as Record<string, string>
   async function save() {
     if (!f) return
-    if (!f.code.trim() || !f.name.trim()) return setErr(L('ডেস্কের কোড ও নাম দিন', 'Give desk code and name'))
+    if (!f.name.trim()) return setErr(L('ডেস্কের নাম দিন', 'Give the desk name'))
     setBusy(true); setErr('')
     try {
-      const id = await office.saveDesk({ property_id: ctx.p.id, code: f.code.trim(), name: f.name.trim(), room_id: f.room || null,
+      const id = await office.saveDesk({ property_id: ctx.p.id, code: f.code.trim() || autoCode(f.name), name: f.name.trim(), room_id: f.room || null,
         responsible_id: f.resp?.id ?? null, duty: f.duty.trim() || null, note: f.note.trim() || null }, f.id)
       if (!f.id && f.defaults && can('office.asset.edit')) await office.addDefaults(ctx.p.id, DESK_DEFAULT, { desk_id: id, room_id: f.room || null, holder_id: f.resp?.id ?? null })
       setF(null); await ctx.reload(); toast(L('সেভ হয়েছে', 'Saved'))
@@ -297,7 +295,7 @@ function Desks({ ctx }: { ctx: Ctx }) {
   const next = ctx.desks.length + 1
   return <section className="panel">{node}
     <div className="da-bar"><h2>{L('ডেস্ক ও দায়িত্ব', 'Desks & responsibility')} <span className="count-pill">{n(ctx.desks.length)}</span></h2>
-      {edit && <button onClick={() => { setErr(''); setF({ code: `D${next}`, name: L(`ডেস্ক ${n(next)}`, `Desk ${next}`), room: ctx.rooms.find(r => r.kind === 'office_room')?.id ?? '', resp: null, duty: '', note: '', defaults: true }) }}>
+      {edit && <button onClick={() => { setErr(''); setF({ code: '', name: L(`ডেস্ক ${n(next)}`, `Desk ${next}`), room: ctx.rooms.find(r => r.kind === 'office_room')?.id ?? '', resp: null, duty: '', note: '', defaults: true }) }}>
         <Icon name="plus" size={15} />{L('ডেস্ক যোগ', 'Add desk')}</button>}</div>
     {err && !f && <p className="da-error">{err}</p>}
     {!ctx.desks.length ? <p className="muted">{L('ডেস্ক যোগ করলে মনিটর, পিসি, কিবোর্ড, মাউস, জি-প্রিন্টার একসাথে যোগ হবে, আর কে দায়িত্বে তা দেবেন।', 'Adding a desk adds monitor, PC, keyboard, mouse and G-printer, and you name who is responsible.')}</p> :
@@ -316,7 +314,6 @@ function Desks({ ctx }: { ctx: Ctx }) {
     {f && <Modal title={f.id ? L('ডেস্ক এসাইন / এডিট', 'Assign / edit desk') : L('ডেস্ক যোগ', 'Add desk')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label={L('কোড', 'Code')}><input value={f.code} onChange={e => setF({ ...f, code: e.target.value })} /></Field>
         <Field label={L('নাম', 'Name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
         <Field label={L('কোন রুমে', 'Room')}><select value={f.room} onChange={e => setF({ ...f, room: e.target.value })}><option value="">—</option>
           {ctx.rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>

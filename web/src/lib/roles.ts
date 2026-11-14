@@ -32,6 +32,8 @@ export const MODULE_LABEL: Record<string, [string, string]> = {
   ops: ['কুরিয়ার অপারেশন', 'Courier operations'],
   zonal: ['জোনাল ম্যানেজমেন্ট', 'Zonal management'],
   system: ['সিস্টেম ও ইউজার', 'System & users'],
+  sorting: ['শটিং সেন্টার', 'Sorting center'],
+  office: ['অফিস ম্যানেজমেন্ট', 'Office management'],
 }
 export const ACTION_LABEL: Record<string, [string, string]> = {
   view: ['দেখা', 'View'], create: ['তৈরি / জমা', 'Create'], edit: ['সম্পাদনা', 'Edit'], archive: ['আর্কাইভ', 'Archive'],
@@ -54,5 +56,9 @@ export const RESOURCE_LABEL: Record<string, string> = {
   'system.admin_portal': 'অ্যাডমিন পোর্টাল', 'system.audit': 'অডিট লগ', 'system.role': 'রোল', 'system.settings': 'সিস্টেম সেটিংস',
   'system.user': 'ইউজার অ্যাকাউন্ট', 'system.user_role': 'ইউজারকে রোল দেওয়া',
   'zonal.claim': 'যাতায়াত বিল', 'zonal.dashboard': 'জোনাল ড্যাশবোর্ড', 'zonal.hub_metric': 'হাবের দৈনিক হিসাব', 'zonal.planning': 'জনবল পরিকল্পনা',
+  'sorting.center': 'শটিং সেন্টার ও রুট', 'sorting.staff': 'শটিং স্টাফ', 'sorting.fuel': 'তেলের স্লিপ ও খরচ',
+  'sorting.hub_charge': 'গাড়ি খরচ হাবের খাতায়', 'sorting.parcel': 'পার্সেল আদান-প্রদান', 'sorting.driver': 'ড্রাইভার রিপোর্ট', 'sorting.report': 'শটিং রিপোর্ট',
+  'office.property': 'অফিস, রুম ও ডেস্ক', 'office.asset': 'অফিসের রিসোর্স',
+  'hr.duty': 'কাজের দায়িত্ব', 'ops.route': 'রাইডার রুট',
   'zonal.report': 'জোনাল রিপোর্ট', 'zonal.task': 'কাজ (টাস্ক)', 'zonal.visit': 'হাব ভিজিট',
 }

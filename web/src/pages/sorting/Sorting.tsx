@@ -7,7 +7,7 @@ import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { RouteViz } from '../../components/RouteViz'
 import { usePrefs } from '../../lib/prefs'
-import { hrFriendly, type Hub } from '../../lib/hr'
+import { autoCode, hrFriendly, type Hub } from '../../lib/hr'
 import { taka } from '../../lib/dailyAccounts'
 import { useOrg } from '../hr/common'
 import {
@@ -53,7 +53,7 @@ export function Sorting() {
   const hubName = o.names.hub
   const dated = ['dashboard', 'fuel', 'parcels', 'drivers', 'reports'].includes(sec.key)
 
-  return <AppShell title={L(sec.bn, sec.en)} subtitle={center ? `${center.name} (${center.code})` : undefined}>
+  return <AppShell title={L(sec.bn, sec.en)} subtitle={center ? center.name : undefined}>
     <section className="da-filters panel no-print hub-top">
       {sec.key !== 'centers' && <Field label={L('শটিং সেন্টার', 'Sorting center')}><select value={cid} onChange={e => setCid(e.target.value)}>
         {list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>}
@@ -173,9 +173,9 @@ function Centers({ onChange }: { onChange: () => void }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   async function save() {
     if (!f) return
-    if (!f.code?.trim() || !f.name?.trim() || !f.zone_id) return setErr(L('কোড, নাম ও জোন দিন', 'Give code, name and zone'))
+    if (!f.name?.trim() || !f.zone_id) return setErr(L('নাম ও জোন দিন', 'Give name and zone'))
     setBusy(true); setErr('')
-    try { await sorting.saveCenter({ ...f, code: f.code.trim().toUpperCase(), name: f.name.trim() }, f.id); setF(null); await list.reload(); onChange(); toast(L('সেভ হয়েছে', 'Saved')) }
+    try { await sorting.saveCenter({ ...f, code: autoCode(f.name, f.code), name: f.name.trim() }, f.id); setF(null); await list.reload(); onChange(); toast(L('সেভ হয়েছে', 'Saved')) }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(c: Center) {
@@ -190,8 +190,7 @@ function Centers({ onChange }: { onChange: () => void }) {
     <DataTable<Center> title={L('শটিং সেন্টার', 'Sorting centers')} file="sorting-centers" rows={list.data} rowKey={r => r.id}
       empty={<p className="muted">{L('এখনো কোনো শটিং সেন্টার নেই।', 'No sorting center yet.')}</p>}
       cols={[
-        { key: 'code', label: L('কোড', 'Code'), value: r => r.code, render: r => <strong>{r.code}</strong> },
-        { key: 'name', label: L('নাম', 'Name'), value: r => r.name },
+        { key: 'name', label: L('নাম', 'Name'), value: r => r.name, render: r => <strong>{r.name}</strong> },
         { key: 'zone', label: L('জোন', 'Zone'), value: r => o.names.zone[r.zone_id] ?? '' },
         { key: 'phone', label: L('ফোন', 'Phone'), value: r => r.phone ?? '' },
         { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
@@ -201,7 +200,6 @@ function Centers({ onChange }: { onChange: () => void }) {
     {f && <Modal title={f.id ? L('সেন্টার এডিট', 'Edit center') : L('নতুন শটিং সেন্টার', 'New sorting center')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label={L('কোড', 'Code')}><input value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="NAT-SC" /></Field>
         <Field label={L('নাম', 'Name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
         <Field label={L('জোন', 'Zone')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value })}>
           <option value="">{L('বেছে নিন…', 'Choose…')}</option>{o.data?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
@@ -231,11 +229,11 @@ function Routes({ ctx }: { ctx: Ctx }) {
   const edit = can('sorting.center.edit')
   async function save() {
     if (!f) return
-    if (!f.code.trim() || f.name.trim().length < 2) return setErr(L('রুটের কোড ও নাম দিন', 'Give route code and name'))
+    if (f.name.trim().length < 2) return setErr(L('রুটের নাম দিন', 'Give the route name'))
     if (!f.hubs.length) return setErr(L('অন্তত একটা হাব বেছে নিন', 'Choose at least one hub'))
     setBusy(true); setErr('')
     try {
-      await sorting.saveRoute({ center_id: ctx.center.id, zone_id: ctx.center.zone_id, code: f.code.trim().toUpperCase(), name: f.name.trim(), vehicle_id: f.vehicle_id || null,
+      await sorting.saveRoute({ center_id: ctx.center.id, zone_id: ctx.center.zone_id, code: f.code.trim() || autoCode(f.name), name: f.name.trim(), vehicle_id: f.vehicle_id || null,
         driver_id: f.driver?.id ?? null, depart_time: f.depart_time || null, note: f.note.trim() || null }, f.hubs, f.id)
       setF(null); await routesQ.reload(); toast(L('রুট সেভ হয়েছে', 'Route saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
@@ -259,7 +257,7 @@ function Routes({ ctx }: { ctx: Ctx }) {
           sub: [r.vehicle_id && vName[r.vehicle_id], r.driver_id && empLabel(dName[r.driver_id]), r.depart_time && `${L('ছাড়ে', 'Leaves')} ${r.depart_time.slice(0, 5)}`].filter(Boolean).join(' · '),
           stops: hubsOf(r.id).map(h => ({ id: h.id, label: ctx.hubName[h.hub_id] ?? '—', flag: h.can_charge ? L('৳ খরচ হাব থেকে', '৳ cost from hub') : undefined })) }))} /> :
         <div className="route-cards">{routesQ.data?.map(r => <article key={r.id} className="route-card">
-          <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.code} · {r.name}</b>
+          <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.name}</b>
             <div className="muted small">{[r.vehicle_id && vName[r.vehicle_id], r.driver_id && empLabel(dName[r.driver_id]), r.depart_time && `${L('ছাড়ে', 'Leaves')} ${r.depart_time.slice(0, 5)}`].filter(Boolean).join(' · ') || '—'}</div></div>
             {edit && <span className="row-acts">
               <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, code: r.code, name: r.name, vehicle_id: r.vehicle_id ?? '', driver: r.driver_id ? dName[r.driver_id] ?? null : null,
@@ -273,7 +271,6 @@ function Routes({ ctx }: { ctx: Ctx }) {
     {f && <Modal wide title={f.id ? L('রুট এডিট', 'Edit route') : L('নতুন রুট', 'New route')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form">
-        <Field label={L('কোড', 'Code')}><input value={f.code} onChange={e => setF({ ...f, code: e.target.value })} placeholder="R1" /></Field>
         <Field label={L('রুটের নাম', 'Route name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={L('যেমন নাটোর → সিংড়া', 'e.g. Natore → Singra')} /></Field>
         <Field label={L('ছাড়ার সময়', 'Leaves at')}><input type="time" value={f.depart_time} onChange={e => setF({ ...f, depart_time: e.target.value })} /></Field>
         <Field label={L('গাড়ি', 'Vehicle')}><select value={f.vehicle_id} onChange={e => setF({ ...f, vehicle_id: e.target.value })}><option value="">—</option>
@@ -449,7 +446,7 @@ function FuelPage({ ctx }: { ctx: Ctx }) {
         <Field label={L('খরচের ধরন', 'Kind')}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value })}>
           {Object.entries(FUEL_KIND).map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select></Field>
         <Field label={L('রুট', 'Route')}><select value={f.route} onChange={e => setF({ ...f, route: e.target.value, chargeHub: '' })}><option value="">—</option>
-          {refs.routes.data?.map(r => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}</select></Field>
+          {refs.routes.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>
         <Field label={L('গাড়ি', 'Vehicle')}><select value={f.vehicle} onChange={e => setF({ ...f, vehicle: e.target.value })}><option value="">—</option>
           {refs.vehicles.data?.map(v => <option key={v.id} value={v.id}>{v.name}{v.reg_no ? ` (${v.reg_no})` : ''}</option>)}</select></Field>
         <EmpPicker label={L('কে টাকা দিয়েছে/তুলেছে (আইডি)', 'Paid by (ID)')} value={f.emp} onPick={e => setF({ ...f, emp: e })} hint={L('খালি থাকলে আপনার নামে', 'Blank = you')} />
@@ -554,7 +551,7 @@ function Parcels({ ctx }: { ctx: Ctx }) {
           <option value="sorting_to_hub">{L('শটিং → হাব', 'Sorting → hub')}</option><option value="hub_to_sorting">{L('হাব → শটিং', 'Hub → sorting')}</option></select></Field>
         <Field label={L('রুট', 'Route')}><select value={f.route} onChange={e => { const r = refs.routes.data?.find(x => x.id === e.target.value)
           setF({ ...f, route: e.target.value, hub: '', vehicle: f.vehicle || r?.vehicle_id || '' }) }}><option value="">—</option>
-          {refs.routes.data?.map(r => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}</select></Field>
+          {refs.routes.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>
         <Field label={L('হাব', 'Hub')}><select value={f.hub} onChange={e => setF({ ...f, hub: e.target.value })}><option value="">{L('বেছে নিন…', 'Choose…')}</option>
           {hubsOfRoute(f.route).map(id => <option key={id} value={id}>{ctx.hubName[id]}</option>)}</select></Field>
         <Field label={L('তারিখ', 'Date')}><input type="date" max={today()} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
@@ -651,7 +648,7 @@ function Drivers({ ctx }: { ctx: Ctx }) {
       <div className="hr-form">
         <Field label={L('রুট', 'Route')}><select value={f.route} onChange={e => { const r = refs.routes.data?.find(x => x.id === e.target.value)
           setF({ ...f, route: e.target.value, vehicle: f.vehicle || r?.vehicle_id || '' }) }}><option value="">{L('বেছে নিন…', 'Choose…')}</option>
-          {refs.routes.data?.map(r => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}</select></Field>
+          {refs.routes.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>
         <Field label={L('তারিখ', 'Date')}><input type="date" max={today()} value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
         <EmpPicker label={L('ড্রাইভার (আইডি)', 'Driver (ID)')} value={f.driver} onPick={e => setF({ ...f, driver: e })} />
         <Field label={L('গাড়ি', 'Vehicle')}><select value={f.vehicle} onChange={e => setF({ ...f, vehicle: e.target.value })}><option value="">—</option>

@@ -19,6 +19,12 @@ export type Org = { id: string; code: string; name: string; name_bn: string | nu
 export type Zone = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null }
 export type Hub = { id: string; zone_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null }
 /** A hub as people know it: name + its number code ("Natore #80"). Text codes are not shown. */
+/** Codes are only typed for hubs; everywhere else the system makes one from the name (unique, never shown). */
+export function autoCode(name: string, keep?: string | null): string {
+  if (keep) return keep
+  const base = (name || '').normalize('NFKD').replace(/[^A-Za-z0-9]+/g, '').toUpperCase().slice(0, 10) || 'X'
+  return `${base}-${Date.now().toString(36).slice(-4).toUpperCase()}${Math.random().toString(36).slice(2, 4).toUpperCase()}`
+}
 export function hubLabel(h: { name: string; code?: string | null }): string {
   return h.code && /^\d+$/.test(String(h.code).trim()) ? `${h.name} #${String(h.code).trim()}` : h.name
 }

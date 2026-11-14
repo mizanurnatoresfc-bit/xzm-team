@@ -4,7 +4,7 @@ import { AppShell } from '../../components/AppShell'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
-import { hrFriendly, nameMap, org, type Department, type Hub, type Position, type Zone } from '../../lib/hr'
+import { autoCode, hrFriendly, nameMap, org, type Department, type Hub, type Position, type Zone } from '../../lib/hr'
 
 type Kind = 'zones' | 'hubs' | 'departments' | 'positions'
 const LEVEL: Record<string, string> = { hub: 'হাব পর্যায়', zone: 'জোন পর্যায়', head_office: 'হেড অফিস' }
@@ -48,8 +48,9 @@ export function OrgSetup() {
     if (!edit) return
     const r = edit.row; setBusy(true); setErr('')
     try {
-      const base: Record<string, unknown> = { code: String(r.code ?? '').trim().toUpperCase(), name: String(r.name ?? '').trim(), name_bn: (r.name_bn as string)?.trim() || null }
-      if (!base.code || !base.name) throw new Error('কোড ও নাম দিন')
+      const base: Record<string, unknown> = { code: tab === 'hubs' ? String(r.code ?? '').trim().toUpperCase() : autoCode(String(r.name ?? ''), r.code as string | null), name: String(r.name ?? '').trim(), name_bn: (r.name_bn as string)?.trim() || null }
+      if (!base.name) throw new Error('নাম দিন')
+      if (!base.code) throw new Error('হাব কোড নম্বর দিন')
       if (tab === 'zones' || tab === 'hubs') { base.phone = (r.phone as string)?.trim() || null; base.address = (r.address as string)?.trim() || null }
       if (tab === 'zones' || tab === 'departments') base.organization_id = orgRow?.id
       if (tab === 'hubs') { if (!r.zone_id) throw new Error('জোন বেছে নিন'); base.zone_id = r.zone_id }
@@ -75,7 +76,7 @@ export function OrgSetup() {
       <h2>প্রথমে প্রতিষ্ঠান তৈরি করুন</h2>
       <p className="muted">একবারই করতে হয়। এরপর জোন, হাব, বিভাগ ও পদবি যোগ করা যাবে।</p>
       {can('org.organization.create') ? <form onSubmit={e => { e.preventDefault(); void saveOrg(new FormData(e.currentTarget)) }} className="hr-form">
-        <Field label="কোড (ইংরেজি)"><input name="code" required defaultValue="XZM" /></Field>
+        <input type="hidden" name="code" value="XZM" />
         <Field label="নাম"><input name="name" required defaultValue="XZM-TEAM" /></Field>
         <Field label="নাম (বাংলা)"><input name="name_bn" /></Field>
         <Field label="ফোন"><input name="phone" inputMode="tel" /></Field>
@@ -94,7 +95,7 @@ export function OrgSetup() {
         <DataTable title={KIND[tab].label} file={tab} rows={rows} rowKey={r => r.id}
           empty={<p className="muted">এখনো কোনো {KIND[tab].one} নেই।{tab === 'hubs' && !counts.zones ? ' আগে একটি জোন যোগ করুন।' : ''}{tab === 'positions' && !counts.departments ? ' আগে একটি বিভাগ যোগ করুন।' : ''}</p>}
           cols={[
-            { key: 'code', label: 'কোড', render: r => <strong>{tab === 'hubs' && /^\d+$/.test(String(r.code)) ? `#${r.code}` : r.code}</strong> },
+            ...(tab === 'hubs' ? [{ key: 'code', label: 'কোড', render: (r: Row) => <strong>{tab === 'hubs' && /^\d+$/.test(String(r.code)) ? `#${r.code}` : r.code}</strong> }] : []),
             { key: 'name', label: 'নাম', render: r => <>{r.name}{r.name_bn && <span className="sec">{r.name_bn}</span>}</> },
             ...(tab === 'hubs' ? [{ key: 'zone', label: 'জোন', value: (r: Row) => zoneName[(r as Hub).zone_id] ?? '' }] : []),
             ...(tab === 'positions' ? [{ key: 'dept', label: 'বিভাগ', value: (r: Row) => deptName[(r as Position).department_id] ?? '' },
@@ -110,8 +111,8 @@ export function OrgSetup() {
     {edit && <Modal title={edit.isNew ? `নতুন ${KIND[tab].one}` : `${KIND[tab].one} সম্পাদনা`} onClose={() => setEdit(null)}
       actions={<><button className="secondary" onClick={() => setEdit(null)}>বাতিল</button><button disabled={busy} onClick={() => void save()}>সেভ</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label={tab === 'hubs' ? 'হাব কোড নম্বর (যেমন 80)' : 'কোড (ইংরেজি, যেমন NAT)'} hint={tab === 'hubs' ? 'সব জায়গায় হাব দেখাবে "নাম #নম্বর" হিসেবে' : undefined}>
-          <input inputMode={tab === 'hubs' ? 'numeric' : 'text'} value={String(edit.row.code ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, code: e.target.value } })} /></Field>
+        {tab === 'hubs' && <Field label="হাব কোড নম্বর (যেমন 80)" hint={tab === 'hubs' ? 'সব জায়গায় হাব দেখাবে "নাম #নম্বর" হিসেবে' : undefined}>
+          <input inputMode={tab === 'hubs' ? 'numeric' : 'text'} value={String(edit.row.code ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, code: e.target.value } })} /></Field>}
         <Field label="নাম"><input value={String(edit.row.name ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, name: e.target.value } })} /></Field>
         <Field label="নাম (বাংলা)"><input value={String(edit.row.name_bn ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, name_bn: e.target.value } })} /></Field>
         {tab === 'hubs' && <Field label="জোন"><select value={String(edit.row.zone_id ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, zone_id: e.target.value } })}>

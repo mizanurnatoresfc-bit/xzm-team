@@ -7,7 +7,7 @@ import { Icon } from '../../components/Icon'
 import { RouteViz } from '../../components/RouteViz'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
-import { ATT_STATUS, hr, hrFriendly, type AttendanceStatus, type Employee, type Hub } from '../../lib/hr'
+import { ATT_STATUS, autoCode, hr, hrFriendly, type AttendanceStatus, type Employee, type Hub } from '../../lib/hr'
 import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts'
 import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
@@ -225,9 +225,9 @@ function PickupToday({ hub }: { hub: Hub }) {
   }
   async function saveMerchant() {
     if (!mf) return
-    if (!mf.code.trim() || !mf.name.trim()) return setErr(L('কোড আর নাম দিন', 'Give a code and a name'))
+    if (!mf.name.trim()) return setErr(L('নাম দিন', 'Give a name'))
     setBusy(true); setErr('')
-    try { await hubApi.addMerchant({ code: mf.code.trim(), name: mf.name.trim(), phone: mf.phone.trim() || null, hub: hub.id, zone: hub.zone_id }); setMf(null); await merchants.reload(); toast(L('মার্চেন্ট যোগ হয়েছে', 'Merchant added')) }
+    try { await hubApi.addMerchant({ code: autoCode(mf.name), name: mf.name.trim(), phone: mf.phone.trim() || null, hub: hub.id, zone: hub.zone_id }); setMf(null); await merchants.reload(); toast(L('মার্চেন্ট যোগ হয়েছে', 'Merchant added')) }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function act(r: Pickup, kind: 'verify' | 'approve' | 'reject' | 'withdraw') {
@@ -283,7 +283,7 @@ function PickupToday({ hub }: { hub: Hub }) {
           {sources.map(s => <option key={s[0]} value={s[0]}>{L(s[1], s[2])}</option>)}</select></Field>}
         <Field label={L('মার্চেন্ট', 'Merchant')}><select value={f.merchant} onChange={e => setF({ ...f, merchant: e.target.value })}>
           <option value="">{L('বেছে নিন…', 'Choose…')}</option>
-          {merchants.data?.filter(m => m.status === 'active').map(m => <option key={m.id} value={m.id}>{m.code} · {m.name}</option>)}</select></Field>
+          {merchants.data?.filter(m => m.status === 'active').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></Field>
         <Field label={L('পার্সেল সংখ্যা', 'Parcels')}><input inputMode="numeric" value={f.parcels} onChange={e => setF({ ...f, parcels: e.target.value.replace(/\D/g, '') })} /></Field>
         <Field label={L('ট্রিপ নম্বর', 'Trip no.')}><input inputMode="numeric" value={f.trip} onChange={e => setF({ ...f, trip: e.target.value.replace(/\D/g, '') })} /></Field>
         <Field label="COD (৳)"><input inputMode="decimal" value={f.cod} onChange={e => setF({ ...f, cod: e.target.value })} /></Field>
@@ -296,7 +296,6 @@ function PickupToday({ hub }: { hub: Hub }) {
     {mf && <Modal title={L('নতুন মার্চেন্ট', 'New merchant')} onClose={() => setMf(null)}
       actions={<><button className="secondary" onClick={() => setMf(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void saveMerchant()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label={L('কোড', 'Code')}><input value={mf.code} onChange={e => setMf({ ...mf, code: e.target.value })} /></Field>
         <Field label={L('নাম', 'Name')}><input value={mf.name} onChange={e => setMf({ ...mf, name: e.target.value })} /></Field>
         <Field label={L('মোবাইল', 'Mobile')}><input inputMode="tel" value={mf.phone} onChange={e => setMf({ ...mf, phone: e.target.value })} /></Field>
       </div>
@@ -607,10 +606,10 @@ function RiderRoutes({ hub }: { hub: Hub }) {
   async function save() {
     if (!f) return
     const areas = f.areas.split(/[,\n،]+/).map(a => a.trim()).filter(Boolean)
-    if (!f.code.trim() || f.name.trim().length < 2) return setErr(L('রুটের কোড ও নাম দিন', 'Give the route code and name'))
+    if (f.name.trim().length < 2) return setErr(L('রুটের নাম দিন', 'Give the route name'))
     if (!areas.length) return setErr(L('অন্তত একটা এলাকার নাম দিন', 'Give at least one area'))
     setBusy(true); setErr('')
-    try { await routesApi.save({ hub_id: hub.id, zone_id: hub.zone_id, code: f.code.trim().toUpperCase(), name: f.name.trim(), areas, note: f.note.trim() || null }, f.id)
+    try { await routesApi.save({ hub_id: hub.id, zone_id: hub.zone_id, code: f.code.trim() || autoCode(f.name), name: f.name.trim(), areas, note: f.note.trim() || null }, f.id)
       setF(null); await routes.reload(); toast(L('রুট সেভ হয়েছে', 'Route saved')) }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
@@ -639,14 +638,14 @@ function RiderRoutes({ hub }: { hub: Hub }) {
       <div className="da-bar"><h2>{L('রাইডার রুট', 'Rider routes')}</h2>
         <span className="row-acts"><span className="da-seg"><button className={view === 'map' ? 'sm' : 'secondary sm'} onClick={() => setView('map')}><Icon name="map" size={14} />{L('ছবি', 'Map')}</button>
           <button className={view === 'list' ? 'sm' : 'secondary sm'} onClick={() => setView('list')}><Icon name="table" size={14} />{L('কার্ড', 'Cards')}</button></span>
-        {edit && <button onClick={() => { setErr(''); setF({ code: `R${(routes.data?.length ?? 0) + 1}`, name: '', areas: '', note: '' }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
+        {edit && <button onClick={() => { setErr(''); setF({ code: '', name: '', areas: '', note: '' }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
       {err && !f && !pick && <p className="da-error">{err}</p>}
       {routes.error ? <p className="da-error">{hrFriendly(routes.error)}</p> : routes.data && !routes.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই। এলাকার নাম দিয়ে রুট বানিয়ে রাইডারদের দিন।', 'No routes yet. Make one from area names and give it to riders.')}</p> : view === 'map' ?
         <RouteViz start={hub.name} lanes={(routes.data ?? []).map(r => ({ id: r.id, code: r.code, name: r.name,
           sub: ridersOf(r.id).length ? `${L('রাইডার', 'Riders')}: ${ridersOf(r.id).map(x => emp[x.employee_id]?.full_name ?? '—').join(', ')}` : L('রাইডার দেওয়া হয়নি', 'No rider yet'),
           stops: r.areas.map((a, j) => ({ id: `${r.id}-${j}`, label: a, tone: ridersOf(r.id).length ? undefined : 'warn' as const })) }))} /> :
         <div className="route-cards">{routes.data?.map(r => <article key={r.id} className="route-card">
-          <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.code} · {r.name}</b>
+          <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.name}</b>
             {r.note && <div className="muted small">{r.note}</div>}</div>
             {edit && <span className="row-acts">
               <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, code: r.code, name: r.name, areas: r.areas.join(', '), note: r.note ?? '' }) }}><Icon name="edit" size={14} /></button>
@@ -661,7 +660,6 @@ function RiderRoutes({ hub }: { hub: Hub }) {
     {f && <Modal title={f.id ? L('রুট এডিট', 'Edit route') : L('নতুন রাইডার রুট', 'New rider route')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label={L('কোড', 'Code')}><input value={f.code} onChange={e => setF({ ...f, code: e.target.value })} /></Field>
         <Field label={L('রুটের নাম', 'Route name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={L('যেমন শহর পূর্ব', 'e.g. Town east')} /></Field>
         <Field label={L('এলাকা (কমা বা নতুন লাইনে আলাদা)', 'Areas (comma or new line)')} wide><textarea rows={4} value={f.areas} onChange={e => setF({ ...f, areas: e.target.value })}
           placeholder={L('কানাইখালী, আলাইপুর, স্টেশন বাজার', 'Area 1, Area 2, Area 3')} /></Field>

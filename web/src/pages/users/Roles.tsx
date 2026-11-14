@@ -60,7 +60,8 @@ export function RoleEditor() {
 
   useEffect(() => {
     if (!data.data) return
-    if (role) { setF({ name: role.name, name_bn: role.name_bn ?? '', description: role.description ?? '' }); setSel(new Set(role.permissions)) }
+    // Super Admin always holds every permission: show them all ticked (read-only).
+    if (role) { setF({ name: role.name, name_bn: role.name_bn ?? '', description: role.description ?? '' }); setSel(new Set(role.is_super ? (data.data.perms ?? []).map(p => p.code) : role.permissions)) }
     else { setF({ name: '', name_bn: '', description: '' }); setSel(new Set()) }
     setDirty(false)
   }, [data.data, role?.id])
@@ -121,7 +122,7 @@ export function RoleEditor() {
       </div>
     </section>
 
-    {!role?.is_super && <section className="panel">
+    {<section className="panel">
       <div className="da-bar"><h2 style={{ margin: 0 }}>{L('অনুমতি', 'Permissions')} <span className="muted small">({n(sel.size)} {L('টি বাছাই', 'selected')})</span></h2>
         <input type="search" placeholder={L('অনুমতি খুঁজুন…', 'Search permissions…')} value={q} onChange={e => setQ(e.target.value)} style={{ maxWidth: 260 }} /></div>
       <p className="muted small">{L('“দেখা” না দিলে ওই পাতা মেনুতেই আসবে না। জোন/হাবের রোলে অনুমতি শুধু সেই জোন/হাবের তথ্যে খাটে।',

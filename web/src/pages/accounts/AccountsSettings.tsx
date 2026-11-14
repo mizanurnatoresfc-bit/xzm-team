@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { da, type DaSettings, type Category, type Template, type RefPerson, type Vehicle, type FixedExpense } from '../../lib/dailyAccounts'
-import { org } from '../../lib/hr'
+import { autoCode, org } from '../../lib/hr'
 import { AccountsShell, Field, ErrorNote, Badge, Modal, useLoad, useToast } from './ui'
 
 // Zonal / Accounts settings for Daily Accounts. Every change is validated and audited in the database.
@@ -162,7 +162,7 @@ function VehiclesCard() {
     if (!d || !hub) return
     setBusy(true); setErr(null)
     try {
-      await da.saveVehicle({ name: d.name ?? '', code: d.code ?? '', kind: d.kind ?? 'bike', hub,
+      await da.saveVehicle({ name: d.name ?? '', code: autoCode(d.name ?? '', d.code), kind: d.kind ?? 'bike', hub,
         reg: d.reg_no ?? null, status: d.status ?? 'active', id: d.id ?? null })
       setD(null); await vehicles.reload()
     } catch (e) { setErr(e) } finally { setBusy(false) }
@@ -184,7 +184,7 @@ function VehiclesCard() {
     <div className="da-table-wrap"><table className="da-table">
       <thead><tr><th>গাড়ি</th><th>ধরন</th><th>রেজিস্ট্রেশন</th><th>কার নামে</th><th>অবস্থা</th><th /></tr></thead>
       <tbody>{(vehicles.data ?? []).map(v => <tr key={v.id}>
-        <td data-l="গাড়ি"><b>{v.name}</b><span className="sec">{v.code}</span></td>
+        <td data-l="গাড়ি"><b>{v.name}</b></td>
         <td data-l="ধরন">{VEHICLE_KIND[v.kind] ?? v.kind}</td>
         <td data-l="রেজিস্ট্রেশন">{v.reg_no ?? '—'}</td>
         <td data-l="কার নামে">{v.holder_name ? <>{v.holder_name}<span className="sec">ID {v.holder_code}</span></> : <span className="muted">কারও নামে নেই</span>}</td>
@@ -197,10 +197,10 @@ function VehiclesCard() {
 
     {d && <Modal title={d.id ? 'গাড়ি এডিট' : 'নতুন গাড়ি'} onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button>
-        <button disabled={busy || !d.name || !d.code} onClick={() => void save()}>সেভ</button></>}>
+        <button disabled={busy || !d.name} onClick={() => void save()}>সেভ</button></>}>
       <div className="da-grid2">
         <Field label="নাম *"><input autoFocus value={d.name ?? ''} onChange={e => setD({ ...d, name: e.target.value })} placeholder="যেমন: অফিসের বাইক ১" /></Field>
-        <Field label="কোড *"><input value={d.code ?? ''} onChange={e => setD({ ...d, code: e.target.value })} placeholder="BIKE-1" /></Field>
+        
         <Field label="ধরন"><select value={d.kind ?? 'bike'} onChange={e => setD({ ...d, kind: e.target.value })}>
           {Object.entries(VEHICLE_KIND).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
         <Field label="রেজিস্ট্রেশন নম্বর"><input value={d.reg_no ?? ''} onChange={e => setD({ ...d, reg_no: e.target.value })} /></Field>
@@ -232,17 +232,16 @@ function CategoriesCard({ cats, onSave }: { cats: Category[]; onSave: (c: Catego
   const set = (i: number, patch: Partial<Category>) => setList(list.map((x, j) => j === i ? { ...x, ...patch } : x))
   return <section className="panel"><h2>খরচের খাত (Expense Category)</h2>
     <p className="muted small">প্রতিটি খাতে কোন খরচ বসবে, আর মেইন সাইটে সেটা কোন ক্যাটাগরি–সাব হেডে যাবে, সীমা কত, রসিদ লাগবে কিনা — এখানে লিখে রাখলে খরচ লেখার সময় হিসাবরক্ষকের চোখের সামনেই থাকবে।</p>
-    <table className="da-table"><thead><tr><th>কোড</th><th>English</th><th>বাংলা</th><th>মেইন সাইট</th><th /><th /></tr></thead>
+    <table className="da-table"><thead><tr><th>English</th><th>বাংলা</th><th>মেইন সাইট</th><th /><th /></tr></thead>
       <tbody>{list.map((c, i) => <Fragment key={i}>
         <tr>
-          <td><input value={c.code} onChange={e => set(i, { code: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })} /></td>
           <td><input value={c.en} onChange={e => set(i, { en: e.target.value })} /></td>
           <td><input value={c.bn} onChange={e => set(i, { bn: e.target.value })} /></td>
           <td className="muted small">{c.site_name ? <>{c.site_name}{c.site_sub ? ` → ${c.site_sub}` : ''}{c.site_limit != null ? ` · ৳${c.site_limit.toLocaleString('en-US')}` : ''}</> : 'যায় না'}</td>
           <td><button className="secondary sm" onClick={() => setOpen(open === i ? null : i)}>{open === i ? 'বন্ধ' : 'বিস্তারিত'}</button></td>
           <td><button className="danger sm" onClick={() => { setList(list.filter((_, j) => j !== i)); setOpen(null) }}>×</button></td>
         </tr>
-        {open === i && <tr><td colSpan={6}><div className="da-grid3">
+        {open === i && <tr><td colSpan={5}><div className="da-grid3">
           <Field label="কোন খরচ এখানে বসবে" wide><textarea rows={2} value={c.note_bn ?? ''} onChange={e => set(i, { note_bn: e.target.value })} /></Field>
           <Field label="মেইন সাইটের ক্যাটাগরি" hint="খালি রাখলে ধরে নেওয়া হবে মেইন সাইটে যায় না">
             <input value={c.site_name ?? ''} onChange={e => set(i, { site_name: e.target.value || null })} /></Field>
@@ -254,7 +253,7 @@ function CategoriesCard({ cats, onSave }: { cats: Category[]; onSave: (c: Catego
             onChange={e => set(i, { site_note_bn: e.target.value || null })} /></Field>
         </div></td></tr>}
       </Fragment>)}</tbody></table>
-    <div className="row"><button className="secondary" onClick={() => setList([...list, { code: '', en: '', bn: '' }])}>＋ খাত</button><button onClick={() => void onSave(list)}>সেভ</button></div>
+    <div className="row"><button className="secondary" onClick={() => setList([...list, { code: '', en: '', bn: '' }])}>＋ খাত</button><button onClick={() => void onSave(list.map(c => c.code ? c : { ...c, code: (c.en || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'cat_' + Math.random().toString(36).slice(2, 7) }))}>সেভ</button></div>
     <p className="muted small">যে খাত আগের খরচে ব্যবহার হয়েছে, তা সরালেও পুরোনো খরচ বদলায় না।</p></section>
 }
 

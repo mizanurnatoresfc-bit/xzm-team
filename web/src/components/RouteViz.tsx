@@ -19,7 +19,7 @@ export function RouteViz({ start, lanes, empty }: { start: string; lanes: Lane[]
   const steps = <div className="route-steps">
     <div className="rs-start"><b>{start}</b><span>{L(`${n(lanes.length)}টা রুট`, `${lanes.length} routes`)}</span></div>
     {lanes.map(ln => <div key={ln.id} className="rs-lane">
-      <div className="rs-head"><b>{ln.code} · {ln.name}</b>{ln.sub && <span>{ln.sub}</span>}</div>
+      <div className="rs-head"><b>{ln.name}</b>{ln.sub && <span>{ln.sub}</span>}</div>
       <ol>{ln.stops.map((s, j) => <li key={s.id} className={s.tone ? `t-${s.tone}` : ''}><span className="rs-dot">{n(j + 1)}</span>
         <span className="rs-label">{s.label}{s.flag && <small>{s.flag}</small>}</span></li>)}</ol>
     </div>)}
@@ -42,7 +42,7 @@ export function RouteViz({ start, lanes, empty }: { start: string; lanes: Lane[]
       return <g key={ln.id}>
         {/* connector from start to the lane */}
         <path d={`M126 ${midY} C ${LEFT - 6} ${midY}, ${LEFT - 30} ${y}, ${LEFT + 6} ${y}`} fill="none" stroke="var(--border)" strokeWidth="2" />
-        <text x={LEFT + 8} y={y - 30} fill="var(--text)" fontWeight="700">{trim(`${ln.code} · ${ln.name}`, 48)}</text>
+        <text x={LEFT + 8} y={y - 30} fill="var(--text)" fontWeight="700">{trim(ln.name, 48)}</text>
         {ln.sub && <text x={LEFT + 8} y={y - 16} fill="var(--muted)" fontSize="11">{trim(ln.sub, 80)}</text>}
         <line x1={LEFT + 6} y1={y} x2={lastX} y2={y} stroke="var(--primary)" strokeWidth="3" strokeLinecap="round" opacity=".55" />
         {ln.stops.map((s, j) => <g key={s.id}>
