@@ -51,7 +51,7 @@ export function Attendance() {
         <span>বাকি: <strong>{bn((staff.data?.length ?? 0) - (day.data?.length ?? 0))}</strong></span></div>
         {canMark && staff.data && staff.data.some(e => !byEmp[e.id]) && <button className="secondary sm" onClick={() => void allPresent()}>বাকি সবাই উপস্থিত</button>}</div>
       {staff.data && staff.data.length === 0 ? <p className="muted">এই হাবে কোনো সক্রিয় কর্মী নেই।</p> :
-        <div className="da-table-wrap"><table className="da-table"><thead><tr><th>আইডি</th><th>নাম</th><th>হাজিরা</th></tr></thead>
+        <div className="da-table-wrap"><table className="da-table att-table"><thead><tr><th>আইডি</th><th>নাম</th><th>হাজিরা</th></tr></thead>
           <tbody>{staff.data?.map(e => { const r = byEmp[e.id]; return <tr key={e.id}><td><strong>{e.employee_code}</strong></td><td>{e.full_name}</td>
             <td>{r?.status === 'leave' ? <span className="da-badge b-info">ছুটি (অনুমোদিত)</span> : canMark ? <div className="att-btns">{MARKABLE.map(s =>
               <button key={s} className={`secondary att-${s}${r?.status === s ? ' on' : ''}`} aria-pressed={r?.status === s} disabled={busyId === e.id} onClick={() => void mark(e.id, s)}>{ATT_STATUS[s]}</button>)}</div>

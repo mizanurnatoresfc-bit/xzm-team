@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
+import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import {
   APP_STATUS, CHANGE_TYPE, DOC_TYPE, EMP_STATUS, MISSING, bn, dmy, docs, hr, hrFriendly, pay, todayDhaka,
@@ -21,27 +22,61 @@ export function EmployeeProfile() {
   const e = emp.data
   const app = useLoad(() => e?.status === 'applicant' ? hr.applicationOf(id) : Promise.resolve(null), [id, e?.status])
   const isDraftOwner = !!e && e.status === 'applicant' && !!app.data && ['draft', 'returned'].includes(app.data.status) && app.data.created_by === session?.user.id
+  const [tab, setTab] = useState<'overview' | 'personal' | 'docs' | 'history'>('overview')
+  // Profile photo: the newest "photo" document, opened with a short-lived link.
+  const photo = useLoad(async () => {
+    const list = await docs.list(id).catch(() => [])
+    const ph = list.find(d => d.doc_type === 'photo')
+    return ph ? await docs.url(ph.storage_path).catch(() => null) : null
+  }, [id])
 
   if (emp.error) return <AppShell title="কর্মীর প্রোফাইল"><p className="da-error">{hrFriendly(emp.error)}</p></AppShell>
   if (!e) return <AppShell title="কর্মীর প্রোফাইল"><p className="muted">{emp.loading ? 'লোড হচ্ছে…' : 'কর্মী পাওয়া যায়নি বা দেখার অনুমতি নেই।'}</p></AppShell>
   const reload = async () => { await emp.reload(); await app.reload() }
 
-  return <AppShell title={e.full_name} subtitle={<>{e.employee_code ? <>এমপ্লয়ি আইডি <strong>{e.employee_code}</strong> · </> : 'আইডি এখনো দেওয়া হয়নি · '}
-    {e.hub_id ? o.names.hub[e.hub_id] ?? '' : ''}{e.position_id ? ` · ${o.names.pos[e.position_id] ?? ''}` : ''} · <EmpBadge status={e.status} /></>}
-    actions={<Link to="/app/hr/employees"><button className="secondary">← সব কর্মী</button></Link>}>
+  const post = e.position_id ? o.names.pos[e.position_id] ?? '' : ''
+  const isRider = /rider|রাইডার|driver|ড্রাইভার/i.test(post)
+  return <AppShell title="কর্মীর প্রোফাইল" subtitle="টিম">
     {node}
-    {e.status === 'applicant' && app.data && <section className="panel">
-      <div className="da-bar"><h2 style={{ margin: 0 }}>আইডি আবেদন</h2><Badge tone={APP_STATUS[app.data.status][1]}>{APP_STATUS[app.data.status][0]}</Badge></div>
-      {app.data.review_note && <p className="notice">HR-এর নোট: {app.data.review_note}</p>}
-      <MissingList id={id} key={`${e.id}-${emp.data?.updated_at ?? ''}`} />
-      {app.data.status === 'submitted' && can('hr.application.approve') && <ReviewActions id={id} onDone={async m => { toast(m); await reload() }} />}
-      {app.data.status === 'submitted' && !can('hr.application.approve') && <p className="muted">HR যাচাই করছে।</p>}
-    </section>}
-    {isDraftOwner ? <DraftForm e={e} onSaved={async m => { toast(m); await reload() }} /> : <Details e={e} onChanged={async m => { toast(m); await reload() }} />}
-    <ExtraFields employee={e.id} zoneId={e.zone_id} onSaved={m => toast(m)} />
-    <ReferralPanel employee={e.id} zoneId={e.zone_id} onSaved={m => toast(m)} />
-    <Documents e={e} canUpload={isDraftOwner || can('hr.document.create')} onDone={m => toast(m)} />
-    {e.status !== 'applicant' && <History id={id} />}
+    <section className="emp-head">
+      <Link to="/app/hr/employees" className="emp-back"><Icon name="back" size={16} /> সব কর্মী</Link>
+      <div className="emp-top">
+        <div className="emp-photo">{photo.data ? <img src={photo.data} alt="" /> : (e.full_name || '?').slice(0, 2).toUpperCase()}</div>
+        <div className="emp-id">
+          <h2>{e.full_name}</h2>
+          <div className="emp-badges"><EmpBadge status={e.status} />{post && <span className={`role-pill${isRider ? ' rider' : ''}`}><Icon name={isRider ? 'truck' : 'user'} size={14} />{post}</span>}</div>
+          {e.mobile && <a className="emp-phone" href={`tel:${e.mobile}`}><Icon name="cc" size={16} />{e.mobile}</a>}
+          <div className="emp-hub"><Icon name="hub" size={16} />{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : 'হাব দেওয়া হয়নি'}
+            {e.employee_code ? <b>#{e.employee_code}</b> : <span className="muted">আইডি বাকি</span>}</div>
+        </div>
+      </div>
+      <div className="emp-acts">
+        {can('hr.employee.edit') && <button onClick={() => setTab('overview')}><Icon name="edit" size={16} />প্রোফাইল এডিট</button>}
+        <Link to="/app/hub/attendance" className="btn-ghost"><Icon name="cal" size={16} />হাজিরা</Link>
+        <Link to="/app/accounts/daily" className="btn-ghost"><Icon name="ledger" size={16} />হিসাব খাতা</Link>
+        <button className="secondary" onClick={() => setTab('docs')}><Icon name="file" size={16} />ডকুমেন্ট</button>
+      </div>
+    </section>
+    <nav className="emp-tabs" role="tablist">
+      {([['overview', 'সারসংক্ষেপ'], ['personal', 'ব্যক্তিগত'], ['docs', 'ডকুমেন্ট'], ['history', 'HR ইতিহাস']] as const).map(([k, t]) =>
+        <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
+    </nav>
+    {tab === 'overview' && <>
+      {e.status === 'applicant' && app.data && <section className="panel">
+        <div className="da-bar"><h2 style={{ margin: 0 }}>আইডি আবেদন</h2><Badge tone={APP_STATUS[app.data.status][1]}>{APP_STATUS[app.data.status][0]}</Badge></div>
+        {app.data.review_note && <p className="notice">HR-এর নোট: {app.data.review_note}</p>}
+        <MissingList id={id} key={`${e.id}-${emp.data?.updated_at ?? ''}`} />
+        {app.data.status === 'submitted' && can('hr.application.approve') && <ReviewActions id={id} onDone={async m => { toast(m); await reload() }} />}
+        {app.data.status === 'submitted' && !can('hr.application.approve') && <p className="muted">HR যাচাই করছে।</p>}
+      </section>}
+      {isDraftOwner ? <DraftForm e={e} onSaved={async m => { toast(m); await reload() }} /> : <Details e={e} onChanged={async m => { toast(m); await reload() }} />}
+    </>}
+    {tab === 'personal' && <>
+      <ExtraFields employee={e.id} zoneId={e.zone_id} onSaved={m => toast(m)} />
+      <ReferralPanel employee={e.id} zoneId={e.zone_id} onSaved={m => toast(m)} />
+    </>}
+    {tab === 'docs' && <Documents e={e} canUpload={isDraftOwner || can('hr.document.create')} onDone={m => { toast(m); void photo.reload() }} />}
+    {tab === 'history' && (e.status !== 'applicant' ? <History id={id} /> : <p className="muted">আইডি পাওয়ার পর ইতিহাস দেখাবে।</p>)}
   </AppShell>
 }
 

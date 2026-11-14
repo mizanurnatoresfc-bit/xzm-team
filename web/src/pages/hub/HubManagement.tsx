@@ -122,7 +122,7 @@ function AttendanceToday({ hub }: { hub: Hub }) {
         {canAdd && staff.data?.some(e => !byEmp[e.id]) && <button className="secondary sm" onClick={() => void allPresent()}>{L('বাকি সবাই উপস্থিত', 'Rest are present')}</button>}</div>
       {err && <p className="da-error">{err}</p>}
       {staff.error ? <p className="da-error">{hrFriendly(staff.error)}</p> : staff.data && !staff.data.length ? <p className="muted">{L('এই হাবে কোনো সক্রিয় কর্মী নেই।', 'No active staff in this hub.')}</p> :
-        <div className="da-table-wrap"><table className="da-table"><thead><tr><th>{L('আইডি', 'ID')}</th><th>{L('নাম', 'Name')}</th><th>{L('হাজিরা', 'Attendance')}</th></tr></thead>
+        <div className="da-table-wrap"><table className="da-table att-table"><thead><tr><th>{L("আইডি", "ID")}</th><th>{L("নাম", "Name")}</th><th>{L("হাজিরা", "Attendance")}</th></tr></thead>
           <tbody>{staff.data?.map(e => { const r = byEmp[e.id]; return <tr key={e.id}><td><strong>{e.employee_code ?? '—'}</strong></td>
             <td>{e.full_name}{r?.check_in ? <span className="sec">{L('এসেছেন', 'In')} {timeOf(r.check_in)}</span> : null}</td>
             <td>{r?.status === 'leave' ? <Badge tone="info">{L('ছুটি (অনুমোদিত)', 'On leave')}</Badge> : (canAdd && !r) || (canEdit && r) ? <div className="att-btns">{MARKABLE.map(s =>

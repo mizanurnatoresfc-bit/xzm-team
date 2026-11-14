@@ -367,3 +367,38 @@ button.quick-btn:hover{filter:brightness(1.08)}
 }
 @media (max-width:420px){.home-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}.quick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.greet h2{font-size:19px}}
 @media print{.bottom-nav,.sheet-bg{display:none!important}}
+
+/* ---- Staff profile header (Packzy-style) ---- */
+.emp-head{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:16px 18px;box-shadow:var(--shadow);margin-bottom:12px}
+.emp-back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-size:14px;margin-bottom:10px}
+.emp-top{display:flex;gap:16px;align-items:center}
+.emp-photo{width:92px;height:92px;flex:none;border-radius:50%;border:3px solid var(--primary-50);background:var(--primary-50);color:var(--primary);display:grid;place-items:center;font-size:28px;font-weight:800;overflow:hidden}
+.emp-photo img{width:100%;height:100%;object-fit:cover}
+.emp-id{min-width:0;flex:1}
+.emp-id h2{margin:0 0 6px;font-size:24px;line-height:1.15;text-transform:uppercase;letter-spacing:.2px}
+.emp-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}.emp-badges .da-badge{margin:0;padding:4px 12px;font-size:13px}
+.role-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:999px;background:var(--canvas);color:var(--text);font-weight:700;font-size:13px}
+.role-pill.rider{background:#E8EEFF;color:#1D4ED8}
+.emp-phone{display:inline-flex;gap:6px;align-items:center;font-weight:700;color:var(--primary);text-decoration:none;font-size:16px}
+.emp-hub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--muted);margin-top:4px}.emp-hub b{color:var(--text)}
+.emp-acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:14px}
+.emp-acts button,.emp-acts a{min-height:46px;border-radius:12px}
+.btn-ghost{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border);border-radius:12px;color:var(--text);text-decoration:none;font-weight:600;background:var(--surface)}
+.emp-tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin:6px 0 12px;overflow-x:auto}
+.emp-tabs button{background:none!important;border:0!important;border-bottom:3px solid transparent!important;border-radius:0;color:var(--muted);font-weight:700;padding:10px 14px;min-height:0;white-space:nowrap}
+.emp-tabs button.on{color:var(--primary);border-bottom-color:var(--primary)!important}
+
+/* ---- Bottom tab: active one gets a pill like the reference ---- */
+@media (max-width:960px){
+  .bn-item.on{background:var(--primary-50)!important}
+  .emp-id h2{font-size:21px}.emp-photo{width:80px;height:80px}
+  .emp-acts{grid-template-columns:1fr 1fr}
+  /* Attendance: one compact card per person, status chips on one swipeable line */
+  .att-table tr{display:grid!important;grid-template-columns:auto 1fr;gap:4px 10px;padding:10px 12px!important;border-radius:14px!important;background:var(--surface)}
+  .att-table td{display:block!important;padding:0!important;text-align:left!important;border:0!important}
+  .att-table td:nth-child(1){grid-row:1;color:var(--muted);font-size:13px}
+  .att-table td:nth-child(2){grid-row:1;font-weight:700;min-width:0}
+  .att-table td:nth-child(3){grid-column:1 / -1}
+  .att-table .att-btns{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+  .att-table .att-btns button{flex:none}
+}
