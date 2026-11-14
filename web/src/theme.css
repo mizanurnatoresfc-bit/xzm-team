@@ -492,3 +492,30 @@ button.quick-btn:hover{filter:brightness(1.08)}
   .hd-dl{grid-template-columns:92px 1fr}
   .hd-areas{padding-left:8px}
 }
+
+/* ---------- Dashboard: my network (Region → Area → Hub) ---------- */
+.net-path{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+.net-path .np{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:var(--primary-50);color:var(--primary);font-size:12.5px;font-weight:600}
+.net-path .np.a{background:var(--info-bg);color:var(--info-fg)}
+.net-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.net-kpis .nk{display:flex;flex-direction:column;gap:2px;padding:12px;border:1px solid var(--border);border-radius:14px;text-decoration:none;color:var(--text);background:var(--surface)}
+.net-kpis .nk b{font-size:22px;line-height:1.1}.net-kpis .nk small{color:var(--muted);font-size:12px}
+.net-kpis .nk.warn{border-color:var(--warn-fg);background:var(--warn-bg)}
+.nk-i{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;margin-bottom:6px}
+.nk-i.g{background:#E7F6EC;color:#15803D}.nk-i.b{background:#E8EEFF;color:#1D4ED8}.nk-i.o{background:#FFF1E6;color:#C2410C}.nk-i.r{background:#FDECEC;color:#B91C1C}
+:root[data-theme="dark"] .nk-i{background:color-mix(in srgb,currentColor 16%,transparent)}
+.net-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:12px;align-items:start}
+.net-hubs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:300px;overflow:auto;padding-right:2px}
+.net-hub{display:flex;flex-direction:column;gap:5px;padding:9px 10px;border:1px solid var(--border);border-radius:12px;text-decoration:none;color:var(--text);background:var(--surface)}
+.net-hub:hover{border-color:var(--primary)}
+.net-hub.off{opacity:.6}
+.nh-top{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+.nh-top strong{font-size:13px;line-height:1.25;overflow:hidden;text-overflow:ellipsis}
+.nh-code{font-size:12px;font-weight:700;color:var(--primary);flex:none}
+.nh-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted)}
+.nh-meta span{display:inline-flex;align-items:center;gap:3px}
+.nh-meta .ok{color:var(--ok-fg)}.nh-meta .lt{color:#C2410C}.nh-meta .nogps{color:var(--bad-fg)}
+.nh-bar{height:5px;border-radius:5px;background:var(--border);overflow:hidden}.nh-bar i{display:block;height:100%;background:var(--primary);border-radius:5px}
+@media (max-width:900px){.net-grid{grid-template-columns:1fr}.net-hubs{max-height:none}}
+@media (max-width:700px){.net-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.net-kpis .nk{padding:10px}.net-kpis .nk b{font-size:19px}}
+@media (max-width:420px){.net-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}

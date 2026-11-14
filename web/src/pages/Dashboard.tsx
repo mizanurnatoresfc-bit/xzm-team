@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AppShell, useMyPhoto } from '../components/AppShell'
 import { Icon } from '../components/Icon'
+import { NetworkPanel } from '../components/NetworkPanel'
 import { Badge, Stat, useLoad } from './accounts/ui'
 import { usePrefs } from '../lib/prefs'
 import { dashboard, dashboardFriendly, panelLabel, type PanelCode } from '../lib/dashboard'
 
 const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
-  ['/app/org', 'map', 'জোন, হাব ও পদ', 'Zones, hubs & posts', 'প্রতিষ্ঠান, জোন, হাব, বিভাগ ও পদবি', 'Organisation, zones, hubs, departments, positions', ['org.zone.view', 'org.hub.view']],
+  ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
+  ['/app/org', 'org', 'এরিয়া, হাব ও পদ', 'Areas, hubs & posts', 'প্রতিষ্ঠান, এরিয়া, হাব, বিভাগ ও পদবি', 'Organisation, areas, hubs, departments, positions', ['org.zone.view', 'org.hub.view']],
   ['/app/zonal/staff', 'users', 'হাব অনুযায়ী কর্মী', 'Staff by hub', 'হাবের হিসাব, বদলি, আইডি, এক্সপোর্ট', 'Hub figures, transfers, IDs, export', ['hr.employee.view']],
   ['/app/hr', 'chart', 'HR ড্যাশবোর্ড', 'HR dashboard', 'কর্মী, যোগদান, অপেক্ষমাণ কাজ', 'Staff, joining, pending work', ['hr.employee.view']],
   ['/app/hr/employees', 'users', 'কর্মী', 'Employees', 'তালিকা, প্রোফাইল, নতুন আইডি আবেদন', 'List, profiles, new ID application', ['hr.employee.view', 'hr.application.create']],
@@ -38,6 +40,7 @@ export function Dashboard() {
     ['/app/hub/tasks', 'tasks', 'কাজ', 'Tasks', 'p', ['zonal.task.view', 'zonal.task.create']],
     ['/app/accounts/daily', 'ledger', 'হিসাব খাতা', 'Daily sheet', 'g', null],
     ['/app/hub/team', 'users', 'হাব টিম', 'Hub team', 'b', ['hr.employee.view']],
+    ['/app/org/hubs', 'hub', 'হাব ম্যাপ', 'Hub map', 'r', ['org.hub.view']],
     ['/app/sorting/dashboard', 'truck', 'শটিং', 'Sorting', 'o', ['sorting.center.view', 'sorting.report.view']],
     ['/app/office/overview', 'home', 'অফিস', 'Office', 'p', ['office.property.view']],
     ['/app/hub/routes', 'map', 'রাইডার রুট', 'Rider routes', 'r', ['ops.route.view']],
@@ -65,6 +68,8 @@ export function Dashboard() {
       <span>{L('আপনার প্রোফাইলে ছবি নেই — HR-কে ছবি দিন', 'Your profile has no photo — give one to HR')}</span></Link>}
     <div className="home-tiles">{TILES.filter(t => !t[5] || t[5].some(p => can(p))).map(([to, ic, bn, en, tone]) =>
       <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}</div>
+
+    <NetworkPanel />
 
     {has('my_work') && d?.my_work && <Panel code="my_work">
       <div className="da-stats">
@@ -143,7 +148,7 @@ export function Dashboard() {
 
     {has('zonal_overview') && d?.zonal_overview && <Panel code="zonal_overview" to="/app/zonal/staff">
       <div className="da-stats">
-        <Stat icon="map" label={L('জোন', 'Zones')} value={n(d.zonal_overview.zones)} />
+        <Stat icon="map" label={L('এরিয়া', 'Areas')} value={n(d.zonal_overview.zones)} />
         <Stat icon="hub" label={L('হাব', 'Hubs')} value={n(d.zonal_overview.hubs)} />
         <Stat icon="users" label={L('সক্রিয় কর্মী', 'Active staff')} value={n(d.zonal_overview.staff)} />
         <Stat icon="log" tone={d.zonal_overview.tasks_overdue ? 'bad' : undefined} label={L('চলমান দায়িত্ব', 'Open tasks')} value={n(d.zonal_overview.tasks_open)}
