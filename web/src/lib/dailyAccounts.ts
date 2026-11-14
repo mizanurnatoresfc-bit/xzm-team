@@ -47,6 +47,10 @@ export type Expense = {
   template_id: string | null; ocr: OcrResult | null; ocr_verified: boolean; remarks: string | null
   /** Set when the company made its own voucher because the payee gave no bill. */
   voucher_no: string | null
+  /** The vehicle it was for, and the person it is referred to. */
+  vehicle_id: string | null; reference_name: string | null; reference_phone: string | null; reference_position: string | null
+  /** When the line came from a claim: the claim and its bill file. */
+  claim_id: string | null; claim_file: string | null
 }
 
 export type SheetEvent = {
@@ -84,6 +88,7 @@ export type Category = { code: string; en: string; bn: string
 export type DaSettings = {
   'da.timezone': string; 'da.start_time': string; 'da.backdate_days': number; 'da.session_tracking': boolean
   'da.rider_fields': string[]; 'da.due_rule': 'manual' | 'amount_minus_paid'
+  'da.reference_people': RefPerson[]
   'da.mobile_banking_rule': 'separate' | 'reduces_due' | 'adds_to_due'; 'da.expense_categories': Category[]
   'da.reference_setup': { expense_prefix: string; merchant_prefix: string; reference_required: boolean }
   'da.bill_upload': { max_mb: number; types: string[]; required_over: number | null }
@@ -103,6 +108,27 @@ export type VoucherData = {
   hub: string; hub_code: string; zone: string; account_date: string; sheet_no: number
   made_by: string | null; made_at: string
 }
+
+export type Vehicle = { id: string; code: string; name: string; kind: string; reg_no: string | null
+  hub_id: string | null; hub_name: string | null; status: 'active' | 'inactive'
+  holder_id: string | null; holder_code: string | null; holder_name: string | null; since: string | null }
+
+export type MyVehicle = { vehicle_id: string; code: string; name: string; kind: string; reg_no: string | null
+  since: string; spent_30d: number
+  lines: Array<{ date: string; name: string; category: string; amount: number; bill_no: string | null
+                 voucher_no: string | null; remarks: string | null }> }
+
+/** A bill a member of staff put up themselves, waiting for the manager to take it in. */
+export type Claim = {
+  id: string; no: number; employee_id?: string; employee_code: string | null; employee_name: string | null
+  kind: 'transport' | 'employee'; expense_name: string; category: string; amount: number; bill_date: string
+  bill_no: string | null; reference_no: string | null
+  reference_name: string | null; reference_phone: string | null; reference_position: string | null
+  vehicle_id: string | null; vehicle_name?: string | null; attachment_path: string | null; remarks: string | null
+  status?: 'submitted' | 'added' | 'rejected' | 'withdrawn'; review_note?: string | null; created_at: string
+}
+
+export type RefPerson = { name: string; phone?: string; position?: string }
 
 export type ReportKind = 'hub_daily' | 'rider' | 'employee_expense' | 'merchant_payment' | 'transport_expense'
   | 'verification' | 'pending' | 'corrections'
@@ -195,6 +221,32 @@ export const da = {
       p_reference_no: a.ref ?? null, p_attachment_path: a.path ?? null, p_paid_by_code: a.paidBy ?? null,
       p_ocr: a.ocr ?? null, p_ocr_verified: a.verified ?? false, p_template: a.template ?? null,
       p_remarks: a.remarks ?? null, p_line: a.line ?? null }),
+  setReference: (a: { line: string; name?: string | null; phone?: string | null; position?: string | null; vehicle?: string | null }) =>
+    rpc<void>('da_set_expense_reference', { p_line: a.line, p_name: a.name ?? null, p_phone: a.phone ?? null,
+      p_position: a.position ?? null, p_vehicle: a.vehicle ?? null }),
+  vehicles: (hub?: string | null) => rpc<Vehicle[]>('vehicle_list', { p_hub: hub ?? null }),
+  saveVehicle: (v: { name: string; code: string; kind: string; hub: string; reg?: string | null
+                     status?: string; remarks?: string | null; id?: string | null }) =>
+    rpc<string>('vehicle_save', { p_name: v.name, p_code: v.code, p_kind: v.kind, p_hub: v.hub,
+      p_reg_no: v.reg ?? null, p_status: v.status ?? 'active', p_remarks: v.remarks ?? null, p_id: v.id ?? null }),
+  assignVehicle: (vehicle: string, code: string, reason: string) =>
+    rpc<string>('vehicle_assign', { p_vehicle: vehicle, p_employee_code: code, p_reason: reason }),
+  releaseVehicle: (vehicle: string, reason: string) => rpc<void>('vehicle_release', { p_vehicle: vehicle, p_reason: reason }),
+  myVehicles: () => rpc<MyVehicle[]>('da_my_vehicles', {}),
+  myClaims: (days = 90) => rpc<Claim[]>('da_my_claims', { p_days: days }),
+  sheetClaims: (session: string) => rpc<Claim[]>('da_sheet_claims', { p_session: session }),
+  saveClaim: (c: { name: string; category: string; amount: number; date: string; kind?: 'transport' | 'employee'
+                   billNo?: string | null; ref?: string | null; refName?: string | null; refPhone?: string | null
+                   refPosition?: string | null; vehicle?: string | null; path?: string | null
+                   remarks?: string | null; claim?: string | null }) =>
+    rpc<string>('da_claim_save', { p_expense_name: c.name, p_category: c.category, p_amount: c.amount,
+      p_bill_date: c.date, p_kind: c.kind ?? 'employee', p_bill_no: c.billNo ?? null, p_reference_no: c.ref ?? null,
+      p_reference_name: c.refName ?? null, p_reference_phone: c.refPhone ?? null, p_reference_position: c.refPosition ?? null,
+      p_vehicle: c.vehicle ?? null, p_attachment_path: c.path ?? null, p_remarks: c.remarks ?? null, p_claim: c.claim ?? null }),
+  withdrawClaim: (claim: string, reason: string) => rpc<void>('da_claim_withdraw', { p_claim: claim, p_reason: reason }),
+  addClaim: (claim: string, session: string, note?: string) =>
+    rpc<string>('da_claim_add', { p_claim: claim, p_session: session, p_note: note ?? null }),
+  rejectClaim: (claim: string, note: string) => rpc<void>('da_claim_reject', { p_claim: claim, p_note: note }),
   makeVoucher: (expense: string) => rpc<string>('da_make_voucher', { p_expense: expense }),
   voucher: (expense: string) => rpc<VoucherData>('da_voucher', { p_expense: expense }),
   removeLine: (kind: 'rider' | 'merchant' | 'expense', id: string, reason: string) =>

@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
-import { da, type DaSettings, type Category, type Template } from '../../lib/dailyAccounts'
+import { da, type DaSettings, type Category, type Template, type RefPerson, type Vehicle } from '../../lib/dailyAccounts'
+import { org } from '../../lib/hr'
 import { AccountsShell, Field, ErrorNote, Badge, Modal, useLoad, useToast } from './ui'
 
 // Zonal / Accounts settings for Daily Accounts. Every change is validated and audited in the database.
@@ -62,10 +63,113 @@ export function AccountsSettings() {
         <button onClick={() => void save(['da.reference_setup', 'da.bill_upload', 'da.ocr'])}>সেভ</button></section>
     </div>
 
+    <div className="da-grid2">
+      <RefPeopleCard list={s['da.reference_people'] ?? []}
+        onSave={async r => { set('da.reference_people', r); setErr(null); try { await da.configure('da.reference_people', r); toast('রেফারেন্স তালিকা সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />
+      <VehiclesCard />
+    </div>
     <TemplatesCard cats={s['da.expense_categories']} />
     <AccessCard />
   </AccountsShell>
 }
+
+/** The people an expense is often referred to, so the sheet fills in one click. */
+function RefPeopleCard({ list, onSave }: { list: RefPerson[]; onSave: (r: RefPerson[]) => Promise<void> }) {
+  const [rows, setRows] = useState<RefPerson[]>(list)
+  useEffect(() => setRows(list), [list])
+  const set = (i: number, patch: Partial<RefPerson>) => setRows(rows.map((x, j) => j === i ? { ...x, ...patch } : x))
+  return <section className="panel"><h2>রেফারেন্সের লোক (সেভ করা)</h2>
+    <p className="muted small">যাঁদের নাম খরচে বারবার লাগে — নাম, মোবাইল ও পদবি এখানে রাখলে খরচ লেখার সময় এক ক্লিকে বসে যাবে।</p>
+    <div className="da-table-wrap"><table className="da-table">
+      <thead><tr><th>নাম</th><th>মোবাইল</th><th>পদবি</th><th /></tr></thead>
+      <tbody>{rows.map((r, i) => <tr key={i}>
+        <td><input value={r.name} onChange={e => set(i, { name: e.target.value })} /></td>
+        <td><input inputMode="numeric" placeholder="01XXXXXXXXX" value={r.phone ?? ''} onChange={e => set(i, { phone: e.target.value })} /></td>
+        <td><input value={r.position ?? ''} onChange={e => set(i, { position: e.target.value })} /></td>
+        <td><button className="danger sm" onClick={() => setRows(rows.filter((_, j) => j !== i))}>×</button></td></tr>)}
+        {rows.length === 0 && <tr><td colSpan={4} className="muted">কেউ যোগ করা হয়নি।</td></tr>}</tbody></table></div>
+    <div className="row"><button className="secondary" onClick={() => setRows([...rows, { name: '', phone: '', position: '' }])}>＋ লোক</button>
+      <button onClick={() => void onSave(rows.filter(r => r.name.trim()))}>সেভ</button></div>
+  </section>
+}
+
+/** The hub's vehicles and who holds each one. */
+function VehiclesCard() {
+  const hubs = useLoad(() => org.hubs().catch(() => [] as Array<{ id: string; name: string }>), [])
+  const [hub, setHub] = useState('')
+  const vehicles = useLoad(() => hub ? da.vehicles(hub) : Promise.resolve([] as Vehicle[]), [hub])
+  const [d, setD] = useState<Partial<Vehicle> & { reg?: string } | null>(null)
+  const [give, setGive] = useState<Vehicle | null>(null)
+  const [code, setCode] = useState(''); const [why, setWhy] = useState('')
+  const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false)
+  useEffect(() => { if (!hub && hubs.data?.length) setHub(hubs.data[0].id) }, [hubs.data, hub])
+
+  async function save() {
+    if (!d || !hub) return
+    setBusy(true); setErr(null)
+    try {
+      await da.saveVehicle({ name: d.name ?? '', code: d.code ?? '', kind: d.kind ?? 'bike', hub,
+        reg: d.reg_no ?? null, status: d.status ?? 'active', id: d.id ?? null })
+      setD(null); await vehicles.reload()
+    } catch (e) { setErr(e) } finally { setBusy(false) }
+  }
+  async function hand() {
+    if (!give) return
+    setBusy(true); setErr(null)
+    try { await da.assignVehicle(give.id, code, why); setGive(null); setCode(''); setWhy(''); await vehicles.reload() }
+    catch (e) { setErr(e) } finally { setBusy(false) }
+  }
+
+  return <section className="panel"><h2>গাড়ি ও কার নামে আছে</h2>
+    <p className="muted small">গাড়ির খরচ লেখার সময় গাড়ি বেছে দিলে, যার নামে গাড়ি আছে তার “আমার হিসাব” পাতায় কী বাবদ কত খরচ হলো দেখা যাবে।</p>
+    <div className="da-filters" style={{ padding: 0 }}>
+      <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>
+        {(hubs.data ?? []).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+    </div>
+    <ErrorNote error={err ?? vehicles.error} />
+    <div className="da-table-wrap"><table className="da-table">
+      <thead><tr><th>গাড়ি</th><th>ধরন</th><th>রেজিস্ট্রেশন</th><th>কার নামে</th><th>অবস্থা</th><th /></tr></thead>
+      <tbody>{(vehicles.data ?? []).map(v => <tr key={v.id}>
+        <td data-l="গাড়ি"><b>{v.name}</b><span className="sec">{v.code}</span></td>
+        <td data-l="ধরন">{VEHICLE_KIND[v.kind] ?? v.kind}</td>
+        <td data-l="রেজিস্ট্রেশন">{v.reg_no ?? '—'}</td>
+        <td data-l="কার নামে">{v.holder_name ? <>{v.holder_name}<span className="sec">ID {v.holder_code}</span></> : <span className="muted">কারও নামে নেই</span>}</td>
+        <td data-l="অবস্থা">{v.status === 'active' ? 'চালু' : 'বন্ধ'}</td>
+        <td><span className="row"><button className="secondary sm" onClick={() => setD({ ...v, reg: v.reg_no ?? '' })}>এডিট</button>
+          <button className="secondary sm" onClick={() => { setGive(v); setCode(''); setWhy('') }}>কাউকে দিন</button></span></td>
+      </tr>)}
+        {(vehicles.data ?? []).length === 0 && <tr><td colSpan={6} className="muted">এই হাবে কোনো গাড়ি নেই।</td></tr>}</tbody></table></div>
+    <button className="secondary" disabled={!hub} onClick={() => setD({ kind: 'bike', status: 'active' })}>＋ গাড়ি</button>
+
+    {d && <Modal title={d.id ? 'গাড়ি এডিট' : 'নতুন গাড়ি'} onClose={() => setD(null)}
+      actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button>
+        <button disabled={busy || !d.name || !d.code} onClick={() => void save()}>সেভ</button></>}>
+      <div className="da-grid2">
+        <Field label="নাম *"><input autoFocus value={d.name ?? ''} onChange={e => setD({ ...d, name: e.target.value })} placeholder="যেমন: অফিসের বাইক ১" /></Field>
+        <Field label="কোড *"><input value={d.code ?? ''} onChange={e => setD({ ...d, code: e.target.value })} placeholder="BIKE-1" /></Field>
+        <Field label="ধরন"><select value={d.kind ?? 'bike'} onChange={e => setD({ ...d, kind: e.target.value })}>
+          {Object.entries(VEHICLE_KIND).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></Field>
+        <Field label="রেজিস্ট্রেশন নম্বর"><input value={d.reg_no ?? ''} onChange={e => setD({ ...d, reg_no: e.target.value })} /></Field>
+        <Field label="অবস্থা"><select value={d.status ?? 'active'} onChange={e => setD({ ...d, status: e.target.value as Vehicle['status'] })}>
+          <option value="active">চালু</option><option value="inactive">বন্ধ</option></select></Field>
+      </div>
+      <ErrorNote error={err} />
+    </Modal>}
+
+    {give && <Modal title={`${give.name} কাকে দেবেন?`} onClose={() => setGive(null)}
+      actions={<><button className="secondary" onClick={() => setGive(null)}>বাতিল</button>
+        <button disabled={busy || !code || !why.trim()} onClick={() => void hand()}>দিন</button></>}>
+      {give.holder_name && <p className="muted small">এখন আছে: {give.holder_name} (ID {give.holder_code}) — নতুন নাম দিলে তাঁর কাছ থেকে চলে যাবে।</p>}
+      <div className="da-grid2">
+        <Field label="Employee ID *"><input autoFocus inputMode="numeric" value={code} onChange={e => setCode(e.target.value)} /></Field>
+        <Field label="কারণ *"><input value={why} onChange={e => setWhy(e.target.value)} placeholder="যেমন: ডেলিভারির জন্য" /></Field>
+      </div>
+      <ErrorNote error={err} />
+    </Modal>}
+  </section>
+}
+
+const VEHICLE_KIND: Record<string, string> = { bike: 'বাইক', cng: 'সিএনজি', van: 'ভ্যান', truck: 'ট্রাক', pickup: 'পিকআপ', other: 'অন্যান্য' }
 
 function CategoriesCard({ cats, onSave }: { cats: Category[]; onSave: (c: Category[]) => Promise<void> }) {
   const [list, setList] = useState<Category[]>(cats)

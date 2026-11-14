@@ -3,20 +3,18 @@ import { Link, useParams } from 'react-router-dom'
 import {
   da, num, taka, dateBn, timeBn, duration, todayDhaka, EVENT_LABEL,
   type Sheet, type DaSettings, type Template, type RiderLine, type MerchantPayment, type Expense, type OcrResult, type Category,
+  type Claim, type Vehicle,
 } from '../../lib/dailyAccounts'
 import { readImage, parsePayment, parseBill } from '../../lib/ocr'
 import { printVoucher } from '../../lib/voucher'
 import { printArea } from '../../lib/xlsx'
 import { AccountsShell, Stat, StatusBadge, Badge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
 
-type Tab = 'riders' | 'merchant' | 'expense' | 'history'
-
 export function DailySheet() {
   const { id = '' } = useParams()
   const sheet = useLoad(() => da.sheet(id), [id])
   const settings = useLoad(() => da.settings(), [])
   const templates = useLoad(() => da.templates().catch(() => [] as Template[]), [])
-  const [tab, setTab] = useState<Tab>('riders')
   const { toast, node } = useToast()
   const s = sheet.data
 
@@ -50,16 +48,21 @@ export function DailySheet() {
       <Stat label="মোট খরচ" value={taka(t.merchant_cash + t.transport_expense + t.employee_expense)} />
     </section>}
 
-    <div className="da-tabs no-print" role="tablist">
-      {([['riders', `রাইডার (${num(s.riders.length)})`], ['merchant', `মার্চেন্ট পেমেন্ট (${num(s.merchant_payments.length)})`],
-         ['expense', `খরচ (${num(s.expenses.length)})`], ['history', 'ইতিহাস']] as Array<[Tab, string]>)
-        .map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? '' : 'secondary'} onClick={() => setTab(k)}>{l}</button>)}
-    </div>
+    <nav className="da-jump no-print" aria-label="এই পাতার অংশ">
+      <a href="#da-riders">রাইডার ({num(s.riders.length)})</a>
+      <a href="#da-merchant">মার্চেন্ট পেমেন্ট ({num(s.merchant_payments.length)})</a>
+      <a href="#da-expense">খরচ ({num(s.expenses.length)})</a>
+      <a href="#da-claims">জমা পড়া বিল</a>
+      <a href="#da-close">দিন শেষের হিসাব</a>
+      <a href="#da-history">ইতিহাস</a>
+    </nav>
     <div className="print-area">
-      {tab === 'riders' && <RidersTab s={s} settings={settings.data} reload={reload} />}
-      {tab === 'merchant' && <MerchantTab s={s} settings={settings.data} reload={reload} />}
-      {tab === 'expense' && <ExpenseTab s={s} settings={settings.data} templates={templates.data ?? []} reload={reload} />}
-      {tab === 'history' && <HistoryTab s={s} />}
+      <RidersTab s={s} settings={settings.data} reload={reload} />
+      <MerchantTab s={s} settings={settings.data} reload={reload} />
+      <ExpenseTab s={s} settings={settings.data} templates={templates.data ?? []} reload={reload} />
+      <ClaimsPanel s={s} cats={settings.data['da.expense_categories']} reload={reload} />
+      <ClosingBox s={s} settings={settings.data} />
+      <details className="panel no-print" id="da-history"><summary><b>ইতিহাস — কে কখন কী করেছেন</b></summary><HistoryTab s={s} /></details>
     </div>
     <ActionBar s={s} reload={reload} />
   </AccountsShell>
@@ -102,10 +105,14 @@ function RidersTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; re
     delivery: String(r.delivery_qty), pickup: String(r.pickup_qty), amount: String(r.amount), paid: String(r.paid_amount),
     due: String(r.due_input), mb: String(r.mobile_banking), remarks: r.remarks ?? '' })
 
-  return <section className="panel">
+  const sum = (f: (r: RiderLine) => number) => s.riders.reduce((a, r) => a + f(r), 0)
+
+  return <section className="panel" id="da-riders">
     <div className="da-bar"><h2>রাইডার-ভিত্তিক হিসাব</h2>
-      {s.can_edit && <div className="row no-print">{missing.length > 0 && <span className="muted small">তালিকায় নেই: {missing.map(m => m.full_name).join(', ')}</span>}
+      {s.can_edit && <div className="row no-print">
+        {missing.length > 0 && <Badge tone="warn">এখনো হিসাব বাকি: {num(missing.length)} জন</Badge>}
         <button onClick={() => { setErr(null); setD({ ...emptyRider }) }}>＋ রাইডার যোগ</button></div>}</div>
+    {missing.length > 0 && <p className="muted small no-print">যাঁদের লাইন এখনো ওঠেনি: {missing.map(m => `${m.employee_code} ${m.full_name}`).join(' · ')}</p>}
     <p className="muted small">বকেয়া নিয়ম: {manualDue ? 'নিজে লিখবেন' : 'টাকা − জমা'} · মোবাইল ব্যাংকিং: {settings['da.mobile_banking_rule'] === 'separate' ? 'আলাদা হিসাব (বকেয়ার সাথে যোগ-বিয়োগ হয় না)' : settings['da.mobile_banking_rule'] === 'reduces_due' ? 'বকেয়া থেকে বাদ যায়' : 'বকেয়ার সাথে যোগ হয়'}</p>
     <div className="da-table-wrap"><table className="da-table">
       <thead><tr><th>নং</th><th>Employee ID</th><th>রাইডারের নাম</th><th>মোবাইল</th>
@@ -121,7 +128,15 @@ function RidersTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; re
         {fields.includes('remarks') && <td data-l="মন্তব্য">{r.remarks ?? ''}</td>}
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(r)}>এডিট</button>
           <button className="danger sm" onClick={() => setRemove(r)}>বাদ</button></span>}</td></tr>)}
-        {s.riders.length === 0 && <tr><td colSpan={12} className="muted">এখনো কোনো রাইডার যোগ হয়নি।</td></tr>}</tbody></table></div>
+        {s.riders.length === 0 && <tr><td colSpan={12} className="muted">এখনো কোনো রাইডার যোগ হয়নি।</td></tr>}</tbody>
+      {s.riders.length > 0 && <tfoot><tr><td colSpan={4}>মোট ({num(s.riders.length)} জন)</td>
+        {fields.includes('delivery_qty') && <td data-l="মোট ডেলিভারি" className="r">{num(sum(r => r.delivery_qty))}</td>}
+        {fields.includes('pickup_qty') && <td data-l="মোট পিকআপ" className="r">{num(sum(r => r.pickup_qty))}</td>}
+        {fields.includes('amount') && <td data-l="মোট টাকা" className="r">{taka(sum(r => r.amount))}</td>}
+        {fields.includes('paid_amount') && <td data-l="মোট জমা" className="r">{taka(sum(r => r.paid_amount))}</td>}
+        {fields.includes('due') && <td data-l="মোট বকেয়া" className="r"><b className={sum(r => r.due) > 0 ? 'bad' : ''}>{taka(sum(r => r.due))}</b></td>}
+        {fields.includes('mobile_banking') && <td data-l="মোট মোবাইল ব্যাংকিং" className="r">{taka(sum(r => r.mobile_banking))}</td>}
+        {fields.includes('remarks') && <td className="no-print" />}<td className="no-print" /></tr></tfoot>}</table></div>
 
     {d && <Modal title={d.line ? 'রাইডারের হিসাব এডিট' : 'রাইডার যোগ'} onClose={() => setD(null)} wide
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || !d.code || d.allowed === false} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'সেভ'}</button></>}>
@@ -224,7 +239,9 @@ function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; 
   const edit = (m: MerchantPayment) => setD({ line: m.id, merchantQ: m.merchant_name, merchant: m.merchant_id, merchantName: m.merchant_name, ref: m.payment_ref ?? '',
     txn: m.transaction_id ?? '', amount: String(m.amount), date: m.payment_date, path: m.screenshot_path, ocr: m.ocr, verified: m.ocr_verified, remarks: m.remarks ?? '' })
 
-  return <section className="panel">
+  const total = s.merchant_payments.reduce((a, m) => a + m.amount, 0)
+
+  return <section className="panel" id="da-merchant">
     <div className="da-bar"><h2>মার্চেন্ট ক্যাশ পেমেন্ট</h2>{s.can_edit && <button className="no-print" onClick={() => { setErr(null); setD({ ...blank }) }}>＋ পেমেন্ট যোগ</button>}</div>
     <div className="da-table-wrap"><table className="da-table"><thead><tr><th>নং</th><th>মার্চেন্ট</th><th>Payment ID</th><th>Transaction ID</th><th className="r">টাকা</th><th>তারিখ</th><th>মিল</th><th>OCR</th><th>স্ক্রিনশট</th><th>মন্তব্য</th><th className="no-print" /></tr></thead>
       <tbody>{s.merchant_payments.map(m => <tr key={m.id}><td data-l="নং">{num(m.no)}</td><td data-l="মার্চেন্ট"><b>{m.merchant_name}</b></td><td data-l="Payment ID">{m.payment_ref ?? '—'}</td>
@@ -233,7 +250,9 @@ function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; 
         <td data-l="OCR">{!m.ocr ? '—' : m.ocr_verified ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>}</td>
         <td data-l="স্ক্রিনশট">{m.screenshot_path ? <FileLink path={m.screenshot_path} /> : '—'}</td><td data-l="মন্তব্য">{m.remarks ?? ''}</td>
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(m)}>এডিট</button><button className="danger sm" onClick={() => setRemove(m)}>বাদ</button></span>}</td></tr>)}
-        {s.merchant_payments.length === 0 && <tr><td colSpan={11} className="muted">কোনো মার্চেন্ট পেমেন্ট নেই।</td></tr>}</tbody></table></div>
+        {s.merchant_payments.length === 0 && <tr><td colSpan={11} className="muted">কোনো মার্চেন্ট পেমেন্ট নেই।</td></tr>}</tbody>
+      {s.merchant_payments.length > 0 && <tfoot><tr><td colSpan={4}>মোট ({num(s.merchant_payments.length)} টি)</td>
+        <td data-l="মোট টাকা" className="r">{taka(total)}</td><td colSpan={6} className="no-print" /></tr></tfoot>}</table></div>
 
     {d && <Modal title={d.line ? 'মার্চেন্ট পেমেন্ট এডিট' : 'মার্চেন্ট পেমেন্ট যোগ'} wide onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || up.progress !== null || (!!d.ocr && !d.verified)} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'যাচাই করে সেভ'}</button></>}>
@@ -288,7 +307,8 @@ function FileLink({ path }: { path: string }) {
 
 // ---------------------------------------------------------------------------- expenses
 type XDraft = { line?: string; kind: 'transport' | 'employee'; employee: string; employeeName?: string; template: string; name: string; category: string; amount: string
-  date: string; billNo: string; ref: string; paidBy: string; path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string }
+  date: string; billNo: string; ref: string; paidBy: string; path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string
+  vehicle: string; refName: string; refPhone: string; refPosition: string }
 function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: DaSettings; templates: Template[]; reload: (m?: string) => Promise<void> }) {
   const cats = settings['da.expense_categories']
   const catL = (c: string) => cats.find(x => x.code === c)?.bn ?? c
@@ -299,7 +319,10 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
   const [kindF, setKindF] = useState<'all' | 'transport' | 'employee'>('all')
   const up = useOcrUpload(s.session.id, settings)
   const active = templates.filter(t => t.status === 'active')
+  const vehicles = useLoad(() => s.can_edit ? da.vehicles(s.hub.id).catch(() => [] as Vehicle[]) : Promise.resolve([] as Vehicle[]), [s.hub.id, s.can_edit])
+  const refPeople = settings['da.reference_people'] ?? []
   const blank = (kind: 'transport' | 'employee'): XDraft => ({ kind, employee: '', template: '', name: '', category: cats[0]?.code ?? 'other', amount: '', date: s.session.account_date,
+    vehicle: '', refName: '', refPhone: '', refPosition: '',
     billNo: '', ref: '', paidBy: '', ocr: null, verified: false, remarks: '' })
   const needBill = d && billCfg.required_over != null && (+d.amount || 0) >= billCfg.required_over && !d.path
 
@@ -336,18 +359,24 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
     if (!d) return
     setBusy(true); setErr(null)
     try {
-      await da.saveExpense({ session: s.session.id, kind: d.kind, employee: d.employee || null, name: d.name, category: d.category, amount: +d.amount,
+      const line = await da.saveExpense({ session: s.session.id, kind: d.kind, employee: d.employee || null, name: d.name, category: d.category, amount: +d.amount,
         date: d.date, billNo: d.billNo || null, ref: d.ref && !/-$/.test(d.ref) ? d.ref : null, path: d.path, paidBy: d.paidBy || null,
         ocr: d.ocr, verified: d.ocr ? d.verified : false, template: d.template || null, remarks: d.remarks, line: d.line })
+      if (d.vehicle || d.refName || d.refPhone || d.refPosition) {
+        await da.setReference({ line, name: d.refName, phone: d.refPhone, position: d.refPosition, vehicle: d.vehicle || null })
+      }
       setD(null); await reload('খরচ সংরক্ষিত')
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }
   const edit = (x: Expense) => setD({ line: x.id, kind: x.kind, employee: x.employee_code ?? '', employeeName: x.employee_name ?? undefined, template: x.template_id ?? '',
     name: x.expense_name, category: x.category, amount: String(x.amount), date: x.bill_date, billNo: x.bill_no ?? '', ref: x.reference_no ?? '', paidBy: '',
-    path: x.attachment_path, ocr: x.ocr, verified: x.ocr_verified, remarks: x.remarks ?? '' })
+    path: x.attachment_path, ocr: x.ocr, verified: x.ocr_verified, remarks: x.remarks ?? '',
+    vehicle: x.vehicle_id ?? '', refName: x.reference_name ?? '', refPhone: x.reference_phone ?? '', refPosition: x.reference_position ?? '' })
   const list = s.expenses.filter(x => kindF === 'all' || x.kind === kindF)
+  const tSum = list.filter(x => x.kind === 'transport').reduce((a, x) => a + x.amount, 0)
+  const eSum = list.filter(x => x.kind === 'employee').reduce((a, x) => a + x.amount, 0)
 
-  return <section className="panel">
+  return <section className="panel" id="da-expense">
     <div className="da-bar"><h2>যাতায়াত ও হাব কর্মীর খরচ</h2>
       <div className="row no-print"><select value={kindF} onChange={e => setKindF(e.target.value as typeof kindF)} aria-label="ধরন">
         <option value="all">সব</option><option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select>
@@ -357,14 +386,17 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
       <tbody>{list.map(x => <tr key={x.id}><td data-l="নং">{num(x.no)}</td><td data-l="ধরন">{x.kind === 'transport' ? 'যাতায়াত' : 'কর্মী'}</td>
         <td data-l="কর্মী">{x.employee_name ? <>{x.employee_name}<span className="sec">ID {x.employee_code}</span></> : '—'}</td><td data-l="নাম"><b>{x.expense_name}</b></td>
         <td data-l="খাত">{catL(x.category)}</td><td data-l="বিল" className="r">{taka(x.amount)}</td><td data-l="তারিখ">{dateBn(x.bill_date)}</td>
-        <td data-l="বিল / রেফ.">{x.bill_no ?? '—'}<span className="sec">{x.reference_no ?? ''}</span></td><td data-l="দিয়েছেন">{x.paid_by_name ?? '—'}</td>
-        <td data-l="ফাইল">{x.attachment_path ? <FileLink path={x.attachment_path} /> : '—'}</td>
+        <td data-l="বিল / রেফ.">{x.bill_no ?? '—'}<span className="sec">{[x.reference_no, x.reference_name, x.reference_phone].filter(Boolean).join(' · ')}</span></td>
+        <td data-l="দিয়েছেন">{x.paid_by_name ?? '—'}{x.claim_id ? <span className="sec">কর্মীর জমা দেওয়া</span> : null}</td>
+        <td data-l="ফাইল">{x.attachment_path ? <FileLink path={x.attachment_path} /> : x.claim_file ? <FileLink path={x.claim_file} /> : '—'}</td>
         <td data-l="ভাউচার">{x.voucher_no ? <span className="row"><b>{x.voucher_no}</b><button className="secondary sm no-print" onClick={() => void print(x)}>প্রিন্ট</button></span>
           : x.attachment_path || x.bill_no ? <span className="muted">লাগবে না</span>
           : s.can_edit ? <button className="secondary sm no-print" onClick={() => void makeVoucher(x)}>ভাউচার বানান</button> : '—'}</td>
         <td data-l="OCR">{!x.ocr ? '—' : x.ocr_verified ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>}</td>
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(x)}>এডিট</button><button className="danger sm" onClick={() => setRemove(x)}>বাদ</button></span>}</td></tr>)}
-        {list.length === 0 && <tr><td colSpan={13} className="muted">কোনো খরচ নেই।</td></tr>}</tbody></table></div>
+        {list.length === 0 && <tr><td colSpan={13} className="muted">কোনো খরচ নেই।</td></tr>}</tbody>
+      {list.length > 0 && <tfoot><tr><td colSpan={5}>মোট ({num(list.length)} টি) · যাতায়াত {taka(tSum)} · কর্মী {taka(eSum)}</td>
+        <td data-l="মোট খরচ" className="r">{taka(tSum + eSum)}</td><td colSpan={7} className="no-print" /></tr></tfoot>}</table></div>
 
     {d && <Modal title={`${d.line ? 'এডিট' : 'নতুন'} · ${d.kind === 'transport' ? 'যাতায়াত খরচ' : 'কর্মীর খরচ'}`} wide onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || up.progress !== null || (!!d.ocr && !d.verified)} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'যাচাই করে সেভ'}</button></>}>
@@ -384,6 +416,20 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
         <Field label="বিল নম্বর"><input value={d.billNo} onChange={e => setD({ ...d, billNo: e.target.value })} /></Field>
         <Field label={`রেফারেন্স নম্বর${refCfg.reference_required ? ' *' : ''}`}><input value={d.ref} onChange={e => setD({ ...d, ref: e.target.value })} /></Field>
         <Field label="কে দিয়েছেন (Employee ID)"><input inputMode="numeric" value={d.paidBy} onChange={e => setD({ ...d, paidBy: e.target.value })} /></Field>
+        <Field label="কোন গাড়ির জন্য" hint="গাড়ি বাছলে খরচটা যার নামে গাড়ি আছে তার পাতায়ও দেখাবে">
+          <select value={d.vehicle} onChange={e => setD({ ...d, vehicle: e.target.value })}>
+            <option value="">— গাড়ি নয় —</option>
+            {(vehicles.data ?? []).filter(v => v.status === 'active').map(v =>
+              <option key={v.id} value={v.id}>{v.name} ({v.code}){v.holder_name ? ` — ${v.holder_name}` : ''}</option>)}
+          </select></Field>
+        {refPeople.length > 0 && <Field label="রেফারেন্স (সেভ করা)" hint="বাছলে নাম, নম্বর ও পদবি এক ক্লিকে বসবে">
+          <select value="" onChange={e => { const r = refPeople[+e.target.value]; if (r) setD({ ...d, refName: r.name, refPhone: r.phone ?? '', refPosition: r.position ?? '' }) }}>
+            <option value="">— বেছে নিন —</option>
+            {refPeople.map((r, i) => <option key={`${r.name}-${i}`} value={i}>{r.name}{r.position ? ` · ${r.position}` : ''}</option>)}
+          </select></Field>}
+        <Field label="রেফারেন্সের নাম"><input value={d.refName} onChange={e => setD({ ...d, refName: e.target.value })} /></Field>
+        <Field label="রেফারেন্সের মোবাইল"><input inputMode="numeric" placeholder="01XXXXXXXXX" value={d.refPhone} onChange={e => setD({ ...d, refPhone: e.target.value })} /></Field>
+        <Field label="রেফারেন্সের পদবি"><input value={d.refPosition} onChange={e => setD({ ...d, refPosition: e.target.value })} /></Field>
         <Field label="মন্তব্য" wide><input value={d.remarks} onChange={e => setD({ ...d, remarks: e.target.value })} /></Field>
       </div>
       {needBill && <p className="notice">৳ {num(billCfg.required_over)} বা বেশি খরচে বিল/মেমো সংযুক্ত করতে হবে — না হলে Submit হবে না।</p>}
@@ -407,6 +453,95 @@ function CatHelp({ cat, amount }: { cat?: Category; amount: number }) {
           {over && ` — এই খরচ সীমার বেশি, হেড অফিসের অনুমোদন নিন।`}</span>
       : <span className="muted small">{cat.site_note_bn ?? 'মেইন সাইটে যায় না।'}</span>}
   </span>
+}
+
+/** Bills the staff put up themselves. The manager takes one in with a click. */
+function ClaimsPanel({ s, cats, reload }: { s: Sheet; cats: Category[]; reload: (m?: string) => Promise<void> }) {
+  const claims = useLoad(() => s.can_edit ? da.sheetClaims(s.session.id) : Promise.resolve([] as Claim[]), [s.session.id, s.can_edit])
+  const [err, setErr] = useState<unknown>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [reject, setReject] = useState<Claim | null>(null)
+  const [note, setNote] = useState('')
+  const list = claims.data ?? []
+
+  async function add(c: Claim) {
+    setErr(null); setBusy(c.id)
+    try { await da.addClaim(c.id, s.session.id); await claims.reload(); await reload(`${c.employee_name ?? ''}-এর বিল শীটে যোগ হয়েছে`) }
+    catch (e) { setErr(e) } finally { setBusy(null) }
+  }
+  async function turnDown() {
+    if (!reject) return
+    setErr(null); setBusy(reject.id)
+    try { await da.rejectClaim(reject.id, note); setReject(null); setNote(''); await claims.reload(); await reload('বিলটি বাতিল করা হয়েছে') }
+    catch (e) { setErr(e) } finally { setBusy(null) }
+  }
+
+  if (!s.can_edit && list.length === 0) return null
+  return <section className="panel" id="da-claims">
+    <div className="da-bar"><h2>কর্মীদের জমা দেওয়া বিল {list.length > 0 && <Badge tone="warn">{num(list.length)} টি</Badge>}</h2></div>
+    <p className="muted small">কর্মীরা “আমার হিসাব” থেকে নিজের খরচ জমা দেন। এখান থেকে এক ক্লিকে আজকের খাতায় তুলে নিন।</p>
+    <ErrorNote error={err ?? claims.error} />
+    {list.length === 0 ? <p className="muted">এখন কোনো বিল অপেক্ষায় নেই।</p> :
+      <div className="da-table-wrap"><table className="da-table">
+        <thead><tr><th>নং</th><th>কে</th><th>খরচ</th><th>খাত</th><th className="r">টাকা</th><th>তারিখ</th><th>গাড়ি</th><th>রেফারেন্স</th><th>বিল ফাইল</th><th className="no-print" /></tr></thead>
+        <tbody>{list.map(c => <tr key={c.id}>
+          <td data-l="নং">{num(c.no)}</td>
+          <td data-l="কে">{c.employee_name}<span className="sec">ID {c.employee_code}</span></td>
+          <td data-l="খরচ"><b>{c.expense_name}</b>{c.remarks ? <span className="sec">{c.remarks}</span> : null}</td>
+          <td data-l="খাত">{cats.find(x => x.code === c.category)?.bn ?? c.category}</td>
+          <td data-l="টাকা" className="r">{taka(c.amount)}</td>
+          <td data-l="তারিখ">{dateBn(c.bill_date)}</td>
+          <td data-l="গাড়ি">{c.vehicle_name ?? '—'}</td>
+          <td data-l="রেফারেন্স">{c.reference_name ? <>{c.reference_name}<span className="sec">{[c.reference_position, c.reference_phone].filter(Boolean).join(' · ')}</span></> : '—'}</td>
+          <td data-l="ফাইল">{c.attachment_path ? <FileLink path={c.attachment_path} /> : '—'}</td>
+          <td className="no-print">{s.can_edit && <span className="row">
+            <button className="sm" disabled={busy === c.id} onClick={() => void add(c)}>শীটে যোগ</button>
+            <button className="danger sm" onClick={() => { setReject(c); setNote('') }}>বাতিল</button></span>}</td>
+        </tr>)}</tbody></table></div>}
+    {reject && <Modal title={`${reject.employee_name}-এর বিল বাতিল`} onClose={() => setReject(null)}
+      actions={<><button className="secondary" onClick={() => setReject(null)}>ফিরে যান</button>
+        <button className="danger" disabled={busy === reject.id} onClick={() => void turnDown()}>বাতিল করুন</button></>}>
+      <p className="muted small">{reject.expense_name} · {taka(reject.amount)} · {dateBn(reject.bill_date)}</p>
+      <Field label="কেন বাতিল হচ্ছে *"><input value={note} onChange={e => setNote(e.target.value)} placeholder="যেমন: বিল নেই / হাবের খরচে পড়ে না" /></Field>
+      <ErrorNote error={err} />
+    </Modal>}
+  </section>
+}
+
+/** The bottom line of the day: what came in, what went out, what should be in hand. */
+function ClosingBox({ s, settings }: { s: Sheet; settings: DaSettings }) {
+  const paid = s.riders.reduce((a, r) => a + r.paid_amount, 0)
+  const amount = s.riders.reduce((a, r) => a + r.amount, 0)
+  const due = s.riders.reduce((a, r) => a + r.due, 0)
+  const mb = s.riders.reduce((a, r) => a + r.mobile_banking, 0)
+  const merchant = s.merchant_payments.reduce((a, m) => a + m.amount, 0)
+  const expense = s.expenses.reduce((a, x) => a + x.amount, 0)
+  const rule = settings['da.mobile_banking_rule']
+  const inHand = paid - merchant - expense
+  const row = (label: string, value: string, note?: string, tone?: 'warn' | 'bad') =>
+    <tr><td>{label}{note ? <span className="sec">{note}</span> : null}</td><td className={`r ${tone ?? ''}`}>{value}</td></tr>
+
+  return <section className="panel" id="da-close">
+    <h2>দিন শেষের হিসাব</h2>
+    <div className="da-table-wrap"><table className="da-table da-close">
+      <tbody>
+        {row('রাইডারদের মোট টাকা', taka(amount), `${num(s.riders.length)} জন রাইডার`)}
+        {row('যা জমা দিয়েছেন (ক্যাশ)', taka(paid))}
+        {row('− মার্চেন্ট ক্যাশ পেমেন্ট', `− ${taka(merchant)}`, `${num(s.merchant_payments.length)} টি`)}
+        {row('− খরচ', `− ${taka(expense)}`, `${num(s.expenses.length)} টি`)}
+      </tbody>
+      <tfoot>
+        <tr><td><b>হাতে থাকার কথা</b><span className="sec">জমা − পেমেন্ট − খরচ</span></td>
+          <td className="r"><b className={inHand < 0 ? 'bad' : ''}>{taka(inHand)}</b></td></tr>
+      </tfoot>
+    </table></div>
+    <div className="da-close-side">
+      <p className="muted small">বকেয়া: <b className={due > 0 ? 'bad' : ''}>{taka(due)}</b> — আজ যা আদায় হয়নি, রাইডারের নামে থেকে যাবে।</p>
+      <p className="muted small">মোবাইল ব্যাংকিং: <b>{taka(mb)}</b> — {rule === 'separate' ? 'আলাদা হিসাব, হাতের ক্যাশের সাথে ধরা হয়নি'
+        : rule === 'reduces_due' ? 'বকেয়া থেকে বাদ গেছে' : 'বকেয়ার সাথে যোগ হয়েছে'}।</p>
+      <p className="muted small">ক্যাশে গরমিল থাকলে Submit করার আগে মন্তব্যে লিখে দিন — যাচাইকারী সেটাই আগে দেখবেন।</p>
+    </div>
+  </section>
 }
 
 // ---------------------------------------------------------------------------- history

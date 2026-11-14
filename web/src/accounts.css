@@ -94,3 +94,21 @@ select,textarea{width:100%;margin-top:6px;border:1px solid #cbd5e1;border-radius
 .brand-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
 .brand-prev{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 18px;border:1px solid var(--border);border-radius:12px;min-width:120px}
 .brand-mark.as-img{background:none;border-radius:12px;object-fit:contain;padding:0}
+
+/* One-page sheet: jump links, sticky headers, totals and the closing box */
+.da-jump{display:flex;gap:14px;flex-wrap:wrap;padding:10px 0;margin-bottom:4px;font-size:13px;
+  position:sticky;top:56px;z-index:6;background:var(--canvas);border-bottom:1px solid var(--border)}
+.da-jump a{color:var(--primary);text-decoration:none;font-weight:600}
+.da-jump a:hover{text-decoration:underline}
+.da-table thead th{position:sticky;top:0;z-index:2;background:var(--surface-2,#f1f5f9)}
+.da-table tfoot td{position:sticky;bottom:0;background:var(--surface-2,#f1f5f9);font-weight:700;border-top:2px solid var(--border)}
+.da-table-wrap{max-height:70vh;overflow:auto;overscroll-behavior:contain}
+.da-close{max-width:520px}
+.da-close td{padding:10px 12px}
+.da-close-side{margin-top:10px}
+section.panel[id^="da-"]{scroll-margin-top:110px}
+@media(max-width:860px){.da-jump{top:0;gap:10px}.da-table-wrap{max-height:none}
+  .da-table tfoot td{position:static;display:flex;justify-content:space-between}
+  .da-table tfoot tr{border:1px solid var(--border);border-radius:10px;padding:6px;background:var(--surface-2,#f1f5f9)}}
+@media print{.da-jump{display:none}.da-table-wrap{max-height:none;overflow:visible}
+  .da-table thead th,.da-table tfoot td{position:static}}

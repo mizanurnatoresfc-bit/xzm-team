@@ -9477,6 +9477,540 @@ grant execute on function public.branding() to anon, authenticated;
 revoke all on function public.branding_save(jsonb) from public, anon;
 grant execute on function public.branding_save(jsonb) to authenticated;
 
+-- ===== migrations/20261113002300_vehicles_and_presets.sql =====
+-- =====================================================================
+-- XZM-TEAM ERP — Migration 0023: vehicles, the reference person, and presets
+--
+--  * vehicles + vehicle_assignments: a vehicle belongs to a hub and is held by
+--    one person at a time. An expense can name the vehicle it was for, and that
+--    expense then shows on the holder's own page — what it was for and how much.
+--  * da_expenses carries the reference person (name, mobile, position) beside
+--    the reference number, set with da_set_expense_reference.
+--  * Settings keep the lists people pick from, so the sheet fills in one click:
+--    da.reference_people, and the vehicles of the hub.
+-- =====================================================================
+
+create table public.vehicles (
+  id          uuid primary key default gen_random_uuid(),
+  code        extensions.citext not null unique,
+  name        text not null check (length(trim(name)) > 0),
+  kind        text not null default 'bike' check (kind in ('bike','cng','van','truck','pickup','other')),
+  reg_no      text,
+  zone_id     uuid not null references public.zones(id),
+  hub_id      uuid references public.hubs(id),
+  status      text not null default 'active' check (status in ('active','inactive')),
+  remarks     text,
+  archived_at timestamptz, archived_by uuid, archive_reason text,
+  created_at  timestamptz not null default now(), created_by uuid,
+  updated_at  timestamptz not null default now(), updated_by uuid
+);
+create index vehicles_hub_idx on public.vehicles (hub_id) where archived_at is null;
+
+create table public.vehicle_assignments (
+  id             uuid primary key default gen_random_uuid(),
+  vehicle_id     uuid not null references public.vehicles(id),
+  employee_id    uuid not null references public.employees(id),
+  hub_id         uuid references public.hubs(id),
+  zone_id        uuid not null references public.zones(id),
+  effective_from date not null default current_date,
+  effective_to   date,
+  reason         text not null check (length(trim(reason)) > 0),
+  end_reason     text,
+  created_at     timestamptz not null default now(), created_by uuid,
+  updated_at     timestamptz not null default now(), updated_by uuid,
+  constraint vehicle_assign_dates_chk check (effective_to is null or effective_to >= effective_from)
+);
+create unique index vehicle_assign_one_holder on public.vehicle_assignments (vehicle_id) where effective_to is null;
+create index vehicle_assign_employee_idx on public.vehicle_assignments (employee_id) where effective_to is null;
+
+alter table public.da_expenses add column if not exists vehicle_id uuid references public.vehicles(id);
+alter table public.da_expenses add column if not exists reference_name text;
+alter table public.da_expenses add column if not exists reference_phone text;
+alter table public.da_expenses add column if not exists reference_position text;
+
+create trigger vehicles_stamp before insert or update on public.vehicles
+  for each row execute function private.stamp_row();
+create trigger vehicles_audit after insert or update or delete on public.vehicles
+  for each row execute function private.audit_row('ops');
+create trigger vehicles_no_delete before delete on public.vehicles
+  for each row execute function private.prevent_delete();
+create trigger vehicle_assign_stamp before insert or update on public.vehicle_assignments
+  for each row execute function private.stamp_row();
+create trigger vehicle_assign_audit after insert or update or delete on public.vehicle_assignments
+  for each row execute function private.audit_row('ops');
+create trigger vehicle_assign_no_delete before delete on public.vehicle_assignments
+  for each row execute function private.prevent_delete();
+
+alter table public.vehicles enable row level security;
+alter table public.vehicle_assignments enable row level security;
+revoke all on public.vehicles, public.vehicle_assignments from anon;
+grant select on public.vehicles, public.vehicle_assignments to authenticated;
+
+-- Anyone who may see the hub's accounts may see its vehicles; the holder sees their own.
+create policy vehicles_read on public.vehicles for select to authenticated
+  using (private.has_permission('da.sheet.view', zone_id, hub_id)
+      or private.has_permission('ops.report.view', zone_id, hub_id)
+      or exists (select 1 from public.vehicle_assignments a
+                  where a.vehicle_id = vehicles.id and a.effective_to is null
+                    and a.employee_id = private.my_employee_id()));
+create policy vehicle_assign_read on public.vehicle_assignments for select to authenticated
+  using (private.has_permission('da.sheet.view', zone_id, hub_id)
+      or private.has_permission('ops.report.view', zone_id, hub_id)
+      or employee_id = private.my_employee_id());
+
+-- Who holds a vehicle now
+create or replace function private.vehicle_holder(p_vehicle uuid) returns uuid
+language sql stable security definer set search_path = '' as $$
+  select a.employee_id from public.vehicle_assignments a
+   where a.vehicle_id = p_vehicle and a.effective_to is null
+   order by a.effective_from desc limit 1
+$$;
+
+-- ---------------------------------------------------------------------
+-- Keeping the list of vehicles (Accounts settings)
+-- ---------------------------------------------------------------------
+create or replace function public.vehicle_list(p_hub uuid default null)
+returns table (id uuid, code text, name text, kind text, reg_no text, hub_id uuid, hub_name text,
+               status text, holder_id uuid, holder_code text, holder_name text, since date)
+language plpgsql stable security invoker set search_path = '' as $$
+begin
+  return query
+  select v.id, v.code::text, v.name, v.kind, v.reg_no, v.hub_id, h.name, v.status,
+         e.id, e.employee_code::text, e.full_name, a.effective_from
+  from public.vehicles v
+  left join public.hubs h on h.id = v.hub_id
+  left join public.vehicle_assignments a on a.vehicle_id = v.id and a.effective_to is null
+  left join public.employees e on e.id = a.employee_id
+  where v.archived_at is null and (p_hub is null or v.hub_id = p_hub)
+  order by v.status, v.name;
+end $$;
+
+create or replace function public.vehicle_save(
+  p_name text, p_code text, p_kind text, p_hub uuid, p_reg_no text default null,
+  p_status text default 'active', p_remarks text default null, p_id uuid default null
+) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare v_zone uuid := private.hub_zone(p_hub); v_id uuid;
+begin
+  if v_zone is null then raise exception 'Choose the hub the vehicle belongs to.' using errcode = '22023'; end if;
+  if not private.has_permission('da.settings.configure', v_zone, p_hub) then
+    raise exception 'Not authorised to keep the list of vehicles.' using errcode = '42501';
+  end if;
+  if p_kind not in ('bike','cng','van','truck','pickup','other') then
+    raise exception 'Unknown kind of vehicle.' using errcode = '22023';
+  end if;
+  if p_id is null then
+    insert into public.vehicles (code, name, kind, reg_no, zone_id, hub_id, status, remarks)
+    values (trim(p_code)::extensions.citext, trim(p_name), p_kind, nullif(trim(p_reg_no), ''), v_zone, p_hub,
+            coalesce(p_status, 'active'), nullif(trim(p_remarks), ''))
+    returning id into v_id;
+  else
+    update public.vehicles set code = trim(p_code)::extensions.citext, name = trim(p_name), kind = p_kind,
+           reg_no = nullif(trim(p_reg_no), ''), zone_id = v_zone, hub_id = p_hub,
+           status = coalesce(p_status, status), remarks = nullif(trim(p_remarks), '')
+     where id = p_id and archived_at is null returning id into v_id;
+    if v_id is null then raise exception 'Vehicle not found.' using errcode = 'P0002'; end if;
+  end if;
+  return v_id;
+end $$;
+
+-- Hand a vehicle to someone; the person who held it before gives it up on the same day.
+create or replace function public.vehicle_assign(p_vehicle uuid, p_employee_code text, p_reason text,
+                                                 p_from date default null) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare v public.vehicles; e public.employees; v_from date := coalesce(p_from, current_date); v_id uuid;
+begin
+  select * into v from public.vehicles where id = p_vehicle and archived_at is null;
+  if v.id is null then raise exception 'Vehicle not found.' using errcode = 'P0002'; end if;
+  if not private.has_permission('da.settings.configure', v.zone_id, v.hub_id) then
+    raise exception 'Not authorised to hand over a vehicle.' using errcode = '42501';
+  end if;
+  if length(trim(coalesce(p_reason, ''))) = 0 then raise exception 'Write why.' using errcode = '22023'; end if;
+  select * into e from public.employees
+   where employee_code = trim(p_employee_code)::extensions.citext and archived_at is null and status = 'active';
+  if e.id is null then raise exception 'No active employee with ID %.', p_employee_code using errcode = '22023'; end if;
+
+  update public.vehicle_assignments set effective_to = v_from, end_reason = 'Handed to ' || e.full_name
+   where vehicle_id = p_vehicle and effective_to is null;
+  insert into public.vehicle_assignments (vehicle_id, employee_id, hub_id, zone_id, effective_from, reason)
+  values (p_vehicle, e.id, v.hub_id, v.zone_id, v_from, trim(p_reason))
+  returning id into v_id;
+  return v_id;
+end $$;
+
+create or replace function public.vehicle_release(p_vehicle uuid, p_reason text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare v public.vehicles;
+begin
+  select * into v from public.vehicles where id = p_vehicle and archived_at is null;
+  if v.id is null then raise exception 'Vehicle not found.' using errcode = 'P0002'; end if;
+  if not private.has_permission('da.settings.configure', v.zone_id, v.hub_id) then
+    raise exception 'Not authorised.' using errcode = '42501';
+  end if;
+  if length(trim(coalesce(p_reason, ''))) = 0 then raise exception 'Write why.' using errcode = '22023'; end if;
+  update public.vehicle_assignments set effective_to = current_date, end_reason = trim(p_reason)
+   where vehicle_id = p_vehicle and effective_to is null;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- The reference person on an expense line
+-- ---------------------------------------------------------------------
+create or replace function public.da_set_expense_reference(
+  p_line uuid, p_name text default null, p_phone text default null, p_position text default null,
+  p_vehicle uuid default null
+) returns void
+language plpgsql security definer set search_path = '' as $$
+declare x public.da_expenses%rowtype; v public.vehicles;
+begin
+  select * into x from public.da_expenses where id = p_line and removed_at is null for update;
+  if x.id is null then raise exception 'Expense line not found.' using errcode = 'P0002'; end if;
+  perform private.da_require_edit(x.session_id);
+  if p_vehicle is not null then
+    select * into v from public.vehicles where id = p_vehicle and archived_at is null;
+    if v.id is null or (v.hub_id is not null and v.hub_id <> x.hub_id) then
+      raise exception 'Choose a vehicle of this hub.' using errcode = '22023';
+    end if;
+  end if;
+  if p_phone is not null and nullif(trim(p_phone), '') is not null and trim(p_phone) !~ '^01[3-9][0-9]{8}$' then
+    raise exception 'The mobile number must look like 01XXXXXXXXX.' using errcode = '22023';
+  end if;
+  update public.da_expenses
+     set reference_name = nullif(trim(p_name), ''), reference_phone = nullif(trim(p_phone), ''),
+         reference_position = nullif(trim(p_position), ''), vehicle_id = p_vehicle
+   where id = p_line;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- A person's own page: the expenses of the vehicle they hold
+-- ---------------------------------------------------------------------
+-- Runs as the system on purpose: the holder of a vehicle may see what was spent on
+-- that vehicle even when they cannot see the hub's whole sheet. It never looks past
+-- the vehicles the caller holds right now.
+create or replace function public.da_my_vehicles()
+returns table (vehicle_id uuid, code text, name text, kind text, reg_no text, since date,
+               spent_30d numeric, lines jsonb)
+language plpgsql stable security definer set search_path = '' as $$
+declare v_me uuid := private.my_employee_id();
+begin
+  if auth.uid() is null or v_me is null then return; end if;
+  return query
+  select v.id, v.code::text, v.name, v.kind, v.reg_no, a.effective_from,
+         coalesce((select sum(x.amount) from public.da_expenses x
+                    where x.vehicle_id = v.id and x.removed_at is null and x.bill_date >= current_date - 30), 0),
+         coalesce((select jsonb_agg(jsonb_build_object('date', x.bill_date, 'name', x.expense_name,
+                            'category', x.category, 'amount', x.amount, 'bill_no', x.bill_no,
+                            'voucher_no', x.voucher_no, 'remarks', x.remarks) order by x.bill_date desc)
+                     from public.da_expenses x
+                    where x.vehicle_id = v.id and x.removed_at is null and x.bill_date >= current_date - 90), '[]'::jsonb)
+  from public.vehicle_assignments a
+  join public.vehicles v on v.id = a.vehicle_id
+  where a.employee_id = v_me and a.effective_to is null and v.archived_at is null
+  order by v.name;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Lists people pick from, so a line fills in one click
+-- ---------------------------------------------------------------------
+insert into public.system_settings (key, value, description) values
+  ('da.reference_people', '[]',
+   'Daily accounts: the people an expense is often referred to — name, mobile and position')
+on conflict (key) do nothing;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['public.vehicle_list(uuid)', 'public.vehicle_save(text, text, text, uuid, text, text, text, uuid)',
+                           'public.vehicle_assign(uuid, text, text, date)', 'public.vehicle_release(uuid, text)',
+                           'public.da_set_expense_reference(uuid, text, text, text, uuid)', 'public.da_my_vehicles()']
+  loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+revoke all on function private.vehicle_holder(uuid) from public, anon;
+grant execute on function private.vehicle_holder(uuid) to authenticated;
+
+-- ===== migrations/20261113002400_expense_claims.sql =====
+-- =====================================================================
+-- XZM-TEAM ERP — Migration 0024: staff put up their own bills, the manager takes them in
+--
+-- A person adds the money they spent from their own page — what it was for, how
+-- much, the bill or voucher, the vehicle it was for. It waits there as a claim.
+-- The hub's sheet shows the claims of that hub, and the manager takes one in with
+-- one click: it becomes an ordinary expense line on the day's sheet, and the claim
+-- is marked as taken in, so the same bill cannot go in twice.
+-- =====================================================================
+
+create table public.da_expense_claims (
+  id                 uuid primary key default gen_random_uuid(),
+  no                 bigint generated always as identity unique,
+  employee_id        uuid not null references public.employees(id),
+  employee_code      text,
+  employee_name      text,
+  hub_id             uuid not null references public.hubs(id),
+  zone_id            uuid not null references public.zones(id),
+  kind               text not null default 'employee' check (kind in ('transport','employee')),
+  expense_name       text not null check (length(trim(expense_name)) > 1),
+  category           text not null,
+  amount             numeric(14,2) not null check (amount > 0),
+  bill_date          date not null,
+  bill_no            text,
+  reference_no       text,
+  reference_name     text,
+  reference_phone    text,
+  reference_position text,
+  vehicle_id         uuid references public.vehicles(id),
+  attachment_path    text,
+  remarks            text,
+  status             text not null default 'submitted' check (status in ('submitted','added','rejected','withdrawn')),
+  session_id         uuid references public.da_sessions(id),
+  expense_id         uuid references public.da_expenses(id),
+  reviewed_by        uuid,
+  reviewed_at        timestamptz,
+  review_note        text,
+  created_at         timestamptz not null default now(), created_by uuid,
+  updated_at         timestamptz not null default now(), updated_by uuid,
+  constraint da_claim_path_chk check (attachment_path is null or attachment_path like 'claims/%'),
+  constraint da_claim_done_chk check (status <> 'added' or expense_id is not null),
+  constraint da_claim_note_chk check (status <> 'rejected' or length(trim(coalesce(review_note, ''))) > 0)
+);
+create index da_claims_hub_idx on public.da_expense_claims (hub_id, status);
+create index da_claims_employee_idx on public.da_expense_claims (employee_id, status);
+
+alter table public.da_expenses add column if not exists claim_id uuid references public.da_expense_claims(id);
+alter table public.da_expenses add column if not exists claim_file text;
+
+create trigger da_claims_stamp before insert or update on public.da_expense_claims
+  for each row execute function private.stamp_row();
+create trigger da_claims_audit after insert or update or delete on public.da_expense_claims
+  for each row execute function private.audit_row('da');
+create trigger da_claims_no_delete before delete on public.da_expense_claims
+  for each row execute function private.prevent_delete();
+
+alter table public.da_expense_claims enable row level security;
+revoke all on public.da_expense_claims from anon;
+grant select on public.da_expense_claims to authenticated;
+
+create policy da_claims_read on public.da_expense_claims for select to authenticated
+  using (employee_id = private.my_employee_id()
+      or private.has_permission('da.sheet.view', zone_id, hub_id)
+      or private.has_permission('da.sheet.create', zone_id, hub_id));
+
+-- Files live under claims/<employee id>/…, read by the owner and by the hub's accounts people.
+create or replace function private.da_can_read_object(p_name text) returns boolean
+language plpgsql stable security definer set search_path = '' as $$
+declare s public.da_sessions; v_emp uuid;
+begin
+  if p_name ~ '^claims/[0-9a-f-]{36}/[^/]+$' then
+    v_emp := split_part(p_name, '/', 2)::uuid;
+    if v_emp = private.my_employee_id() then return true; end if;
+    return exists (select 1 from public.employees e
+                    where e.id = v_emp
+                      and (private.has_permission('da.sheet.view', e.zone_id, e.hub_id)
+                           or private.has_permission('da.sheet.create', e.zone_id, e.hub_id)));
+  end if;
+  if p_name !~ '^da/[0-9a-f-]{36}/[^/]+$' then return false; end if;
+  s := private.da_session_row(split_part(p_name, '/', 2)::uuid);
+  return s.id is not null and (private.has_permission('da.sheet.view', s.zone_id, s.hub_id)
+                               or private.has_permission('da.sheet.create', s.zone_id, s.hub_id));
+end $$;
+
+create or replace function private.da_can_upload_object(p_name text) returns boolean
+language plpgsql stable security definer set search_path = '' as $$
+declare s public.da_sessions;
+begin
+  -- a person's own claim folder
+  if p_name ~ '^claims/[0-9a-f-]{36}/[^/]+$' then
+    return split_part(p_name, '/', 2)::uuid = private.my_employee_id();
+  end if;
+  if p_name !~ '^da/[0-9a-f-]{36}/[^/]+$' then return false; end if;
+  s := private.da_session_row(split_part(p_name, '/', 2)::uuid);
+  return s.id is not null and private.da_can_edit(s);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Putting up a claim, and taking it back
+-- ---------------------------------------------------------------------
+create or replace function public.da_claim_save(
+  p_expense_name text, p_category text, p_amount numeric, p_bill_date date,
+  p_kind text default 'employee', p_bill_no text default null, p_reference_no text default null,
+  p_reference_name text default null, p_reference_phone text default null, p_reference_position text default null,
+  p_vehicle uuid default null, p_attachment_path text default null, p_remarks text default null,
+  p_claim uuid default null
+) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare e public.employees; v_id uuid; c public.da_expense_claims;
+begin
+  select * into e from public.employees where id = private.my_employee_id();
+  if e.id is null then raise exception 'Only a member of staff can put up a bill.' using errcode = '42501'; end if;
+  if e.hub_id is null then raise exception 'Your account is not set to a hub yet.' using errcode = '22023'; end if;
+  if p_kind not in ('transport','employee') then raise exception 'Kind must be transport or employee.' using errcode = '22023'; end if;
+  if p_amount is null or p_amount <= 0 then raise exception 'The amount must be greater than zero.' using errcode = '22023'; end if;
+  if p_bill_date is null or p_bill_date > private.da_today() then
+    raise exception 'The bill date cannot be in the future.' using errcode = '22023';
+  end if;
+  if not exists (select 1 from jsonb_array_elements(coalesce(private.da_setting('da.expense_categories'), '[]')) c2
+                 where c2 ->> 'code' = p_category) then
+    raise exception 'Unknown expense category %.', p_category using errcode = '22023';
+  end if;
+  if p_reference_phone is not null and nullif(trim(p_reference_phone), '') is not null
+     and trim(p_reference_phone) !~ '^01[3-9][0-9]{8}$' then
+    raise exception 'The mobile number must look like 01XXXXXXXXX.' using errcode = '22023';
+  end if;
+  if p_attachment_path is not null and p_attachment_path not like 'claims/' || e.id::text || '/%' then
+    raise exception 'The bill file must be in your own folder.' using errcode = '22023';
+  end if;
+
+  if p_claim is null then
+    insert into public.da_expense_claims (employee_id, employee_code, employee_name, hub_id, zone_id, kind,
+      expense_name, category, amount, bill_date, bill_no, reference_no, reference_name, reference_phone,
+      reference_position, vehicle_id, attachment_path, remarks)
+    values (e.id, e.employee_code::text, e.full_name, e.hub_id, e.zone_id, p_kind,
+      trim(p_expense_name), p_category, p_amount, p_bill_date, nullif(trim(p_bill_no), ''),
+      nullif(trim(p_reference_no), ''), nullif(trim(p_reference_name), ''), nullif(trim(p_reference_phone), ''),
+      nullif(trim(p_reference_position), ''), p_vehicle, p_attachment_path, nullif(trim(p_remarks), ''))
+    returning id into v_id;
+  else
+    select * into c from public.da_expense_claims where id = p_claim for update;
+    if c.id is null then raise exception 'Claim not found.' using errcode = 'P0002'; end if;
+    if c.employee_id <> e.id then raise exception 'You can change only your own claim.' using errcode = '42501'; end if;
+    if c.status <> 'submitted' then raise exception 'This claim has already been dealt with.' using errcode = '22023'; end if;
+    update public.da_expense_claims
+       set kind = p_kind, expense_name = trim(p_expense_name), category = p_category, amount = p_amount,
+           bill_date = p_bill_date, bill_no = nullif(trim(p_bill_no), ''), reference_no = nullif(trim(p_reference_no), ''),
+           reference_name = nullif(trim(p_reference_name), ''), reference_phone = nullif(trim(p_reference_phone), ''),
+           reference_position = nullif(trim(p_reference_position), ''), vehicle_id = p_vehicle,
+           attachment_path = coalesce(p_attachment_path, attachment_path), remarks = nullif(trim(p_remarks), '')
+     where id = p_claim returning id into v_id;
+  end if;
+  return v_id;
+end $$;
+
+create or replace function public.da_claim_withdraw(p_claim uuid, p_reason text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.da_expense_claims;
+begin
+  select * into c from public.da_expense_claims where id = p_claim for update;
+  if c.id is null then raise exception 'Claim not found.' using errcode = 'P0002'; end if;
+  if c.employee_id <> private.my_employee_id() then raise exception 'You can take back only your own claim.' using errcode = '42501'; end if;
+  if c.status <> 'submitted' then raise exception 'This claim has already been dealt with.' using errcode = '22023'; end if;
+  if length(trim(coalesce(p_reason, ''))) = 0 then raise exception 'Write why.' using errcode = '22023'; end if;
+  update public.da_expense_claims set status = 'withdrawn', review_note = trim(p_reason),
+         reviewed_by = auth.uid(), reviewed_at = now() where id = p_claim;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- What a person sees of their own, and what the sheet shows the manager
+-- ---------------------------------------------------------------------
+create or replace function public.da_my_claims(p_days integer default 90)
+returns setof public.da_expense_claims
+language sql stable security invoker set search_path = '' as $$
+  select * from public.da_expense_claims
+   where employee_id = private.my_employee_id()
+     and bill_date >= current_date - greatest(coalesce(p_days, 90), 1)
+   order by created_at desc
+$$;
+
+create or replace function public.da_sheet_claims(p_session uuid)
+returns table (id uuid, no bigint, employee_code text, employee_name text, kind text, expense_name text,
+               category text, amount numeric, bill_date date, bill_no text, reference_no text,
+               reference_name text, reference_phone text, reference_position text,
+               vehicle_id uuid, vehicle_name text, attachment_path text, remarks text, created_at timestamptz)
+language plpgsql stable security invoker set search_path = '' as $$
+declare s public.da_sessions;
+begin
+  select * into s from public.da_sessions ses where ses.id = p_session;
+  if s.id is null then raise exception 'Daily account sheet not found.' using errcode = 'P0002'; end if;
+  return query
+  select c.id, c.no, c.employee_code, c.employee_name, c.kind, c.expense_name, c.category, c.amount,
+         c.bill_date, c.bill_no, c.reference_no, c.reference_name, c.reference_phone, c.reference_position,
+         c.vehicle_id, v.name, c.attachment_path, c.remarks, c.created_at
+  from public.da_expense_claims c
+  left join public.vehicles v on v.id = c.vehicle_id
+  where c.hub_id = s.hub_id and c.status = 'submitted'
+  order by c.bill_date, c.no;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- The manager takes a claim in, or turns it down
+-- ---------------------------------------------------------------------
+create or replace function public.da_claim_add(p_claim uuid, p_session uuid, p_note text default null)
+returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  c public.da_expense_claims;
+  s public.da_sessions := private.da_require_edit(p_session);
+  v_expense uuid;
+begin
+  select * into c from public.da_expense_claims where id = p_claim for update;
+  if c.id is null then raise exception 'Claim not found.' using errcode = 'P0002'; end if;
+  if c.status <> 'submitted' then raise exception 'This claim has already been dealt with.' using errcode = '22023'; end if;
+  if c.hub_id <> s.hub_id then raise exception 'This claim belongs to another hub.' using errcode = '22023'; end if;
+
+  insert into public.da_expenses (session_id, hub_id, zone_id, kind, employee_id, employee_code, employee_name,
+    expense_name, category, amount, bill_date, bill_no, reference_no, reference_name, reference_phone,
+    reference_position, vehicle_id, remarks, claim_id, claim_file)
+  values (s.id, s.hub_id, s.zone_id, c.kind, c.employee_id, c.employee_code, c.employee_name,
+    c.expense_name, c.category, c.amount, c.bill_date, c.bill_no, c.reference_no, c.reference_name,
+    c.reference_phone, c.reference_position, c.vehicle_id,
+    nullif(trim(coalesce(c.remarks, '') || case when p_note is not null then ' · ' || trim(p_note) else '' end), ''),
+    c.id, c.attachment_path)
+  returning id into v_expense;
+
+  update public.da_expense_claims
+     set status = 'added', session_id = s.id, expense_id = v_expense,
+         reviewed_by = auth.uid(), reviewed_at = now(), review_note = nullif(trim(p_note), '')
+   where id = p_claim;
+  perform private.da_event(s.id, 'note',
+    'Claim ' || c.no::text || ' taken in: ' || c.expense_name || ' (' || c.employee_name || ')', false);
+  return v_expense;
+end $$;
+
+create or replace function public.da_claim_reject(p_claim uuid, p_note text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare c public.da_expense_claims;
+begin
+  select * into c from public.da_expense_claims where id = p_claim for update;
+  if c.id is null then raise exception 'Claim not found.' using errcode = 'P0002'; end if;
+  if not private.has_permission('da.sheet.create', c.zone_id, c.hub_id) then
+    raise exception 'Not authorised to deal with the claims of this hub.' using errcode = '42501';
+  end if;
+  if c.status <> 'submitted' then raise exception 'This claim has already been dealt with.' using errcode = '22023'; end if;
+  if length(trim(coalesce(p_note, ''))) = 0 then raise exception 'Write why it is turned down.' using errcode = '22023'; end if;
+  update public.da_expense_claims set status = 'rejected', review_note = trim(p_note),
+         reviewed_by = auth.uid(), reviewed_at = now() where id = p_claim;
+end $$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array[
+    'public.da_claim_save(text, text, numeric, date, text, text, text, text, text, text, uuid, text, text, uuid)',
+    'public.da_claim_withdraw(uuid, text)', 'public.da_my_claims(integer)', 'public.da_sheet_claims(uuid)',
+    'public.da_claim_add(uuid, uuid, text)', 'public.da_claim_reject(uuid, text)']
+  loop
+    execute format('revoke all on function %s from public, anon', f);
+    execute format('grant execute on function %s to authenticated', f);
+  end loop;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- A sheet that carries a line in your name is a sheet you may see
+--
+-- A rider could already see the sheet his rider line sits on. Now that a manager
+-- can pull a person's own bill into the day's sheet, the same must hold for an
+-- expense in that person's name — otherwise "আমার খরচ" on his page comes back
+-- empty, because the sheet behind his expense is invisible to him.
+-- ---------------------------------------------------------------------
+drop policy if exists da_sessions_read on public.da_sessions;
+create policy da_sessions_read on public.da_sessions for select to authenticated
+  using (private.has_permission('da.sheet.view', zone_id, hub_id)
+         or started_by = auth.uid() or submitted_by = auth.uid()
+         or exists (select 1 from public.da_rider_lines l where l.session_id = da_sessions.id
+                    and l.employee_id = private.my_employee_id() and l.removed_at is null)
+         or exists (select 1 from public.da_expenses x where x.session_id = da_sessions.id
+                    and x.employee_id = private.my_employee_id() and x.removed_at is null));
+
 -- =====================================================================
 
 -- ---------- zone-level profile fields ----------
@@ -9767,7 +10301,9 @@ insert into supabase_migrations.schema_migrations (version, name) values
   ('20261113001900', 'formats_and_zonal'),
   ('20261113002000', 'role_dashboards'),
   ('20261113002100', 'expense_categories_voucher'),
-  ('20261113002200', 'branding')
+  ('20261113002200', 'branding'),
+  ('20261113002300', 'vehicles_and_presets'),
+  ('20261113002400', 'expense_claims')
 on conflict (version) do nothing;
 commit;
 select 'XZM-TEAM database is ready: ' || (select count(*) from pg_tables where schemaname = 'public') || ' tables' as result;
