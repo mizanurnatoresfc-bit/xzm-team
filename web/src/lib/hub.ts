@@ -1,0 +1,121 @@
+// Hub Management: one hub, today. Reads go through RLS; changes go through the same
+// database functions the rest of the app uses, so the permission checks stay in the database.
+import { supabase } from './supabase'
+import type { AttendanceRow, Employee } from './hr'
+
+function fail(error: { message: string; code?: string } | null): void {
+  if (error) throw Object.assign(new Error(error.message), { code: error.code })
+}
+async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
+  const { data, error } = await supabase.rpc(fn, args); fail(error); return data as T
+}
+
+export type HubTask = {
+  id: string; task_no: string | null; title: string; description: string | null; hub_id: string | null; assigned_to: string
+  due_date: string; priority: 'low' | 'normal' | 'high' | 'urgent'; status: 'assigned' | 'in_progress' | 'submitted' | 'completed' | 'cancelled'
+  progress_note: string | null; created_at: string
+}
+export type Pickup = {
+  id: string; submission_no: string | null; pickup_date: string; hub_id: string; merchant_id: string; trip_no: number; source: string
+  submitted_by: string | null; parcel_count: number; cod_amount: number; collection_amount: number; note: string | null
+  status: 'pending' | 'verified' | 'approved' | 'rejected'; created_at: string
+}
+export type Merchant = { id: string; code: string; name: string; phone: string | null; hub_id: string; status: string }
+export type HubMetric = {
+  id: string; hub_id: string; zone_id: string; metric_date: string; pickup_count: number; delivery_count: number; pending_parcels: number
+  merchant_count: number; rider_count: number; cash_collected: number; expenses: number; note: string | null; status: 'submitted' | 'verified'
+}
+export type Person = { id: string; full_name: string | null; email: string | null }
+export type LateRow = AttendanceRow & { check_in: string | null }
+
+export const TASK_STATUS: Record<HubTask['status'], [string, string, 'ok' | 'warn' | 'bad' | 'info' | 'neutral']> = {
+  assigned: ['দেওয়া হয়েছে', 'Assigned', 'info'], in_progress: ['চলছে', 'In progress', 'warn'], submitted: ['জমা হয়েছে', 'Submitted', 'info'],
+  completed: ['শেষ', 'Done', 'ok'], cancelled: ['বাতিল', 'Cancelled', 'neutral'],
+}
+export const PRIORITY: Record<HubTask['priority'], [string, string]> = {
+  low: ['কম', 'Low'], normal: ['সাধারণ', 'Normal'], high: ['জরুরি', 'High'], urgent: ['খুব জরুরি', 'Urgent'],
+}
+export const PICKUP_STATUS: Record<Pickup['status'], [string, string, 'ok' | 'warn' | 'bad' | 'info' | 'neutral']> = {
+  pending: ['অপেক্ষায়', 'Pending', 'warn'], verified: ['যাচাই হয়েছে', 'Verified', 'info'], approved: ['অনুমোদিত', 'Approved', 'ok'], rejected: ['বাতিল', 'Rejected', 'bad'],
+}
+
+/** Icon and order for a post name, so the team cards read the same in every hub. */
+const POST_ICON: Array<[RegExp, string, number]> = [
+  [/zonal/i, 'map', 1], [/asst|assistant/i, 'shield', 3], [/manager|ম্যানেজার/i, 'shield', 2], [/hub\s*cc|cc/i, 'cc', 4],
+  [/data\s*entry|ডাটা/i, 'form', 5], [/account|হিসাব/i, 'cash', 6], [/rider|রাইডার/i, 'truck', 7], [/driver|ড্রাইভার/i, 'truck', 8],
+  [/short|sort|load/i, 'box', 9], [/helper/i, 'users', 10], [/security|guard/i, 'key', 11],
+]
+export function postIcon(name: string): { icon: string; order: number } {
+  const hit = POST_ICON.find(([re]) => re.test(name))
+  return hit ? { icon: hit[1], order: hit[2] } : { icon: 'user', order: 50 }
+}
+
+const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
+export { today as hubToday }
+
+export const hubApi = {
+  team: async (hub: string, status: string | null) => {
+    let q = supabase.from('employees').select('*').eq('hub_id', hub).is('archived_at', null).order('employee_code', { ascending: true }).limit(1000)
+    if (status) q = q.eq('status', status)
+    const { data, error } = await q; fail(error); return (data ?? []) as Employee[]
+  },
+  attendance: async (date: string, ids: string[]) => {
+    if (!ids.length) return [] as LateRow[]
+    const { data, error } = await supabase.from('attendance_records').select('*').eq('work_date', date).in('employee_id', ids); fail(error)
+    return (data ?? []) as LateRow[]
+  },
+  /** Mark late with the arrival time (HH:MM, Dhaka). Updates the day's row if there is one. */
+  markLate: async (employee: string, date: string, time: string, note: string, existing?: LateRow) => {
+    const checkIn = new Date(`${date}T${time}:00+06:00`).toISOString()
+    if (existing) {
+      const { error } = await supabase.from('attendance_records').update({ status: 'late', check_in: checkIn, note: note || existing.note || 'Late' }).eq('id', existing.id); fail(error)
+    } else {
+      const { error } = await supabase.from('attendance_records').insert({ employee_id: employee, work_date: date, status: 'late', check_in: checkIn, source: 'manual', note: note || null }); fail(error)
+    }
+  },
+  tasks: async (hub: string) => {
+    const { data, error } = await supabase.from('tasks').select('*').eq('hub_id', hub).order('due_date', { ascending: true }).limit(500); fail(error)
+    return (data ?? []) as HubTask[]
+  },
+  people: async () => {
+    const { data, error } = await supabase.from('profiles').select('id, full_name, email').eq('status', 'active').is('archived_at', null).order('full_name'); fail(error)
+    return (data ?? []) as Person[]
+  },
+  assignTask: (a: { title: string; assignee: string; due: string; hub: string; description: string | null; priority: string }) =>
+    rpc<string>('task_assign', { p_title: a.title, p_assignee: a.assignee, p_due: a.due, p_zone: null, p_hub: a.hub,
+      p_description: a.description, p_priority: a.priority, p_requires_submission: false, p_manager: null, p_employee: null }),
+  taskProgress: (id: string, status: string, note: string) => rpc<void>('task_update_progress', { p_task: id, p_status: status, p_note: note }),
+  taskReassign: (id: string, assignee: string, due: string, reason: string) => rpc<void>('task_reassign', { p_task: id, p_assignee: assignee, p_due: due, p_reason: reason }),
+  taskComplete: (id: string, note: string) => rpc<void>('task_complete', { p_task: id, p_note: note }),
+  taskCancel: (id: string, reason: string) => rpc<void>('task_cancel', { p_task: id, p_reason: reason }),
+
+  pickups: async (hub: string, date: string) => {
+    const { data, error } = await supabase.from('pickup_submissions').select('*').eq('hub_id', hub).eq('pickup_date', date).order('created_at', { ascending: false }); fail(error)
+    return (data ?? []) as Pickup[]
+  },
+  merchants: async (hub: string) => {
+    const { data, error } = await supabase.from('merchants').select('id, code, name, phone, hub_id, status').eq('hub_id', hub).is('archived_at', null).order('name'); fail(error)
+    return (data ?? []) as Merchant[]
+  },
+  addMerchant: async (m: { code: string; name: string; phone: string | null; hub: string; zone: string }) => {
+    const { error } = await supabase.from('merchants').insert({ code: m.code, name: m.name, phone: m.phone, hub_id: m.hub, zone_id: m.zone, status: 'active' }); fail(error)
+  },
+  submitPickup: (a: { source: string; date: string; hub: string; merchant: string; parcels: number; cod: number; collection: number; trip: number; note: string | null }) =>
+    rpc<string>('ops_submit_pickup', { p_source: a.source, p_date: a.date, p_hub: a.hub, p_merchant: a.merchant, p_parcels: a.parcels,
+      p_cod: a.cod, p_collection: a.collection, p_rider: null, p_trip: a.trip, p_note: a.note }),
+  verifyPickup: (id: string) => rpc<void>('ops_verify_pickup', { p_id: id }),
+  approvePickup: (id: string, note: string | null) => rpc<void>('ops_approve_pickup', { p_id: id, p_note: note }),
+  rejectPickup: (id: string, reason: string) => rpc<void>('ops_reject_pickup', { p_id: id, p_reason: reason }),
+  withdrawPickup: (id: string, reason: string) => rpc<void>('ops_withdraw_pickup', { p_id: id, p_reason: reason }),
+
+  metric: async (hub: string, date: string) => {
+    const { data, error } = await supabase.from('hub_daily_metrics').select('*').eq('hub_id', hub).eq('metric_date', date).maybeSingle(); fail(error)
+    return (data ?? null) as HubMetric | null
+  },
+  saveMetric: async (m: Omit<HubMetric, 'id' | 'status'>, id?: string) => {
+    if (id) { const { error } = await supabase.from('hub_daily_metrics').update(m).eq('id', id); fail(error) }
+    else { const { error } = await supabase.from('hub_daily_metrics').insert({ ...m, source: 'manual', status: 'submitted' }); fail(error) }
+  },
+  verifyMetric: (id: string) => rpc<void>('zm_verify_hub_metric', { p_id: id }),
+  reopenMetric: (id: string, reason: string) => rpc<void>('zm_reopen_hub_metric', { p_id: id, p_reason: reason }),
+}

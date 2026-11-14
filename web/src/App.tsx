@@ -22,6 +22,7 @@ import { ZonalStaff } from './pages/zonal/ZonalStaff'
 import { RoleDashboards } from './pages/users/RoleDashboards'
 import { BrandingSettings } from './pages/users/BrandingSettings'
 import { MyProfile } from './pages/MyProfile'
+import { HubManagement } from './pages/hub/HubManagement'
 import './styles.css'
 import './accounts.css'
 import './theme.css'
@@ -44,6 +45,8 @@ export default function App() {
       <Route path="/app/accounts/mine" element={<MyAccounts />} />
       <Route path="/app/org" element={<OrgSetup />} />
       <Route path="/app/zonal/staff" element={<ZonalStaff />} />
+      <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />
+      <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/hr" element={<HrDashboard />} />
       <Route path="/app/hr/employees" element={<Employees />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />

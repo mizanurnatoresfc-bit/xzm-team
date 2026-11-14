@@ -8,13 +8,22 @@ import { BrandName, useBrandText } from './Brand'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
 type Group = { key: string; icon: string; bn: string; en: string; items: Item[] }
-type CountKey = 'apps' | 'leave' | 'sheets'
+type CountKey = 'apps' | 'leave' | 'sheets' | 'team'
 
 const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
   { to: '/app/me', icon: 'user', bn: 'আমার প্রোফাইল', en: 'My profile', perms: null },
 ]
 const GROUPS: Group[] = [
+  { key: 'hub', icon: 'hub', bn: 'হাব ম্যানেজমেন্ট', en: 'Hub Management', items: [
+    { to: '/app/hub/attendance', icon: 'cal', bn: 'আজকের হাজিরা খাতা', en: "Today's attendance", perms: ['hr.attendance.view', 'hr.attendance.create'] },
+    { to: '/app/hub/late', icon: 'clock', bn: 'আজকের দেরিতে হাজিরা', en: 'Late today', perms: ['hr.attendance.view', 'hr.attendance.create'] },
+    { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
+    { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
+    { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
+    { to: '/app/hub/accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
+    { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
+  ] },
   { key: 'org', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal Management', items: [
     { to: '/app/org', icon: 'org', bn: 'জোন, হাব ও পদ', en: 'Zones, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী', en: 'Staff by hub', perms: ['hr.employee.view'] },
@@ -64,14 +73,22 @@ async function countOf(table: string, col: string, val: string): Promise<number>
   if (res.error) return 0
   return res.count ?? (Array.isArray(res.data) ? res.data.length : 0)
 }
+async function teamCount(hub: string): Promise<number> {
+  if (!hub) return 0
+  const res = await supabase.from('employees').select('id', { count: 'exact', head: true }).eq('hub_id', hub).eq('status', 'active').is('archived_at', null)
+  return res.error ? 0 : res.count ?? 0
+}
+const selectedHub = () => { try { return sessionStorage.getItem('xzm_hub') || '' } catch { return '' } }
 function counts(user: string, can: (p: string) => boolean): Promise<Record<CountKey, number>> {
-  const key = [user, can('hr.application.approve'), can('hr.leave.approve'), can('da.sheet.approve')].join('|')
+  const hub = can('hr.employee.view') ? selectedHub() : ''
+  const key = [user, can('hr.application.approve'), can('hr.leave.approve'), can('da.sheet.approve'), hub].join('|')
   if (countCache && countCache.key === key && Date.now() - countCache.at < 60_000) return countCache.p
   const p = Promise.all([
     can('hr.application.approve') ? countOf('employee_applications', 'status', 'submitted') : 0,
     can('hr.leave.approve') ? countOf('leave_requests', 'status', 'pending') : 0,
     can('da.sheet.approve') ? countOf('da_sessions', 'status', 'submitted') : 0,
-  ]).then(([apps, leave, sheets]) => ({ apps, leave, sheets })).catch(() => ({ apps: 0, leave: 0, sheets: 0 }))
+    teamCount(hub),
+  ]).then(([apps, leave, sheets, team]) => ({ apps, leave, sheets, team })).catch(() => ({ apps: 0, leave: 0, sheets: 0, team: 0 }))
   countCache = { key, at: Date.now(), p }; return p
 }
 export function refreshShellCounts() { countCache = null }
@@ -96,7 +113,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [menuQ, setMenuQ] = useState('')
   const [pop, setPop] = useState<'bell' | 'me' | null>(null)
   const [roles, setRoles] = useState<MyRole[]>([])
-  const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0 })
+  const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0 })
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() => { try { return JSON.parse(sessionStorage.getItem('xzm_ng') || '{}') } catch { return {} } })
   const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
@@ -139,7 +156,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         if (!vis.length) return null
         const has = vis.some(i => i.to === here)
         const isOpen = groupOpen[g.key] ?? true
-        const badge = vis.reduce((a, i) => a + (i.count ? cnt[i.count] : 0), 0)
+        const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
         return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`}>
           <button type="button" className="ngh" aria-expanded={isOpen} onClick={() => toggleGroup(g.key, !isOpen)}>
             <span className="gi"><Icon name={g.icon} size={16} />{badge > 0 && !isOpen ? <span className="gdot">{n(badge)}</span> : null}</span>
