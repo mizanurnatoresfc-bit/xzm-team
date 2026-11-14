@@ -121,3 +121,11 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 ## 8. নতুন Claude চ্যাটে যা লিখবেন / Starter message for a new chat
 
 > আমার XZM-TEAM ERP প্রজেক্টের কাজ চালিয়ে যেতে চাই। প্রজেক্টের জিপ আর HANDOVER.md দিলাম। আগে HANDOVER.md পড়ুন। সব লাইভে বসানো আছে; এখন ৫ নম্বর অংশের তালিকা ধরে পরের কাজ (পার্সেল বারকোড স্ক্যান পেজ) শুরু করুন। আমাকে বাংলায় উত্তর দেবেন।
+
+## 2026-11-15 — Region → Area → Hub, hub map
+- Migration `20261115000400_regions_hub_gps.sql`: `regions` table (Rajshahi Region, code RAJ), `zones.region_id` (zones = Areas; "Natore Zone" renamed "Natore Area"),
+  hubs `latitude/longitude numeric(10,7)` (not unique — #80 and #1016 share GPS), `hub_type`, `ops_zone` (null = Unassigned), perms `org.region.*`.
+- `hub_import_rows` (batch `natore-10`) holds the owner's 10-hub list; `hub_import_apply(row, hub|null, name)` fills blanks only,
+  renames an archived code holder to `<code>-OLD`. Applied: #731 (GPS), #779 (active Lalpur; old archived → 779-OLD). 8 rows wait for the owner on the page.
+- Page `/app/org/hubs` (pages/org/Hubs.tsx): stats, region/area tree, import panel, OpenStreetMap view (components/OsmMap.tsx, no library), list,
+  details/edit/location (tap map or "আমার লোকেশন")/active-inactive/archive. netlify.toml allows geolocation=(self).
