@@ -128,6 +128,35 @@ function myPhoto(user: string): Promise<string | null> {
   photoCache = { user, at: Date.now(), p }; return p
 }
 export function refreshMyPhoto() { photoCache = null }
+/** The signed-in person's photo URL: undefined while loading, null when there is none. */
+export function useMyPhoto(): string | null | undefined {
+  const { session } = useAuth()
+  const user = session?.user.id ?? ''
+  const [p, setP] = useState<string | null | undefined>(undefined)
+  useEffect(() => { if (user) void myPhoto(user).then(setP) }, [user])
+  return p
+}
+
+// Mobile: bottom tabs (first four the role may open) and the quick-add sheet.
+const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }> = [
+  { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', perms: null, match: '/app$' },
+  { to: '/app/hub/attendance', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub' },
+  { to: '/app/sorting/parcels', icon: 'truck', bn: 'ট্রিপ', en: 'Trips', perms: ['sorting.parcel.view', 'sorting.parcel.create', 'sorting.center.view'], match: '/app/sorting' },
+  { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
+  { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Staff', perms: ['hr.employee.view'], match: '/app/hr' },
+]
+const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; tone: string }> = [
+  { to: '/app/hub/attendance', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
+  { to: '/app/hub/late', icon: 'clock', bn: 'দেরি লিখুন', en: 'Late', perms: ['hr.attendance.create'], tone: 'o' },
+  { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },
+  { to: '/app/hub/tasks', icon: 'tasks', bn: 'নতুন কাজ', en: 'New task', perms: ['zonal.task.create'], tone: 'p' },
+  { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের খাতা', en: 'Daily sheet', perms: null, tone: 'g' },
+  { to: '/app/accounts/mine', icon: 'receipt', bn: 'আমার বিল', en: 'My bill', perms: null, tone: 'o' },
+  { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },
+  { to: '/app/sorting/fuel', icon: 'cash', bn: 'তেলের রিকুয়েস্ট', en: 'Fuel request', perms: ['sorting.fuel.create'], tone: 'r' },
+  { to: '/app/zonal/staff', icon: 'user', bn: 'নতুন কর্মী', en: 'New staff', perms: ['hr.application.create'], tone: 'p' },
+  { to: '/app/office/assets', icon: 'grid', bn: 'অফিস রিসোর্স', en: 'Office item', perms: ['office.asset.edit'], tone: 'b' },
+]
 
 function roleClass(code: string) {
   if (code === 'super_admin' || code === 'admin') return 'rb-super'
@@ -148,6 +177,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [q, setQ] = useState('')
   const [menuQ, setMenuQ] = useState('')
   const [pop, setPop] = useState<'bell' | 'me' | null>(null)
+  const [quick, setQuick] = useState(false)
+  const [mSearch, setMSearch] = useState(false)
   const [roles, setRoles] = useState<MyRole[]>([])
   const [photo, setPhoto] = useState<string | null>(null)
   const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0 })
@@ -208,10 +239,14 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     <div className="app-main">
       <header className="top no-print">
         <button className="icon menu-btn" aria-label={L('মেনু', 'Menu')} aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name="menu" /></button>
-        <form className="search" role="search" onSubmit={e => { e.preventDefault(); if (q.trim()) nav(`/app/hr/employees?q=${encodeURIComponent(q.trim())}`) }}>
+        {here !== '/app' && <button className="icon back-btn" aria-label={L('পেছনে', 'Back')} onClick={() => history.length > 1 ? nav(-1) : nav('/app')}><Icon name="back" /></button>}
+        <div className="top-title"><b>{title}</b>{subtitle && <span>{subtitle}</span>}</div>
+        <form className={`search${mSearch ? ' m-open' : ''}`} role="search" onSubmit={e => { e.preventDefault(); if (q.trim()) { setMSearch(false); nav(`/app/hr/employees?q=${encodeURIComponent(q.trim())}`) } }}>
           <Icon name="search" size={16} /><input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('কর্মীর নাম, আইডি বা মোবাইল খুঁজুন…', 'Search employee name, ID or mobile…')} aria-label={L('খুঁজুন', 'Search')} />
         </form>
         <span className="spacer" />
+        <button className="quick-btn" aria-label={L('দ্রুত যোগ করুন', 'Quick add')} onClick={() => setQuick(true)}><Icon name="plus" size={22} /></button>
+        <button className="icon search-btn" aria-label={L('খুঁজুন', 'Search')} onClick={() => setMSearch(v => !v)}><Icon name="search" /></button>
         <div className="rel" ref={pop === 'bell' ? popRef : undefined}>
           <button className="icon" aria-label={L('নোটিফিকেশন', 'Notifications')} onClick={() => setPop(pop === 'bell' ? null : 'bell')}><Icon name="bell" />
             {totalAlerts > 0 && <span className="dotn">{n(totalAlerts)}</span>}</button>
@@ -220,7 +255,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
               : <div className="muted small" style={{ padding: '6px 10px' }}>{L('এখন কিছু অপেক্ষমাণ নেই', 'Nothing waiting right now')}</div>}</div>}
         </div>
         <button className="secondary sm hide-sm" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} aria-label="Language"><Icon name="globe" size={15} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
-        <button className="icon" aria-label={L('ডার্ক / লাইট মোড', 'Dark / light mode')} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" /></button>
+        <button className="icon hide-sm" aria-label={L('ডার্ক / লাইট মোড', 'Dark / light mode')} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" /></button>
         <div className="rel" ref={pop === 'me' ? popRef : undefined}>
           <button className={`avatar-btn${pop === 'me' ? ' on' : ''}`} aria-label={L('প্রোফাইল মেনু', 'Profile menu')} aria-haspopup="menu" aria-expanded={pop === 'me'} onClick={() => setPop(pop === 'me' ? null : 'me')}>
             {photo ? <img src={photo} alt="" onError={() => setPhoto(null)} /> : <span>{(name || '?').slice(0, 2).toUpperCase()}</span>}</button>
@@ -242,5 +277,17 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         {children}
       </main>
     </div>
+    <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
+      {TABS.filter(t => allowed(t.perms)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
+        className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}
+      <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => setOpen(true)}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
+    </nav>
+    {quick && <div className="sheet-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={L('দ্রুত যোগ করুন', 'Quick add')}>
+        <div className="sheet-grab" /><div className="sheet-hd"><b>{L('দ্রুত কাজ', 'Quick actions')}</b><button className="icon" aria-label={L('বন্ধ', 'Close')} onClick={() => setQuick(false)}><Icon name="x" /></button></div>
+        <div className="quick-grid">{QUICK.filter(x => allowed(x.perms)).map(x => <Link key={x.to + x.bn} to={x.to} className={`quick-tile t-${x.tone}`} onClick={() => setQuick(false)}>
+          <span className="qi"><Icon name={x.icon} size={24} /></span><span>{L(x.bn, x.en)}</span></Link>)}</div>
+      </div>
+    </div>}
   </div>
 }
