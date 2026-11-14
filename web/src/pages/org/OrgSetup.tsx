@@ -94,7 +94,7 @@ export function OrgSetup() {
         <DataTable title={KIND[tab].label} file={tab} rows={rows} rowKey={r => r.id}
           empty={<p className="muted">এখনো কোনো {KIND[tab].one} নেই।{tab === 'hubs' && !counts.zones ? ' আগে একটি জোন যোগ করুন।' : ''}{tab === 'positions' && !counts.departments ? ' আগে একটি বিভাগ যোগ করুন।' : ''}</p>}
           cols={[
-            { key: 'code', label: 'কোড', render: r => <strong>{r.code}</strong> },
+            { key: 'code', label: 'কোড', render: r => <strong>{tab === 'hubs' && /^\d+$/.test(String(r.code)) ? `#${r.code}` : r.code}</strong> },
             { key: 'name', label: 'নাম', render: r => <>{r.name}{r.name_bn && <span className="sec">{r.name_bn}</span>}</> },
             ...(tab === 'hubs' ? [{ key: 'zone', label: 'জোন', value: (r: Row) => zoneName[(r as Hub).zone_id] ?? '' }] : []),
             ...(tab === 'positions' ? [{ key: 'dept', label: 'বিভাগ', value: (r: Row) => deptName[(r as Position).department_id] ?? '' },
@@ -110,7 +110,8 @@ export function OrgSetup() {
     {edit && <Modal title={edit.isNew ? `নতুন ${KIND[tab].one}` : `${KIND[tab].one} সম্পাদনা`} onClose={() => setEdit(null)}
       actions={<><button className="secondary" onClick={() => setEdit(null)}>বাতিল</button><button disabled={busy} onClick={() => void save()}>সেভ</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label="কোড (ইংরেজি, যেমন NAT)"><input value={String(edit.row.code ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, code: e.target.value } })} /></Field>
+        <Field label={tab === 'hubs' ? 'হাব কোড নম্বর (যেমন 80)' : 'কোড (ইংরেজি, যেমন NAT)'} hint={tab === 'hubs' ? 'সব জায়গায় হাব দেখাবে "নাম #নম্বর" হিসেবে' : undefined}>
+          <input inputMode={tab === 'hubs' ? 'numeric' : 'text'} value={String(edit.row.code ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, code: e.target.value } })} /></Field>
         <Field label="নাম"><input value={String(edit.row.name ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, name: e.target.value } })} /></Field>
         <Field label="নাম (বাংলা)"><input value={String(edit.row.name_bn ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, name_bn: e.target.value } })} /></Field>
         {tab === 'hubs' && <Field label="জোন"><select value={String(edit.row.zone_id ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, zone_id: e.target.value } })}>

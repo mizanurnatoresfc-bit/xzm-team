@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Badge, Field, Modal, useLoad } from '../accounts/ui'
-import { EMP_STATUS, hr, hrFriendly, nameMap, org, type EmployeeStatus } from '../../lib/hr'
+import { EMP_STATUS, hr, hrFriendly, hubLabel, nameMap, org, type EmployeeStatus } from '../../lib/hr'
 
 /** Hubs, zones, departments and positions the user can see, plus id -> name maps. */
 export function useOrg() {
   const q = useLoad(async () => {
-    const [zones, hubs, departments, positions] = await Promise.all([org.zones(), org.hubs(), org.departments(), org.positions()])
+    const [zones, hubsRaw, departments, positions] = await Promise.all([org.zones(), org.hubs(), org.departments(), org.positions()])
+    // Hubs are shown with their number code everywhere ("Natore #80"); search by number works in every list.
+    const hubs = hubsRaw.map(h => ({ ...h, name: hubLabel(h) }))
     return { zones, hubs, departments, positions }
   }, [])
   const names = useMemo(() => ({ zone: nameMap(q.data?.zones), hub: nameMap(q.data?.hubs), dept: nameMap(q.data?.departments), pos: nameMap(q.data?.positions) }), [q.data])

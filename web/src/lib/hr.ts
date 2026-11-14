@@ -18,6 +18,10 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 export type Org = { id: string; code: string; name: string; name_bn: string | null; phone: string | null; head_office_address: string | null }
 export type Zone = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null }
 export type Hub = { id: string; zone_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null }
+/** A hub as people know it: name + its number code ("Natore #80"). Text codes are not shown. */
+export function hubLabel(h: { name: string; code?: string | null }): string {
+  return h.code && /^\d+$/.test(String(h.code).trim()) ? `${h.name} #${String(h.code).trim()}` : h.name
+}
 export type Department = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null }
 export type Position = { id: string; department_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null; level?: 'hub' | 'zone' | 'head_office' }
 export type EmployeeStatus = 'applicant' | 'active' | 'inactive' | 'resigned' | 'terminated' | 'rejected'

@@ -34,6 +34,13 @@ const GROUPS: Group[] = [
     { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ⇄ শটিং', en: 'Reports: hub ⇄ sorting', perms: ['sorting.report.view'] },
     { to: '/app/sorting/centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
   ] },
+  { key: 'office', icon: 'home', bn: 'অফিস ম্যানেজমেন্ট', en: 'Office Management', items: [
+    { to: '/app/office/overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
+    { to: '/app/office/places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
+    { to: '/app/office/rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ', en: 'Flat details', perms: ['office.property.view'] },
+    { to: '/app/office/desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
+    { to: '/app/office/assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
+  ] },
   { key: 'org', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal Management', items: [
     { to: '/app/org', icon: 'org', bn: 'জোন, হাব ও পদ', en: 'Zones, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী', en: 'Staff by hub', perms: ['hr.employee.view'] },

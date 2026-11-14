@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
+import { RouteViz } from '../../components/RouteViz'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { ATT_STATUS, hr, hrFriendly, type AttendanceStatus, type Employee, type Hub } from '../../lib/hr'
@@ -625,6 +626,7 @@ function RiderRoutes({ hub }: { hub: Hub }) {
     try { await routesApi.archive(r.id, why.trim()); await routes.reload(); await riders.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   const noRoute = (team.data ?? []).filter(e => isRider(e) && !routesOf(e.id))
+  const [view, setView] = useState<'map' | 'list'>('map')
   return <>
     {node}
     <div className="da-stats">
@@ -635,9 +637,14 @@ function RiderRoutes({ hub }: { hub: Hub }) {
     </div>
     <section className="panel">
       <div className="da-bar"><h2>{L('রাইডার রুট', 'Rider routes')}</h2>
-        {edit && <button onClick={() => { setErr(''); setF({ code: `R${(routes.data?.length ?? 0) + 1}`, name: '', areas: '', note: '' }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</div>
+        <span className="row-acts"><span className="da-seg"><button className={view === 'map' ? 'sm' : 'secondary sm'} onClick={() => setView('map')}><Icon name="map" size={14} />{L('ছবি', 'Map')}</button>
+          <button className={view === 'list' ? 'sm' : 'secondary sm'} onClick={() => setView('list')}><Icon name="table" size={14} />{L('কার্ড', 'Cards')}</button></span>
+        {edit && <button onClick={() => { setErr(''); setF({ code: `R${(routes.data?.length ?? 0) + 1}`, name: '', areas: '', note: '' }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
       {err && !f && !pick && <p className="da-error">{err}</p>}
-      {routes.error ? <p className="da-error">{hrFriendly(routes.error)}</p> : routes.data && !routes.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই। এলাকার নাম দিয়ে রুট বানিয়ে রাইডারদের দিন।', 'No routes yet. Make one from area names and give it to riders.')}</p> :
+      {routes.error ? <p className="da-error">{hrFriendly(routes.error)}</p> : routes.data && !routes.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই। এলাকার নাম দিয়ে রুট বানিয়ে রাইডারদের দিন।', 'No routes yet. Make one from area names and give it to riders.')}</p> : view === 'map' ?
+        <RouteViz start={hub.name} lanes={(routes.data ?? []).map(r => ({ id: r.id, code: r.code, name: r.name,
+          sub: ridersOf(r.id).length ? `${L('রাইডার', 'Riders')}: ${ridersOf(r.id).map(x => emp[x.employee_id]?.full_name ?? '—').join(', ')}` : L('রাইডার দেওয়া হয়নি', 'No rider yet'),
+          stops: r.areas.map((a, j) => ({ id: `${r.id}-${j}`, label: a, tone: ridersOf(r.id).length ? undefined : 'warn' as const })) }))} /> :
         <div className="route-cards">{routes.data?.map(r => <article key={r.id} className="route-card">
           <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.code} · {r.name}</b>
             {r.note && <div className="muted small">{r.note}</div>}</div>

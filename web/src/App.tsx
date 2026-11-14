@@ -27,6 +27,7 @@ import { MyPermissions } from './pages/MyPermissions'
 import { Settings } from './pages/Settings'
 import { Sorting } from './pages/sorting/Sorting'
 import { Duties } from './pages/hr/Duties'
+import { Office } from './pages/office/Office'
 import './styles.css'
 import './accounts.css'
 import './theme.css'
@@ -54,6 +55,8 @@ export default function App() {
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
       <Route path="/app/hr/duties" element={<Duties />} />
+      <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
+      <Route path="/app/office/:section" element={<Office />} />
       <Route path="/app/hr" element={<HrDashboard />} />
       <Route path="/app/hr/employees" element={<Employees />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />

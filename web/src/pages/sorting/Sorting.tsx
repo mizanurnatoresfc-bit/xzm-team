@@ -5,6 +5,7 @@ import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { RouteViz } from '../../components/RouteViz'
 import { usePrefs } from '../../lib/prefs'
 import { hrFriendly, type Hub } from '../../lib/hr'
 import { taka } from '../../lib/dailyAccounts'
@@ -99,10 +100,10 @@ function useRefs(center: string, ids: Array<string | null | undefined>) {
   const emp = useMemo(() => Object.fromEntries((emps.data ?? []).map(e => [e.id, e])) as Record<string, EmpLite>, [emps.data])
   return { routes, rh, vehicles, routeName, vehName, emp }
 }
-const empLabel = (e?: EmpLite) => e ? `${e.employee_code ? e.employee_code + ' · ' : ''}${e.full_name}` : ''
+export const empLabel = (e?: EmpLite) => e ? `${e.employee_code ? e.employee_code + ' · ' : ''}${e.full_name}` : ''
 
 /** Employee picked by ID; shows the name once found. */
-function EmpPicker({ label, value, onPick, hint }: { label: string; value: EmpLite | null; onPick: (e: EmpLite | null) => void; hint?: ReactNode }) {
+export function EmpPicker({ label, value, onPick, hint }: { label: string; value: EmpLite | null; onPick: (e: EmpLite | null) => void; hint?: ReactNode }) {
   const { L } = usePrefs()
   const [code, setCode] = useState(value?.employee_code ?? '')
   const [msg, setMsg] = useState('')
@@ -244,13 +245,19 @@ function Routes({ ctx }: { ctx: Ctx }) {
     if (!why.trim()) return
     try { await sorting.archiveRoute(r.id, why.trim()); await routesQ.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
+  const [view, setView] = useState<'map' | 'list'>('map')
   const toggleHub = (id: string) => f && setF({ ...f, hubs: f.hubs.some(h => h.hub_id === id) ? f.hubs.filter(h => h.hub_id !== id) : [...f.hubs, { hub_id: id, can_charge: false }] })
   return <>{node}
     <section className="panel">
       <div className="da-bar"><h2>{L('শটিং টু হাব রুট', 'Sorting to hub routes')} <span className="count-pill">{n(routesQ.data?.length ?? 0)}</span></h2>
-        {edit && <button onClick={() => { setErr(''); setF({ code: '', name: '', vehicle_id: '', driver: null, depart_time: '', note: '', hubs: [] }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</div>
+        <span className="row-acts"><span className="da-seg"><button className={view === 'map' ? 'sm' : 'secondary sm'} onClick={() => setView('map')}><Icon name="map" size={14} />{L('ছবি', 'Map')}</button>
+          <button className={view === 'list' ? 'sm' : 'secondary sm'} onClick={() => setView('list')}><Icon name="table" size={14} />{L('তালিকা', 'List')}</button></span>
+        {edit && <button onClick={() => { setErr(''); setF({ code: '', name: '', vehicle_id: '', driver: null, depart_time: '', note: '', hubs: [] }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
       {err && !f && <p className="da-error">{err}</p>}
-      {routesQ.data && !routesQ.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই।', 'No routes yet.')}</p> :
+      {routesQ.data && !routesQ.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই।', 'No routes yet.')}</p> : view === 'map' ?
+        <RouteViz start={ctx.center.name} lanes={(routesQ.data ?? []).map(r => ({ id: r.id, code: r.code, name: r.name,
+          sub: [r.vehicle_id && vName[r.vehicle_id], r.driver_id && empLabel(dName[r.driver_id]), r.depart_time && `${L('ছাড়ে', 'Leaves')} ${r.depart_time.slice(0, 5)}`].filter(Boolean).join(' · '),
+          stops: hubsOf(r.id).map(h => ({ id: h.id, label: ctx.hubName[h.hub_id] ?? '—', flag: h.can_charge ? L('৳ খরচ হাব থেকে', '৳ cost from hub') : undefined })) }))} /> :
         <div className="route-cards">{routesQ.data?.map(r => <article key={r.id} className="route-card">
           <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.code} · {r.name}</b>
             <div className="muted small">{[r.vehicle_id && vName[r.vehicle_id], r.driver_id && empLabel(dName[r.driver_id]), r.depart_time && `${L('ছাড়ে', 'Leaves')} ${r.depart_time.slice(0, 5)}`].filter(Boolean).join(' · ') || '—'}</div></div>
