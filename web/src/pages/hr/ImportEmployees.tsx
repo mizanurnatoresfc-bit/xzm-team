@@ -7,6 +7,7 @@ import { readSheet, excelDate } from '../../lib/sheetRead'
 import { DATE_TARGETS, guessTarget, importer, importFriendly, rowError, TARGETS, type Batch, type ImportRow, type Missing } from '../../lib/importer'
 import { download, xlsxBlob } from '../../lib/xlsx'
 import { useOrg } from './common'
+import { staffAdmin, toImportTarget, type Format } from '../../lib/staffAdmin'
 
 type Sheet = { name: string; rows: string[][] }
 const MAP_KEY = 'xzm_import_mapping'
@@ -21,6 +22,7 @@ export function ImportEmployees() {
   const { toast, node } = useToast()
   const batches = useLoad(() => importer.batches(), [])
   const fields = useLoad(() => importer.customFields(), [])
+  const formats = useLoad(() => staffAdmin.formats().then(l => l.filter(f => f.purpose !== 'export')).catch(() => [] as Format[]), [])
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const [headerRow, setHeaderRow] = useState(1)
   const [mapping, setMapping] = useState<Record<number, string>>({})
@@ -44,6 +46,24 @@ export function ImportEmployees() {
       if (t) { m[i] = t; used.add(t) }
     })
     setMapping(m)
+  }
+
+  /** Matches the sheet's headers to a saved format's headings. */
+  function applyFormat(id: string) {
+    const fmt = formats.data?.find(x => x.id === id)
+    if (!fmt) return
+    const norm = (x: string) => x.trim().toLowerCase().replace(/\s+/g, ' ')
+    const m: Record<number, string> = {}
+    const used = new Set<string>()
+    for (const c of fmt.columns) {
+      const target = toImportTarget(c.field)
+      if (!target || used.has(target)) continue
+      const want = [c.label_bn, c.label].filter(Boolean).map(x => norm(String(x)))
+      const i = headers.findIndex((h, k) => !m[k] && want.includes(norm(h)))
+      if (i >= 0) { m[i] = target; used.add(target) }
+    }
+    if (!Object.keys(m).length) { setErr(L('এই ফরম্যাটের কোনো কলাম ফাইলের শিরোনামের সাথে মিলল না', 'None of this format\u2019s columns match the headers in the file')); return }
+    setErr(''); setMapping(m)
   }
 
   async function onFile(f: File | undefined) {
@@ -105,8 +125,13 @@ export function ImportEmployees() {
       {sheet && <>
         <section className="panel">
           <div className="da-bar"><h2 style={{ margin: 0 }}>{L('২. কোন কলাম কোন ঘরে যাবে', '2. Which column goes where')}</h2>
+            <span style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            {!!formats.data?.length && <Field label={L('সেভ করা ফরম্যাট', 'Saved format')} hint={L('ফরম্যাটের নাম ধরে কলাম মিলিয়ে নেবে', 'Matches columns by the format\u2019s headings')}>
+              <select defaultValue="" onChange={e => { if (e.target.value) applyFormat(e.target.value); e.target.value = '' }}>
+                <option value="">{L('— বেছে নিন —', '— choose —')}</option>
+                {formats.data.map(f => <option key={f.id} value={f.id}>{L(f.name_bn || f.name, f.name)}</option>)}</select></Field>}
             <Field label={L('শিরোনামের সারি নম্বর', 'Header row')}><input type="number" min={1} max={20} value={headerRow} style={{ width: 90 }}
-              onChange={e => { const v = Math.max(1, Number(e.target.value) || 1); setHeaderRow(v); autoMap((sheet.rows[v - 1] ?? []).map(String)) }} /></Field></div>
+              onChange={e => { const v = Math.max(1, Number(e.target.value) || 1); setHeaderRow(v); autoMap((sheet.rows[v - 1] ?? []).map(String)) }} /></Field></span></div>
           <p className="muted small">{L('নিজে থেকে মিলিয়ে দেওয়া হয়েছে — মিলিয়ে দেখুন। যে কলাম লাগবে না সেটায় "— বাদ —" রাখুন। দরকারি: নাম আর হাব। আইডি থাকলে কর্মী সরাসরি সক্রিয় হবেন, না থাকলে আইডি আবেদনে যাবেন।',
             'Matched automatically — please check. Leave “— skip —” for columns you do not need. Required: name and hub. Rows with an ID become active staff; rows without one go to ID applications.')}</p>
           <div className="da-table-wrap"><table className="da-table">

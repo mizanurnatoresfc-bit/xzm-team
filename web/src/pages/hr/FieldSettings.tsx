@@ -5,6 +5,7 @@ import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { extraFriendly, fields, makeCode, parseOptions, referrals, TYPE_LABEL, type CField, type PCol } from '../../lib/extra'
 import { useOrg } from './common'
+import { Formats } from './Formats'
 
 /** Company policy screen: extra profile fields and extra columns for the "people in hand" list,
  *  for the whole company (Head Office) or one zone (Zonal Manager). */
@@ -13,7 +14,7 @@ export function FieldSettings() {
   const { L, lang } = usePrefs()
   const o = useOrg()
   const { toast, node } = useToast()
-  const [tab, setTab] = useState<'fields' | 'columns'>(can('hr.profile_field.configure') ? 'fields' : 'columns')
+  const [tab, setTab] = useState<'fields' | 'columns' | 'formats'>(can('hr.profile_field.configure') ? 'fields' : 'columns')
   const data = useLoad(async () => {
     const [s, f, c] = await Promise.all([fields.sections(), fields.all(), referrals.columns()])
     return { s, f, c }
@@ -32,6 +33,7 @@ export function FieldSettings() {
     <div className="row" style={{ marginBottom: 12, display: 'flex', gap: 8 }}>
       {can('hr.profile_field.configure') && <button className={tab === 'fields' ? '' : 'secondary'} onClick={() => setTab('fields')}>{L('প্রোফাইলের ঘর', 'Profile fields')}</button>}
       {can('hr.referral.configure') && <button className={tab === 'columns' ? '' : 'secondary'} onClick={() => setTab('columns')}>{L('হাতে থাকা লোকের কলাম', 'People-in-hand columns')}</button>}
+      {can('hr.profile_field.configure') && <button className={tab === 'formats' ? '' : 'secondary'} onClick={() => setTab('formats')}>{L('এক্সপোর্ট / ইমপোর্ট ফরম্যাট', 'Export / import formats')}</button>}
     </div>
     {data.error ? <p className="da-error">{extraFriendly(data.error)}</p> : null}
 
@@ -61,6 +63,8 @@ export function FieldSettings() {
             <td>{TYPE_LABEL[c.field_type] ? L(...TYPE_LABEL[c.field_type]) : c.field_type}</td><td>{c.zone_id ? <Badge tone="info">{zoneName(c.zone_id)}</Badge> : zoneName(null)}</td>
             <td style={{ textAlign: 'right' }}>{(c.zone_id ? can('hr.referral.configure') : global('hr.referral.configure')) && <button className="secondary sm" onClick={() => setArchive({ kind: 'column', id: c.id, label: lbl(c) })}>{L('সরান', 'Remove')}</button>}</td></tr>)}</tbody></table></div>}
     </section>}
+
+    {tab === 'formats' && <Formats toast={toast} />}
 
     {addF && data.data && <NewItem kind="field" sections={data.data.s} canGlobal={global('hr.profile_field.configure')} zones={o.data?.zones ?? []}
       onClose={() => setAddF(false)} onDone={() => { setAddF(false); toast(L('নতুন ঘর যোগ হয়েছে', 'Field added')); void data.reload() }} />}

@@ -18,6 +18,7 @@ import { Attendance } from './pages/hr/Attendance'
 import { ImportEmployees } from './pages/hr/ImportEmployees'
 import { FieldSettings } from './pages/hr/FieldSettings'
 import { Referrals } from './pages/hr/Referrals'
+import { ZonalStaff } from './pages/zonal/ZonalStaff'
 import { MyProfile } from './pages/MyProfile'
 import './styles.css'
 import './accounts.css'
@@ -39,6 +40,7 @@ export default function App() {
       <Route path="/app/accounts/daily/:id" element={<DailySheet />} />
       <Route path="/app/accounts/mine" element={<MyAccounts />} />
       <Route path="/app/org" element={<OrgSetup />} />
+      <Route path="/app/zonal/staff" element={<ZonalStaff />} />
       <Route path="/app/hr" element={<HrDashboard />} />
       <Route path="/app/hr/employees" element={<Employees />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />

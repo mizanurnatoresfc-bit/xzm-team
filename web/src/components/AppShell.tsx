@@ -16,6 +16,7 @@ const HOME: Item[] = [
 const GROUPS: Group[] = [
   { key: 'org', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal Management', items: [
     { to: '/app/org', icon: 'org', bn: 'জোন, হাব ও পদ', en: 'Zones, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
+    { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী', en: 'Staff by hub', perms: ['hr.employee.view'] },
   ] },
   { key: 'staff', icon: 'users', bn: 'স্টাফ ম্যানেজমেন্ট', en: 'Staff Management', items: [
     { to: '/app/hr', icon: 'chart', bn: 'HR ড্যাশবোর্ড', en: 'HR dashboard', perms: ['hr.employee.view'] },
