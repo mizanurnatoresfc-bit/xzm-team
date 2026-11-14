@@ -228,3 +228,20 @@ button.avatar-btn.on{box-shadow:0 0 0 3px var(--primary-50)}
 .perm-res{font-weight:600;text-transform:capitalize}
 .perm-acts{display:flex;flex-wrap:wrap;gap:4px}.perm-acts .da-badge{margin-left:0}
 @media (max-width:560px){.perm-row{grid-template-columns:1fr}}
+
+/* ---- Attendance status chips: one colour per status; filled when chosen ---- */
+.att-btns{display:flex;gap:6px;flex-wrap:wrap}
+.att-btns button{--c:#64748b;--bg:#f1f5f9;padding:6px 12px!important;font-size:13px!important;font-weight:700;border-radius:999px!important;min-height:0;
+  color:var(--c)!important;background:var(--bg)!important;border:1.5px solid color-mix(in srgb,var(--c) 35%,transparent)!important;display:inline-flex;align-items:center;gap:5px}
+.att-btns button::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.att-btns button.on{color:#fff!important;background:var(--c)!important;border-color:var(--c)!important;box-shadow:0 2px 6px color-mix(in srgb,var(--c) 40%,transparent)}
+.att-btns button.on::before{background:#fff}
+.att-btns .att-present{--c:#16a34a;--bg:#ecfdf3}
+.att-btns .att-late{--c:#ea580c;--bg:#fff4ed}
+.att-btns .att-half_day{--c:#ca8a04;--bg:#fefce8}
+.att-btns .att-absent{--c:#dc2626;--bg:#fef2f2}
+.att-btns .att-holiday{--c:#2563eb;--bg:#eff6ff}
+.att-btns .att-weekly_off{--c:#7c3aed;--bg:#f5f3ff}
+[data-theme="dark"] .att-btns button{--bg:color-mix(in srgb,var(--c) 14%,transparent)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .att-btns button{--bg:color-mix(in srgb,var(--c) 14%,transparent)}}
+@media (max-width:560px){.att-btns{gap:5px}.att-btns button{padding:5px 10px!important;font-size:12.5px!important}}

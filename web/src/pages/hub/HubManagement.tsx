@@ -122,7 +122,7 @@ function AttendanceToday({ hub }: { hub: Hub }) {
           <tbody>{staff.data?.map(e => { const r = byEmp[e.id]; return <tr key={e.id}><td><strong>{e.employee_code ?? '—'}</strong></td>
             <td>{e.full_name}{r?.check_in ? <span className="sec">{L('এসেছেন', 'In')} {timeOf(r.check_in)}</span> : null}</td>
             <td>{r?.status === 'leave' ? <Badge tone="info">{L('ছুটি (অনুমোদিত)', 'On leave')}</Badge> : (canAdd && !r) || (canEdit && r) ? <div className="att-btns">{MARKABLE.map(s =>
-              <button key={s} className={`secondary${r?.status === s ? ' on' : ''}`} disabled={busy === e.id} onClick={() => void mark(e.id, s)}>{ATT_STATUS[s]}</button>)}</div>
+              <button key={s} className={`secondary att-${s}${r?.status === s ? ' on' : ''}`} aria-pressed={r?.status === s} disabled={busy === e.id} onClick={() => void mark(e.id, s)}>{ATT_STATUS[s]}</button>)}</div>
               : r ? ATT_STATUS[r.status] : <span className="muted">{L('দেওয়া হয়নি', 'Not marked')}</span>}</td></tr> })}</tbody></table></div>}
     </section>
   </>
