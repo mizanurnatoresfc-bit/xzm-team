@@ -23,6 +23,8 @@ import { RoleDashboards } from './pages/users/RoleDashboards'
 import { BrandingSettings } from './pages/users/BrandingSettings'
 import { MyProfile } from './pages/MyProfile'
 import { HubManagement } from './pages/hub/HubManagement'
+import { MyPermissions } from './pages/MyPermissions'
+import { Settings } from './pages/Settings'
 import './styles.css'
 import './accounts.css'
 import './theme.css'
@@ -55,6 +57,8 @@ export default function App() {
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/me" element={<MyProfile />} />
+      <Route path="/app/me/permissions" element={<MyPermissions />} />
+      <Route path="/app/settings" element={<Settings />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.user.view" />}>

@@ -12,7 +12,6 @@ type CountKey = 'apps' | 'leave' | 'sheets' | 'team'
 
 const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
-  { to: '/app/me', icon: 'user', bn: 'আমার প্রোফাইল', en: 'My profile', perms: null },
 ]
 const GROUPS: Group[] = [
   { key: 'hub', icon: 'hub', bn: 'হাব ম্যানেজমেন্ট', en: 'Hub Management', items: [
@@ -93,6 +92,24 @@ function counts(user: string, can: (p: string) => boolean): Promise<Record<Count
 }
 export function refreshShellCounts() { countCache = null }
 
+// The signed-in person's own photo (an employee "photo" document), cached for 50 minutes.
+let photoCache: { user: string; at: number; p: Promise<string | null> } | null = null
+function myPhoto(user: string): Promise<string | null> {
+  if (photoCache && photoCache.user === user && Date.now() - photoCache.at < 3_000_000) return photoCache.p
+  const p = (async () => {
+    const { data: emp } = await supabase.rpc('my_employee_id')
+    if (!emp) return null
+    const { data } = await supabase.from('employee_documents').select('storage_path').eq('employee_id', emp as string).eq('doc_type', 'photo')
+      .is('archived_at', null).order('created_at', { ascending: false }).limit(1)
+    const path = (data?.[0] as { storage_path?: string } | undefined)?.storage_path
+    if (!path) return null
+    const { data: url } = await supabase.storage.from('employee-docs').createSignedUrl(path, 3600)
+    return url?.signedUrl ?? null
+  })().catch(() => null)
+  photoCache = { user, at: Date.now(), p }; return p
+}
+export function refreshMyPhoto() { photoCache = null }
+
 function roleClass(code: string) {
   if (code === 'super_admin' || code === 'admin') return 'rb-super'
   if (/zonal|zone|head_office|operations/.test(code)) return 'rb-zone'
@@ -113,10 +130,12 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [menuQ, setMenuQ] = useState('')
   const [pop, setPop] = useState<'bell' | 'me' | null>(null)
   const [roles, setRoles] = useState<MyRole[]>([])
+  const [photo, setPhoto] = useState<string | null>(null)
   const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0 })
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() => { try { return JSON.parse(sessionStorage.getItem('xzm_ng') || '{}') } catch { return {} } })
   const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
+  useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user])
   useEffect(() => {
     if (!pop) return
     const f = (e: MouseEvent) => { if (popRef.current && !popRef.current.contains(e.target as Node)) setPop(null) }
@@ -184,15 +203,16 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <button className="secondary sm hide-sm" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} aria-label="Language"><Icon name="globe" size={15} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
         <button className="icon" aria-label={L('ডার্ক / লাইট মোড', 'Dark / light mode')} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" /></button>
         <div className="rel" ref={pop === 'me' ? popRef : undefined}>
-          <button className="icon" aria-label={L('প্রোফাইল', 'Profile')} onClick={() => setPop(pop === 'me' ? null : 'me')} style={{ borderRadius: '50%', fontWeight: 700, fontSize: 13 }}>{(name || '?').slice(0, 2).toUpperCase()}</button>
-          {pop === 'me' && <div className="top-pop" role="menu">
-            <div className="hd" style={{ color: 'var(--text)' }}>{name}</div>
-            <div className="muted small" style={{ padding: '0 10px 6px' }}>{top ? scopeText : L('কোনো রোল নেই', 'No role')}</div>
-            <button className="mi" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}><Icon name="globe" size={16} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
-            <Link to="/app/accounts/mine" onClick={() => setPop(null)}><Icon name="wallet" size={16} />{L('আমার হিসাব', 'My accounts')}</Link>
-            <Link to="/app/me" onClick={() => setPop(null)}><Icon name="user" size={16} />{L('আমার প্রোফাইল', 'My profile')}</Link>
-            <Link to="/app/password" onClick={() => setPop(null)}><Icon name="key" size={16} />{L('পাসওয়ার্ড বদলান', 'Change password')}</Link>
-            <button className="mi" onClick={() => void signOut()}><Icon name="out" size={16} />{L('লগআউট', 'Sign out')}</button>
+          <button className={`avatar-btn${pop === 'me' ? ' on' : ''}`} aria-label={L('প্রোফাইল মেনু', 'Profile menu')} aria-haspopup="menu" aria-expanded={pop === 'me'} onClick={() => setPop(pop === 'me' ? null : 'me')}>
+            {photo ? <img src={photo} alt="" onError={() => setPhoto(null)} /> : <span>{(name || '?').slice(0, 2).toUpperCase()}</span>}</button>
+          {pop === 'me' && <div className="top-pop me-pop" role="menu">
+            <div className="me-head"><span className="me-av">{photo ? <img src={photo} alt="" /> : (name || '?').slice(0, 2).toUpperCase()}</span>
+              <div style={{ minWidth: 0 }}><b>{name}</b><div className="muted small">{top ? scopeText : L('কোনো রোল নেই', 'No role')}</div></div></div>
+            <Link to="/app/me" role="menuitem" onClick={() => setPop(null)}><Icon name="user" size={20} />{L('প্রোফাইল', 'Profile')}</Link>
+            <Link to="/app/me/permissions" role="menuitem" onClick={() => setPop(null)}><Icon name="key" size={20} />{L('আমার অনুমতি', 'My Permissions')}</Link>
+            <Link to="/app/settings" role="menuitem" onClick={() => setPop(null)}><Icon name="gear" size={20} />{L('সেটিং', 'Setting')}</Link>
+            <hr />
+            <button className="mi" role="menuitem" onClick={() => void signOut()}><Icon name="out" size={20} />{L('লগআউট', 'Logout')}</button>
           </div>}
         </div>
       </header>

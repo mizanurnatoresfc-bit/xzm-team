@@ -208,3 +208,23 @@ button.team-card.on{border-color:var(--primary);box-shadow:0 0 0 2px var(--prima
 .hub-link{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;color:var(--text);text-decoration:none;font-weight:600}
 .hub-link span{flex:1}.hub-link:hover{border-color:var(--primary)}
 @media (max-width:560px){.hub-top .da-field{flex-basis:100%}.team-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.team-search{max-width:none}}
+
+/* ---- Profile menu (avatar) ---- */
+button.avatar-btn{width:44px;height:44px;min-height:0;padding:0;border-radius:50%;border:2.5px solid var(--primary)!important;background:var(--primary-50)!important;color:var(--primary)!important;font-weight:800;font-size:14px;overflow:hidden;display:grid;place-items:center}
+button.avatar-btn img{width:100%;height:100%;object-fit:cover;display:block}
+button.avatar-btn.on{box-shadow:0 0 0 3px var(--primary-50)}
+.me-pop{min-width:270px;padding:8px}
+.me-pop .me-head{display:flex;gap:10px;align-items:center;padding:8px 10px 10px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.me-pop .me-av{width:40px;height:40px;flex:none;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:var(--primary-50);color:var(--primary);font-weight:800}
+.me-pop .me-av img{width:100%;height:100%;object-fit:cover}
+.me-pop .me-head b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me-pop a,.me-pop button.mi{padding:12px 10px!important;font-size:16px}
+.me-pop hr{border:0;border-top:1px solid var(--border);margin:4px 0;width:100%}
+/* ---- My permissions ---- */
+.perm-grp{border-top:1px solid var(--border);padding-top:10px;margin-top:10px}
+.perm-grp h3{display:flex;align-items:center;gap:8px}
+.perm-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--primary-50);color:var(--primary)}
+.perm-row{display:grid;grid-template-columns:180px 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--border)}
+.perm-res{font-weight:600;text-transform:capitalize}
+.perm-acts{display:flex;flex-wrap:wrap;gap:4px}.perm-acts .da-badge{margin-left:0}
+@media (max-width:560px){.perm-row{grid-template-columns:1fr}}
