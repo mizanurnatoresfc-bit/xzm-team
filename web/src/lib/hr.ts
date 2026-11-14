@@ -19,7 +19,7 @@ export type Org = { id: string; code: string; name: string; name_bn: string | nu
 export type Zone = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null }
 export type Hub = { id: string; zone_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null }
 export type Department = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null }
-export type Position = { id: string; department_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null }
+export type Position = { id: string; department_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null; level?: 'hub' | 'zone' | 'head_office' }
 export type EmployeeStatus = 'applicant' | 'active' | 'inactive' | 'resigned' | 'terminated' | 'rejected'
 export type Employee = {
   id: string; employee_code: string | null; full_name: string; full_name_bn: string | null; mobile: string | null; email: string | null

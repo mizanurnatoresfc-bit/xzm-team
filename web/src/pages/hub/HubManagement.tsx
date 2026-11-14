@@ -8,10 +8,11 @@ import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { ATT_STATUS, hr, hrFriendly, type AttendanceStatus, type Employee, type Hub } from '../../lib/hr'
 import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts'
+import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 
-export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team'
+export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'routes'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
@@ -22,6 +23,7 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
   { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
   { key: 'team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'] },
+  { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
 ]
 
 const HUB_KEY = 'xzm_hub'
@@ -70,6 +72,7 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
     case 'ops': return <OpsToday hub={hub} />
     case 'accounts': return <AccountsToday hub={hub} />
     case 'team': return <HubTeam hub={hub} />
+    case 'routes': return <RiderRoutes hub={hub} />
   }
 }
 
@@ -578,6 +581,94 @@ function HubTeam({ hub }: { hub: Hub }) {
       <p><strong>{del.employee_code ? `${del.employee_code} · ` : ''}{del.full_name}</strong></p>
       <p className="muted small">{L('রেকর্ড মুছে যায় না — আর্কাইভে থাকে, অডিট লগে কারণসহ লেখা থাকে।', 'The record is archived, not erased, and the reason is kept in the audit log.')}</p>
       <Field label={L('কারণ', 'Reason')}><input value={reason} onChange={e => setReason(e.target.value)} /></Field>
+      {err && <p className="da-error">{err}</p>}
+    </Modal>}
+  </>
+}
+
+// ---------------------------------------------------------------- rider routes
+function RiderRoutes({ hub }: { hub: Hub }) {
+  const { can } = useAuth()
+  const { L, n } = usePrefs()
+  const { toast, node } = useToast()
+  const routes = useLoad(() => routesApi.list(hub.id), [hub.id])
+  const riders = useLoad(() => routesApi.riders(hub.id), [hub.id])
+  const team = useLoad(() => hubApi.team(hub.id, 'active'), [hub.id])
+  const o = useOrg()
+  const emp = useMemo(() => Object.fromEntries((team.data ?? []).map(e => [e.id, e])) as Record<string, Employee>, [team.data])
+  const isRider = (e: Employee) => /rider|রাইডার|delivery/i.test((e.position_id && o.names.pos[e.position_id]) || '')
+  const [f, setF] = useState<{ id?: string; code: string; name: string; areas: string; note: string } | null>(null)
+  const [pick, setPick] = useState<{ route: HubRoute; ids: string[]; all: boolean } | null>(null)
+  const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const edit = can('ops.route.edit')
+  const ridersOf = (id: string) => (riders.data ?? []).filter(r => r.route_id === id)
+  const routesOf = (empId: string) => (riders.data ?? []).filter(r => r.employee_id === empId).length
+  async function save() {
+    if (!f) return
+    const areas = f.areas.split(/[,\n،]+/).map(a => a.trim()).filter(Boolean)
+    if (!f.code.trim() || f.name.trim().length < 2) return setErr(L('রুটের কোড ও নাম দিন', 'Give the route code and name'))
+    if (!areas.length) return setErr(L('অন্তত একটা এলাকার নাম দিন', 'Give at least one area'))
+    setBusy(true); setErr('')
+    try { await routesApi.save({ hub_id: hub.id, zone_id: hub.zone_id, code: f.code.trim().toUpperCase(), name: f.name.trim(), areas, note: f.note.trim() || null }, f.id)
+      setF(null); await routes.reload(); toast(L('রুট সেভ হয়েছে', 'Route saved')) }
+    catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
+  async function saveRiders() {
+    if (!pick) return
+    setBusy(true); setErr('')
+    try { await routesApi.setRiders(pick.route, pick.ids, riders.data ?? []); setPick(null); await riders.reload(); toast(L('রাইডার সেভ হয়েছে', 'Riders saved')) }
+    catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
+  async function remove(r: HubRoute) {
+    const why = window.prompt(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`)) ?? ''
+    if (!why.trim()) return
+    try { await routesApi.archive(r.id, why.trim()); await routes.reload(); await riders.reload() } catch (e) { setErr(hrFriendly(e)) }
+  }
+  const noRoute = (team.data ?? []).filter(e => isRider(e) && !routesOf(e.id))
+  return <>
+    {node}
+    <div className="da-stats">
+      <Stat icon="map" label={L('রুট', 'Routes')} value={n(routes.data?.length ?? 0)} />
+      <Stat icon="truck" label={L('রুট পাওয়া রাইডার', 'Riders with a route')} value={n(new Set((riders.data ?? []).map(r => r.employee_id)).size)} />
+      <Stat icon="alert" tone={noRoute.length ? 'warn' : undefined} label={L('রুট ছাড়া রাইডার', 'Riders without a route')} value={n(noRoute.length)}
+        sub={noRoute.slice(0, 3).map(e => e.full_name).join(', ')} />
+    </div>
+    <section className="panel">
+      <div className="da-bar"><h2>{L('রাইডার রুট', 'Rider routes')}</h2>
+        {edit && <button onClick={() => { setErr(''); setF({ code: `R${(routes.data?.length ?? 0) + 1}`, name: '', areas: '', note: '' }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</div>
+      {err && !f && !pick && <p className="da-error">{err}</p>}
+      {routes.error ? <p className="da-error">{hrFriendly(routes.error)}</p> : routes.data && !routes.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই। এলাকার নাম দিয়ে রুট বানিয়ে রাইডারদের দিন।', 'No routes yet. Make one from area names and give it to riders.')}</p> :
+        <div className="route-cards">{routes.data?.map(r => <article key={r.id} className="route-card">
+          <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.code} · {r.name}</b>
+            {r.note && <div className="muted small">{r.note}</div>}</div>
+            {edit && <span className="row-acts">
+              <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, code: r.code, name: r.name, areas: r.areas.join(', '), note: r.note ?? '' }) }}><Icon name="edit" size={14} /></button>
+              <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} /></button></span>}</header>
+          <div className="chips">{r.areas.map(a => <span key={a} className="chip">{a}</span>)}</div>
+          <div className="route-riders"><span className="muted small">{L('রাইডার', 'Riders')}:</span>
+            {ridersOf(r.id).length ? ridersOf(r.id).map(x => <span key={x.id} className="chip rider"><Icon name="truck" size={12} />{emp[x.employee_id]?.full_name ?? '—'}</span>)
+              : <span className="muted small">{L('কেউ নেই', 'none')}</span>}
+            {edit && <button className="secondary sm" onClick={() => { setErr(''); setPick({ route: r, ids: ridersOf(r.id).map(x => x.employee_id), all: false }) }}><Icon name="users" size={14} />{L('রাইডার দিন', 'Set riders')}</button>}</div>
+        </article>)}</div>}
+    </section>
+    {f && <Modal title={f.id ? L('রুট এডিট', 'Edit route') : L('নতুন রাইডার রুট', 'New rider route')} onClose={() => setF(null)}
+      actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
+      <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <Field label={L('কোড', 'Code')}><input value={f.code} onChange={e => setF({ ...f, code: e.target.value })} /></Field>
+        <Field label={L('রুটের নাম', 'Route name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={L('যেমন শহর পূর্ব', 'e.g. Town east')} /></Field>
+        <Field label={L('এলাকা (কমা বা নতুন লাইনে আলাদা)', 'Areas (comma or new line)')} wide><textarea rows={4} value={f.areas} onChange={e => setF({ ...f, areas: e.target.value })}
+          placeholder={L('কানাইখালী, আলাইপুর, স্টেশন বাজার', 'Area 1, Area 2, Area 3')} /></Field>
+        <Field label={L('নোট', 'Note')} wide><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Field>
+      </div>
+      {err && <p className="da-error">{err}</p>}
+    </Modal>}
+    {pick && <Modal title={`${L('রাইডার দিন', 'Set riders')} — ${pick.route.name}`} onClose={() => setPick(null)}
+      actions={<><button className="secondary" onClick={() => setPick(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void saveRiders()}>{L('সেভ', 'Save')}</button></>}>
+      <label className="small" style={{ margin: '0 0 8px' }}><input type="checkbox" style={{ width: 'auto', margin: '0 6px 0 0' }} checked={pick.all} onChange={e => setPick({ ...pick, all: e.target.checked })} />{L('রাইডার ছাড়া অন্য স্টাফও দেখান', 'Show other staff too')}</label>
+      <div className="pick-list">{(team.data ?? []).filter(e => pick.all || isRider(e) || pick.ids.includes(e.id)).map(e => { const on = pick.ids.includes(e.id)
+        return <div key={e.id} className={`pick-row${on ? ' on' : ''}`}><label><input type="checkbox" checked={on}
+          onChange={() => setPick({ ...pick, ids: on ? pick.ids.filter(x => x !== e.id) : [...pick.ids, e.id] })} /> {e.employee_code ? `${e.employee_code} · ` : ''}{e.full_name}
+          {routesOf(e.id) > 0 && !on && <span className="muted small"> · {L(`আরও ${n(routesOf(e.id))}টা রুটে আছে`, `on ${routesOf(e.id)} other route(s)`)}</span>}</label></div> })}</div>
       {err && <p className="da-error">{err}</p>}
     </Modal>}
   </>

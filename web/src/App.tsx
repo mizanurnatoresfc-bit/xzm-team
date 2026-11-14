@@ -25,6 +25,8 @@ import { MyProfile } from './pages/MyProfile'
 import { HubManagement } from './pages/hub/HubManagement'
 import { MyPermissions } from './pages/MyPermissions'
 import { Settings } from './pages/Settings'
+import { Sorting } from './pages/sorting/Sorting'
+import { Duties } from './pages/hr/Duties'
 import './styles.css'
 import './accounts.css'
 import './theme.css'
@@ -49,6 +51,9 @@ export default function App() {
       <Route path="/app/zonal/staff" element={<ZonalStaff />} />
       <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
+      <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
+      <Route path="/app/sorting/:section" element={<Sorting />} />
+      <Route path="/app/hr/duties" element={<Duties />} />
       <Route path="/app/hr" element={<HrDashboard />} />
       <Route path="/app/hr/employees" element={<Employees />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />

@@ -33,7 +33,7 @@ export function Login() {
           `Too many wrong passwords — the account is locked for a while.${t ? ` Try again after ${t}.` : ''}`))
       } else if (code === 'blocked') setError(L('এই অ্যাকাউন্ট এখন সক্রিয় নয় বা লক করা। সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।', 'This account is inactive or locked. Contact your system administrator.'))
       else if (code === 'rate_limited') setError(L('অল্প সময়ে অনেকবার চেষ্টা হয়েছে। ১০ মিনিট পর আবার চেষ্টা করুন।', 'Too many attempts. Try again in 10 minutes.'))
-      else if (code === 'invalid' || code === 'bad_request') setError(L('ইমেইল বা পাসওয়ার্ড ভুল। ৫ বার ভুল হলে অ্যাকাউন্ট ৩০ মিনিটের জন্য লক হবে।', 'Wrong email or password. After 5 wrong tries the account is locked for 30 minutes.'))
+      else if (code === 'invalid' || code === 'bad_request') setError(L('আইডি/মোবাইল/ইমেইল বা পাসওয়ার্ড ভুল। ৫ বার ভুল হলে অ্যাকাউন্ট ৩০ মিনিটের জন্য লক হবে।', 'Wrong ID/mobile/email or password. After 5 wrong tries the account is locked for 30 minutes.'))
       else setError(L('সার্ভারে পৌঁছানো যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।', 'Could not reach the server. Check the internet connection and try again.'))
     }
     finally { setBusy(false) }
@@ -49,7 +49,7 @@ export function Login() {
         <p className="muted">{L('প্রতিষ্ঠানের দেওয়া অ্যাকাউন্ট দিয়ে প্রবেশ করুন। যে রোল আপনাকে দেওয়া হয়েছে, পাতাগুলো সেই অনুযায়ীই আসবে।',
           'Sign in with the account the company gave you. The pages you get follow the role you were given.')}</p>
         {!supabaseConfigured && <p className="notice">{L('Supabase সেটআপ বাকি: web/.env.local ফাইলে URL ও anon key দিন।', 'Supabase is not set up: add the URL and anon key in web/.env.local.')}</p>}
-        <label>{L('ইমেইল', 'Email')}<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
+        <label>{L('এমপ্লয়ি আইডি, মোবাইল বা ইমেইল', 'Employee ID, mobile or email')}<input type="text" inputMode="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} placeholder={L('যেমন 10086 বা 01711000000', 'e.g. 10086 or 01711000000')} /></label>
         <label>{L('পাসওয়ার্ড', 'Password')}<span className="pw" style={{ display: 'block' }}>
           <input type={show ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 84 }} />
           <button type="button" className="secondary sm" onClick={() => setShow(s => !s)} aria-label={show ? L('পাসওয়ার্ড লুকান', 'Hide password') : L('পাসওয়ার্ড দেখুন', 'Show password')}>

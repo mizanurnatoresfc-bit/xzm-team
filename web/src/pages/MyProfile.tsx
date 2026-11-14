@@ -5,6 +5,8 @@ import { dmy, hr } from '../lib/hr'
 import { referrals } from '../lib/extra'
 import { ExtraFields, ReferralPanel } from './hr/ProfileExtras'
 import { EmpBadge, useOrg } from './hr/common'
+import { dutiesApi, FREQ, routesApi } from '../lib/hub'
+import { Badge } from './accounts/ui'
 
 /** The signed-in staff member's own profile: own data, extra fields, whom they brought, people in hand. */
 export function MyProfile() {
@@ -16,6 +18,8 @@ export function MyProfile() {
     return id ? await hr.employee(id) : null
   }, [])
   const e = me.data
+  const duties = useLoad(() => e ? dutiesApi.mine(e.id).catch(() => []) : Promise.resolve([]), [e?.id])
+  const myRoutes = useLoad(() => e ? routesApi.mine().catch(() => []) : Promise.resolve([]), [e?.id])
   return <AppShell title={L('আমার প্রোফাইল', 'My profile')} subtitle={e ? <>{e.employee_code ? <>{L('এমপ্লয়ি আইডি', 'Employee ID')} <strong>{e.employee_code}</strong> · </> : null}<EmpBadge status={e.status} /></> : undefined}>
     {node}
     {me.loading ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
@@ -31,6 +35,16 @@ export function MyProfile() {
             <dt>{L('যোগদান', 'Joined')}</dt><dd>{dmy(e.joining_date)}</dd>
           </dl>
           <p className="muted small">{L('কোনো তথ্য ভুল থাকলে HR-কে জানান।', 'Tell HR if anything is wrong.')}</p>
+        </section>
+        <section className="panel">
+          <h2>{L('আমার দায়িত্ব', 'My duties')}</h2>
+          {duties.data?.length ? <ul className="duty-list">{duties.data.map(d => <li key={d.id} className="duty"><div style={{ flex: 1 }}><b>{d.title}</b>{' '}
+            <Badge tone="info">{L(FREQ[d.frequency]?.[0] ?? d.frequency, FREQ[d.frequency]?.[1] ?? d.frequency)}</Badge>
+            {d.details && <div className="muted small pre-wrap">{d.details}</div>}</div></li>)}</ul>
+            : <p className="muted">{L('এখনো কোনো দায়িত্ব লেখা হয়নি।', 'No duties written yet.')}</p>}
+          {myRoutes.data && myRoutes.data.length > 0 && <><h3>{L('আমার রুট', 'My routes')}</h3>
+            {myRoutes.data.map(r => <div key={r.route_id} style={{ marginBottom: 8 }}><b>{r.hub_routes?.code} · {r.hub_routes?.name}</b>
+              <div className="chips">{(r.hub_routes?.areas ?? []).map(a => <span key={a} className="chip">{a}</span>)}</div></div>)}</>}
         </section>
         <ExtraFields employee={e.id} zoneId={e.zone_id} self onSaved={m => toast(m)} />
         <ReferralPanel employee={e.id} zoneId={e.zone_id} self onSaved={m => toast(m)} />

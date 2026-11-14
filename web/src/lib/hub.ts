@@ -55,9 +55,12 @@ export { today as hubToday }
 
 export const hubApi = {
   team: async (hub: string, status: string | null) => {
-    let q = supabase.from('employees').select('*').eq('hub_id', hub).is('archived_at', null).order('employee_code', { ascending: true }).limit(1000)
+    let q = supabase.from('employees').select('*, positions(level)').eq('hub_id', hub).is('archived_at', null).order('employee_code', { ascending: true }).limit(1000)
     if (status) q = q.eq('status', status)
-    const { data, error } = await q; fail(error); return (data ?? []) as Employee[]
+    const { data, error } = await q; fail(error)
+    // People on a zone / head-office post (e.g. Zonal Manager) are not the hub's fixed staff.
+    return ((data ?? []) as Array<Employee & { positions?: { level?: string } | null }>)
+      .filter(e => (e.positions?.level ?? 'hub') === 'hub').map(({ positions: _p, ...e }) => e as Employee)
   },
   attendance: async (date: string, ids: string[]) => {
     if (!ids.length) return [] as LateRow[]
@@ -118,4 +121,59 @@ export const hubApi = {
   },
   verifyMetric: (id: string) => rpc<void>('zm_verify_hub_metric', { p_id: id }),
   reopenMetric: (id: string, reason: string) => rpc<void>('zm_reopen_hub_metric', { p_id: id, p_reason: reason }),
+}
+
+// ---------------------------------------------------------------- rider routes and duties
+export type HubRoute = { id: string; hub_id: string; zone_id: string; code: string; name: string; areas: string[]; note: string | null; status: string }
+export type RiderRoute = { id: string; route_id: string; employee_id: string; hub_id: string; effective_from: string; effective_to: string | null }
+export type Duty = { id: string; position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number }
+export const FREQ: Record<string, [string, string]> = { daily: ['প্রতিদিন', 'Daily'], weekly: ['সাপ্তাহিক', 'Weekly'], monthly: ['মাসিক', 'Monthly'], as_needed: ['দরকার হলে', 'As needed'] }
+
+export const routesApi = {
+  list: async (hub: string) => {
+    const { data, error } = await supabase.from('hub_routes').select('*').eq('hub_id', hub).is('archived_at', null).order('code'); fail(error)
+    return (data ?? []) as HubRoute[]
+  },
+  riders: async (hub: string) => {
+    const { data, error } = await supabase.from('rider_routes').select('*').eq('hub_id', hub).is('effective_to', null); fail(error)
+    return (data ?? []) as RiderRoute[]
+  },
+  save: async (r: { hub_id: string; zone_id: string; code: string; name: string; areas: string[]; note: string | null }, id?: string) => {
+    if (id) { const { error } = await supabase.from('hub_routes').update(r).eq('id', id); fail(error); return id }
+    const { data, error } = await supabase.from('hub_routes').insert(r).select('id').single(); fail(error); return (data as { id: string }).id
+  },
+  archive: async (id: string, reason: string) => {
+    const { error } = await supabase.from('hub_routes').update({ archived_at: new Date().toISOString(), archive_reason: reason, status: 'inactive' }).eq('id', id); fail(error)
+    const { error: e2 } = await supabase.from('rider_routes').update({ effective_to: today() }).eq('route_id', id).is('effective_to', null); fail(e2)
+  },
+  /** Make the route's riders exactly this list (ends the others today). */
+  setRiders: async (route: HubRoute, employees: string[], current: RiderRoute[]) => {
+    const now = current.filter(c => c.route_id === route.id)
+    const gone = now.filter(c => !employees.includes(c.employee_id)).map(c => c.id)
+    const add = employees.filter(e => !now.some(c => c.employee_id === e))
+    if (gone.length) { const { error } = await supabase.from('rider_routes').update({ effective_to: today() }).in('id', gone); fail(error) }
+    if (add.length) { const { error } = await supabase.from('rider_routes').insert(add.map(e => ({ route_id: route.id, employee_id: e, hub_id: route.hub_id, zone_id: route.zone_id }))); fail(error) }
+  },
+  mine: async () => {
+    const { data, error } = await supabase.from('rider_routes').select('route_id, hub_routes(code, name, areas)').is('effective_to', null); fail(error)
+    return ((data ?? []) as unknown as Array<{ route_id: string; hub_routes: { code: string; name: string; areas: string[] } | null }>)
+  },
+}
+
+export const dutiesApi = {
+  ofPosition: async (position: string) => {
+    const { data, error } = await supabase.from('job_duties').select('*').eq('position_id', position).is('archived_at', null).order('sort').order('title'); fail(error)
+    return (data ?? []) as Duty[]
+  },
+  ofEmployee: async (employee: string) => {
+    const { data, error } = await supabase.from('job_duties').select('*').eq('employee_id', employee).is('archived_at', null).order('sort').order('title'); fail(error)
+    return (data ?? []) as Duty[]
+  },
+  mine: (employee?: string) => rpc<Array<{ id: string; title: string; details: string | null; frequency: string; source: 'person' | 'post' }>>('my_duties', { p_employee: employee ?? null }),
+  save: async (d: { position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number }, id?: string) => {
+    const { error } = id ? await supabase.from('job_duties').update(d).eq('id', id) : await supabase.from('job_duties').insert(d); fail(error)
+  },
+  remove: async (id: string) => {
+    const { error } = await supabase.from('job_duties').update({ archived_at: new Date().toISOString(), archive_reason: 'removed' }).eq('id', id); fail(error)
+  },
 }

@@ -1,6 +1,7 @@
 // auth-login: password sign-in with account lockout.
 //
-// Browser -> POST { email, password, portal } -> this function:
+// Browser -> POST { email, password, portal } -> this function. "email" may also be an
+// employee ID or a mobile number; login_resolve() turns it into the login e-mail.
 //   1. refuses at once if the account is locked or inactive (no password check),
 //   2. asks Supabase Auth to check the password,
 //   3. records the attempt with record_login_attempt() (5 failures -> 30 min lock),
@@ -13,7 +14,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 // https://localhost = the Android app (Capacitor), capacitor://localhost = a future iPhone app.
-const DEFAULT_ORIGINS = ['https://xzm-team-erp.netlify.app', 'https://localhost', 'capacitor://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173']
+const DEFAULT_ORIGINS = ['https://xzm-team-erp.netlify.app', 'https://xzmteam.com', 'https://www.xzmteam.com', 'https://localhost', 'capacitor://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173']
 const ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(s => s.trim()).filter(Boolean)
 const allowed = ORIGINS.length ? ORIGINS : DEFAULT_ORIGINS
 
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
   let email = '', password = '', portal = 'staff'
   try {
     const b = await req.json()
-    email = String(b.email ?? '').trim().toLowerCase()
+    email = String(b.email ?? b.identifier ?? '').trim().toLowerCase()
     password = String(b.password ?? '')
     portal = b.portal === 'admin' ? 'admin' : 'staff'
   } catch { return reply(400, { error: 'bad_request' }) }
@@ -60,6 +61,13 @@ Deno.serve(async (req) => {
   const url = Deno.env.get('SUPABASE_URL')!
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
   const pub = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, { auth: { persistSession: false, autoRefreshToken: false } })
+
+  // Employee ID or phone -> e-mail. Unknown IDs get the same answer as a wrong password.
+  if (!email.includes('@')) {
+    const { data: resolved } = await admin.rpc('login_resolve', { p_identifier: email })
+    if (!resolved) return reply(401, { error: 'invalid' })
+    email = String(resolved).toLowerCase()
+  }
 
   const { data: st } = await admin.rpc('login_lock_state', { p_email: email })
   const state = Array.isArray(st) ? st[0] : st

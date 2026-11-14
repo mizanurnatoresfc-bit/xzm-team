@@ -7,6 +7,7 @@ import { Icon } from '../../components/Icon'
 import { hrFriendly, nameMap, org, type Department, type Hub, type Position, type Zone } from '../../lib/hr'
 
 type Kind = 'zones' | 'hubs' | 'departments' | 'positions'
+const LEVEL: Record<string, string> = { hub: 'হাব পর্যায়', zone: 'জোন পর্যায়', head_office: 'হেড অফিস' }
 const KIND: Record<Kind, { label: string; one: string; perm: string }> = {
   zones: { label: 'জোন', one: 'জোন', perm: 'zone' }, hubs: { label: 'হাব', one: 'হাব', perm: 'hub' },
   departments: { label: 'বিভাগ', one: 'বিভাগ', perm: 'department' }, positions: { label: 'পদবি', one: 'পদবি', perm: 'position' },
@@ -52,7 +53,7 @@ export function OrgSetup() {
       if (tab === 'zones' || tab === 'hubs') { base.phone = (r.phone as string)?.trim() || null; base.address = (r.address as string)?.trim() || null }
       if (tab === 'zones' || tab === 'departments') base.organization_id = orgRow?.id
       if (tab === 'hubs') { if (!r.zone_id) throw new Error('জোন বেছে নিন'); base.zone_id = r.zone_id }
-      if (tab === 'positions') { if (!r.department_id) throw new Error('বিভাগ বেছে নিন'); base.department_id = r.department_id }
+      if (tab === 'positions') { if (!r.department_id) throw new Error('বিভাগ বেছে নিন'); base.department_id = r.department_id; base.level = String(r.level ?? 'hub') }
       if (edit.isNew) await org.insert(tab, base); else await org.update(tab, String(r.id), base)
       toast(edit.isNew ? `${KIND[tab].one} যোগ হয়েছে` : 'পরিবর্তন সেভ হয়েছে'); setEdit(null); await data.reload()
     } catch (e) { setErr(e instanceof Error && !('code' in e) ? e.message : hrFriendly(e)) } finally { setBusy(false) }
@@ -96,7 +97,8 @@ export function OrgSetup() {
             { key: 'code', label: 'কোড', render: r => <strong>{r.code}</strong> },
             { key: 'name', label: 'নাম', render: r => <>{r.name}{r.name_bn && <span className="sec">{r.name_bn}</span>}</> },
             ...(tab === 'hubs' ? [{ key: 'zone', label: 'জোন', value: (r: Row) => zoneName[(r as Hub).zone_id] ?? '' }] : []),
-            ...(tab === 'positions' ? [{ key: 'dept', label: 'বিভাগ', value: (r: Row) => deptName[(r as Position).department_id] ?? '' }] : []),
+            ...(tab === 'positions' ? [{ key: 'dept', label: 'বিভাগ', value: (r: Row) => deptName[(r as Position).department_id] ?? '' },
+              { key: 'level', label: 'পর্যায়', value: (r: Row) => LEVEL[String((r as Record<string, unknown>).level ?? 'hub')] ?? '' }] : []),
             ...(tab === 'zones' || tab === 'hubs' ? [{ key: 'phone', label: 'ফোন', value: (r: Row) => (r as Zone).phone ?? '' }] : []),
             { key: 'st', label: 'অবস্থা', value: r => r.archived_at ? 'আর্কাইভ' : 'সক্রিয়', render: r => r.archived_at ? <Badge tone="neutral">আর্কাইভ</Badge> : <Badge tone="ok">সক্রিয়</Badge> },
             { key: 'act', label: '', noExport: true, className: 'r no-print', render: r => !r.archived_at && <div className="row" style={{ justifyContent: 'flex-end' }}>
@@ -115,6 +117,9 @@ export function OrgSetup() {
           <option value="">বেছে নিন…</option>{d?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
         {tab === 'positions' && <Field label="বিভাগ"><select value={String(edit.row.department_id ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, department_id: e.target.value } })}>
           <option value="">বেছে নিন…</option>{d?.departments.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
+        {tab === 'positions' && <Field label="কোন পর্যায়ের পদ" hint="জোন/হেড অফিস পর্যায়ের পদের কর্মী (যেমন জোনাল ম্যানেজার) হাবের ফিক্সড স্টাফ হিসাবে দেখাবে না।">
+          <select value={String(edit.row.level ?? 'hub')} onChange={e => setEdit({ ...edit, row: { ...edit.row, level: e.target.value } })}>
+            {Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>}
         {(tab === 'zones' || tab === 'hubs') && <>
           <Field label="ফোন"><input inputMode="tel" value={String(edit.row.phone ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, phone: e.target.value } })} /></Field>
           <Field label="ঠিকানা" wide><input value={String(edit.row.address ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, address: e.target.value } })} /></Field></>}
