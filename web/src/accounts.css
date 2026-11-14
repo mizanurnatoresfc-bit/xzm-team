@@ -89,3 +89,8 @@ select,textarea{width:100%;margin-top:6px;border:1px solid #cbd5e1;border-radius
 .cat-help .notice{margin:4px 0 0;padding:6px 8px;font-size:12px}
 .da-more{margin:8px 0}
 .da-more>summary{cursor:pointer;color:#0f7a3d;font-size:13px;margin-bottom:6px}
+
+/* Branding settings: the previews */
+.brand-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.brand-prev{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 18px;border:1px solid var(--border);border-radius:12px;min-width:120px}
+.brand-mark.as-img{background:none;border-radius:12px;object-fit:contain;padding:0}

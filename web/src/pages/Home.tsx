@@ -2,6 +2,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { Icon } from '../components/Icon'
 import { PublicTop } from '../components/PublicTop'
+import { useBrandText } from '../components/Brand'
 import { usePrefs } from '../lib/prefs'
 
 /** [icon, title bn, title en, text bn, text en] */
@@ -15,7 +16,7 @@ const WORK: Array<[string, string, string, string, string]> = [
 ]
 
 const STEPS: Array<[string, string, string, string]> = [
-  ['সুপার অ্যাডমিন রোল বানান', 'The Super Admin makes the roles', 'কোন পদ কী দেখবে, কী করতে পারবে — সেটা আগে ঠিক করে নেওয়া হয়।', 'Which post sees what, and may do what, is settled first.'],
+  ['রোল আগে ঠিক করা হয়', 'The roles are set first', 'কে কী দেখবে আর কী করতে পারবে — সুপার অ্যাডমিন আগে সেটাই ঠিক করে নেন।', 'Who sees what, and who may do what, is what the Super Admin settles first.'],
   ['কাজ যার যার হাতে যায়', 'The work lands with the right person', 'রোল অনুযায়ী প্রত্যেকের হোম পেজে শুধু তার নিজের কাজ আর অপেক্ষমাণ জিনিসগুলো আসে।', 'By role, each person’s home page shows their own work and what is waiting on them.'],
   ['একবার লিখলেই সবখানে', 'Written once, counted everywhere', 'হাবে যা লেখা হয়, জোন আর হেড অফিসের হিসাবে তা নিজে থেকেই যোগ হয়।', 'What a hub writes down adds itself to the zone’s and Head Office’s figures.'],
 ]
@@ -24,21 +25,22 @@ const STEPS: Array<[string, string, string, string]> = [
 export function Home() {
   const { session, loading } = useAuth()
   const { L } = usePrefs()
+  const { name } = useBrandText()
   if (!loading && session) return <Navigate to="/app" replace />
   return <div style={{ minHeight: '100vh', background: 'var(--canvas)' }}>
     <PublicTop />
     <main>
       <section className="hero">
         <div>
-          <p className="eyebrow" style={{ color: 'var(--primary)' }}>{L('অফিসের নিজস্ব টুল', 'THE OFFICE’S OWN TOOL')}</p>
-          <h1>{L('অফিসের কাজ সহজ করতে, আর দ্রুত ভাগ করে নিতে', 'To make the office work easier, and to share it out faster')}</h1>
-          <p>{L('XZM-TEAM প্রতিষ্ঠানের নিজের টুল — হেড অফিস, জোন ও হাবের দৈনন্দিন কাজ এক জায়গায় রাখে, যাতে কে কী করবে তা পরিষ্কার থাকে আর হিসাব মেলাতে সময় নষ্ট না হয়। এর আলাদা কোনো উদ্দেশ্য নেই, বাইরের কারও জন্য কোনো সেবা নয়।',
-            'XZM-TEAM is the company’s own tool. It keeps the daily work of Head Office, the zones and the hubs in one place, so everyone knows what is theirs to do and no time goes into chasing figures. It has no other purpose, and it is not a service for anyone outside.')}</p>
+          <p className="eyebrow" style={{ color: 'var(--primary)' }}>{L('ব্যক্তিগত কাজের টুল', 'A PERSONAL WORK TOOL')}</p>
+          <h1>{L('কাজ সহজ করতে, আর দ্রুত ভাগ করে নিতে', 'To make the work easier, and to share it out faster')}</h1>
+          <p>{L(`${name} নিজের কাজের জন্য বানানো একটি ব্যক্তিগত টুল। দৈনন্দিন কাজ — কর্মীর তথ্য, হাজিরা, হিসাব আর পার্সেল — এক জায়গায় থাকে, তাই কে কী করবে পরিষ্কার থাকে আর হিসাব মেলাতে সময় নষ্ট হয় না। এর আলাদা কোনো উদ্দেশ্য নেই; এটি কোনো প্রতিষ্ঠানের অফিশিয়াল সিস্টেম নয়, বাইরের কারও জন্য কোনো সেবাও নয়।`,
+            `${name} is a personal tool, built for my own work. The daily work — staff records, attendance, accounts and parcels — stays in one place, so what is whose is clear and no time goes into chasing figures. It has no other purpose: it is not any company’s official system, and not a service for anyone outside.`)}</p>
           <div className="row" style={{ marginTop: 18 }}>
             <Link to="/staff/login"><button><Icon name="key" size={16} />{L('স্টাফ লগইন', 'Staff login')}</button></Link>
             <a href="#work"><button className="secondary">{L('কী কী কাজ হয়', 'What it handles')}</button></a>
           </div>
-          <p className="muted small" style={{ marginTop: 14 }}>{L('শুধু অনুমোদিত কর্মীদের জন্য। অ্যাকাউন্ট দেন সিস্টেম অ্যাডমিন।', 'For authorised staff only. Accounts are given by the system administrator.')}</p>
+          <p className="muted small" style={{ marginTop: 14 }}>{L('শুধু যাঁদের অ্যাকাউন্ট দেওয়া হয়েছে তাঁদের জন্য।', 'Only for the people who have been given an account.')}</p>
         </div>
         <div className="hero-card" aria-hidden="true">
           <div className="row" style={{ justifyContent: 'space-between' }}><strong>{L('একদিনের কাজ', 'A day’s work')}</strong><span className="da-badge b-ok">{L('লাইভ', 'Live')}</span></div>
@@ -66,12 +68,12 @@ export function Home() {
       <section className="feat">
         <div className="panel">
           <h3>{L('এটি যা নয়', 'What it is not')}</h3>
-          <p className="muted" style={{ margin: 0 }}>{L('এটি কোনো পাবলিক সার্ভিস, অ্যাপ স্টোরের প্রোডাক্ট বা বিক্রির জিনিস নয়। এখানে কারও কাছ থেকে টাকা নেওয়া হয় না, কোনো বিজ্ঞাপন নেই, আর প্রতিষ্ঠানের কাজের বাইরে কোনো তথ্য রাখা হয় না।',
-            'It is not a public service, a product in an app store, or anything for sale. No money is taken from anyone, there are no advertisements, and nothing is kept here beyond the company’s own work.')}</p>
+          <p className="muted" style={{ margin: 0 }}>{L('এটি কোনো প্রতিষ্ঠানের অফিশিয়াল সিস্টেম নয়, পাবলিক সার্ভিস নয়, বিক্রির কোনো প্রোডাক্টও নয়। এখানে কারও কাছ থেকে টাকা নেওয়া হয় না, কোনো বিজ্ঞাপন নেই, আর যে কাজের জন্য বানানো তার বাইরে কোনো তথ্য রাখা হয় না।',
+            'It is not any company’s official system, not a public service, and not a product for sale. No money is taken from anyone, there are no advertisements, and nothing is kept here beyond the work it was made for.')}</p>
           <p className="muted small" style={{ marginBottom: 0 }}><Link to="/terms">{L('ব্যবহারের শর্তাবলি পড়ুন', 'Read the terms and conditions')}</Link></p>
         </div>
       </section>
     </main>
-    <footer className="pub-foot">© XZM-TEAM · {L('শুধু অনুমোদিত স্টাফদের জন্য', 'For authorised staff only')} · <Link to="/terms">{L('শর্তাবলি', 'Terms')}</Link></footer>
+    <footer className="pub-foot">© {name} · {L('শুধু যাঁদের অ্যাকাউন্ট দেওয়া আছে', 'Only for those given an account')} · <Link to="/terms">{L('শর্তাবলি', 'Terms')}</Link></footer>
   </div>
 }

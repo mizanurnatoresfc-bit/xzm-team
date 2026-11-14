@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { LoginError, useAuth } from '../auth/AuthProvider'
 import { Icon } from '../components/Icon'
+import { BrandMark, useBrandText } from '../components/Brand'
 import { PublicTop } from '../components/PublicTop'
 import { supabaseConfigured } from '../lib/supabase'
 import { usePrefs } from '../lib/prefs'
@@ -9,6 +10,7 @@ import { usePrefs } from '../lib/prefs'
 export function Login() {
   const { session, signIn } = useAuth()
   const { L, lang } = usePrefs()
+  const { name, tagline } = useBrandText()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
@@ -41,8 +43,8 @@ export function Login() {
     <PublicTop showLogin={false} />
     <main className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <div className="brand-mark">X</div>
-        <p className="eyebrow">XZM-TEAM MANAGEMENT SYSTEM</p>
+        <BrandMark size="large" />
+        <p className="eyebrow">{name}{tagline ? ` · ${tagline}` : ''}</p>
         <h1>{L('স্টাফ ও অ্যাডমিন লগইন', 'Staff and admin login')}</h1>
         <p className="muted">{L('প্রতিষ্ঠানের দেওয়া অ্যাকাউন্ট দিয়ে প্রবেশ করুন। যে রোল আপনাকে দেওয়া হয়েছে, পাতাগুলো সেই অনুযায়ীই আসবে।',
           'Sign in with the account the company gave you. The pages you get follow the role you were given.')}</p>

@@ -2,20 +2,21 @@ import { Link } from 'react-router-dom'
 import { PublicTop } from '../components/PublicTop'
 import { Icon } from '../components/Icon'
 import { usePrefs } from '../lib/prefs'
+import { useBrandText } from '../components/Brand'
 
 const UPDATED = ['১৪ নভেম্বর ২০২৬', '14 November 2026']
 
 /** [title bn, title en, paragraphs [bn, en][]] */
 const SECTIONS: Array<[string, string, Array<[string, string]>]> = [
   ['এটা কী', 'What this is', [
-    ['XZM-TEAM প্রতিষ্ঠানের নিজের একটি অফিস টুল। হেড অফিস, জোন ও হাবের দৈনন্দিন কাজ — কর্মীর তথ্য, হাজিরা, ছুটি, কুরিয়ার অপারেশন, দৈনিক হিসাব ও রিপোর্ট — এক জায়গায় এনে কাজ সহজ করা আর দ্রুত ভাগ করে দেওয়াই এর একমাত্র উদ্দেশ্য।',
-     'XZM-TEAM is the company’s own office tool. Its only purpose is to bring the daily work of Head Office, the zones and the hubs — staff records, attendance, leave, courier operations, daily accounts and reports — into one place, so the work is easier to do and quicker to share out.'],
-    ['এটি বাইরের কারও জন্য কোনো সেবা নয়। এখানে কিছু বিক্রি হয় না, কারও কাছ থেকে টাকা নেওয়া হয় না, এবং প্রতিষ্ঠানের কাজ ছাড়া অন্য কোনো উদ্দেশ্যে এটি ব্যবহার হয় না।',
-     'It is not a service for anyone outside the company. Nothing is sold here, no money is taken from anyone, and it is not used for any purpose beyond the company’s own work.'],
+    ['এটি নিজের কাজের জন্য বানানো একটি ব্যক্তিগত টুল। দৈনন্দিন কাজ — কর্মীর তথ্য, হাজিরা, ছুটি, কুরিয়ার অপারেশন, দৈনিক হিসাব ও রিপোর্ট — এক জায়গায় এনে কাজ সহজ করা আর দ্রুত ভাগ করে দেওয়াই এর একমাত্র উদ্দেশ্য।',
+     'This is a personal tool, built for my own work. Its only purpose is to bring the daily work — staff records, attendance, leave, courier operations, daily accounts and reports — into one place, so the work is easier to do and quicker to share out.'],
+    ['এটি কোনো প্রতিষ্ঠানের অফিশিয়াল সিস্টেম নয়, বাইরের কারও জন্য কোনো সেবাও নয়। এখানে কিছু বিক্রি হয় না, কারও কাছ থেকে টাকা নেওয়া হয় না, এবং যে কাজের জন্য বানানো তার বাইরে অন্য কোনো উদ্দেশ্যে ব্যবহার হয় না।',
+     'It is not any company’s official system, and not a service for anyone outside. Nothing is sold here, no money is taken from anyone, and it is not used for any purpose beyond the work it was made for.'],
   ]],
   ['কে ব্যবহার করতে পারবেন', 'Who may use it', [
-    ['শুধু প্রতিষ্ঠানের অনুমোদিত কর্মীরা। অ্যাকাউন্ট তৈরি করে দেন সিস্টেম অ্যাডমিন; নিজে থেকে কেউ অ্যাকাউন্ট খুলতে পারেন না।',
-     'Only the company’s authorised staff. Accounts are created by the system administrator; nobody can open one for themselves.'],
+    ['শুধু যাঁদের অ্যাকাউন্ট দেওয়া হয়েছে তাঁরা। অ্যাকাউন্ট তৈরি করে দেন সিস্টেম অ্যাডমিন; নিজে থেকে কেউ অ্যাকাউন্ট খুলতে পারেন না।',
+     'Only the people who have been given an account. Accounts are created by the system administrator; nobody can open one for themselves.'],
     ['নিজের অ্যাকাউন্ট নিজেই ব্যবহার করবেন। অন্যের অ্যাকাউন্টে ঢোকা বা নিজের অ্যাকাউন্ট অন্যকে দেওয়া — কোনোটাই করা যাবে না।',
      'Use your own account. Do not sign in to anyone else’s account, and do not hand yours to another person.'],
   ]],
@@ -44,14 +45,14 @@ const SECTIONS: Array<[string, string, Array<[string, string]>]> = [
   ['যা করবেন না', 'What you must not do', [
     ['মিথ্যা বা বানানো তথ্য দেওয়া, অন্যের নামে এন্ট্রি করা, বা বিল-ভাউচার সাজিয়ে দেওয়া।',
      'Enter false or invented information, make entries in someone else’s name, or dress up bills and vouchers.'],
-    ['প্রতিষ্ঠানের তথ্য, স্ক্রিনশট বা রিপোর্ট বাইরের কাউকে দেওয়া, সোশ্যাল মিডিয়ায় দেওয়া বা নিজের কাজে ব্যবহার করা।',
-     'Pass the company’s data, screenshots or reports to outsiders, post them on social media, or use them for your own ends.'],
+    ['এখানকার তথ্য, স্ক্রিনশট বা রিপোর্ট বাইরের কাউকে দেওয়া, সোশ্যাল মিডিয়ায় দেওয়া বা নিজের আলাদা কাজে ব্যবহার করা।',
+     'Pass the data, screenshots or reports kept here to outsiders, post them on social media, or use them for ends of your own.'],
     ['সিস্টেমের নিরাপত্তা পরীক্ষা বা ভাঙার চেষ্টা, অন্যের অনুমতি নেওয়ার চেষ্টা, বা কোনো স্বয়ংক্রিয় টুল দিয়ে তথ্য টেনে নেওয়া।',
      'Probe or break the system’s security, try to take someone else’s permissions, or pull data out with automated tools.'],
   ]],
   ['তথ্যের মালিকানা', 'Who the records belong to', [
-    ['এখানে রাখা সব রেকর্ড প্রতিষ্ঠানের সম্পত্তি। প্রয়োজনে প্রতিষ্ঠান এই তথ্য দেখতে, নিতে ও ব্যবহার করতে পারে।',
-     'Every record kept here is the company’s property. The company may look at it, take a copy of it and use it as its work requires.'],
+    ['এখানে রাখা সব রেকর্ড এই টুলের মালিকের। প্রয়োজনে তিনি এই তথ্য দেখতে, নিতে ও ব্যবহার করতে পারেন।',
+     'Every record kept here belongs to the owner of this tool, who may look at it, take a copy of it and use it as the work requires.'],
   ]],
   ['ভুল হলে সংশোধন', 'Putting mistakes right', [
     ['কোনো তথ্য ভুল থাকলে নিজে মুছবেন না — সংশ্লিষ্ট ম্যানেজার বা হেড অফিসকে জানিয়ে সংশোধন করান। সংশোধনের ইতিহাস রেকর্ডে থেকে যায়, এটাই নিয়ম।',
@@ -66,30 +67,31 @@ const SECTIONS: Array<[string, string, Array<[string, string]>]> = [
      'The system may be down now and then for maintenance, updates or internet trouble. Keep the habit of a written note so urgent work is not held up.'],
   ]],
   ['নিয়ম না মানলে', 'If these rules are broken', [
-    ['নিয়ম ভাঙলে অ্যাক্সেস বন্ধ করা হতে পারে এবং প্রতিষ্ঠানের চাকরি-নীতিমালা অনুযায়ী ব্যবস্থা নেওয়া হতে পারে।',
-     'Access may be closed, and the matter may be taken further under the company’s employment rules.'],
+    ['নিয়ম ভাঙলে অ্যাক্সেস বন্ধ করা হতে পারে, এবং বিষয়টি নিয়ে পরে আলাদা ব্যবস্থা নেওয়া হতে পারে।',
+     'Access may be closed, and the matter may be taken further afterwards.'],
   ]],
   ['শর্ত বদলানো', 'Changes to these terms', [
-    ['প্রতিষ্ঠান প্রয়োজনে এই শর্তাবলি বদলাতে পারে। বদলানো হলে এই পাতায় নতুন তারিখসহ দেওয়া থাকবে।',
-     'The company may change these terms when it needs to. A change appears on this page with its new date.'],
+    ['প্রয়োজনে এই শর্তাবলি বদলানো হতে পারে। বদলানো হলে এই পাতায় নতুন তারিখসহ দেওয়া থাকবে।',
+     'These terms may change when they need to. A change appears on this page with its new date.'],
   ]],
   ['যোগাযোগ', 'Who to ask', [
-    ['অ্যাকাউন্ট, অনুমতি বা তথ্য সংক্রান্ত যেকোনো বিষয়ে সিস্টেম অ্যাডমিন অথবা হেড অফিসের হিসাব বিভাগের সঙ্গে যোগাযোগ করুন।',
-     'For anything about accounts, permissions or records, speak to the system administrator or the Head Office accounts team.'],
+    ['অ্যাকাউন্ট, অনুমতি বা তথ্য সংক্রান্ত যেকোনো বিষয়ে সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।',
+     'For anything about accounts, permissions or records, speak to the system administrator.'],
   ]],
 ]
 
-/** Public terms of use for the staff of the company. */
+/** Public terms of use for the people given an account here. */
 export function Terms() {
   const { L, n } = usePrefs()
+  const { name } = useBrandText()
   return <div style={{ minHeight: '100vh', background: 'var(--canvas)' }}>
     <PublicTop />
     <main className="doc-wrap">
       <article className="doc">
-        <p className="eyebrow">XZM-TEAM</p>
+        <p className="eyebrow">{name}</p>
         <h1>{L('ব্যবহারের শর্তাবলি', 'Terms and conditions')}</h1>
-        <p className="muted">{L(`প্রতিষ্ঠানের নিজস্ব অফিস টুল · সর্বশেষ হালনাগাদ ${UPDATED[0]}`,
-          `The company’s own office tool · last updated ${UPDATED[1]}`)}</p>
+        <p className="muted">{L(`নিজের কাজের জন্য ব্যক্তিগত টুল · সর্বশেষ হালনাগাদ ${UPDATED[0]}`,
+          `A personal work tool · last updated ${UPDATED[1]}`)}</p>
         <p className="notice">{L('এই সিস্টেমে লগইন করার অর্থ — আপনি নিচের শর্তগুলো পড়েছেন ও মেনে চলতে রাজি আছেন।',
           'Signing in to this system means you have read the terms below and agree to follow them.')}</p>
 
@@ -105,6 +107,6 @@ export function Terms() {
         </div>
       </article>
     </main>
-    <footer className="pub-foot">© XZM-TEAM · {L('শুধু অনুমোদিত স্টাফদের জন্য', 'For authorised staff only')}</footer>
+    <footer className="pub-foot">© {name} · {L('শুধু যাঁদের অ্যাকাউন্ট দেওয়া আছে', 'Only for those given an account')}</footer>
   </div>
 }

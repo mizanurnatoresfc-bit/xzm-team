@@ -20,6 +20,7 @@ import { FieldSettings } from './pages/hr/FieldSettings'
 import { Referrals } from './pages/hr/Referrals'
 import { ZonalStaff } from './pages/zonal/ZonalStaff'
 import { RoleDashboards } from './pages/users/RoleDashboards'
+import { BrandingSettings } from './pages/users/BrandingSettings'
 import { MyProfile } from './pages/MyProfile'
 import './styles.css'
 import './accounts.css'
@@ -67,6 +68,7 @@ export default function App() {
       <Route path="/app/roles" element={<Roles />} />
       <Route path="/app/roles/:id" element={<RoleEditor />} />
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
+      <Route path="/app/branding" element={<BrandingSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>
       <Route path="/app/accounts/reports" element={<AccountsReports />} />

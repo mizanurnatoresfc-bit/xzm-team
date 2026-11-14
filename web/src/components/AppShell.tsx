@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
 import { Icon } from './Icon'
+import { BrandName, useBrandText } from './Brand'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
 type Group = { key: string; icon: string; bn: string; en: string; items: Item[] }
@@ -38,6 +39,7 @@ const GROUPS: Group[] = [
     { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
     { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
     { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
+    { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
   ] },
 ]
 
@@ -105,7 +107,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     document.addEventListener('mousedown', f); document.addEventListener('keydown', k)
     return () => { document.removeEventListener('mousedown', f); document.removeEventListener('keydown', k) }
   }, [pop])
-  useEffect(() => { document.title = `${title} · XZM-TEAM ERP` }, [title])
+  const brand = useBrandText()
+  useEffect(() => { document.title = `${title} · ${brand.name}` }, [title, brand.name])
 
   const allowed = (p: string[] | null) => !p || p.some(x => can(x))
   const here = typeof location !== 'undefined' ? location.pathname : ''
@@ -125,7 +128,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
 
   return <div className="app-frame">
     <aside className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}>
-      <Link to="/app" className="logo" onClick={() => setOpen(false)}><span className="brand-mark small">X</span><span>XZM-TEAM</span></Link>
+      <Link to="/app" className="logo" onClick={() => setOpen(false)}><BrandName /></Link>
       <div className="side-user"><span className="avatar" aria-hidden="true">{(name || '?').slice(0, 2)}</span>
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
