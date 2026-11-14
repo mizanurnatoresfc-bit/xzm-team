@@ -247,7 +247,7 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
           {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('edit')}>সম্পাদনা</button>}
           {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
           {(can('hr.employee.edit') || can('hr.employee.approve')) && <button className="secondary sm" onClick={() => open('status')}>অবস্থা পরিবর্তন</button>}
-          {can('hr.employee.archive') && <button className="secondary sm" onClick={() => open('archive')}>আর্কাইভ</button>}</div>}</div>
+          {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('archive')}>আর্কাইভ</button>}</div>}</div>
       <dl className="hr-kv">
         <dt>এমপ্লয়ি আইডি</dt><dd><strong>{e.employee_code ?? '—'}</strong></dd>
         <dt>নাম</dt><dd>{e.full_name}{e.full_name_bn ? ` (${e.full_name_bn})` : ''}</dd>

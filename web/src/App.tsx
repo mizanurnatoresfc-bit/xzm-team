@@ -45,6 +45,21 @@ const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default
 const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.Roles })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
 
+// After the first screen is shown, quietly fetch the most-used pages so later taps open at once.
+const WARM: Array<() => Promise<unknown>> = [
+  () => import('./pages/hub/HubManagement'), () => import('./pages/org/Hubs'), () => import('./pages/hr/Employees'),
+  () => import('./pages/hr/Attendance'), () => import('./pages/accounts/DailyDashboard'), () => import('./pages/accounts/DailySheet'),
+  () => import('./pages/MyProfile'), () => import('./pages/zonal/ZonalStaff'), () => import('./pages/hr/EmployeeProfile'),
+  () => import('./pages/org/OrgSetup'), () => import('./pages/sorting/Sorting'), () => import('./pages/office/Office'),
+]
+if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
+  && !(navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) {
+  const go = () => { WARM.reduce<Promise<unknown>>((p, f) => p.then(() => f().catch(() => null)), Promise.resolve()) }
+  const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }
+  const start = () => (w.requestIdleCallback ? w.requestIdleCallback(go, { timeout: 4000 }) : window.setTimeout(go, 2500))
+  if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true })
+}
+
 const Loading = () => <div className="page-loading" role="status"><span className="spin" />লোড হচ্ছে…</div>
 
 export default function App() {

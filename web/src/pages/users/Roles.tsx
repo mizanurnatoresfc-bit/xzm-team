@@ -101,7 +101,7 @@ export function RoleEditor() {
 
   return <AppShell title={title} subtitle={<Link to="/app/roles">← {L('রোল তালিকা', 'Roles')}</Link>}
     actions={canEdit ? <>
-      {role && !role.is_system && <button className="secondary" onClick={() => setArchive(true)}>{L('আর্কাইভ', 'Archive')}</button>}
+      {role && !role.is_system && <button className="danger" onClick={() => setArchive(true)}>{L('আর্কাইভ', 'Archive')}</button>}
       <button disabled={busy || (!dirty && !isNew)} onClick={() => void save()}>{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('সেভ করুন', 'Save')}</button>
     </> : null}>
     {node}

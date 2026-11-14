@@ -178,7 +178,7 @@ export function Hubs() {
           <input placeholder="খুঁজুন: নাম, #কোড, ফোন…" value={q} onChange={e => setQ(e.target.value)} />
           <select value={region} onChange={e => { setRegion(e.target.value); setArea('') }}><option value="">সব রিজিওন</option>{d.regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
           <select value={area} onChange={e => setArea(e.target.value)}><option value="">সব এরিয়া</option>{d.zones.filter(z => !region || z.region_id === region).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select>
-          <label className="da-check" style={{ margin: 0 }}><input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={showArch} onChange={e => setShowArch(e.target.checked)} /> আর্কাইভও</label>
+          <label className={`chip-toggle${showArch ? ' on' : ''}`}><input type="checkbox" checked={showArch} onChange={e => setShowArch(e.target.checked)} /> আর্কাইভ</label>
         </div>
         <DataTable title="হাব তালিকা" file="hubs" rows={rows} rowKey={h => h.id} onRowClick={h => { setSel(h.id); setDetail(h) }}
           empty={<p className="muted">কোনো হাব পাওয়া যায়নি।</p>}
@@ -201,10 +201,10 @@ export function Hubs() {
     {detail && d && <Modal title={`${detail.name} ${codeOf(detail)}`} wide onClose={() => setDetail(null)}
       actions={<div className="row hd-acts">
         {!detail.archived_at && can('org.hub.edit') && <>
-          <button className="secondary" onClick={() => { const h = detail; setDetail(null); openEdit(h) }}><Icon name="edit" /> এডিট</button>
+          <button className="soft" onClick={() => { const h = detail; setDetail(null); openEdit(h) }}><Icon name="edit" /> এডিট</button>
           <button className="secondary" onClick={() => { const h = detail; setDetail(null); setErr(''); setLoc({ hub: h, lat: gps(h.latitude), lng: gps(h.longitude) }) }}><Icon name="map" /> লোকেশন</button>
           <button className="secondary" onClick={() => { const h = detail; setDetail(null); setErr(''); setStat(h) }}>{detail.status === 'active' ? 'বন্ধ করুন' : 'চালু করুন'}</button></>}
-        {!detail.archived_at && can('org.hub.archive') && <button className="secondary" onClick={() => { const h = detail; setDetail(null); setErr(''); setArch(h) }}>আর্কাইভ</button>}
+        {!detail.archived_at && can('org.hub.archive') && <button className="danger" onClick={() => { const h = detail; setDetail(null); setErr(''); setArch(h) }}>আর্কাইভ</button>}
         <button onClick={() => setDetail(null)}>ঠিক আছে</button></div>}>
       <dl className="hd-dl">
         <dt>হাব কোড</dt><dd><strong>{codeOf(detail)}</strong></dd>

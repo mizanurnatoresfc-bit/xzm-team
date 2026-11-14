@@ -37,13 +37,16 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
   const all = list.length > 0 && mk.size === list.length
   return <>
     <div className="list-tools no-print">
-      <span className="cnt">{L(`${n(list.length)}টি সারি · ${n(mk.size)}টি চিহ্নিত`, `${list.length} rows · ${mk.size} marked`)}</span>
-      <button className="secondary sm" onClick={() => setMarked(new Set(list.map(rowKey)))} title={L('সব চিহ্নিত', 'Mark all')}><Icon name="checkall" size={15} />{L('সব চিহ্নিত', 'Mark all')}</button>
-      <button className="secondary sm" onClick={() => setMarked(new Set())} disabled={!mk.size} title={L('চিহ্ন তুলুন', 'Unmark all')}><Icon name="uncheck" size={15} />{L('চিহ্ন তুলুন', 'Unmark')}</button>
+      <span className="cnt"><b>{n(list.length)}</b>{L('টি', ' rows')}{mk.size ? <em>{L(` · ${n(mk.size)} চিহ্নিত`, ` · ${mk.size} marked`)}</em> : null}</span>
       <span className="grow" />
-      <button className="secondary sm" onClick={() => print(false)} disabled={!list.length}><Icon name="print" size={15} />{L('প্রিন্ট', 'Print')}</button>
-      <button className="secondary sm" onClick={excel} disabled={!list.length}><Icon name="xls" size={15} />Excel</button>
-      <button className="secondary sm" onClick={() => print(true)} disabled={!list.length}><Icon name="pdf" size={15} />PDF</button>
+      <div className="tool-group" role="group" aria-label={L('তালিকার কাজ', 'List tools')}>
+        <button type="button" className={`tb${mk.size ? ' on' : ''}`} onClick={() => setMarked(mk.size ? new Set() : new Set(list.map(rowKey)))}
+          title={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')} aria-label={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')}>
+          <Icon name={mk.size ? 'uncheck' : 'checkall'} size={16} /><span className="tl">{mk.size ? L('তুলুন', 'Unmark') : L('সব', 'All')}</span></button>
+        <button type="button" className="tb" onClick={() => print(false)} disabled={!list.length} title={L('প্রিন্ট', 'Print')} aria-label={L('প্রিন্ট', 'Print')}><Icon name="print" size={16} /><span className="tl">{L('প্রিন্ট', 'Print')}</span></button>
+        <button type="button" className="tb xls" onClick={excel} disabled={!list.length} title="Excel" aria-label="Excel"><Icon name="xls" size={16} /><span className="tl">Excel</span></button>
+        <button type="button" className="tb pdf" onClick={() => print(true)} disabled={!list.length} title="PDF" aria-label="PDF"><Icon name="pdf" size={16} /><span className="tl">PDF</span></button>
+      </div>
     </div>
     <div className="da-table-wrap"><table className="da-table"><thead><tr>
       <th className="ck no-print"><input type="checkbox" aria-label={L('সব চিহ্নিত', 'Mark all')} checked={all} onChange={e => setMarked(e.target.checked ? new Set(list.map(rowKey)) : new Set())} /></th>

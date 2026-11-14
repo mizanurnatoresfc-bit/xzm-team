@@ -91,7 +91,7 @@ export function OrgSetup() {
       </div>
       <section className="panel">
         <div className="da-bar"><strong>{orgRow.name}</strong>
-          <label className="da-check" style={{ margin: 0 }}><input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={showArchived} onChange={e => setShowArchived(e.target.checked)} /> আর্কাইভ করাগুলোও দেখান</label></div>
+          <label className={`chip-toggle${showArchived ? ' on' : ''}`}><input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} /> আর্কাইভ</label></div>
         <DataTable title={KIND[tab].label} file={tab} rows={rows} rowKey={r => r.id}
           empty={<p className="muted">এখনো কোনো {KIND[tab].one} নেই।{tab === 'hubs' && !counts.zones ? ' আগে একটি এরিয়া যোগ করুন।' : ''}{tab === 'positions' && !counts.departments ? ' আগে একটি বিভাগ যোগ করুন।' : ''}</p>}
           cols={[
@@ -103,8 +103,8 @@ export function OrgSetup() {
             ...(tab === 'zones' || tab === 'hubs' ? [{ key: 'phone', label: 'ফোন', value: (r: Row) => (r as Zone).phone ?? '' }] : []),
             { key: 'st', label: 'অবস্থা', value: r => r.archived_at ? 'আর্কাইভ' : 'সক্রিয়', render: r => r.archived_at ? <Badge tone="neutral">আর্কাইভ</Badge> : <Badge tone="ok">সক্রিয়</Badge> },
             { key: 'act', label: '', noExport: true, className: 'r no-print', render: r => !r.archived_at && <div className="row" style={{ justifyContent: 'flex-end' }}>
-              {can(`org.${perm}.edit`) && <button className="secondary sm" onClick={() => { setErr(''); setEdit({ row: { ...r }, isNew: false }) }}>সম্পাদনা</button>}
-              {can(`org.${perm}.archive`) && <button className="secondary sm" onClick={() => { setErr(''); setArch(r) }}>আর্কাইভ</button>}</div> },
+              {can(`org.${perm}.edit`) && <button className="soft sm" onClick={() => { setErr(''); setEdit({ row: { ...r }, isNew: false }) }}><Icon name="edit" size={14} />এডিট</button>}
+              {can(`org.${perm}.archive`) && <button className="danger sm" onClick={() => { setErr(''); setArch(r) }}><Icon name="box" size={14} />আর্কাইভ</button>}</div> },
           ]} />
       </section>
     </> : null}
