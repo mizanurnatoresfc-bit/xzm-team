@@ -27,7 +27,7 @@ export function Roles() {
       <DataTable<RoleRow> title={L('রোল তালিকা', 'Roles')} file="roles" rows={rows} rowKey={r => r.id} onRowClick={r => nav(`/app/roles/${r.id}`)}
         empty={<p className="muted">{list.loading ? L('লোড হচ্ছে…', 'Loading…') : L('কোনো রোল নেই', 'No roles')}</p>} cols={[
           { key: 'name', label: L('রোল', 'Role'), value: r => lang === 'bn' && r.name_bn ? r.name_bn : r.name,
-            render: r => <><strong>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</strong><span className="sec">{r.description ?? r.code}</span></> },
+            render: r => <><strong>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</strong>{r.description && <span className="sec">{r.description}</span>}</> },
           { key: 'type', label: L('ধরন', 'Type'), value: r => r.is_super ? 'super' : r.is_system ? 'system' : 'custom',
             render: r => r.is_super ? <Badge tone="bad">{L('সব ক্ষমতা', 'Full control')}</Badge> : r.is_system ? <Badge tone="neutral">{L('শুরুর রোল', 'Built-in')}</Badge> : <Badge tone="info">{L('নিজের বানানো', 'Custom')}</Badge> },
           { key: 'perms', label: L('অনুমতি', 'Permissions'), value: r => r.is_super ? L('সব', 'All') : n(r.permission_count) },
@@ -112,7 +112,7 @@ export function RoleEditor() {
 
     <section className="panel">
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label={L('রোলের নাম (ইংরেজি)', 'Role name (English)')} hint={role ? `code: ${role.code}` : L('যেমন: Hub Cashier', 'e.g. Hub Cashier')}>
+        <Field label={L('রোলের নাম (ইংরেজি)', 'Role name (English)')} hint={role ? undefined : L('যেমন: Hub Cashier', 'e.g. Hub Cashier')}>
           <input value={f.name} disabled={!canEdit} onChange={e => { setF({ ...f, name: e.target.value }); setDirty(true) }} /></Field>
         <Field label={L('রোলের নাম (বাংলা)', 'Role name (Bangla)')}><input value={f.name_bn} disabled={!canEdit} onChange={e => { setF({ ...f, name_bn: e.target.value }); setDirty(true) }} /></Field>
         <Field wide label={L('বিবরণ', 'Description')}><input value={f.description} disabled={!canEdit} onChange={e => { setF({ ...f, description: e.target.value }); setDirty(true) }} /></Field>
