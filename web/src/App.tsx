@@ -26,6 +26,7 @@ import './accounts.css'
 import './theme.css'
 import { PrefsProvider } from './lib/prefs'
 import { Home } from './pages/Home'
+import { Terms } from './pages/Terms'
 import { isNativeApp } from './lib/native'
 import { Users } from './pages/users/Users'
 import { UserDetail } from './pages/users/UserDetail'
@@ -77,6 +78,7 @@ export default function App() {
       <Route path="/secure-control" element={<Dashboard />} />
     </Route>
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
+    <Route path="/terms" element={<Terms />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
   </Routes></BrowserRouter></AuthProvider></PrefsProvider>
 }

@@ -175,3 +175,13 @@ body.print-list #print-box th,body.print-list #print-box td{border:1px solid #99
 .native-app .top { top: var(--sat); }
 .native-app .app-frame .side { padding-top: calc(14px + var(--sat)); }
 .native-app .da-actionbar { padding-bottom: calc(12px + var(--sab)); }
+
+/* Numbered steps on the home page, and the terms page */
+.step-no{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;
+  background:var(--primary);color:#fff;font-weight:700;font-size:15px;margin-bottom:8px}
+.doc-wrap{max-width:860px;margin:0 auto;padding:28px 20px 60px}
+.doc h1{margin:4px 0 6px}
+.doc section{margin-top:26px}
+.doc h2{font-size:18px;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.doc p{margin:0 0 10px;line-height:1.75}
+@media print{.pub-top,.pub-foot,.no-print{display:none!important}.doc-wrap{max-width:none;padding:0}}

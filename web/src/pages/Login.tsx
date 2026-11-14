@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { LoginError, useAuth } from '../auth/AuthProvider'
 import { Icon } from '../components/Icon'
 import { PublicTop } from '../components/PublicTop'
@@ -43,8 +43,9 @@ export function Login() {
       <form className="login-card" onSubmit={submit}>
         <div className="brand-mark">X</div>
         <p className="eyebrow">XZM-TEAM MANAGEMENT SYSTEM</p>
-        <h1>{L('স্টাফ লগইন', 'Staff login')}</h1>
-        <p className="muted">{L('আপনার অনুমোদিত অ্যাকাউন্ট দিয়ে প্রবেশ করুন।', 'Sign in with your approved account.')}</p>
+        <h1>{L('স্টাফ ও অ্যাডমিন লগইন', 'Staff and admin login')}</h1>
+        <p className="muted">{L('প্রতিষ্ঠানের দেওয়া অ্যাকাউন্ট দিয়ে প্রবেশ করুন। যে রোল আপনাকে দেওয়া হয়েছে, পাতাগুলো সেই অনুযায়ীই আসবে।',
+          'Sign in with the account the company gave you. The pages you get follow the role you were given.')}</p>
         {!supabaseConfigured && <p className="notice">{L('Supabase সেটআপ বাকি: web/.env.local ফাইলে URL ও anon key দিন।', 'Supabase is not set up: add the URL and anon key in web/.env.local.')}</p>}
         <label>{L('ইমেইল', 'Email')}<input type="email" autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} /></label>
         <label>{L('পাসওয়ার্ড', 'Password')}<span className="pw" style={{ display: 'block' }}>
@@ -55,6 +56,9 @@ export function Login() {
         <button disabled={busy || !supabaseConfigured} style={{ width: '100%', marginTop: 6 }}><Icon name="key" size={16} />{busy ? L('প্রবেশ করা হচ্ছে…', 'Signing in…') : L('লগইন করুন', 'Sign in')}</button>
         <p className="muted small" style={{ marginTop: 12 }}>{L('অ্যাকাউন্ট বা অনুমতি প্রয়োজন হলে সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন। ৫ বার ভুল পাসওয়ার্ড দিলে অ্যাকাউন্ট ৩০ মিনিট লক থাকে।',
           'Need an account or access? Contact your system administrator. 5 wrong passwords lock the account for 30 minutes.')}</p>
+        <p className="muted small" style={{ marginTop: 4 }}>{L('লগইন করলে আপনি ', 'By signing in you accept the ')}
+          <Link to="/terms">{L('ব্যবহারের শর্তাবলি', 'terms and conditions')}</Link>
+          {L(' মেনে নিচ্ছেন। এখানকার প্রতিটি কাজের রেকর্ড রাখা হয়।', '. Everything done here is recorded.')}</p>
       </form>
     </main>
   </div>
