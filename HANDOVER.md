@@ -1,4 +1,4 @@
-# XZM-TEAM ERP — Handover (13 Nov 2026)
+# XZM-TEAM ERP — Handover (14 Nov 2026)
 
 এই ফাইলটা নতুন কোনো Claude চ্যাটে (বা নতুন ডেভেলপারকে) দিলে প্রজেক্ট কোথায় আছে, কী লাইভ, কী বাকি — সব এক জায়গায় পাবে।
 Give this file (and the project zip) to a new Claude chat or developer to continue the work.
@@ -13,8 +13,9 @@ Give this file (and the project zip) to a new Claude chat or developer to contin
 | Frontend | React 19 + Vite + TypeScript + react-router 7 (`web/`) |
 | Backend | Supabase (PostgreSQL 16, Auth, Storage, Edge Functions) — সব নিয়ম ডাটাবেসে (RLS, SECURITY DEFINER ফাংশন, audit log) |
 | লাইভ সাইট | https://xzm-team-erp.netlify.app  (স্টাফ লগইন: `/staff/login`) |
-| Hosting | Netlify — project `xzm-team-erp`, site id `2909a0bd-55bc-4b11-930f-73750fb34bd4`, team `mizanur-rahman-lydcsfo`. Git-এ যুক্ত নয়; হাতে আপলোড (drag & drop `web/dist`) বা Netlify CLI দিয়ে deploy। |
+| Hosting | Netlify — project `xzm-team-erp`, site id `2909a0bd-55bc-4b11-930f-73750fb34bd4`, team `mizanur-rahman-lydcsfo` (Free). **Netlify-তে কোনো build চলে না** (ফ্রি কোটা শেষ হয়ে যায়): GitHub Actions `web/dist` বানিয়ে netlify-cli দিয়ে আপলোড করে। `web/**` বদলে push করলেই সাইট লাইভ হয়। |
 | Supabase | project `xzm-team-erp-dev`, ref `ndgnhvbpmtxrpplgsslz`, org XSFCTEAM, region ap-southeast-1 (Singapore), Free plan |
+| GitHub | প্রাইভেট রিপো `mizanurnatoresfc-bit/xzm-team` — কোড, APK বিল্ড আর সাইট ডিপ্লয় এখান থেকেই। Secret `NETLIFY_AUTH_TOKEN` সেট করা আছে। |
 | PC-তে ফোল্ডার | `C:\Users\Mizanur\Downloads\xzm-team-react-supabase-phase1\xzm-team-erp` (git চালু, `save-to-git.bat` দিয়ে সেভ) |
 | একমাত্র ইউজার | মালিক — Super Admin (global) |
 | সময় অঞ্চল | ডাটাবেস Asia/Dhaka |
@@ -26,37 +27,29 @@ Give this file (and the project zip) to a new Claude chat or developer to contin
 
 ## 2. কী লাইভ আছে / What is live now
 
-ডাটাবেস: migration `0100` থেকে `001400` পর্যন্ত (14টা) লাইভে বসানো। 59টা টেবিল, সবগুলোতে RLS।
+ডাটাবেস: migration `0100` থেকে `001800` পর্যন্ত (১৮টা) লাইভে বসানো। ৬১টা টেবিল, সবগুলোতে RLS। নতুন কিছু লাইভে বসাতে বাকি নেই।
 
-Edge Function লাইভ: `auth-login` (verify_jwt OFF) — পাসওয়ার্ড ভুলের হিসাব, ৫ বার ভুলে ৩০ মিনিট লক।
+Edge Functions লাইভ (দুটোই verify_jwt OFF):
+- `auth-login` — পাসওয়ার্ড ভুলের হিসাব, ৫ বার ভুলে ৩০ মিনিট লক। অ্যাপের origin `https://localhost` অনুমোদিত।
+- `admin-users` — স্টাফ অ্যাকাউন্ট তৈরি, পাসওয়ার্ড রিসেট, নিজের পাসওয়ার্ড বদল। সব অনুমতি যাচাই ডাটাবেসে, কলার হিসেবে।
 
-ওয়েব (Netlify-তে লাইভ):
-- পাবলিক হোম `/`, স্টাফ লগইন, ড্যাশবোর্ড
-- ডেমোর মতো ডিজাইন: আইকন মেনু (গ্রুপ), নোটিফিকেশন, বাংলা/English, ডার্ক মোড, টেবিলে প্রিন্ট/Excel/PDF
+ওয়েব + Android অ্যাপে যা আছে:
+- পাবলিক হোম, স্টাফ লগইন, ড্যাশবোর্ড, আমার প্রোফাইল (`/app/me`), পাসওয়ার্ড বদল
+- ডেমোর মতো ডিজাইন: আইকন মেনু, নোটিফিকেশন, বাংলা/English, ডার্ক মোড, টেবিলে প্রিন্ট/Excel/PDF
 - জোনাল ম্যানেজমেন্ট: প্রতিষ্ঠান, জোন, হাব, বিভাগ, পদবি
-- স্টাফ ম্যানেজমেন্ট: HR ড্যাশবোর্ড, কর্মী তালিকা ও প্রোফাইল, আইডি আবেদন (খসড়া → সাবমিট → অনুমোদন/ফেরত/বাতিল), ডকুমেন্ট আপলোড, হাজিরা, ছুটি
+- স্টাফ ম্যানেজমেন্ট: HR ড্যাশবোর্ড, কর্মী তালিকা ও প্রোফাইল, আইডি আবেদন, ডকুমেন্ট, হাজিরা, ছুটি,
+  **কর্মী ইমপোর্ট (Excel)**, **রেফারেন্স**, **প্রোফাইলের ঘর ও কলাম**
+- সিস্টেম: **ইউজার ও রোল**, **রোল ও অনুমতি** (সুপার অ্যাডমিন নিজে রোল বানায় ও অনুমতি ঠিক করে)
 - হিসাব ম্যানেজমেন্ট: দৈনিক হিসাব খাতা, আমার হিসাব, রিপোর্ট, সেটিংস
 
-## 3. তৈরি ও পরীক্ষিত, কিন্তু এখনো লাইভে বসানো হয়নি / Built, tested, NOT yet live
+Android অ্যাপ (Capacitor): `make-android.bat` দিয়ে PC-তে, অথবা GitHub Actions-এর `XZM-TEAM-apk` artifact থেকে নামিয়ে ইনস্টল।
 
-**ইউজার ও রোল (স্টাফ লগইন অ্যাকাউন্ট খোলা ও রোল দেওয়া)** — এই জিপে আছে:
-- `supabase/migrations/20261113001500_user_admin.sql` (লাইভে বসানোর জন্য পেস্ট-রেডি কপি: `supabase/users-update.sql`)
-- `supabase/functions/admin-users/index.ts` (নতুন Edge Function, **verify_jwt OFF** করে deploy করতে হবে)
-- ওয়েব: `web/src/lib/users.ts`, `web/src/pages/users/*`, `web/src/pages/ChangePassword.tsx`, এবং `App.tsx`, `AppShell.tsx`, `ProtectedRoute.tsx`, `AuthProvider.tsx`-এ বদল
-- পরীক্ষা: `supabase/tests/99_user_admin.sql` (43টা চেক) — মোট 594/594 পাস; ব্রাউজারে পুরো ফ্লো পরীক্ষিত।
+## 3. ডিপ্লয় কীভাবে হয় / How to deploy
 
-বসানোর ধাপ:
-1. Supabase → SQL Editor → `supabase/users-update.sql` পুরোটা পেস্ট → Run (দুবার চালালেও সমস্যা নেই)।
-2. Supabase → Edge Functions → Deploy a new function → Via Editor → নাম `admin-users` → `supabase/functions/admin-users/index.ts`-এর কোড পেস্ট → Deploy → Details/Settings থেকে Verify JWT **OFF** → Save।
-   (CLI থাকলে: `supabase functions deploy admin-users --no-verify-jwt --project-ref ndgnhvbpmtxrpplgsslz`)
-3. প্রজেক্ট ফোল্ডারে `build-site.bat` চালান → Netlify Deploys পাতায় `web/dist` ফোল্ডার টেনে ছেড়ে দিন।
-4. পরীক্ষা: লগইন → মেনু "সিস্টেম → ইউজার ও রোল" → নতুন অ্যাকাউন্ট → সেই অ্যাকাউন্টে লগইন করলে আগে নতুন পাসওয়ার্ড চাইবে।
-5. `save-to-git.bat` চালিয়ে মেসেজ দিন `users and roles`।
-
-### Android অ্যাপ (Capacitor) — তৈরি, এখনো APK বানানো হয়নি
-- একই কোড থেকে Android অ্যাপ: `web/capacitor.config.json`, `web/assets/` (আইকন ও স্প্ল্যাশ), `web/src/lib/native.ts` (ব্যাক বোতাম), `make-android.bat` (APK বানায়)। বিস্তারিত: `docs/ANDROID.md`।
-- অ্যাপ থেকে লগইনের জন্য `auth-login` ও `admin-users` Edge Function-এ `https://localhost` origin যোগ করা হয়েছে — **`auth-login` আবার deploy করতে হবে** (কোড: `supabase/functions/auth-login/index.ts`, verify_jwt OFF)।
-- PC-তে লাগবে: Node.js আর Android Studio (একবার ইনস্টল)। তারপর `make-android.bat` চালালে প্রজেক্ট ফোল্ডারে `XZM-TEAM.apk` তৈরি হবে।
+- **সাইট:** `web/**`-এ বদল করে GitHub-এ push করুন → Actions "Android APK and site build" চলবে → netlify-cli দিয়ে `web/dist` সরাসরি Netlify-তে যাবে (Netlify-তে build চলে না, তাই কোটা লাগে না)। হাতে চালাতে: Actions → Run workflow।
+- **অ্যাপ:** একই run-এর `XZM-TEAM-apk` artifact নামিয়ে ফোনে ইনস্টল।
+- **টোকেন ছাড়া বিকল্প:** run-এর `site-dist` artifact নামিয়ে zip টা https://app.netlify.com/projects/xzm-team-erp/deploys এ ড্রপ করুন।
+- **ডাটাবেস:** নতুন migration ফাইল `supabase/migrations/`-এ যোগ করে Supabase-এ চালান (MCP `apply_migration`, অথবা SQL Editor-এ পেস্ট)। পুরোনো ফাইল কখনো বদলাবেন না।
 
 ## 4. এককালীন সেটিংস যা বাকি থাকতে পারে / One-time settings to check
 
@@ -67,13 +60,11 @@ Edge Function লাইভ: `auth-login` (verify_jwt OFF) — পাসওয়
 
 ## 5. পরের কাজের তালিকা / Backlog (অগ্রাধিকার অনুযায়ী)
 
-1. ইউজার ও রোল লাইভে বসানো (উপরের ৩ নম্বর)।
-2. **পার্সেল বারকোড/QR স্ক্যান পেজ** — মোবাইল ক্যামেরায় Steadfast লেবেল স্ক্যান → `parcels.tracking_no` দিয়ে খুঁজে লাইন দেখানো (মার্চেন্ট, গ্রাহক, মোবাইল, এলাকা, COD, অবস্থা, Settle/Delivered বোতাম)। ডাটাবেসে `parcels` টেবিল ও `ops_parcel_lookup(p_tracking_no)` আগেই আছে। খোলা প্রশ্ন: স্ক্যান দিয়ে (ক) নতুন পার্সেল গ্রহণ নাকি (খ) আগের পার্সেল খুঁজে ডেলিভারি/সেটেল? Steadfast API key আছে কি? (key সার্ভারে রাখতে হবে)
-3. Android অ্যাপ: `auth-login` redeploy → `make-android.bat` → APK ফোনে পরীক্ষা; পরে Play Store।
-4. বেতন শিট UI, ডকুমেন্ট যাচাই UI, বাল্ক ইমপোর্ট UI।
-5. জোনাল ও কুরিয়ার অপারেশনের পেজ (ডাটাবেস তৈরি, UI বাকি)।
-6. ভেতরের পেজগুলোর English অনুবাদ।
-7. পারফরম্যান্স: 23টা RLS policy-তে `auth.uid()` কে `(select auth.uid())` করা।
+1. **পার্সেল বারকোড/QR স্ক্যান পেজ** — মোবাইল ক্যামেরায় Steadfast লেবেল স্ক্যান → `parcels.tracking_no` দিয়ে খুঁজে লাইন দেখানো (মার্চেন্ট, গ্রাহক, মোবাইল, এলাকা, COD, অবস্থা, Settle/Delivered বোতাম)। ডাটাবেসে `parcels` টেবিল ও `ops_parcel_lookup(p_tracking_no)` আগেই আছে। খোলা প্রশ্ন: স্ক্যান দিয়ে (ক) নতুন পার্সেল গ্রহণ নাকি (খ) আগের পার্সেল খুঁজে ডেলিভারি/সেটেল? Steadfast API key আছে কি? (key শুধু Edge Function-এ, কখনো ব্রাউজারে নয়)। অ্যাপে ক্যামেরার অনুমতি লাগবে: `AndroidManifest.xml`-এ `android.permission.CAMERA`।
+2. বেতন শিট UI, ডকুমেন্ট যাচাই UI।
+3. জোনাল ও কুরিয়ার অপারেশনের পেজ (ডাটাবেস তৈরি, UI বাকি)।
+4. ভেতরের পেজগুলোর English অনুবাদ।
+5. পারফরম্যান্স: ২৩টা RLS policy-তে `auth.uid()` কে `(select auth.uid())` করা।
 
 ## 6. ফোল্ডার ম্যাপ / Folder map
 
