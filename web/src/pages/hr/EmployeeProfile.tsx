@@ -8,6 +8,7 @@ import {
   type Employee, type EmployeeStatus,
 } from '../../lib/hr'
 import { BD_MOBILE, EmpBadge, useOrg } from './common'
+import { ExtraFields, ReferralPanel } from './ProfileExtras'
 
 const REQUIRED_DOCS = ['nid_front', 'nid_back', 'photo']
 
@@ -37,6 +38,8 @@ export function EmployeeProfile() {
       {app.data.status === 'submitted' && !can('hr.application.approve') && <p className="muted">HR যাচাই করছে।</p>}
     </section>}
     {isDraftOwner ? <DraftForm e={e} onSaved={async m => { toast(m); await reload() }} /> : <Details e={e} onChanged={async m => { toast(m); await reload() }} />}
+    <ExtraFields employee={e.id} zoneId={e.zone_id} onSaved={m => toast(m)} />
+    <ReferralPanel employee={e.id} zoneId={e.zone_id} onSaved={m => toast(m)} />
     <Documents e={e} canUpload={isDraftOwner || can('hr.document.create')} onDone={m => toast(m)} />
     {e.status !== 'applicant' && <History id={id} />}
   </AppShell>
@@ -286,7 +289,7 @@ function History({ id }: { id: string }) {
     <section className="panel"><h2>অবস্থার ইতিহাস</h2>
       {s.data?.length ? <ul className="da-timeline">{s.data.map(x => <li key={x.id}>{x.from_status ? `${EMP_STATUS[x.from_status as EmployeeStatus]?.[0] ?? x.from_status} → ` : ''}<strong>{EMP_STATUS[x.to_status as EmployeeStatus]?.[0] ?? x.to_status}</strong> · {dmy(x.effective_date)}
         {x.reason && <span className="sec">{x.reason}</span>}</li>)}</ul> : <p className="muted">—</p>}
-      {c.data && c.data.length > 0 && <><h3>বেতন</h3><ul className="da-notes">{c.data.map(x => <li key={x.id}>{dmy(x.effective_from)} থেকে · মূল {bn(x.basic_salary)} ৳ · যাতায়াত {bn(x.transport_allowance)} ৳
+      {c.data && c.data.length > 0 && <><h3>বেতন</h3><ul className="da-notes">{c.data.map(x => <li key={x.id}>{dmy(x.effective_from)} থেকে · মূল {bn(x.basic_salary)} ৳ · যাতায়াত {bn(x.transport_allowance)} ৳{Number(x.commission) ? <> · কমিশন {bn(x.commission)} ৳</> : null}
         <Badge tone={x.status === 'approved' ? 'ok' : x.status === 'pending' ? 'warn' : 'neutral'}>{x.status === 'approved' ? 'অনুমোদিত' : x.status === 'pending' ? 'অপেক্ষমাণ' : x.status}</Badge></li>)}</ul></>}
     </section>
   </div>

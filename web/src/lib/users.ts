@@ -92,6 +92,10 @@ const BN: Array<[RegExp, string]> = [
   [/not active or already has a login/i, 'এই কর্মী সক্রিয় নন অথবা তাঁর আগেই লগইন আছে'],
   [/employee_link_failed/i, 'অ্যাকাউন্ট তৈরি হয়েছে, কিন্তু কর্মীর সাথে যুক্ত করা যায়নি'],
   [/not_signed_in/i, 'আবার লগইন করুন'],
+  [/Only a Super Admin/i, 'এই কাজ শুধু সুপার অ্যাডমিন পারেন'],
+  [/Remove this role from every user/i, 'আগে সব ইউজার থেকে এই রোল সরান, তারপর আর্কাইভ করুন'],
+  [/System roles cannot be archived/i, 'শুরুর (সিস্টেম) রোল আর্কাইভ করা যায় না'],
+  [/role name is required/i, 'রোলের নাম দিন'],
   [/Not authorised|forbidden|42501/i, 'এই কাজের অনুমতি আপনার নেই'],
   [/Failed to send|network|fetch/i, 'সার্ভারে পৌঁছানো যায়নি। ইন্টারনেট দেখে আবার চেষ্টা করুন'],
 ]

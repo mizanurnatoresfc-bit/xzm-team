@@ -1,0 +1,106 @@
+// Reads the first worksheet of an .xlsx file (or a .csv) in the browser, with no extra library:
+// an .xlsx is a zip of XML files; the browser's DecompressionStream unpacks it.
+// Returns rows as arrays of cell text (dates stay as Excel serial numbers; see excelDate()).
+
+type Entry = { name: string; method: number; compSize: number; offset: number }
+
+function zipEntries(buf: ArrayBuffer): Entry[] {
+  const v = new DataView(buf)
+  let eocd = -1
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 66000); i--) {
+    if (v.getUint32(i, true) === 0x06054b50) { eocd = i; break }
+  }
+  if (eocd < 0) throw new Error('not_xlsx')
+  const count = v.getUint16(eocd + 10, true)
+  let p = v.getUint32(eocd + 16, true)
+  const out: Entry[] = []
+  const dec = new TextDecoder()
+  for (let k = 0; k < count; k++) {
+    if (v.getUint32(p, true) !== 0x02014b50) break
+    const method = v.getUint16(p + 10, true), compSize = v.getUint32(p + 20, true)
+    const nameLen = v.getUint16(p + 28, true), extraLen = v.getUint16(p + 30, true), commentLen = v.getUint16(p + 32, true)
+    const offset = v.getUint32(p + 42, true)
+    out.push({ name: dec.decode(new Uint8Array(buf, p + 46, nameLen)), method, compSize, offset })
+    p += 46 + nameLen + extraLen + commentLen
+  }
+  return out
+}
+
+async function readEntry(buf: ArrayBuffer, e: Entry): Promise<string> {
+  const v = new DataView(buf)
+  const start = e.offset + 30 + v.getUint16(e.offset + 26, true) + v.getUint16(e.offset + 28, true)
+  const data = new Uint8Array(buf, start, e.compSize)
+  if (e.method === 0) return new TextDecoder().decode(data)
+  if (e.method !== 8) throw new Error('not_xlsx')
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))
+  return await new Response(stream).text()
+}
+
+const xml = (s: string) => new DOMParser().parseFromString(s, 'application/xml')
+const colIndex = (ref: string) => { let n = 0; for (const ch of ref.replace(/[0-9]/g, '')) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1 }
+
+async function readXlsx(file: File): Promise<string[][]> {
+  const buf = await file.arrayBuffer()
+  const entries = zipEntries(buf)
+  const get = async (name: string) => { const e = entries.find(x => x.name === name); return e ? await readEntry(buf, e) : null }
+  const shared: string[] = []
+  const ss = await get('xl/sharedStrings.xml')
+  if (ss) for (const si of Array.from(xml(ss).getElementsByTagName('si'))) shared.push(Array.from(si.getElementsByTagName('t')).map(t => t.textContent ?? '').join(''))
+  // first sheet in workbook order
+  let sheetPath = 'xl/worksheets/sheet1.xml'
+  const wb = await get('xl/workbook.xml'), rels = await get('xl/_rels/workbook.xml.rels')
+  if (wb && rels) {
+    const first = xml(wb).getElementsByTagName('sheet')[0]
+    const rid = first?.getAttribute('r:id') ?? first?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')
+    const rel = Array.from(xml(rels).getElementsByTagName('Relationship')).find(r => r.getAttribute('Id') === rid)
+    const target = rel?.getAttribute('Target')
+    if (target) sheetPath = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '')
+  }
+  const sheet = await get(sheetPath)
+  if (!sheet) throw new Error('not_xlsx')
+  const rows: string[][] = []
+  for (const row of Array.from(xml(sheet).getElementsByTagName('row'))) {
+    const r = Number(row.getAttribute('r') ?? rows.length + 1) - 1
+    const cells: string[] = []
+    for (const c of Array.from(row.getElementsByTagName('c'))) {
+      const t = c.getAttribute('t'), ref = c.getAttribute('r')
+      const vEl = c.getElementsByTagName('v')[0]
+      let val = ''
+      if (t === 's') val = shared[Number(vEl?.textContent ?? -1)] ?? ''
+      else if (t === 'inlineStr') val = Array.from(c.getElementsByTagName('t')).map(x => x.textContent ?? '').join('')
+      else val = vEl?.textContent ?? ''
+      cells[ref ? colIndex(ref) : cells.length] = val.trim()
+    }
+    rows[r] = Array.from(cells, x => x ?? '')
+  }
+  return Array.from(rows, x => x ?? [])
+}
+
+function readCsv(text: string): string[][] {
+  const rows: string[][] = []; let row: string[] = []; let cell = ''; let q = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (q) { if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++ } else if (ch === '"') q = false; else cell += ch; continue }
+    if (ch === '"') q = true
+    else if (ch === ',') { row.push(cell.trim()); cell = '' }
+    else if (ch === '\n') { row.push(cell.trim()); rows.push(row); row = []; cell = '' }
+    else if (ch !== '\r') cell += ch
+  }
+  if (cell || row.length) { row.push(cell.trim()); rows.push(row) }
+  return rows
+}
+
+/** Rows of the first sheet (or the CSV), each an array of cell texts. */
+export async function readSheet(file: File): Promise<string[][]> {
+  if (/\.csv$/i.test(file.name)) return readCsv((await file.text()).replace(/^﻿/, ''))
+  if (!/\.xlsx$/i.test(file.name)) throw new Error('শুধু .xlsx বা .csv ফাইল দিন (পুরনো .xls হলে Excel-এ "Save As → .xlsx" করে নিন)')
+  if (typeof DecompressionStream === 'undefined') throw new Error('এই ব্রাউজারে Excel পড়া যাচ্ছে না — Chrome আপডেট করুন অথবা CSV দিন')
+  try { return await readXlsx(file) } catch { throw new Error('ফাইলটা পড়া যায়নি — Excel-এ খুলে .xlsx হিসেবে আবার সেভ করে দিন') }
+}
+
+/** Excel stores dates as day numbers (1 = 1900-01-01). Converts "45231" to "2023-11-01"; other text unchanged. */
+export function excelDate(v: string): string {
+  if (!/^\d{4,5}(\.\d+)?$/.test(v)) return v
+  const ms = Math.round((Number(v) - 25569) * 86400000)
+  return new Date(ms).toISOString().slice(0, 10)
+}

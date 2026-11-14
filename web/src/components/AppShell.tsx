@@ -11,6 +11,7 @@ type CountKey = 'apps' | 'leave' | 'sheets'
 
 const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
+  { to: '/app/me', icon: 'user', bn: 'আমার প্রোফাইল', en: 'My profile', perms: null },
 ]
 const GROUPS: Group[] = [
   { key: 'org', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal Management', items: [
@@ -19,6 +20,9 @@ const GROUPS: Group[] = [
   { key: 'staff', icon: 'users', bn: 'স্টাফ ম্যানেজমেন্ট', en: 'Staff Management', items: [
     { to: '/app/hr', icon: 'chart', bn: 'HR ড্যাশবোর্ড', en: 'HR dashboard', perms: ['hr.employee.view'] },
     { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
+    { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
+    { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
+    { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (Excel)', en: 'Import employees', perms: ['hr.import.create'] },
     { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
     { to: '/app/hr/attendance', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
     { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
@@ -31,6 +35,7 @@ const GROUPS: Group[] = [
   ] },
   { key: 'sys', icon: 'shield', bn: 'সিস্টেম', en: 'System', items: [
     { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
+    { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
   ] },
 ]
 
@@ -163,6 +168,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
             <div className="muted small" style={{ padding: '0 10px 6px' }}>{top ? scopeText : L('কোনো রোল নেই', 'No role')}</div>
             <button className="mi" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}><Icon name="globe" size={16} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
             <Link to="/app/accounts/mine" onClick={() => setPop(null)}><Icon name="wallet" size={16} />{L('আমার হিসাব', 'My accounts')}</Link>
+            <Link to="/app/me" onClick={() => setPop(null)}><Icon name="user" size={16} />{L('আমার প্রোফাইল', 'My profile')}</Link>
             <Link to="/app/password" onClick={() => setPop(null)}><Icon name="key" size={16} />{L('পাসওয়ার্ড বদলান', 'Change password')}</Link>
             <button className="mi" onClick={() => void signOut()}><Icon name="out" size={16} />{L('লগআউট', 'Sign out')}</button>
           </div>}

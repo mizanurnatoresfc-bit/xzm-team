@@ -15,6 +15,10 @@ import { EmployeeProfile } from './pages/hr/EmployeeProfile'
 import { Applications } from './pages/hr/Applications'
 import { Leave } from './pages/hr/Leave'
 import { Attendance } from './pages/hr/Attendance'
+import { ImportEmployees } from './pages/hr/ImportEmployees'
+import { FieldSettings } from './pages/hr/FieldSettings'
+import { Referrals } from './pages/hr/Referrals'
+import { MyProfile } from './pages/MyProfile'
 import './styles.css'
 import './accounts.css'
 import './theme.css'
@@ -23,6 +27,7 @@ import { Home } from './pages/Home'
 import { isNativeApp } from './lib/native'
 import { Users } from './pages/users/Users'
 import { UserDetail } from './pages/users/UserDetail'
+import { RoleEditor, Roles } from './pages/users/Roles'
 import { ChangePassword } from './pages/ChangePassword'
 
 export default function App() {
@@ -41,10 +46,22 @@ export default function App() {
       <Route path="/app/hr/attendance" element={<Attendance />} />
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
+      <Route path="/app/me" element={<MyProfile />} />
+      <Route path="/app/hr/fields" element={<FieldSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.user.view" />}>
       <Route path="/app/users" element={<Users />} />
       <Route path="/app/users/:id" element={<UserDetail />} />
+    </Route>
+    <Route element={<ProtectedRoute permission="hr.referral.view" />}>
+      <Route path="/app/hr/referrals" element={<Referrals />} />
+    </Route>
+    <Route element={<ProtectedRoute permission="hr.import.create" />}>
+      <Route path="/app/hr/import" element={<ImportEmployees />} />
+    </Route>
+    <Route element={<ProtectedRoute permission="system.role.view" />}>
+      <Route path="/app/roles" element={<Roles />} />
+      <Route path="/app/roles/:id" element={<RoleEditor />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>
       <Route path="/app/accounts/reports" element={<AccountsReports />} />

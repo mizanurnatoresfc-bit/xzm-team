@@ -36,9 +36,9 @@ select tests.ok((select 'Invalid date_of_birth' = any(errors) from public.employ
 select tests.ok((select 'Duplicate of another row in this file' = any(errors) from public.employee_import_rows where row_number = 4), 'duplicate NID inside the file flagged (both rows marked for HR to decide)');
 select tests.ok((select errors @> array['NID already exists','Invalid basic_salary'] from public.employee_import_rows where row_number = 5),
                 'existing NID and bad salary flagged');
-select tests.ok((select 'Unknown hub_code' = any(errors) from public.employee_import_rows where row_number = 6), 'unknown hub flagged');
-select tests.ok((select errors @> array['employee_code already exists','Missing joining_date'] from public.employee_import_rows where row_number = 7),
-                'used Employee ID and missing joining date flagged');
+select tests.ok((select 'Unknown hub: ZZ' = any(errors) from public.employee_import_rows where row_number = 6), 'unknown hub flagged');
+select tests.ok((select errors @> array['employee_code already exists'] from public.employee_import_rows where row_number = 7),
+                'used Employee ID flagged (joining date is optional for imports)');
 select tests.throws(format($$insert into public.employee_import_rows (batch_id, row_number, raw) values (%L, 99, '{}')$$, tests.id('batch')),
                     'rows cannot be added after validation', 'P0001');
 
