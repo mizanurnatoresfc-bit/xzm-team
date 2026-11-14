@@ -7,9 +7,9 @@ import { Icon } from '../../components/Icon'
 import { autoCode, hrFriendly, nameMap, org, type Department, type Hub, type Position, type Zone } from '../../lib/hr'
 
 type Kind = 'zones' | 'hubs' | 'departments' | 'positions'
-const LEVEL: Record<string, string> = { hub: 'হাব পর্যায়', zone: 'জোন পর্যায়', head_office: 'হেড অফিস' }
+const LEVEL: Record<string, string> = { hub: 'হাব পর্যায়', zone: 'এরিয়া/জোন পর্যায়', head_office: 'হেড অফিস' }
 const KIND: Record<Kind, { label: string; one: string; perm: string }> = {
-  zones: { label: 'জোন', one: 'জোন', perm: 'zone' }, hubs: { label: 'হাব', one: 'হাব', perm: 'hub' },
+  zones: { label: 'এরিয়া', one: 'এরিয়া', perm: 'zone' }, hubs: { label: 'হাব', one: 'হাব', perm: 'hub' },
   departments: { label: 'বিভাগ', one: 'বিভাগ', perm: 'department' }, positions: { label: 'পদবি', one: 'পদবি', perm: 'position' },
 }
 type Row = (Zone | Hub | Department | Position) & Record<string, unknown>
@@ -53,7 +53,7 @@ export function OrgSetup() {
       if (!base.code) throw new Error('হাব কোড নম্বর দিন')
       if (tab === 'zones' || tab === 'hubs') { base.phone = (r.phone as string)?.trim() || null; base.address = (r.address as string)?.trim() || null }
       if (tab === 'zones' || tab === 'departments') base.organization_id = orgRow?.id
-      if (tab === 'hubs') { if (!r.zone_id) throw new Error('জোন বেছে নিন'); base.zone_id = r.zone_id }
+      if (tab === 'hubs') { if (!r.zone_id) throw new Error('এরিয়া বেছে নিন'); base.zone_id = r.zone_id }
       if (tab === 'positions') { if (!r.department_id) throw new Error('বিভাগ বেছে নিন'); base.department_id = r.department_id; base.level = String(r.level ?? 'hub') }
       if (edit.isNew) await org.insert(tab, base); else await org.update(tab, String(r.id), base)
       toast(edit.isNew ? `${KIND[tab].one} যোগ হয়েছে` : 'পরিবর্তন সেভ হয়েছে'); setEdit(null); await data.reload()
@@ -67,7 +67,7 @@ export function OrgSetup() {
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
 
-  return <AppShell title="প্রতিষ্ঠান সেটআপ" subtitle="জোন, হাব, বিভাগ ও পদবি। কিছু মুছে ফেলা হয় না — বন্ধ করতে আর্কাইভ করুন।"
+  return <AppShell title="প্রতিষ্ঠান সেটআপ" subtitle="এরিয়া, হাব, বিভাগ ও পদবি। ম্যাপ ও GPS: হাব তালিকা ও ম্যাপ পাতায়। কিছু মুছে ফেলা হয় না — বন্ধ করতে আর্কাইভ করুন।"
     actions={orgRow && can(`org.${perm}.create`) ? <button onClick={() => { setErr(''); setEdit({ row: {}, isNew: true }) }}>+ নতুন {KIND[tab].one}</button> : null}>
     {node}
     {data.error ? <p className="da-error">{hrFriendly(data.error)}</p> : null}
@@ -93,11 +93,11 @@ export function OrgSetup() {
         <div className="da-bar"><strong>{orgRow.name}</strong>
           <label className="da-check" style={{ margin: 0 }}><input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={showArchived} onChange={e => setShowArchived(e.target.checked)} /> আর্কাইভ করাগুলোও দেখান</label></div>
         <DataTable title={KIND[tab].label} file={tab} rows={rows} rowKey={r => r.id}
-          empty={<p className="muted">এখনো কোনো {KIND[tab].one} নেই।{tab === 'hubs' && !counts.zones ? ' আগে একটি জোন যোগ করুন।' : ''}{tab === 'positions' && !counts.departments ? ' আগে একটি বিভাগ যোগ করুন।' : ''}</p>}
+          empty={<p className="muted">এখনো কোনো {KIND[tab].one} নেই।{tab === 'hubs' && !counts.zones ? ' আগে একটি এরিয়া যোগ করুন।' : ''}{tab === 'positions' && !counts.departments ? ' আগে একটি বিভাগ যোগ করুন।' : ''}</p>}
           cols={[
             ...(tab === 'hubs' ? [{ key: 'code', label: 'কোড', render: (r: Row) => <strong>{tab === 'hubs' && /^\d+$/.test(String(r.code)) ? `#${r.code}` : r.code}</strong> }] : []),
             { key: 'name', label: 'নাম', render: r => <>{r.name}{r.name_bn && <span className="sec">{r.name_bn}</span>}</> },
-            ...(tab === 'hubs' ? [{ key: 'zone', label: 'জোন', value: (r: Row) => zoneName[(r as Hub).zone_id] ?? '' }] : []),
+            ...(tab === 'hubs' ? [{ key: 'zone', label: 'এরিয়া', value: (r: Row) => zoneName[(r as Hub).zone_id] ?? '' }] : []),
             ...(tab === 'positions' ? [{ key: 'dept', label: 'বিভাগ', value: (r: Row) => deptName[(r as Position).department_id] ?? '' },
               { key: 'level', label: 'পর্যায়', value: (r: Row) => LEVEL[String((r as Record<string, unknown>).level ?? 'hub')] ?? '' }] : []),
             ...(tab === 'zones' || tab === 'hubs' ? [{ key: 'phone', label: 'ফোন', value: (r: Row) => (r as Zone).phone ?? '' }] : []),
@@ -115,7 +115,7 @@ export function OrgSetup() {
           <input inputMode={tab === 'hubs' ? 'numeric' : 'text'} value={String(edit.row.code ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, code: e.target.value } })} /></Field>}
         <Field label="নাম"><input value={String(edit.row.name ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, name: e.target.value } })} /></Field>
         <Field label="নাম (বাংলা)"><input value={String(edit.row.name_bn ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, name_bn: e.target.value } })} /></Field>
-        {tab === 'hubs' && <Field label="জোন"><select value={String(edit.row.zone_id ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, zone_id: e.target.value } })}>
+        {tab === 'hubs' && <Field label="এরিয়া"><select value={String(edit.row.zone_id ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, zone_id: e.target.value } })}>
           <option value="">বেছে নিন…</option>{d?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
         {tab === 'positions' && <Field label="বিভাগ"><select value={String(edit.row.department_id ?? '')} onChange={e => setEdit({ ...edit, row: { ...edit.row, department_id: e.target.value } })}>
           <option value="">বেছে নিন…</option>{d?.departments.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}

@@ -19,6 +19,7 @@ const MyAccounts = lazy(() => import('./pages/accounts/MyAccounts').then(m => ({
 const AccountsReports = lazy(() => import('./pages/accounts/AccountsReports').then(m => ({ default: m.AccountsReports })))
 const AccountsSettings = lazy(() => import('./pages/accounts/AccountsSettings').then(m => ({ default: m.AccountsSettings })))
 const OrgSetup = lazy(() => import('./pages/org/OrgSetup').then(m => ({ default: m.OrgSetup })))
+const Hubs = lazy(() => import('./pages/org/Hubs').then(m => ({ default: m.Hubs })))
 const HrDashboard = lazy(() => import('./pages/hr/HrDashboard').then(m => ({ default: m.HrDashboard })))
 const Employees = lazy(() => import('./pages/hr/Employees').then(m => ({ default: m.Employees })))
 const EmployeeProfile = lazy(() => import('./pages/hr/EmployeeProfile').then(m => ({ default: m.EmployeeProfile })))
@@ -55,6 +56,7 @@ export default function App() {
       <Route path="/app/accounts/daily/:id" element={<DailySheet />} />
       <Route path="/app/accounts/mine" element={<MyAccounts />} />
       <Route path="/app/org" element={<OrgSetup />} />
+      <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal/staff" element={<ZonalStaff />} />
       <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
