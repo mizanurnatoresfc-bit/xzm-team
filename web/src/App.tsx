@@ -1,33 +1,9 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
-import { DailyDashboard } from './pages/accounts/DailyDashboard'
-import { DailySheet } from './pages/accounts/DailySheet'
-import { MyAccounts } from './pages/accounts/MyAccounts'
-import { AccountsReports } from './pages/accounts/AccountsReports'
-import { AccountsSettings } from './pages/accounts/AccountsSettings'
-import { OrgSetup } from './pages/org/OrgSetup'
-import { HrDashboard } from './pages/hr/HrDashboard'
-import { Employees } from './pages/hr/Employees'
-import { EmployeeProfile } from './pages/hr/EmployeeProfile'
-import { Applications } from './pages/hr/Applications'
-import { Leave } from './pages/hr/Leave'
-import { Attendance } from './pages/hr/Attendance'
-import { ImportEmployees } from './pages/hr/ImportEmployees'
-import { FieldSettings } from './pages/hr/FieldSettings'
-import { Referrals } from './pages/hr/Referrals'
-import { ZonalStaff } from './pages/zonal/ZonalStaff'
-import { RoleDashboards } from './pages/users/RoleDashboards'
-import { BrandingSettings } from './pages/users/BrandingSettings'
-import { MyProfile } from './pages/MyProfile'
-import { HubManagement } from './pages/hub/HubManagement'
-import { MyPermissions } from './pages/MyPermissions'
-import { Settings } from './pages/Settings'
-import { Sorting } from './pages/sorting/Sorting'
-import { Duties } from './pages/hr/Duties'
-import { Office } from './pages/office/Office'
 import './styles.css'
 import './accounts.css'
 import './theme.css'
@@ -35,13 +11,43 @@ import { PrefsProvider } from './lib/prefs'
 import { Home } from './pages/Home'
 import { Terms } from './pages/Terms'
 import { isNativeApp } from './lib/native'
-import { Users } from './pages/users/Users'
-import { UserDetail } from './pages/users/UserDetail'
-import { RoleEditor, Roles } from './pages/users/Roles'
-import { ChangePassword } from './pages/ChangePassword'
+
+// Pages load on first visit, so the first screen downloads only what it needs.
+const DailyDashboard = lazy(() => import('./pages/accounts/DailyDashboard').then(m => ({ default: m.DailyDashboard })))
+const DailySheet = lazy(() => import('./pages/accounts/DailySheet').then(m => ({ default: m.DailySheet })))
+const MyAccounts = lazy(() => import('./pages/accounts/MyAccounts').then(m => ({ default: m.MyAccounts })))
+const AccountsReports = lazy(() => import('./pages/accounts/AccountsReports').then(m => ({ default: m.AccountsReports })))
+const AccountsSettings = lazy(() => import('./pages/accounts/AccountsSettings').then(m => ({ default: m.AccountsSettings })))
+const OrgSetup = lazy(() => import('./pages/org/OrgSetup').then(m => ({ default: m.OrgSetup })))
+const HrDashboard = lazy(() => import('./pages/hr/HrDashboard').then(m => ({ default: m.HrDashboard })))
+const Employees = lazy(() => import('./pages/hr/Employees').then(m => ({ default: m.Employees })))
+const EmployeeProfile = lazy(() => import('./pages/hr/EmployeeProfile').then(m => ({ default: m.EmployeeProfile })))
+const Applications = lazy(() => import('./pages/hr/Applications').then(m => ({ default: m.Applications })))
+const Leave = lazy(() => import('./pages/hr/Leave').then(m => ({ default: m.Leave })))
+const Attendance = lazy(() => import('./pages/hr/Attendance').then(m => ({ default: m.Attendance })))
+const ImportEmployees = lazy(() => import('./pages/hr/ImportEmployees').then(m => ({ default: m.ImportEmployees })))
+const FieldSettings = lazy(() => import('./pages/hr/FieldSettings').then(m => ({ default: m.FieldSettings })))
+const Referrals = lazy(() => import('./pages/hr/Referrals').then(m => ({ default: m.Referrals })))
+const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
+const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
+const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
+const MyProfile = lazy(() => import('./pages/MyProfile').then(m => ({ default: m.MyProfile })))
+const HubManagement = lazy(() => import('./pages/hub/HubManagement').then(m => ({ default: m.HubManagement })))
+const MyPermissions = lazy(() => import('./pages/MyPermissions').then(m => ({ default: m.MyPermissions })))
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
+const Sorting = lazy(() => import('./pages/sorting/Sorting').then(m => ({ default: m.Sorting })))
+const Duties = lazy(() => import('./pages/hr/Duties').then(m => ({ default: m.Duties })))
+const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
+const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
+const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ default: m.UserDetail })))
+const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.RoleEditor })))
+const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.Roles })))
+const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
+
+const Loading = () => <div className="page-loading" role="status"><span className="spin" />লোড হচ্ছে…</div>
 
 export default function App() {
-  return <PrefsProvider><AuthProvider><BrowserRouter><Routes>
+  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes>
     <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<Dashboard />} />
@@ -97,5 +103,5 @@ export default function App() {
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
-  </Routes></BrowserRouter></AuthProvider></PrefsProvider>
+  </Routes></Suspense></BrowserRouter></AuthProvider></PrefsProvider>
 }

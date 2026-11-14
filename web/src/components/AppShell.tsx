@@ -31,7 +31,7 @@ const GROUPS: Group[] = [
     { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
     { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
     { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
-    { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ⇄ শটিং', en: 'Reports: hub ⇄ sorting', perms: ['sorting.report.view'] },
+    { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও শটিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
     { to: '/app/sorting/centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
   ] },
   { key: 'office', icon: 'home', bn: 'অফিস ম্যানেজমেন্ট', en: 'Office Management', items: [

@@ -23,7 +23,7 @@ export const SORTING_SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: s
   { key: 'fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
   { key: 'parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
   { key: 'drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট (রুট অনুযায়ী)', en: 'Driver reports by route', perms: ['sorting.driver.view', 'sorting.driver.create'] },
-  { key: 'reports', icon: 'chart', bn: 'রিপোর্ট: হাব ⇄ শটিং', en: 'Reports: hub ⇄ sorting', perms: ['sorting.report.view'] },
+  { key: 'reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও শটিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
   { key: 'centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
 ]
 

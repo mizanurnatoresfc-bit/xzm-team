@@ -16,7 +16,15 @@ export function RouteViz({ start, lanes, empty }: { start: string; lanes: Lane[]
   if (!lanes.length) return <p className="muted">{empty ?? L('দেখানোর মতো রুট নেই।', 'No routes to draw.')}</p>
   const H = 40 + lanes.length * LANE
   const midY = 40 + (lanes.length * LANE) / 2 - 10
-  return <div className="route-viz"><svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={L('রুটের ছবি', 'Route map')} fontSize="12">
+  const steps = <div className="route-steps">
+    <div className="rs-start"><b>{start}</b><span>{L(`${n(lanes.length)}টা রুট`, `${lanes.length} routes`)}</span></div>
+    {lanes.map(ln => <div key={ln.id} className="rs-lane">
+      <div className="rs-head"><b>{ln.code} · {ln.name}</b>{ln.sub && <span>{ln.sub}</span>}</div>
+      <ol>{ln.stops.map((s, j) => <li key={s.id} className={s.tone ? `t-${s.tone}` : ''}><span className="rs-dot">{n(j + 1)}</span>
+        <span className="rs-label">{s.label}{s.flag && <small>{s.flag}</small>}</span></li>)}</ol>
+    </div>)}
+  </div>
+  return <>{steps}<div className="route-viz"><svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={L('রুটের ছবি', 'Route map')} fontSize="12">
     {/* start node */}
     <g>
       <rect x="8" y={midY - 26} width="118" height="52" rx="12" fill="var(--primary)" />
@@ -47,5 +55,5 @@ export function RouteViz({ start, lanes, empty }: { start: string; lanes: Lane[]
         {ln.tail && <text x={W - RIGHT} y={y - 16} textAnchor="end" fill="var(--muted)" fontSize="11">{trim(ln.tail, 40)}</text>}
       </g>
     })}
-  </svg></div>
+  </svg></div></>
 }

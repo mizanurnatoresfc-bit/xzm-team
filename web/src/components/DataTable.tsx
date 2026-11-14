@@ -51,6 +51,6 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
       <tbody>{list.map((r, i) => { const k = rowKey(r); const on = mk.has(k); return <tr key={k} className={`${onRowClick ? 'click' : ''}${on ? ' marked' : ''}`} onClick={() => onRowClick?.(r)}>
         <td className="ck no-print" onClick={e => e.stopPropagation()}><input type="checkbox" aria-label={L(`সারি ${i + 1} চিহ্নিত`, `Mark row ${i + 1}`)} checked={on}
           onChange={e => { const s = new Set(mk); if (e.target.checked) s.add(k); else s.delete(k); setMarked(s) }} /></td>
-        <td className="muted">{n(i + 1)}</td>{cols.map(c => <td key={c.key} className={c.className}>{c.render ? c.render(r) : String(cell(c, r) || '—')}</td>)}</tr> })}</tbody></table></div>
+        <td className="muted sl">{n(i + 1)}</td>{cols.map(c => <td key={c.key} className={c.className} data-label={c.label || undefined}>{c.render ? c.render(r) : String(cell(c, r) || '—')}</td>)}</tr> })}</tbody></table></div>
   </>
 }
