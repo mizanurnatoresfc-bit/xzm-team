@@ -19,10 +19,12 @@ insert into public.merchants (code, name, hub_id) values
   ('M1', 'Merchant One', tests.id('hub_a1')), ('MB', 'Merchant B', tests.id('hub_b1'));
 insert into tests.ids select 'm_' || lower(code::text), id from public.merchants;
 insert into public.merchant_payments (merchant_id, hub_id, zone_id, payment_date, amount, method, requested_by)
-values (tests.id('m_m1'), tests.id('hub_a1'), tests.id('zone_a'), current_date - 1, 5000, 'cash', tests.id('hub_mgr'));
+values (tests.id('m_m1'), tests.id('hub_a1'), tests.id('zone_a'), current_date - 1, 5000, 'cash', tests.id('hub_mgr')),
+       -- a second payment of the hub's own, for the sheet-written-with-the-wrong-amount case
+       (tests.id('m_m1'), tests.id('hub_a1'), tests.id('zone_a'), current_date - 1, 7000, 'cash', tests.id('hub_mgr'));
 create temp table t (k text primary key, v text);
 grant all on t to authenticated;
-insert into t select 'payment_no', payment_no from public.merchant_payments;
+insert into t select 'payment_no', payment_no from public.merchant_payments where amount = 5000;
 
 -- ---------- 1. Starting today's account ----------
 select tests.login_anon();
@@ -72,8 +74,11 @@ insert into t values ('l1', public.da_save_rider_line((select v::uuid from t whe
 select tests.ok((select rider_name = 'Rider One' and mobile = '01711000021' and employee_code = '21' and due = 2500 and mobile_banking = 1500
                  from public.da_rider_lines where id = (select v::uuid from t where k = 'l1')),
                 'rider line is filled from the employee record; mobile banking does not change the due (separate rule)');
-select tests.throws(format($$select public.da_save_rider_line(%L, '21', 1, 1, 1, 0, 0, 0)$$, (select v from t where k = 's1')),
-                    'the same rider cannot be added twice to a sheet', '23505');
+insert into t values ('l1b', public.da_save_rider_line((select v::uuid from t where k = 's1'), '21', 1, 1, 1, 0, 0, 0)::text);
+select tests.ok((select count(*) = 2 from public.da_rider_lines where session_id = (select v::uuid from t where k = 's1')
+                   and employee_code = '21' and removed_at is null),
+                'one rider can have a second hisab on the same sheet (see 99j for the setting that stops it)');
+select public.da_remove_line('rider', (select v::uuid from t where k = 'l1b'), 'দুইবার লেখা হয়েছিল');
 select tests.throws(format($$select public.da_save_rider_line(%L, '25', 1, 1, 1, 0, 0, 0)$$, (select v from t where k = 's1')),
                     'a rider of another hub cannot be added', '22023');
 select tests.throws(format($$select public.da_save_rider_line(%L, '999', 1, 1, 1, 0, 0, 0)$$, (select v from t where k = 's1')),
@@ -110,10 +115,14 @@ insert into t values ('mp1', public.da_save_merchant_payment((select v::uuid fro
 select tests.ok((select match_status = 'matched' and matched_payment_id is not null and merchant_name = 'Merchant One'
                  from public.da_merchant_payments where id = (select v::uuid from t where k = 'mp1')),
                 'same merchant and amount = matched');
+insert into t select 'payment_no2', payment_no from public.merchant_payments where amount = 7000 limit 1;
 insert into t values ('mp2', public.da_save_merchant_payment((select v::uuid from t where k = 's1'), tests.id('m_m1'),
-       (select v from t where k = 'payment_no'), 'TXN-1002', 4500, private.da_today())::text);
+       (select v from t where k = 'payment_no2'), 'TXN-1002', 4500, private.da_today())::text);
 select tests.ok((select match_status = 'mismatch' from public.da_merchant_payments where id = (select v::uuid from t where k = 'mp2')),
                 'different amount = mismatch is shown');
+select tests.throws(format($$select public.da_save_merchant_payment(%L, %L, %L, 'TXN-1003', 5000, private.da_today())$$,
+                           (select v from t where k = 's1'), tests.id('m_m1'), (select v from t where k = 'payment_no')),
+                    'the same Payment ID cannot be written twice on one sheet', '23505');
 select tests.throws(format($$select public.da_save_merchant_payment(%L, %L, null, 'txn-1001', 100, private.da_today())$$,
                            (select v from t where k = 's1'), tests.id('m_m1')),
                     'the same transaction ID cannot be recorded twice', '23505');
@@ -230,7 +239,7 @@ select tests.ok(tests.row_count('select 1 from public.da_rider_lines') = 0, 'nor
 select tests.login(tests.id('noroles'));
 select tests.ok(tests.row_count('select 1 from public.da_sessions') = 0, 'a user without roles sees nothing');
 select tests.login(tests.id('rider_login'));
-select tests.ok(tests.row_count('select 1 from public.da_rider_lines') = 1, 'a rider sees only own rider lines');
+select tests.ok(tests.row_count('select 1 from public.da_rider_lines where removed_at is null') = 1, 'a rider sees only own rider lines');
 select tests.ok((select jsonb_array_length(public.da_sheet((select v::uuid from t where k = 's1')) -> 'riders') = 1),
                 'in the sheet a rider sees only own line');
 select tests.ok((select jsonb_array_length(public.da_sheet((select v::uuid from t where k = 's1')) -> 'merchant_payments') = 0),

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
-import { da, type DaSettings, type Category, type Template, type RefPerson, type Vehicle } from '../../lib/dailyAccounts'
+import { da, type DaSettings, type Category, type Template, type RefPerson, type Vehicle, type FixedExpense } from '../../lib/dailyAccounts'
 import { org } from '../../lib/hr'
 import { AccountsShell, Field, ErrorNote, Badge, Modal, useLoad, useToast } from './ui'
 
@@ -41,7 +41,20 @@ export function AccountsSettings() {
         <h3>রাইডার হিসাবের ঘর</h3>
         <div className="da-chips">{FIELDS.map(([k, l]) => <label key={k} className="da-check"><input type="checkbox" checked={s['da.rider_fields'].includes(k)}
           onChange={e => set('da.rider_fields', e.target.checked ? [...s['da.rider_fields'], k] : s['da.rider_fields'].filter(x => x !== k))} /> {l}</label>)}</div>
-        <button onClick={() => void save(['da.due_rule', 'da.mobile_banking_rule', 'da.rider_fields'])}>সেভ</button></section>
+        <h3>খাতা লেখার সুবিধা</h3>
+        <label className="da-check"><input type="checkbox" checked={s['da.double_rider_lines'] ?? true}
+          onChange={e => set('da.double_rider_lines', e.target.checked)} /> একই রাইডারের একাধিক হিসাব দেওয়া যাবে</label>
+        <label className="da-check"><input type="checkbox" checked={s['da.close_needs_all'] ?? false}
+          onChange={e => set('da.close_needs_all', e.target.checked)} /> সবাই নিজের অংশ শেষ না করলে দিন ক্লোজ করা যাবে না</label>
+        <div className="da-grid2">
+          <Field label="পেমেন্ট আইডির প্রিফিক্স" hint="101001 লিখলে এটাই সামনে বসবে">
+            <input value={s['da.payment_id_prefix'] ?? ''} onChange={e => set('da.payment_id_prefix', e.target.value.toUpperCase())} /></Field>
+          <Field label="জমা বিলের তারিখ" hint="ম্যানেজার শীটে তোলার পর কোন তারিখ দেখাবে">
+            <select value={s['da.claim_date_source'] ?? 'sheet'} onChange={e => set('da.claim_date_source', e.target.value as DaSettings['da.claim_date_source'])}>
+              <option value="sheet">খাতার তারিখ</option><option value="bill">বিলের নিজের তারিখ</option></select></Field>
+        </div>
+        <button onClick={() => void save(['da.due_rule', 'da.mobile_banking_rule', 'da.rider_fields',
+          'da.double_rider_lines', 'da.close_needs_all', 'da.payment_id_prefix', 'da.claim_date_source'])}>সেভ</button></section>
     </div>
 
     <div className="da-grid2">
@@ -68,9 +81,50 @@ export function AccountsSettings() {
         onSave={async r => { set('da.reference_people', r); setErr(null); try { await da.configure('da.reference_people', r); toast('রেফারেন্স তালিকা সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />
       <VehiclesCard />
     </div>
+    <FixedLinesCard riders={s['da.fixed_riders'] ?? []} expenses={s['da.fixed_expenses'] ?? []} cats={s['da.expense_categories']}
+      onSave={async (r, x) => { set('da.fixed_riders', r); set('da.fixed_expenses', x); setErr(null)
+        try { await da.configure('da.fixed_riders', r); await da.configure('da.fixed_expenses', x); toast('প্রতিদিনের লাইন সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />
     <TemplatesCard cats={s['da.expense_categories']} />
     <AccessCard />
   </AccountsShell>
+}
+
+/** Riders and expenses that are put on every new sheet. */
+function FixedLinesCard({ riders, expenses, cats, onSave }: { riders: string[]; expenses: FixedExpense[]; cats: Category[]
+  onSave: (r: string[], x: FixedExpense[]) => Promise<void> }) {
+  const [r, setR] = useState<string[]>(riders)
+  const [x, setX] = useState<FixedExpense[]>(expenses)
+  useEffect(() => { setR(riders); setX(expenses) }, [riders, expenses])
+  const setX1 = (i: number, patch: Partial<FixedExpense>) => setX(x.map((v, j) => j === i ? { ...v, ...patch } : v))
+  return <section className="panel"><h2>প্রতিদিনের লাইন (খাতা খুললেই বসবে)</h2>
+    <p className="muted small">যে রাইডারদের হিসাব রোজই ওঠে আর যে খরচ রোজই হয় — এখানে রেখে দিলে নতুন খাতা খোলার সময় নিজে থেকেই বসে যাবে। পরে বদলানো বা বাদ দেওয়া যাবে।</p>
+    <div className="da-grid2">
+      <div>
+        <h3>রাইডারের Employee ID</h3>
+        {r.map((code, i) => <div key={i} className="row" style={{ marginBottom: 6 }}>
+          <input value={code} inputMode="numeric" onChange={e => setR(r.map((v, j) => j === i ? e.target.value : v))} />
+          <button className="danger sm" onClick={() => setR(r.filter((_, j) => j !== i))}>×</button></div>)}
+        {r.length === 0 && <p className="muted small">কেউ নেই।</p>}
+        <button className="secondary" onClick={() => setR([...r, ''])}>＋ আইডি</button>
+      </div>
+      <div>
+        <h3>প্রতিদিনের খরচ</h3>
+        <div className="da-table-wrap"><table className="da-table">
+          <thead><tr><th>নাম</th><th>খাত</th><th>ধরন</th><th className="r">টাকা</th><th /></tr></thead>
+          <tbody>{x.map((v, i) => <tr key={i}>
+            <td><input value={v.name} onChange={e => setX1(i, { name: e.target.value })} /></td>
+            <td><select value={v.category} onChange={e => setX1(i, { category: e.target.value })}>
+              {cats.map(c => <option key={c.code} value={c.code}>{c.bn}</option>)}</select></td>
+            <td><select value={v.kind ?? 'transport'} onChange={e => setX1(i, { kind: e.target.value as FixedExpense['kind'] })}>
+              <option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select></td>
+            <td><input type="number" min={0} value={v.amount ?? 0} onChange={e => setX1(i, { amount: Number(e.target.value) })} /></td>
+            <td><button className="danger sm" onClick={() => setX(x.filter((_, j) => j !== i))}>×</button></td></tr>)}
+            {x.length === 0 && <tr><td colSpan={5} className="muted">কিছু নেই।</td></tr>}</tbody></table></div>
+        <button className="secondary" onClick={() => setX([...x, { name: '', category: cats[0]?.code ?? 'other', kind: 'transport', amount: 0 }])}>＋ খরচ</button>
+      </div>
+    </div>
+    <button onClick={() => void onSave(r.map(c => c.trim()).filter(Boolean), x.filter(v => v.name.trim()))}>সেভ</button>
+  </section>
 }
 
 /** The people an expense is often referred to, so the sheet fills in one click. */

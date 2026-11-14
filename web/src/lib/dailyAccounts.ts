@@ -68,10 +68,16 @@ export type Sheet = {
     submitted_by_name: string | null; submitted_by_code: string | null; submitted_at: string | null; submit_note: string | null
     submit_count: number; verified_by_name: string | null; verified_at: string | null; verify_note: string | null
     last_saved_at: string
+    closed_at: string | null; closed_by: string | null
+    closed_totals: ClosedTotals | null
   }
   hub: { id: string; code: string; name: string; name_bn: string | null }
   zone: { id: string; code: string; name: string }
   riders: RiderLine[]; merchant_payments: MerchantPayment[]; expenses: Expense[]
+  /** Everyone writing on this sheet, and who has closed their own part. */
+  collectors?: Collector[]
+  /** Money handed over to the person keeping the sheet. */
+  notes_in: CashNote[]
   totals?: { riders: number; delivery: number; pickup: number; amount: number; paid: number; due: number
              mobile_banking: number; merchant_cash: number; transport_expense: number; employee_expense: number }
   events: SheetEvent[]; visits?: Visit[]
@@ -85,7 +91,24 @@ export type Category = { code: string; en: string; bn: string
   site_name?: string | null; site_sub?: string | null; site_limit?: number | null; site_receipt?: boolean | null
   /** Used when the category does not go to the main site at all. */
   site_note_bn?: string | null }
+export type ClosedTotals = { riders: number; rider_amount: number; collected: number; due: number
+  mobile_banking: number; payments: number; payment_amount: number; expenses: number; expense_amount: number; notes_in: number }
+
+export type Collector = { user_id: string; name: string | null; code: string | null; closed_at: string | null; created_at: string
+  note: string | null; riders: number; payments: number; expenses: number; amount: number }
+
+export type CashNote = { id: string; no: number; from_employee: string | null; from_name: string | null
+  from_code: string | null; amount: number; method: string; note: string | null; created_by: string; created_at: string }
+
+export type Handover = { id: string; account_date: string; hub_name: string; amount: number; method: string
+  note: string | null; taken_by: string | null; created_at: string }
+
+export const NOTE_METHOD: Record<string, string> = { cash: 'ক্যাশ', bkash: 'বিকাশ', nagad: 'নগদ', rocket: 'রকেট', bank: 'ব্যাংক', other: 'অন্য' }
+
 export type DaSettings = {
+  'da.payment_id_prefix': string; 'da.double_rider_lines': boolean
+  'da.claim_date_source': 'sheet' | 'bill'; 'da.close_needs_all': boolean
+  'da.fixed_riders': string[]; 'da.fixed_expenses': FixedExpense[]; 'da.note_methods': string[]
   'da.timezone': string; 'da.start_time': string; 'da.backdate_days': number; 'da.session_tracking': boolean
   'da.rider_fields': string[]; 'da.due_rule': 'manual' | 'amount_minus_paid'
   'da.reference_people': RefPerson[]
@@ -95,6 +118,8 @@ export type DaSettings = {
   'da.ocr': { engine: string; languages: string; min_confidence: number; require_verification: boolean }
   'da.require_assignment': boolean
 }
+
+export type FixedExpense = { name: string; category: string; kind?: 'transport' | 'employee'; amount?: number }
 
 export type Template = {
   id: string; no: number; name: string; name_bn: string | null; category: string; reference_prefix: string | null
@@ -256,6 +281,19 @@ export const da = {
   verify: (id: string, action: 'approve' | 'correction' | 'note', note?: string) =>
     rpc<void>('da_verify', { p_session: id, p_action: action, p_note: note ?? null }),
   myAccounts: (from: string, to: string) => rpc<MyAccounts>('da_my_accounts', { p_from: from, p_to: to }),
+  closeMyPart: (session: string, note?: string | null, done = true) =>
+    rpc<void>('da_close_my_part', { p_session: session, p_note: note ?? null, p_done: done }),
+  collectors: (session: string) => rpc<Collector[]>('da_collectors', { p_session: session }),
+  closeDay: (session: string, note?: string | null) => rpc<ClosedTotals>('da_close_day', { p_session: session, p_note: note ?? null }),
+  reopenDay: (session: string, reason: string) => rpc<void>('da_reopen_day', { p_session: session, p_reason: reason }),
+  applyFixed: (session: string) => rpc<{ riders: number; expenses: number }>('da_apply_fixed', { p_session: session }),
+  saveNote: (a: { session: string; amount: number; method?: string; fromCode?: string | null; fromName?: string | null
+                  note?: string | null; id?: string | null }) =>
+    rpc<string>('da_note_save', { p_session: a.session, p_amount: a.amount, p_method: a.method ?? 'cash',
+      p_from_code: a.fromCode ?? null, p_from_name: a.fromName ?? null, p_note: a.note ?? null, p_id: a.id ?? null }),
+  removeNote: (id: string, reason: string) => rpc<void>('da_note_remove', { p_id: id, p_reason: reason }),
+  myHandovers: (days = 30) => rpc<Handover[]>('da_my_handovers', { p_days: days }),
+
   report: (kind: ReportKind, from: string, to: string, hub?: string | null, zone?: string | null) =>
     rpc<Array<Record<string, unknown>>>('da_report', { p_kind: kind, p_from: from, p_to: to, p_hub: hub ?? null, p_zone: zone ?? null }),
   templates: async () => {

@@ -112,3 +112,13 @@ section.panel[id^="da-"]{scroll-margin-top:110px}
   .da-table tfoot tr{border:1px solid var(--border);border-radius:10px;padding:6px;background:var(--surface-2,#f1f5f9)}}
 @media print{.da-jump{display:none}.da-table-wrap{max-height:none;overflow:visible}
   .da-table thead th,.da-table tfoot td{position:static}}
+
+/* Tabs on the day's sheet */
+.da-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 10px;position:sticky;top:56px;z-index:6;
+  background:var(--canvas);padding:8px 0;border-bottom:1px solid var(--border)}
+.da-tabs button{background:none;border:1px solid var(--border);color:var(--text);border-radius:999px;
+  padding:7px 16px;font-size:14px;font-weight:600;cursor:pointer}
+.da-tabs button:hover{border-color:var(--primary);color:var(--primary)}
+.da-tabs button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.da-collectors{margin-top:16px}
+@media print{.da-tabs{display:none}}

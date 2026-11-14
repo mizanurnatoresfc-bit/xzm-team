@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { da, num, taka, dateBn, timeBn, todayDhaka, addDays, EVENT_LABEL,
-  type SheetEvent, type Claim, type Category } from '../../lib/dailyAccounts'
+  type SheetEvent, type Claim, type Category, type Handover, NOTE_METHOD } from '../../lib/dailyAccounts'
 import { AccountsShell, Stat, StatusBadge, Badge, Field, Modal, ErrorNote, useLoad } from './ui'
 
 // আমার হিসাব / My Accounts — for staff, riders, hub managers and accounts managers alike
@@ -65,6 +65,7 @@ export function MyAccounts() {
       </div>
 
       <MyClaims />
+      <MyHandovers />
       <MyVehicles />
 
       {corrections.length === 0 && m.notes.length > 0 && <section className="panel"><h2>ম্যানেজারের মন্তব্য ও অনুমোদন</h2>
@@ -172,6 +173,29 @@ function MyClaims() {
       <Field label="কারণ *"><input value={reason} onChange={e => setReason(e.target.value)} /></Field>
       <ErrorNote error={err} />
     </Modal>}
+  </section>
+}
+
+/** Money this person handed over, as the one who took it wrote it down. */
+function MyHandovers() {
+  const list = useLoad(() => da.myHandovers(60).catch(() => [] as Handover[]), [])
+  const rows = list.data ?? []
+  if (rows.length === 0) return null
+  const total = rows.reduce((a, h) => a + h.amount, 0)
+  return <section className="panel">
+    <h2>আমি যা জমা দিয়েছি</h2>
+    <p className="muted small">হাবের হিসাবের খাতায় আপনার নামে যা লেখা হয়েছে।</p>
+    <div className="da-table-wrap"><table className="da-table">
+      <thead><tr><th>তারিখ</th><th>হাব</th><th>মাধ্যম</th><th className="r">টাকা</th><th>নোট</th><th>কে নিয়েছেন</th></tr></thead>
+      <tbody>{rows.map(h => <tr key={h.id}>
+        <td data-l="তারিখ">{dateBn(h.account_date)}</td>
+        <td data-l="হাব">{h.hub_name}</td>
+        <td data-l="মাধ্যম">{NOTE_METHOD[h.method] ?? h.method}</td>
+        <td data-l="টাকা" className="r">{taka(h.amount)}</td>
+        <td data-l="নোট">{h.note ?? ''}</td>
+        <td data-l="কে নিয়েছেন">{h.taken_by ?? '—'}</td></tr>)}</tbody>
+      <tfoot><tr><td colSpan={3}>মোট ({num(rows.length)} টি)</td><td className="r">{taka(total)}</td><td colSpan={2} /></tr></tfoot>
+    </table></div>
   </section>
 }
 

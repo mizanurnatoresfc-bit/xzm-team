@@ -26,9 +26,10 @@ select tests.ok((select merchant_id = tests.id('mx_mx1') and merchant_name = 'Na
                  from public.da_merchant_payments where id = (select v::uuid from t where k = 'p1')),
   'the merchant, the name and the date come from the hub''s own record for that Payment ID');
 
-select tests.throws(format($$select public.da_save_merchant_payment(%L, null, 'SFC-00000000', null, 500, null)$$,
-                           (select v from t where k = 's1')),
-  'a Payment ID the hub has no record of still needs the merchant chosen by hand', '22023');
+insert into t values ('p_free', public.da_save_merchant_payment((select v::uuid from t where k = 's1'), null, 'SFC-00000000', null, 500, null)::text);
+select tests.ok((select merchant_id is null and match_status = 'unmatched' and merchant_name = 'SFC-00000000'
+                 from public.da_merchant_payments where id = (select v::uuid from t where k = 'p_free')),
+  'a Payment ID the hub has no record of is written anyway, with nothing invented');
 select tests.throws(format($$select public.da_save_merchant_payment(%L, null, null, null, 500, null)$$,
                            (select v from t where k = 's1')),
   'neither a Payment ID nor a merchant is refused', '22023');
