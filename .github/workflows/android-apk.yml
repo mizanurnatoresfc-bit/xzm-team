@@ -66,6 +66,22 @@ jobs:
           path: web/dist
           retention-days: 30
 
+      # Uploads the finished pages straight to Netlify. Netlify runs no build of its own,
+      # so this does not use Netlify build minutes/credits.
+      # One-time setup: Netlify -> User settings -> Applications -> New access token,
+      # then GitHub -> repo Settings -> Secrets and variables -> Actions -> New repository
+      # secret named NETLIFY_AUTH_TOKEN. Without the secret this step is skipped.
+      - name: Publish the website to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: 2909a0bd-55bc-4b11-930f-73750fb34bd4
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "::notice::No NETLIFY_AUTH_TOKEN secret, so the website was not published. Download the site-dist artifact and drop it on Netlify instead."
+            exit 0
+          fi
+          npx -y netlify-cli@latest deploy --prod --dir dist --site "$NETLIFY_SITE_ID" --message "GitHub build ${GITHUB_SHA:0:7}"
+
       - name: Android project
         run: |
           if [ ! -d android ]; then npx cap add android; fi

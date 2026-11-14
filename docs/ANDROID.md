@@ -44,3 +44,12 @@ to `web/android/app/src/main/AndroidManifest.xml`.
    Repository variables `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` override them if set.
 3. Every push that changes `web/` builds a new APK (or Actions → "Android APK" → Run workflow).
 4. Open the finished run → **Artifacts** → `XZM-TEAM-apk` → unzip → `XZM-TEAM.apk`.
+
+## Publishing the website from GitHub (no Netlify build credits)
+Netlify's free plan limits builds run on Netlify's own servers ("account credit usage
+exceeded"). The workflow therefore builds the site on GitHub and uploads the finished files:
+- Add a repository secret `NETLIFY_AUTH_TOKEN` (Netlify → User settings → Applications →
+  New access token; GitHub → repo Settings → Secrets and variables → Actions). Every push
+  then publishes the site automatically, with no build on Netlify's side.
+- Without the secret, download the run's `site-dist` artifact and drop that zip on
+  https://app.netlify.com/projects/xzm-team-erp/deploys instead.
