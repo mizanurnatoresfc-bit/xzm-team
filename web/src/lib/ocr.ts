@@ -51,13 +51,32 @@ function findDate(t: string): string | null {
   return null
 }
 
-// bKash / Nagad / Rocket / bank screenshots
+// The main site's payment page, and bKash / Nagad / Rocket / bank screenshots.
 export function parsePayment(raw: string, confidence: number): OcrResult {
   const t = toLatin(raw)
-  const txn = t.match(/(?:trx\s*id|txn\s*id|transaction\s*id|ট্রানজেকশন\s*আইডি)\s*[:#]?\s*([A-Z0-9]{6,20})/i)
-  const pay = t.match(/\b(MP-\d{3,})\b/i) || t.match(/(?:payment\s*id|পেমেন্ট\s*আইডি)\s*[:#]?\s*([A-Z0-9-]{4,20})/i)
-  return { transaction_id: txn ? txn[1].toUpperCase() : null, payment_ref: pay ? pay[1].toUpperCase() : null,
-           amount: findAmount(t), payment_date: findDate(t), confidence, text: raw.slice(0, 2000) }
+  // Payment ID: the main site writes it as "Payment SFC-33223762"; older slips use MP-000123.
+  const pay = t.match(/\bpayment\s+([A-Z]{2,5}[-\s]?\d{4,})\b/i)
+    || t.match(/(?:payment\s*(?:id|no\.?|ref(?:erence)?)|পেমেন্ট\s*আইডি)\s*[:#]?\s*([A-Z]{0,5}-?\d{4,})/i)
+    || t.match(/\b((?:MP|SFC)-\d{3,})\b/i)
+  // Transaction: "transaction #52655971" on the main site, "TrxID 9F2K..." on the wallets.
+  const txn = t.match(/(?:transaction|trx\s*id|txn\s*id|ট্রানজেকশন\s*আইডি)\s*[:#]?\s*([A-Z0-9]{5,20})/i)
+  // Who took the cash: "Paid 14 Nov 2026, 11:28 AM to AFRIN by Maruful OSD".
+  const payee = t.match(/\bpaid\b[^\n]*?\bto\s+([A-Za-z0-9&.\- ]{2,40}?)\s+by\b/i)
+    || t.match(/(?:collects the cash|code goes to)[^A-Za-z0-9]*([A-Za-z0-9&.\- ]{2,40})/i)
+  const byWhom = t.match(/\bpaid\b[^\n]*?\bby\s+([A-Za-z0-9&.\- ]{2,40})/i)
+  const booked = t.match(/booked from\s+([A-Za-z0-9&. ]{2,40})/i)
+  const clean = (x: string) => x.replace(/\s+/g, ' ').replace(/^[-.\s]+|[-.,\s]+$/g, '').trim()
+  // the date the cash actually went out beats the date the payment was created
+  const paidOn = t.match(/\bpaid\s+(\d{1,2}\s+[A-Za-z]{3,9},?\s+\d{4}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{4}[-/.]\d{1,2}[-/.]\d{1,2})/i)
+  return {
+    transaction_id: txn ? txn[1].toUpperCase() : null,
+    payment_ref: pay ? clean(pay[1]).replace(/\s/g, '-').toUpperCase() : null,
+    payee: payee ? clean(payee[1]) : null,
+    paid_by: byWhom ? clean(byWhom[1]) : null,
+    account: booked ? clean(booked[1]) : null,
+    amount: findAmount(t), payment_date: (paidOn && findDate(paidOn[1])) || findDate(t),
+    confidence, text: raw.slice(0, 2000),
+  }
 }
 
 // Bills and memos. Expense name and category come from the templates' keywords where possible.

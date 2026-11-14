@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { da, type DaSettings, type Category, type Template } from '../../lib/dailyAccounts'
 import { AccountsShell, Field, ErrorNote, Badge, Modal, useLoad, useToast } from './ui'
 
@@ -69,14 +69,33 @@ export function AccountsSettings() {
 
 function CategoriesCard({ cats, onSave }: { cats: Category[]; onSave: (c: Category[]) => Promise<void> }) {
   const [list, setList] = useState<Category[]>(cats)
+  const [open, setOpen] = useState<number | null>(null)
   useEffect(() => setList(cats), [cats])
+  const set = (i: number, patch: Partial<Category>) => setList(list.map((x, j) => j === i ? { ...x, ...patch } : x))
   return <section className="panel"><h2>খরচের খাত (Expense Category)</h2>
-    <table className="da-table"><thead><tr><th>কোড</th><th>English</th><th>বাংলা</th><th /></tr></thead>
-      <tbody>{list.map((c, i) => <tr key={i}>
-        <td><input value={c.code} onChange={e => setList(list.map((x, j) => j === i ? { ...x, code: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') } : x))} /></td>
-        <td><input value={c.en} onChange={e => setList(list.map((x, j) => j === i ? { ...x, en: e.target.value } : x))} /></td>
-        <td><input value={c.bn} onChange={e => setList(list.map((x, j) => j === i ? { ...x, bn: e.target.value } : x))} /></td>
-        <td><button className="danger sm" onClick={() => setList(list.filter((_, j) => j !== i))}>×</button></td></tr>)}</tbody></table>
+    <p className="muted small">প্রতিটি খাতে কোন খরচ বসবে, আর মেইন সাইটে সেটা কোন ক্যাটাগরি–সাব হেডে যাবে, সীমা কত, রসিদ লাগবে কিনা — এখানে লিখে রাখলে খরচ লেখার সময় হিসাবরক্ষকের চোখের সামনেই থাকবে।</p>
+    <table className="da-table"><thead><tr><th>কোড</th><th>English</th><th>বাংলা</th><th>মেইন সাইট</th><th /><th /></tr></thead>
+      <tbody>{list.map((c, i) => <Fragment key={i}>
+        <tr>
+          <td><input value={c.code} onChange={e => set(i, { code: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })} /></td>
+          <td><input value={c.en} onChange={e => set(i, { en: e.target.value })} /></td>
+          <td><input value={c.bn} onChange={e => set(i, { bn: e.target.value })} /></td>
+          <td className="muted small">{c.site_name ? <>{c.site_name}{c.site_sub ? ` → ${c.site_sub}` : ''}{c.site_limit != null ? ` · ৳${c.site_limit.toLocaleString('en-US')}` : ''}</> : 'যায় না'}</td>
+          <td><button className="secondary sm" onClick={() => setOpen(open === i ? null : i)}>{open === i ? 'বন্ধ' : 'বিস্তারিত'}</button></td>
+          <td><button className="danger sm" onClick={() => { setList(list.filter((_, j) => j !== i)); setOpen(null) }}>×</button></td>
+        </tr>
+        {open === i && <tr><td colSpan={6}><div className="da-grid3">
+          <Field label="কোন খরচ এখানে বসবে" wide><textarea rows={2} value={c.note_bn ?? ''} onChange={e => set(i, { note_bn: e.target.value })} /></Field>
+          <Field label="মেইন সাইটের ক্যাটাগরি" hint="খালি রাখলে ধরে নেওয়া হবে মেইন সাইটে যায় না">
+            <input value={c.site_name ?? ''} onChange={e => set(i, { site_name: e.target.value || null })} /></Field>
+          <Field label="সাব হেড"><input value={c.site_sub ?? ''} onChange={e => set(i, { site_sub: e.target.value || null })} /></Field>
+          <Field label="সর্বোচ্চ সীমা (৳)"><input type="number" min={0} value={c.site_limit ?? ''} onChange={e => set(i, { site_limit: e.target.value === '' ? null : Number(e.target.value) })} /></Field>
+          <Field label="রসিদ"><select value={c.site_receipt ? 'yes' : 'no'} onChange={e => set(i, { site_receipt: e.target.value === 'yes' })}>
+            <option value="yes">লাগবে</option><option value="no">লাগবে না</option></select></Field>
+          <Field label="মেইন সাইটে না গেলে কী লিখবে" wide><input value={c.site_note_bn ?? ''} placeholder="মেইন সাইটে যায় না — শুধু আমাদের খাতায় থাকবে।"
+            onChange={e => set(i, { site_note_bn: e.target.value || null })} /></Field>
+        </div></td></tr>}
+      </Fragment>)}</tbody></table>
     <div className="row"><button className="secondary" onClick={() => setList([...list, { code: '', en: '', bn: '' }])}>＋ খাত</button><button onClick={() => void onSave(list)}>সেভ</button></div>
     <p className="muted small">যে খাত আগের খরচে ব্যবহার হয়েছে, তা সরালেও পুরোনো খরচ বদলায় না।</p></section>
 }

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   da, num, taka, dateBn, timeBn, duration, todayDhaka, EVENT_LABEL,
-  type Sheet, type DaSettings, type Template, type RiderLine, type MerchantPayment, type Expense, type OcrResult,
+  type Sheet, type DaSettings, type Template, type RiderLine, type MerchantPayment, type Expense, type OcrResult, type Category,
 } from '../../lib/dailyAccounts'
 import { readImage, parsePayment, parseBill } from '../../lib/ocr'
+import { printVoucher } from '../../lib/voucher'
 import { printArea } from '../../lib/xlsx'
 import { AccountsShell, Stat, StatusBadge, Badge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
 
@@ -175,7 +176,9 @@ const OcrNote = ({ ocr, min }: { ocr: OcrResult | null; min: number }) => !ocr ?
 
 // ---------------------------------------------------------------------------- merchant cash payments
 type MDraft = { line?: string; merchantQ: string; merchant?: string; merchantName?: string; ref: string; txn: string; amount: string; date: string
-  path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string; match?: string }
+  path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string
+  /** What the hub's own record says about this Payment ID: found, or not found. */
+  match?: string; matched?: boolean; byHand?: boolean }
 function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void> }) {
   const [d, setD] = useState<MDraft | null>(null)
   const [opts, setOpts] = useState<Array<{ merchant_id: string; code: string; name: string }>>([])
@@ -189,8 +192,12 @@ function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; 
     if (!d || !ref.trim()) return
     try {
       const m = (await da.matchPayment(s.hub.id, ref))[0]
-      setD(x => x && ({ ...x, match: m ? `মিলেছে: ${m.payment_no} · ${m.merchant_name} · ${taka(m.amount)} · ${m.status}` : 'এই Payment ID-র কোনো রেকর্ড পাওয়া যায়নি',
-        merchant: x.merchant ?? m?.merchant_id, merchantName: x.merchantName ?? m?.merchant_name, amount: x.amount || (m ? String(m.amount) : '') }))
+      setD(x => x && ({ ...x, matched: !!m,
+        match: m ? `${m.merchant_name} · ${taka(m.amount)} · ${m.status}` : 'এই Payment ID-র রেকর্ড এই হাবে নেই — মার্চেন্ট নিজে বেছে নিন',
+        byHand: x.byHand || !m,
+        merchant: x.merchant ?? m?.merchant_id, merchantName: x.merchantName ?? m?.merchant_name,
+        merchantQ: x.merchantQ || (m?.merchant_name ?? ''),
+        amount: x.amount || (m ? String(m.amount) : ''), date: x.date || m?.payment_date || x.date }))
     } catch (e) { setErr(e) }
   }
   async function onFile(f: File) {
@@ -198,15 +205,18 @@ function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; 
     try {
       const { path, ocr } = await up.run(f, parsePayment)
       setD(x => x && ({ ...x, path, ocr, verified: false, txn: String(ocr?.transaction_id ?? x.txn ?? ''), ref: String(ocr?.payment_ref ?? x.ref ?? ''),
-        amount: ocr?.amount ? String(ocr.amount) : x.amount, date: String(ocr?.payment_date ?? x.date) }))
+        amount: ocr?.amount ? String(ocr.amount) : x.amount, date: String(ocr?.payment_date ?? x.date),
+        merchantQ: x.merchantQ || String(ocr?.payee ?? '') }))
       if (ocr?.payment_ref) void checkRef(String(ocr.payment_ref))
     } catch (e) { setErr(e) }
   }
   async function save() {
-    if (!d?.merchant) { setErr(new Error('মার্চেন্ট বেছে নিন।')); return }
+    if (!d) return
+    if (!d.ref.trim() && !d.merchant) { setErr(new Error('Payment ID লিখুন, অথবা মার্চেন্ট বেছে নিন।')); return }
+    if (!(+d.amount > 0)) { setErr(new Error('টাকার অঙ্ক লিখুন।')); return }
     setBusy(true); setErr(null)
     try {
-      await da.saveMerchant({ session: s.session.id, merchant: d.merchant, ref: d.ref, txn: d.txn, amount: +d.amount, date: d.date, path: d.path,
+      await da.saveMerchant({ session: s.session.id, merchant: d.merchant ?? null, ref: d.ref, txn: d.txn, amount: +d.amount, date: d.date, path: d.path,
         ocr: d.ocr, verified: d.ocr ? d.verified : false, remarks: d.remarks, line: d.line })
       setD(null); await reload('মার্চেন্ট পেমেন্ট সংরক্ষিত')
     } catch (e) { setErr(e) } finally { setBusy(false) }
@@ -230,23 +240,45 @@ function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; 
       <Field label="পেমেন্টের স্ক্রিনশট (ছবি দিলে তথ্য নিজে পূরণ হবে)" hint={up.progress !== null ? `পড়া হচ্ছে… ${num(Math.round(up.progress * 100))}%` : d.path ? 'আপলোড হয়েছে' : undefined}>
         <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void onFile(f) }} /></Field>
       <ErrorNote error={up.err} /><OcrNote ocr={d.ocr} min={settings['da.ocr'].min_confidence} />
+      <p className="muted small no-print">হাতে লিখলে শুধু <b>Payment ID</b> আর <b>টাকা</b> — বাকিটা ওই আইডির রেকর্ড থেকে নিজেই আসবে।</p>
       <div className="da-grid3">
-        <Field label="মার্চেন্ট *" hint={d.merchantName ? `বেছে নেওয়া: ${d.merchantName}` : 'কোড বা নাম লিখুন'}>
-          <input value={d.merchantQ} onChange={e => { setD({ ...d, merchantQ: e.target.value, merchant: undefined, merchantName: undefined }); void findMerchant(e.target.value) }} />
+        <Field label="Payment ID *" hint={d.match}>
+          <input value={d.ref} autoFocus={!d.line} placeholder="SFC-33223762"
+            onChange={e => setD({ ...d, ref: e.target.value, match: undefined, matched: undefined })}
+            onBlur={e => void checkRef(e.target.value)} /></Field>
+        <Field label="টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
+        <Field label="মার্চেন্ট" hint={d.merchantName ? `পেয়েছে: ${d.merchantName}` : d.matched === false ? 'কোড বা নাম লিখে বেছে নিন' : 'Payment ID থেকে আসবে'}>
+          {d.merchantName && !d.byHand
+            ? <span className="row"><b>{d.merchantName}</b><button type="button" className="secondary sm"
+                onClick={() => setD({ ...d, byHand: true, merchant: undefined, merchantName: undefined, merchantQ: '' })}>বদলান</button></span>
+            : <input value={d.merchantQ} placeholder="কোড বা নাম"
+                onChange={e => { setD({ ...d, merchantQ: e.target.value, merchant: undefined, merchantName: undefined }); void findMerchant(e.target.value) }} />}
           {opts.length > 0 && !d.merchant && <div className="da-pick">{opts.map(o => <button type="button" key={o.merchant_id} className="secondary sm"
             onClick={() => { setD({ ...d, merchant: o.merchant_id, merchantName: o.name, merchantQ: `${o.code} — ${o.name}` }); setOpts([]) }}>{o.code} — {o.name}</button>)}</div>}</Field>
-        <Field label="Payment ID" hint={d.match}><input value={d.ref} onChange={e => setD({ ...d, ref: e.target.value, match: undefined })} onBlur={e => void checkRef(e.target.value)} /></Field>
-        <Field label="Transaction ID"><input value={d.txn} onChange={e => setD({ ...d, txn: e.target.value })} /></Field>
-        <Field label="টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
-        <Field label="পেমেন্টের তারিখ *"><input type="date" max={todayDhaka()} value={d.date} onChange={e => setD({ ...d, date: e.target.value })} /></Field>
-        <Field label="মন্তব্য"><input value={d.remarks} onChange={e => setD({ ...d, remarks: e.target.value })} /></Field>
       </div>
+      <details className="da-more no-print"><summary>আরও তথ্য (দরকার হলে)</summary><div className="da-grid3">
+        <Field label="Transaction ID"><input value={d.txn} onChange={e => setD({ ...d, txn: e.target.value })} /></Field>
+        <Field label="পেমেন্টের তারিখ"><input type="date" max={todayDhaka()} value={d.date} onChange={e => setD({ ...d, date: e.target.value })} /></Field>
+        <Field label="মন্তব্য"><input value={d.remarks} onChange={e => setD({ ...d, remarks: e.target.value })} /></Field>
+      </div></details>
+      {d.ocr && <ScreenshotRead ocr={d.ocr} />}
       {d.ocr && <label className="da-check"><input type="checkbox" checked={d.verified} onChange={e => setD({ ...d, verified: e.target.checked })} /> আমি স্ক্রিনশটের সাথে Payment ID, Transaction ID ও টাকা মিলিয়ে দেখেছি</label>}
       <ErrorNote error={err} />
     </Modal>}
     {remove && <RemoveDialog what={`${remove.merchant_name} · ${taka(remove.amount)}`} onClose={() => setRemove(null)}
       onOk={async reason => { await da.removeLine('merchant', remove.id, reason); setRemove(null); await reload('বাদ দেওয়া হয়েছে') }} />}
   </section>
+}
+
+/** What the payment screenshot said, in the person's own words, to check against. */
+function ScreenshotRead({ ocr }: { ocr: OcrResult }) {
+  const bits = [
+    ocr.payee ? `টাকা নিয়েছেন: ${ocr.payee}` : null,
+    ocr.paid_by ? `দিয়েছেন: ${ocr.paid_by}` : null,
+    ocr.account ? `যেখান থেকে: ${ocr.account}` : null,
+  ].filter(Boolean)
+  if (!bits.length) return null
+  return <p className="muted small no-print">স্ক্রিনশটে পাওয়া গেছে — {bits.join(' · ')}</p>
 }
 
 function FileLink({ path }: { path: string }) {
@@ -292,6 +324,14 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
         billNo: String(ocr?.bill_no ?? x.billNo), ref: String(ocr?.reference_no ?? x.ref) }))
     } catch (e) { setErr(e) }
   }
+  async function print(x: Expense) {
+    try { printVoucher(await da.voucher(x.id), cats.find(c => c.code === x.category)) } catch (e) { setErr(e) }
+  }
+  async function makeVoucher(x: Expense) {
+    setErr(null)
+    try { await da.makeVoucher(x.id); await reload('ভাউচার তৈরি হয়েছে'); printVoucher(await da.voucher(x.id), cats.find(c => c.code === x.category)) }
+    catch (e) { setErr(e) }
+  }
   async function save() {
     if (!d) return
     setBusy(true); setErr(null)
@@ -312,15 +352,19 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
       <div className="row no-print"><select value={kindF} onChange={e => setKindF(e.target.value as typeof kindF)} aria-label="ধরন">
         <option value="all">সব</option><option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select>
         {s.can_edit && <><button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ যাতায়াত খরচ</button><button className="secondary" onClick={() => { setErr(null); setD(blank('employee')) }}>＋ কর্মীর খরচ</button></>}</div></div>
-    <div className="da-table-wrap"><table className="da-table"><thead><tr><th>নং</th><th>ধরন</th><th>কর্মী</th><th>খরচের নাম</th><th>খাত</th><th className="r">বিল</th><th>তারিখ</th><th>বিল / রেফ.</th><th>দিয়েছেন</th><th>বিল ফাইল</th><th>OCR</th><th className="no-print" /></tr></thead>
+    <ErrorNote error={err && !d ? err : null} />
+    <div className="da-table-wrap"><table className="da-table"><thead><tr><th>নং</th><th>ধরন</th><th>কর্মী</th><th>খরচের নাম</th><th>খাত</th><th className="r">বিল</th><th>তারিখ</th><th>বিল / রেফ.</th><th>দিয়েছেন</th><th>বিল ফাইল</th><th>ভাউচার</th><th>OCR</th><th className="no-print" /></tr></thead>
       <tbody>{list.map(x => <tr key={x.id}><td data-l="নং">{num(x.no)}</td><td data-l="ধরন">{x.kind === 'transport' ? 'যাতায়াত' : 'কর্মী'}</td>
         <td data-l="কর্মী">{x.employee_name ? <>{x.employee_name}<span className="sec">ID {x.employee_code}</span></> : '—'}</td><td data-l="নাম"><b>{x.expense_name}</b></td>
         <td data-l="খাত">{catL(x.category)}</td><td data-l="বিল" className="r">{taka(x.amount)}</td><td data-l="তারিখ">{dateBn(x.bill_date)}</td>
         <td data-l="বিল / রেফ.">{x.bill_no ?? '—'}<span className="sec">{x.reference_no ?? ''}</span></td><td data-l="দিয়েছেন">{x.paid_by_name ?? '—'}</td>
         <td data-l="ফাইল">{x.attachment_path ? <FileLink path={x.attachment_path} /> : '—'}</td>
+        <td data-l="ভাউচার">{x.voucher_no ? <span className="row"><b>{x.voucher_no}</b><button className="secondary sm no-print" onClick={() => void print(x)}>প্রিন্ট</button></span>
+          : x.attachment_path || x.bill_no ? <span className="muted">লাগবে না</span>
+          : s.can_edit ? <button className="secondary sm no-print" onClick={() => void makeVoucher(x)}>ভাউচার বানান</button> : '—'}</td>
         <td data-l="OCR">{!x.ocr ? '—' : x.ocr_verified ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>}</td>
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(x)}>এডিট</button><button className="danger sm" onClick={() => setRemove(x)}>বাদ</button></span>}</td></tr>)}
-        {list.length === 0 && <tr><td colSpan={12} className="muted">কোনো খরচ নেই।</td></tr>}</tbody></table></div>
+        {list.length === 0 && <tr><td colSpan={13} className="muted">কোনো খরচ নেই।</td></tr>}</tbody></table></div>
 
     {d && <Modal title={`${d.line ? 'এডিট' : 'নতুন'} · ${d.kind === 'transport' ? 'যাতায়াত খরচ' : 'কর্মীর খরচ'}`} wide onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || up.progress !== null || (!!d.ocr && !d.verified)} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'যাচাই করে সেভ'}</button></>}>
@@ -333,7 +377,8 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
           onChange={e => setD({ ...d, employee: e.target.value, employeeName: undefined })} onBlur={e => void lookup(e.target.value)} /></Field>
         <Field label="টেমপ্লেট"><select value={d.template} onChange={e => applyTemplate(e.target.value)}><option value="">— নেই —</option>{active.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
         <Field label="খরচের নাম *"><input value={d.name} onChange={e => setD({ ...d, name: e.target.value })} /></Field>
-        <Field label="খাত *"><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.bn} ({c.en})</option>)}</select></Field>
+        <Field label="খাত *" wide><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.bn} ({c.en})</option>)}</select>
+          <CatHelp cat={cats.find(c => c.code === d.category)} amount={+d.amount || 0} /></Field>
         <Field label="বিলের টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
         <Field label="বিলের তারিখ *"><input type="date" max={todayDhaka()} value={d.date} onChange={e => setD({ ...d, date: e.target.value })} /></Field>
         <Field label="বিল নম্বর"><input value={d.billNo} onChange={e => setD({ ...d, billNo: e.target.value })} /></Field>
@@ -348,6 +393,20 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
     {remove && <RemoveDialog what={`${remove.expense_name} · ${taka(remove.amount)}`} onClose={() => setRemove(null)}
       onOk={async reason => { await da.removeLine('expense', remove.id, reason); setRemove(null); await reload('বাদ দেওয়া হয়েছে') }} />}
   </section>
+}
+
+/** What belongs in this category, and what to do with it on the main site. */
+function CatHelp({ cat, amount }: { cat?: Category; amount: number }) {
+  if (!cat) return null
+  const over = cat.site_limit != null && amount > cat.site_limit
+  return <span className="cat-help">
+    {cat.note_bn && <span className="muted small">{cat.note_bn}</span>}
+    {cat.site_name
+      ? <span className={over ? 'notice' : 'muted small'}>মেইন সাইটে: <b>{cat.site_name}</b>{cat.site_sub ? ` → ${cat.site_sub}` : ''}
+          {cat.site_limit != null && ` · সর্বোচ্চ ৳ ${num(cat.site_limit)}`}{cat.site_receipt ? ' · রসিদ লাগবে' : ''}
+          {over && ` — এই খরচ সীমার বেশি, হেড অফিসের অনুমোদন নিন।`}</span>
+      : <span className="muted small">{cat.site_note_bn ?? 'মেইন সাইটে যায় না।'}</span>}
+  </span>
 }
 
 // ---------------------------------------------------------------------------- history

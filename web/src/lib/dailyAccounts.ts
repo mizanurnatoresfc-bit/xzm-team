@@ -36,6 +36,8 @@ export type MerchantPayment = {
   id: string; no: number; merchant_id: string; merchant_name: string; payment_ref: string | null
   transaction_id: string | null; amount: number; payment_date: string; screenshot_path: string | null
   ocr: OcrResult | null; ocr_verified: boolean; match_status: 'matched' | 'mismatch' | 'unmatched'; remarks: string | null
+  /** The name the screenshot showed, when the payee is not one of our merchants. */
+  payee_name?: string | null
 }
 
 export type Expense = {
@@ -43,6 +45,8 @@ export type Expense = {
   employee_name: string | null; expense_name: string; category: string; amount: number; bill_date: string
   bill_no: string | null; reference_no: string | null; attachment_path: string | null; paid_by_name: string | null
   template_id: string | null; ocr: OcrResult | null; ocr_verified: boolean; remarks: string | null
+  /** Set when the company made its own voucher because the payee gave no bill. */
+  voucher_no: string | null
 }
 
 export type SheetEvent = {
@@ -70,7 +74,13 @@ export type Sheet = {
   can_edit: boolean; can_verify: boolean; can_reopen: boolean
 }
 
-export type Category = { code: string; en: string; bn: string }
+export type Category = { code: string; en: string; bn: string
+  /** What belongs in this category, in the company's own words (the categories handbook). */
+  note_bn?: string | null
+  /** What to do with it on the main site: its category there, the sub-head, the limit, and whether a receipt is needed. */
+  site_name?: string | null; site_sub?: string | null; site_limit?: number | null; site_receipt?: boolean | null
+  /** Used when the category does not go to the main site at all. */
+  site_note_bn?: string | null }
 export type DaSettings = {
   'da.timezone': string; 'da.start_time': string; 'da.backdate_days': number; 'da.session_tracking': boolean
   'da.rider_fields': string[]; 'da.due_rule': 'manual' | 'amount_minus_paid'
@@ -84,6 +94,14 @@ export type DaSettings = {
 export type Template = {
   id: string; no: number; name: string; name_bn: string | null; category: string; reference_prefix: string | null
   keywords: string[]; memo_template: string | null; default_amount: number | null; status: 'active' | 'inactive'
+}
+
+export type VoucherData = {
+  voucher_no: string | null; expense_no: number; amount: number; bill_date: string
+  expense_name: string; category: string; kind: 'transport' | 'employee'; remarks: string | null
+  employee_code: string | null; employee_name: string | null; paid_by_name: string | null; reference_no: string | null
+  hub: string; hub_code: string; zone: string; account_date: string; sheet_no: number
+  made_by: string | null; made_at: string
 }
 
 export type ReportKind = 'hub_daily' | 'rider' | 'employee_expense' | 'merchant_payment' | 'transport_expense'
@@ -105,6 +123,12 @@ const BN: Array<[RegExp, string]> = [
   [/outside the allowed period/i, 'এই তারিখে হিসাব শুরু করা যাবে না।'],
   [/already on the sheet/i, 'এই রাইডার আগে থেকেই তালিকায় আছে।'],
   [/is already recorded/i, 'এই Transaction ID আগে এন্ট্রি হয়েছে।'],
+  [/no record in this hub/i, 'এই Payment ID-র রেকর্ড এই হাবে নেই — মার্চেন্ট নিজে বেছে নিন।'],
+  [/already has a bill/i, 'এই খরচের বিল আছে, তাই ভাউচার লাগবে না।'],
+  [/Expense line not found/i, 'খরচের লাইনটি পাওয়া যায়নি।'],
+  [/amount must be greater than zero/i, 'টাকার অঙ্ক শূন্যের বেশি হতে হবে।'],
+  [/Choose a merchant of this hub/i, 'এই হাবের মার্চেন্ট বেছে নিন।'],
+  [/date cannot be in the future/i, 'আজকের পরের তারিখ দেওয়া যাবে না।'],
   [/already used in this hub/i, 'এই রেফারেন্স নম্বর এই হাবে আগে ব্যবহার হয়েছে।'],
   [/was not found/i, 'এই আইডির কোনো কর্মী পাওয়া যায়নি।'],
   [/need a bill or memo attached/i, 'নির্ধারিত টাকার বেশি খরচে বিল বা মেমো সংযুক্ত করতে হবে।'],
@@ -156,10 +180,11 @@ export const da = {
     rpc<string>('da_save_rider_line', { p_session: a.session, p_employee_code: a.code, p_delivery: a.delivery,
       p_pickup: a.pickup, p_amount: a.amount, p_paid: a.paid, p_due: a.due, p_mobile_banking: a.mb,
       p_remarks: a.remarks ?? null, p_line: a.line ?? null }),
-  saveMerchant: (a: { session: string; merchant: string; ref?: string | null; txn?: string | null; amount: number
-                      date: string; path?: string | null; ocr?: OcrResult | null; verified?: boolean; remarks?: string | null; line?: string | null }) =>
-    rpc<string>('da_save_merchant_payment', { p_session: a.session, p_merchant: a.merchant, p_payment_ref: a.ref ?? null,
-      p_transaction_id: a.txn ?? null, p_amount: a.amount, p_payment_date: a.date, p_screenshot_path: a.path ?? null,
+  /** The merchant may be left out when the hub already has a record for this Payment ID. */
+  saveMerchant: (a: { session: string; merchant?: string | null; ref?: string | null; txn?: string | null; amount: number
+                      date?: string | null; path?: string | null; ocr?: OcrResult | null; verified?: boolean; remarks?: string | null; line?: string | null }) =>
+    rpc<string>('da_save_merchant_payment', { p_session: a.session, p_merchant: a.merchant ?? null, p_payment_ref: a.ref ?? null,
+      p_transaction_id: a.txn ?? null, p_amount: a.amount, p_payment_date: a.date ?? null, p_screenshot_path: a.path ?? null,
       p_ocr: a.ocr ?? null, p_ocr_verified: a.verified ?? false, p_remarks: a.remarks ?? null, p_line: a.line ?? null }),
   saveExpense: (a: { session: string; kind: 'transport' | 'employee'; employee?: string | null; name: string; category: string
                      amount: number; date: string; billNo?: string | null; ref?: string | null; path?: string | null
@@ -170,6 +195,8 @@ export const da = {
       p_reference_no: a.ref ?? null, p_attachment_path: a.path ?? null, p_paid_by_code: a.paidBy ?? null,
       p_ocr: a.ocr ?? null, p_ocr_verified: a.verified ?? false, p_template: a.template ?? null,
       p_remarks: a.remarks ?? null, p_line: a.line ?? null }),
+  makeVoucher: (expense: string) => rpc<string>('da_make_voucher', { p_expense: expense }),
+  voucher: (expense: string) => rpc<VoucherData>('da_voucher', { p_expense: expense }),
   removeLine: (kind: 'rider' | 'merchant' | 'expense', id: string, reason: string) =>
     rpc<void>('da_remove_line', { p_kind: kind, p_line: id, p_reason: reason }),
   submit: (id: string, note?: string) => rpc<void>('da_submit', { p_session: id, p_note: note ?? null }),

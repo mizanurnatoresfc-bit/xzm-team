@@ -82,3 +82,10 @@ select,textarea{width:100%;margin-top:6px;border:1px solid #cbd5e1;border-radius
 @media (max-width:900px){.hr-form{grid-template-columns:1fr 1fr}}@media (max-width:560px){.hr-form{grid-template-columns:1fr}}
 .hr-kv{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:14px;margin:0}.hr-kv dt{color:#64748b}.hr-kv dd{margin:0}
 .att-btns{display:flex;gap:4px;flex-wrap:wrap}.att-btns button{padding:4px 8px;font-size:12px}.att-btns button.on{background:#0f7a3d;color:#fff;border-color:#0f7a3d}
+
+/* What belongs in a category, and what to do with it on the main site */
+.cat-help{display:block;margin-top:4px;line-height:1.5}
+.cat-help>span{display:block}
+.cat-help .notice{margin:4px 0 0;padding:6px 8px;font-size:12px}
+.da-more{margin:8px 0}
+.da-more>summary{cursor:pointer;color:#0f7a3d;font-size:13px;margin-bottom:6px}
