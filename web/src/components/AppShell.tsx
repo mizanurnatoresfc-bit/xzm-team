@@ -66,6 +66,7 @@ const GROUPS: Group[] = [
     { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
     { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল (বদলি/চালু/বন্ধ)', en: 'Zonal files', perms: ['hr.request.create', 'hr.request.approve'] },
+    { to: '/app/zonal/assistant', icon: 'cal', bn: 'জোনাল অ্যাসিস্ট্যান্ট (হাজিরার ফাঁকা দিন)', en: 'Zonal assistant (attendance gaps)', perms: ['hr.attendance_gap.view'] },
   ] },
   { key: 'staff', icon: 'users', bn: 'স্টাফ ম্যানেজমেন্ট', en: 'Staff Management', items: [
     { to: '/app/hr/requests', icon: 'form', bn: 'HR রিকুয়েস্ট ও রিপোর্ট', en: 'HR requests & reports', perms: null, count: 'hrreq' },

@@ -48,7 +48,8 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = []
-    let asEmployee = false
+    let asEmployee = false, withGaps = false
+    const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
@@ -75,11 +76,24 @@ try {
         { employee_id: 'e00', employee_code: '1000', full_name: 'Staff 00', position_name: 'Rider', role_name: 'Rider', has_login: true, signed_in_at: '2026-11-15T03:00:00Z', password_set: true, mobile: '01711000000' },
         { employee_id: 'e01', employee_code: '1001', full_name: 'Staff 01', position_name: 'Rider', role_name: 'Rider', has_login: true, signed_in_at: null, password_set: false, mobile: null },
         { employee_id: 'e02', employee_code: '1002', full_name: 'Staff 02', position_name: 'Rider', role_name: null, has_login: false, signed_in_at: null, password_set: false, mobile: null }])
+      if (u.includes('rpc/my_att_gap_answer')) { answered.push(r.request().postDataJSON()); return j(3) }
+      if (u.includes('rpc/my_att_gaps')) return j(withGaps ? [
+        { work_date: '2026-11-05', answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
+        { work_date: '2026-11-09', answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
+        { work_date: '2026-11-12', answer_id: 'a9', kind: 'worked', note: 'x', status: 'returned', leave_status: null, check_note: 'আসেননি' }] : [])
+      if (u.includes('rpc/att_gap_check')) { checked.push(r.request().postDataJSON()); return j(1) }
+      if (u.includes('rpc/att_gap_remind')) return j(2)
+      if (u.includes('rpc/att_gap_report')) return j([
+        { employee_id: 'e00', employee_code: '1000', full_name: 'Staff 00', position_name: 'Rider', hub_id: 'h1', hub_name: 'Natore Sadar', has_login: true, work_date: '2026-11-05', answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
+        { employee_id: 'e00', employee_code: '1000', full_name: 'Staff 00', position_name: 'Rider', hub_id: 'h1', hub_name: 'Natore Sadar', has_login: true, work_date: '2026-11-09', answer_id: 'a1', kind: 'leave', note: 'জ্বর', status: 'answered', leave_status: 'pending', check_note: null },
+        { employee_id: 'e01', employee_code: '1001', full_name: 'Staff 01', position_name: 'Rider', hub_id: 'h2', hub_name: 'Lalpur', has_login: false, work_date: '2026-11-09', answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
+        { employee_id: 'e02', employee_code: '1002', full_name: 'Staff 02', position_name: 'Rider', hub_id: 'h2', hub_name: 'Lalpur', has_login: true, work_date: '2026-11-10', answer_id: 'a2', kind: 'other', note: 'হাব বন্ধ', status: 'verified', leave_status: null, check_note: null }])
       if (u.includes('rpc/hr_remove_wrong_entry')) { removed.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('rpc/hr_correct_employee_code')) { recoded.push(r.request().postDataJSON()); return j('5555') }
       if (u.includes('rpc/my_mobile_set')) { mobiles.push(r.request().postDataJSON()); return j('01711000000') }
       if (u.includes('rpc/my_employee_id')) return j(asEmployee ? 'e01' : null)
       if (u.includes('/rpc/')) return j(null)
+      if (u.includes('/rest/v1/leave_types')) return j([{ id: 'lt1', code: 'CL', name: 'Casual leave', name_bn: 'নৈমিত্তিক ছুটি', is_paid: true, annual_quota: 10, status: 'active' }])
       if (u.includes('/rest/v1/leave_requests') && u.includes('status=eq.approved')) return j([{ employee_id: 'e03' }])
       if (u.includes('/rest/v1/employees') && u.includes('limit=2000') && r.request().method() === 'GET' && !u.includes('profile_id=is.null')) return j(staffRows.map(e => ({ ...e, zone_id: 'z1',
         full_name_bn: null, email: null, department_id: 'd1', joining_date: '2026-01-01', status_since: '2026-01-01', archived_at: null, profile_id: null, reporting_manager_id: null,
@@ -191,6 +205,31 @@ try {
     check((await page.locator('.is-card').innerText()).includes('প্রস্তুত করছি'), `${size}: an order is worked in order words (prepare, sent, received)`)
     await fits('orders tab')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-orders.png`, fullPage: true })
+
+    // Nodi asks a person about their days without attendance; leave is filed from the same card
+    withGaps = true
+    await page.goto(`${BASE}/app`); await page.waitForSelector('.nodi-gaps .ng-days')
+    check(await page.locator('.nodi-gaps .ng-days .chip-toggle.on').count() === 3, `${size}: Nodi's card lists the person's days without attendance, all ticked`)
+    await page.locator('.nodi-gaps select').selectOption('lt1'); await page.locator('.nodi-gaps .da-form input').fill('জ্বর ছিল')
+    await fits('dashboard with Nodi card')
+    if (process.env.SHOTS) await page.locator('.nodi-gaps').screenshot({ path: `${process.env.SHOTS}/${size}-nodi.png` })
+    await page.locator('.nodi-gaps .row-acts button').click()
+    await page.waitForFunction(() => !!document.querySelector('.nodi-gaps .notice'), null, { timeout: 5000 }).catch(() => {})
+    check(answered.length === 1 && answered[0].p_kind === 'leave' && answered[0].p_leave_type === 'lt1' && answered[0].p_dates.length === 3 && answered[0].p_note === 'জ্বর ছিল',
+      `${size}: the answer files leave for the ticked days`)
+    withGaps = false
+
+    // the Zonal Assistant's panel: gaps of every hub, check an answer, remind the rest
+    await page.goto(`${BASE}/app/zonal/assistant`); await page.waitForSelector('.za-hubs')
+    const gapSel = '.da-table tbody tr, .dv-list > li'
+    await page.waitForSelector(gapSel)
+    check(await page.locator(gapSel).count() === 4 && await page.locator('.za-hub').count() === 2, `${size}: the assistant's panel shows the gaps and a card per hub`)
+    await page.locator('input[aria-label^="সারি"]').nth(1).check(); await page.waitForSelector('.dv-bulk')
+    await page.locator('.dv-bulk button').first().click()
+    await page.waitForFunction(() => !document.querySelector('.dv-bulk'), null, { timeout: 5000 }).catch(() => {})
+    check(checked.length === 1 && checked[0].p_ok === true && JSON.stringify(checked[0].p_ids) === '["a1"]', `${size}: a ticked answer is marked checked`)
+    await fits('assistant panel')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-assistant.png`, fullPage: true })
 
     // staff list: post chips, leave chip, search, View / Edit on every row, and an action on several marked rows
     await page.goto(`${BASE}/app/hr/employees`); const staffSel = '.emp-board .da-table tbody tr, .emp-board .dv-list > li'   // table on a PC, compact list on a phone
