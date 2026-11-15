@@ -353,7 +353,7 @@ function Report() {
       <div className="da-bar"><strong>ধরন অনুযায়ী হিসাব</strong>
         <div className="seg">{([['mine', 'আমি পাঠিয়েছি'], ...(can('hr.request.approve') ? [['decided', 'আমার সিদ্ধান্ত'], ['all', 'সব']] : [])] as Array<[typeof scope, string]>).map(([k, l]) =>
           <button key={k} type="button" className={scope === k ? 'on' : ''} onClick={() => setScope(k)}>{l}</button>)}</div></div>
-      <div className="da-table-wrap"><table className="da-table rq-matrix"><thead><tr><th>ধরন</th>{cols.map(c => <th key={c} className="r">{STATUS[c].bn}</th>)}<th className="r">মোট</th></tr></thead>
+      <div className="da-table-wrap rq-matrix-wrap"><table className="da-table rq-matrix"><thead><tr><th>ধরন</th>{cols.map(c => <th key={c} className="r">{STATUS[c].bn}</th>)}<th className="r">মোট</th></tr></thead>
         <tbody>{(Object.keys(KINDS) as ReqKind[]).map(k => <tr key={k}><td><span className={`rq-kind-tag t-${KINDS[k].tone}`}>{KINDS[k].bn}</span></td>
           {cols.map(c => <td key={c} className="r">{m[`${k}:${c}`] ?? 0}</td>)}<td className="r"><b>{sum(m, x => x.startsWith(k + ':'))}</b></td></tr>)}</tbody>
         <tfoot><tr><th>মোট</th>{cols.map(c => <th key={c} className="r">{sum(m, x => x.endsWith(':' + c))}</th>)}<th className="r">{sum(m)}</th></tr></tfoot></table></div>

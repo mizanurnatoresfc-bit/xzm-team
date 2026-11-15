@@ -147,7 +147,7 @@ export function RoleEditor() {
                 <td><label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: canEdit ? 'pointer' : 'default' }}>
                   <input type="checkbox" style={{ width: 'auto' }} disabled={!canEdit} checked={rowOn} onChange={e => toggle(codes, e.target.checked)} />
                   <span>{RESOURCE_LABEL[`${mod}.${r}`] ?? r}<span className="sec">{Object.values(byAct)[0]?.description ?? ''}</span></span></label></td>
-                {acts.map(a => <td key={a} style={{ textAlign: 'center' }}>{byAct[a]
+                {acts.map(a => <td key={a} style={{ textAlign: 'center' }} className={byAct[a] ? undefined : 'na'} data-label={ACTION_LABEL[a] ? L(...ACTION_LABEL[a]) : a}>{byAct[a]
                   ? <input type="checkbox" style={{ width: 'auto' }} title={byAct[a].description ?? byAct[a].code} aria-label={`${RESOURCE_LABEL[`${mod}.${r}`] ?? r} ${a}`}
                       disabled={!canEdit} checked={sel.has(byAct[a].code)} onChange={e => toggle([byAct[a].code], e.target.checked)} />
                   : <span className="muted">·</span>}</td>)}

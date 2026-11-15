@@ -772,3 +772,53 @@ button.sm{min-height:32px;border-radius:8px}
   .alert-card{margin:8px 0;padding:12px 14px}
   .alert-card+.alert-card{margin-top:6px}
 }
+
+/* ---------- Bug fixes after full-site audit ---------- */
+/* colour tints on PC as well (same look as phone) */
+@media (min-width:961px){
+  .da-stats .da-stat,.net-kpis .nk{border-color:transparent!important;box-shadow:none!important}
+  .da-stats .da-stat:nth-child(6n+1),.net-kpis .nk:nth-child(6n+1){background:var(--t-g)!important}
+  .da-stats .da-stat:nth-child(6n+2),.net-kpis .nk:nth-child(6n+2){background:var(--t-b)!important}
+  .da-stats .da-stat:nth-child(6n+3),.net-kpis .nk:nth-child(6n+3){background:var(--t-o)!important}
+  .da-stats .da-stat:nth-child(6n+4),.net-kpis .nk:nth-child(6n+4){background:var(--t-p)!important}
+  .da-stats .da-stat:nth-child(6n+5),.net-kpis .nk:nth-child(6n+5){background:var(--t-c)!important}
+  .da-stats .da-stat:nth-child(6n+6),.net-kpis .nk:nth-child(6n+6){background:var(--t-r)!important}
+  .da-stats .da-stat.on{box-shadow:0 0 0 2px var(--primary) inset!important}
+  .net-kpis .nk.warn{box-shadow:0 0 0 2px var(--warn-fg) inset!important}
+  .da-stat .ri,.nk-i{background:var(--surface)!important}
+  .da-stats .da-stat:nth-child(6n+1) .ri,.net-kpis .nk:nth-child(6n+1) .nk-i{color:var(--t-g-fg)!important}
+  .da-stats .da-stat:nth-child(6n+2) .ri,.net-kpis .nk:nth-child(6n+2) .nk-i{color:var(--t-b-fg)!important}
+  .da-stats .da-stat:nth-child(6n+3) .ri,.net-kpis .nk:nth-child(6n+3) .nk-i{color:var(--t-o-fg)!important}
+  .da-stats .da-stat:nth-child(6n+4) .ri,.net-kpis .nk:nth-child(6n+4) .nk-i{color:var(--t-p-fg)!important}
+  .da-stats .da-stat:nth-child(6n+5) .ri,.net-kpis .nk:nth-child(6n+5) .nk-i{color:var(--t-c-fg)!important}
+  .da-stats .da-stat:nth-child(6n+6) .ri,.net-kpis .nk:nth-child(6n+6) .nk-i{color:var(--t-r-fg)!important}
+  .da-stat .val,.net-kpis .nk b{font-weight:800}
+  .home-tiles .quick-tile{border:0}
+  .quick-tile.t-g{background:var(--t-g)}.quick-tile.t-b{background:var(--t-b)}.quick-tile.t-o{background:var(--t-o)}.quick-tile.t-p{background:var(--t-p)}.quick-tile.t-r{background:var(--t-r)}
+  .quick-tile .qi{background:var(--surface)!important}
+}
+@media (max-width:960px){
+  /* HR report: keep a real table, scroll sideways if needed */
+  .rq-matrix-wrap{overflow-x:auto!important;background:var(--surface)!important;border-radius:14px}
+  .da-table.rq-matrix{display:table!important;width:100%;min-width:520px}
+  .rq-matrix thead{display:table-header-group!important}.rq-matrix tbody{display:table-row-group!important}.rq-matrix tfoot{display:table-footer-group!important}
+  .rq-matrix tr{display:table-row!important;box-shadow:none!important;padding:0!important;border-radius:0!important;margin:0!important;background:transparent!important}
+  .rq-matrix tbody tr::before{display:none!important}
+  .rq-matrix td,.rq-matrix th{display:table-cell!important;width:auto!important;padding:9px 8px!important;font-size:13px;border-bottom:1px solid var(--border)!important;position:static!important}
+  .rq-matrix td::before{content:none!important}
+  /* format settings rows */
+  .rq-fmt-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center}
+  .rq-fmt-row>.rq-kind-tag{grid-column:1/-1;justify-self:start}
+  .rq-fmt-row>div{grid-column:1/-1}
+  .rq-fmt-row>button:first-of-type{grid-column:2}
+  /* role permissions: each action as a small chip */
+  .perm-table tr{display:flex!important;flex-wrap:wrap;gap:6px 8px;padding:10px 14px!important}
+  .perm-table td{width:auto!important;border:0!important;padding:0!important}
+  .perm-table td:first-child{width:100%!important;padding-bottom:6px!important;border-bottom:1px dashed var(--border)!important;margin-bottom:2px}
+  .perm-table td[data-label]{display:inline-flex!important;align-items:center;gap:6px;background:var(--canvas);border-radius:999px;padding:5px 11px!important;font-size:12.5px}
+  .perm-table td[data-label]::before{margin:0!important;padding:0!important;font-size:12px}
+  .perm-table td.na{display:none!important}
+  /* tiny buttons */
+  button.sm{min-width:40px}
+  button.link{min-height:32px;padding:4px 2px}
+}
