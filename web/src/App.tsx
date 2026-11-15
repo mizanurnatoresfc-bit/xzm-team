@@ -49,6 +49,7 @@ const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: 
 const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
 const Vehicles = lazy(() => import('./pages/vehicles/Vehicles').then(m => ({ default: m.Vehicles })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
+const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default: m.Rollout })))
 const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ default: m.UserDetail })))
 const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.RoleEditor })))
 const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.Roles })))
@@ -107,6 +108,7 @@ export default function App() {
       <Route path="/app/me" element={<MyProfile />} />
       <Route path="/app/me/permissions" element={<MyPermissions />} />
       <Route path="/app/settings" element={<Settings />} />
+      <Route path="/app/rollout" element={<Rollout />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.user.view" />}>

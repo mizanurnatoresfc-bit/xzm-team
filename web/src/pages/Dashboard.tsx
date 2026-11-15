@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { hrReq } from '../lib/hrreq'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AppShell, useMyPhoto } from '../components/AppShell'
@@ -70,6 +71,7 @@ export function Dashboard() {
     subtitle={d?.me?.employee_code ? `${L('আইডি', 'ID')} ${d.me.employee_code}${where ? ` — ${where}` : ''}` : L('আপনার রোল অনুযায়ী আজকের চিত্র', 'Today at a glance, for your role')}>
     {grants.length === 0 && <p className="notice">{L('আপনার অ্যাকাউন্টে এখনো কোনো রোল দেওয়া হয়নি। সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।', 'No role has been given to your account yet. Contact your system administrator.')}</p>}
     {home.error ? <p className="da-error">{dashboardFriendly(home.error)}</p> : null}
+    <FirstSteps photo={photo} />
     {home.loading && !d ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : null}
 
     <div className="greet">
@@ -204,4 +206,22 @@ function Row({ to, icon, label, value }: { to: string; icon: string; label: stri
   const { n } = usePrefs()
   return <Link to={to} className={`da-stat${value ? ' warn' : ''}`} style={{ textDecoration: 'none', color: 'inherit' }}>
     <span className="ri"><Icon name={icon} size={18} /></span><span className="lbl">{label}</span><span className="val">{n(value)}</span></Link>
+}
+
+/** First steps after the first sign-in. Shown only while one of them is still open. */
+function FirstSteps({ photo }: { photo: string | null | undefined }) {
+  const { L } = usePrefs()
+  const me = useLoad(() => hrReq.myEmployee().catch(() => null), [])
+  const e = me.data
+  if (!e || photo === undefined || (e.mobile && photo)) return null
+  const steps: Array<[boolean, string, string | null]> = [
+    [true, L('নিজের পাসওয়ার্ড বসানো হয়েছে', 'Your own password is set'), null],
+    [!!e.mobile, e.mobile ? L('মোবাইল নম্বর দেওয়া আছে', 'Mobile number given') : L('মোবাইল নম্বর দিন — তারপর নম্বর দিয়েও লগইন হবে', 'Give your mobile number — then you can sign in with it too'), '/app/me'],
+    [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — HR-কে ছবি দিন', 'No profile photo — give one to HR'), '/app/me'],
+  ]
+  return <section className="panel first-steps">
+    <h2>{L('শুরুর ধাপ', 'First steps')}</h2>
+    <ul>{steps.map(([ok, text, to], i) => <li key={i} className={ok ? 'ok' : ''}><span className="fs-tick" aria-hidden="true">{ok ? '✓' : i + 1}</span>
+      {ok || !to ? <span>{text}</span> : <Link to={to}>{text}</Link>}</li>)}</ul>
+  </section>
 }

@@ -30,7 +30,8 @@ export function hubLabel(h: { name: string; code?: string | null }): string {
   return h.code && /^\d+$/.test(String(h.code).trim()) ? `${h.name} #${String(h.code).trim()}` : h.name
 }
 export type Department = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null }
-export type Position = { id: string; department_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null; level?: 'hub' | 'zone' | 'head_office'; focus_options?: WorkFocus[] }
+export type Position = { id: string; department_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null; level?: 'hub' | 'zone' | 'head_office'; focus_options?: WorkFocus[]
+  /** The role a login made for this post gets. */ default_role_id?: string | null }
 export type WorkFocus = { code: string; label: string; label_bn: string; color: string }
 export type EmployeeStatus = 'applicant' | 'active' | 'inactive' | 'resigned' | 'terminated' | 'rejected'
 export type Employee = {

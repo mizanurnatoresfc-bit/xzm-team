@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Field, Modal, Stat, useLoad } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { strongEnough, tempPassword, userFriendly, users, type UserRow } from '../../lib/users'
+import { BulkLogins } from './BulkLogins'
 import { AccountBadge, emptyPick, PasswordNote, RoleChips, RoleScopePicker, roleText, type RolePick } from './common'
 
 const when = (v: string | null, lang: string) => v ? new Date(v).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { dateStyle: 'medium', timeStyle: 'short' }) : '—'
@@ -18,6 +19,9 @@ export function Users() {
   const [q, setQ] = useState('')
   const [st, setSt] = useState('')
   const [open, setOpen] = useState(false)
+  const [sp, setSp] = useSearchParams()
+  const bulk = sp.get('bulk') === '1' && can('system.user.create')
+  const setBulk = (on: boolean) => { const q = new URLSearchParams(sp); if (on) q.set('bulk', '1'); else q.delete('bulk'); setSp(q, { replace: true }) }
   const rows = useMemo(() => (list.data ?? []).filter(u => {
     const s = q.trim().toLowerCase()
     if (s && !`${u.full_name} ${u.email ?? ''} ${u.phone ?? ''} ${u.employee_code ?? ''} ${u.roles.map(r => `${r.name} ${r.name_bn ?? ''} ${r.hub ?? ''} ${r.zone ?? ''}`).join(' ')}`.toLowerCase().includes(s)) return false
@@ -30,7 +34,8 @@ export function Users() {
   const all = list.data ?? []
   return <AppShell title={L('ইউজার ও রোল', 'Users & roles')}
     subtitle={L('কে লগইন করতে পারবে, আর কোন এরিয়া/হাবে কী কাজ করতে পারবে — এখান থেকে ঠিক করুন।', 'Decide who can sign in, and what they may do in which zone or hub.')}
-    actions={can('system.user.create') ? <button onClick={() => setOpen(true)}>+ {L('নতুন লগইন অ্যাকাউন্ট', 'New login account')}</button> : null}>
+    actions={can('system.user.create') ? <><button className="secondary" onClick={() => setBulk(true)}>{L('সব কর্মীর লগইন তৈরি', 'Logins for all staff')}</button>
+      <button onClick={() => setOpen(true)}>+ {L('নতুন লগইন অ্যাকাউন্ট', 'New login account')}</button></> : null}>
     <div className="da-stats">
       <Stat icon="users" label={L('মোট অ্যাকাউন্ট', 'Accounts')} value={n(all.length)} />
       <Stat icon="check" tone="ok" label={L('সক্রিয়', 'Active')} value={n(all.filter(u => u.status === 'active' && !u.archived_at).length)} />
@@ -57,6 +62,7 @@ export function Users() {
         ]} />
     </section>
     {open && <NewAccount onClose={() => setOpen(false)} onDone={() => void list.reload()} />}
+    {bulk && <BulkLogins onClose={() => setBulk(false)} onDone={() => void list.reload()} />}
   </AppShell>
 }
 
