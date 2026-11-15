@@ -37,7 +37,7 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
   const all = list.length > 0 && mk.size === list.length
   return <>
     <div className="list-tools no-print">
-      <span className="cnt"><b>{n(list.length)}</b>{L('টি', ' rows')}{mk.size ? <em>{L(` · ${n(mk.size)} চিহ্নিত`, ` · ${mk.size} marked`)}</em> : null}</span>
+      <span className="cnt">{L('মোট ', '')}<b>{n(list.length)}</b>{L('টি', ' rows')}{mk.size ? <em>{L(` · ${n(mk.size)} চিহ্নিত`, ` · ${mk.size} marked`)}</em> : null}</span>
       <span className="grow" />
       <div className="tool-group" role="group" aria-label={L('তালিকার কাজ', 'List tools')}>
         <button type="button" className={`tb${mk.size ? ' on' : ''}`} onClick={() => setMarked(mk.size ? new Set() : new Set(list.map(rowKey)))}
