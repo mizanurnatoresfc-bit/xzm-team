@@ -765,3 +765,10 @@ button.sm{min-height:32px;border-radius:8px}
   .osm{border:0;border-radius:18px;box-shadow:var(--card-shadow)}
 }
 @media (max-width:960px) and (prefers-reduced-motion:reduce){.panel,.da-modal{animation:none}}
+@media (max-width:960px){
+  .da-modal-acts .hd-acts,.da-modal-acts>.row{display:grid!important;grid-template-columns:1fr 1fr;gap:8px}
+  .da-modal-acts .hd-acts>button{width:100%;white-space:nowrap;padding:0 8px}
+  .da-modal-acts .hd-acts>button:not(.secondary):not(.soft):not(.danger){grid-column:1/-1;order:-1}
+  .alert-card{margin:8px 0;padding:12px 14px}
+  .alert-card+.alert-card{margin-top:6px}
+}
