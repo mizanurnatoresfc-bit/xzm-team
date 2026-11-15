@@ -382,6 +382,15 @@ button.quick-btn:hover{filter:brightness(1.08)}
 .emp-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}.emp-badges .da-badge{margin:0;padding:4px 12px;font-size:13px}
 .role-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:999px;background:var(--canvas);color:var(--text);font-weight:700;font-size:13px}
 .role-pill.rider{background:#E8EEFF;color:#1D4ED8}
+.focus-pill{display:inline-flex;align-items:center;padding:3px 11px;border-radius:999px;font-weight:700;font-size:12.5px;border:1px solid transparent}
+.fc-blue{background:#E0ECFF;color:#1D4ED8;border-color:#BFD4FF}
+.fc-orange{background:#FFEDD5;color:#C2410C;border-color:#FED7AA}
+.fc-green{background:#DCFCE7;color:#15803D;border-color:#BBF7D0}
+.fc-purple{background:#F3E8FF;color:#7E22CE;border-color:#E9D5FF}
+.fc-gray{background:var(--canvas);color:var(--text);border-color:var(--border)}
+.focus-pick{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.focus-pick button.focus-pill{cursor:pointer;opacity:.55}
+.focus-pick button.focus-pill.on{opacity:1;box-shadow:0 0 0 2px currentColor inset}
 .emp-phone{display:inline-flex;gap:6px;align-items:center;font-weight:700;color:var(--primary);text-decoration:none;font-size:16px}
 .emp-hub{display:flex;gap:8px;align-items:center;flex-wrap:wrap;color:var(--muted);margin-top:4px}.emp-hub b{color:var(--text)}
 .emp-acts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:14px}

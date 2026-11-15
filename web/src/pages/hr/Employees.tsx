@@ -7,7 +7,7 @@ import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { bn, dmy, EMP_STATUS, hr, hrFriendly, type Employee, type EmployeeStatus } from '../../lib/hr'
 import { ExportByFormat } from '../../components/ExportByFormat'
-import { EmpBadge, NewApplication, useOrg } from './common'
+import { EmpBadge, FocusPill, NewApplication, focusOf, useOrg } from './common'
 
 const TONES = ['g', 'b', 'o', 'p', 'c', 'r']
 const toneOf = (s: string) => TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % TONES.length]
@@ -59,7 +59,7 @@ export function Employees() {
           <div className={`ec-av t-${toneOf(e.full_name)}`}>{initials(e.full_name)}</div>
           <div className="ec-main">
             <div className="ec-top"><b className="ec-name">{e.full_name}</b>{e.employee_code ? <span className="ec-id">#{e.employee_code}</span> : <span className="ec-id wait">আইডি বাকি</span>}</div>
-            <div className="ec-meta">{posName(e) && <span><Icon name="user" size={13} />{posName(e)}</span>}{hubName(e) && <span><Icon name="hub" size={13} />{hubName(e)}</span>}</div>
+            <div className="ec-meta">{posName(e) && <span><Icon name="user" size={13} />{posName(e)}</span>}<FocusPill f={focusOf(o.data?.positions, e.position_id, e.work_focus)} />{hubName(e) && <span><Icon name="hub" size={13} />{hubName(e)}</span>}</div>
             <div className="ec-foot"><EmpBadge status={e.status} />{e.joining_date && <span className="muted small">যোগদান {dmy(e.joining_date)}</span>}</div>
           </div>
           {e.mobile && <a className="ec-call" href={`tel:${e.mobile}`} onClick={ev => ev.stopPropagation()} aria-label={`কল ${e.mobile}`}><Icon name="phone" size={18} /></a>}

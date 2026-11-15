@@ -8,7 +8,8 @@ import {
   APP_STATUS, CHANGE_TYPE, DOC_TYPE, EMP_STATUS, MISSING, bn, dmy, docs, hr, hrFriendly, pay, todayDhaka,
   type Employee, type EmployeeStatus,
 } from '../../lib/hr'
-import { BD_MOBILE, EmpBadge, useOrg } from './common'
+import { BD_MOBILE, EmpBadge, FocusPill, focusOf, useOrg } from './common'
+import { dutiesApi, FREQ } from '../../lib/hub'
 import { ExtraFields, ReferralPanel } from './ProfileExtras'
 
 const REQUIRED_DOCS = ['nid_front', 'nid_back', 'photo']
@@ -36,6 +37,7 @@ export function EmployeeProfile() {
 
   const post = e.position_id ? o.names.pos[e.position_id] ?? '' : ''
   const isRider = /rider|রাইডার|driver|ড্রাইভার/i.test(post)
+  const focus = focusOf(o.data?.positions, e.position_id, e.work_focus)
   return <AppShell title="কর্মীর প্রোফাইল" subtitle="টিম">
     {node}
     <section className="emp-head">
@@ -44,7 +46,7 @@ export function EmployeeProfile() {
         <div className="emp-photo">{photo.data ? <img src={photo.data} alt="" /> : (e.full_name || '?').slice(0, 2).toUpperCase()}</div>
         <div className="emp-id">
           <h2>{e.full_name}</h2>
-          <div className="emp-badges"><EmpBadge status={e.status} />{post && <span className={`role-pill${isRider ? ' rider' : ''}`}><Icon name={isRider ? 'truck' : 'user'} size={14} />{post}</span>}</div>
+          <div className="emp-badges"><EmpBadge status={e.status} />{post && <span className={`role-pill${isRider ? ' rider' : ''}`}><Icon name={isRider ? 'truck' : 'user'} size={14} />{post}</span>}<FocusPill f={focus} /></div>
           {e.mobile && <div className="emp-contact">
             <a className="ct call" href={`tel:${e.mobile}`}><Icon name="phone" size={16} />{e.mobile}</a>
             <a className="ct wa" href={`https://wa.me/88${e.mobile.replace(/\D/g, '').replace(/^88/, '')}`} target="_blank" rel="noreferrer">WhatsApp</a>
@@ -72,6 +74,7 @@ export function EmployeeProfile() {
         {app.data.status === 'submitted' && can('hr.application.approve') && <ReviewActions id={id} onDone={async m => { toast(m); await reload() }} />}
         {app.data.status === 'submitted' && !can('hr.application.approve') && <p className="muted">HR যাচাই করছে।</p>}
       </section>}
+      <WorkPanel e={e} canEdit={can('hr.employee.edit') || can('hr.duty.edit')} onChanged={async m => { toast(m); await reload() }} />
       {isDraftOwner ? <DraftForm e={e} onSaved={async m => { toast(m); await reload() }} /> : <Details e={e} onChanged={async m => { toast(m); await reload() }} />}
     </>}
     {tab === 'personal' && <>
@@ -81,6 +84,38 @@ export function EmployeeProfile() {
     {tab === 'docs' && <Documents e={e} canUpload={isDraftOwner || can('hr.document.create')} onDone={m => { toast(m); void photo.reload() }} />}
     {tab === 'history' && (e.status !== 'applicant' ? <History id={id} /> : <p className="muted">আইডি পাওয়ার পর ইতিহাস দেখাবে।</p>)}
   </AppShell>
+}
+
+/** The person's work: their focus inside the post (e.g. Sorting / Loader) and every duty they hold. */
+function WorkPanel({ e, canEdit, onChanged }: { e: Employee; canEdit: boolean; onChanged: (m: string) => Promise<void> }) {
+  const o = useOrg()
+  const duties = useLoad(() => dutiesApi.mine(e.id).catch(() => []), [e.id, e.position_id, e.work_focus])
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
+  const options = o.data?.positions.find(p => p.id === e.position_id)?.focus_options ?? []
+  async function pick(code: string | null) {
+    setBusy(true); setErr('')
+    try { await hr.setWorkFocus(e.id, code); await onChanged('কাজের ফোকাস সেভ হয়েছে') } catch (x) { setErr(hrFriendly(x)) } finally { setBusy(false) }
+  }
+  return <section className="panel">
+    <div className="da-bar"><h2 style={{ margin: 0 }}>কাজ ও দায়িত্ব</h2>
+      {canEdit && <Link to="/app/hr/duties" className="btn-ghost">দায়িত্ব লিখুন</Link>}</div>
+    {options.length > 0 && <div className="focus-pick" style={{ margin: '8px 0 12px' }}>
+      <span className="muted">মূল কাজ:</span>
+      {canEdit ? <>
+        {options.map(f => <button key={f.code} type="button" disabled={busy} className={`focus-pill fc-${f.color}${e.work_focus === f.code ? ' on' : ''}`}
+          onClick={() => void pick(e.work_focus === f.code ? null : f.code)}>{f.label_bn || f.label}</button>)}
+        {!e.work_focus && <span className="bad small">এখনো বাছাই হয়নি</span>}
+      </> : (e.work_focus ? <FocusPill f={focusOf(o.data?.positions, e.position_id, e.work_focus)} /> : <span className="muted">বাছাই হয়নি</span>)}
+    </div>}
+    {err && <p className="da-error">{err}</p>}
+    {duties.loading && !duties.data ? <p className="muted">লোড হচ্ছে…</p>
+      : !duties.data?.length ? <p className="muted">এই পদ বা কর্মীর জন্য এখনো কোনো দায়িত্ব লেখা হয়নি।</p>
+      : <ul className="duty-list">{duties.data.map(d => <li key={d.id} className="duty">
+          <span className="duty-ic"><Icon name="tasks" size={16} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}><b>{d.title}</b> <Badge tone="info">{FREQ[d.frequency]?.[0] ?? d.frequency}</Badge>
+            {d.source === 'person' && <Badge tone="neutral">শুধু এই কর্মীর</Badge>}
+            {d.details && <div className="muted small pre-wrap">{d.details}</div>}</div></li>)}</ul>}
+  </section>
 }
 
 function MissingList({ id }: { id: string }) {

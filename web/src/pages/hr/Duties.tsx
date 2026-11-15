@@ -7,7 +7,7 @@ import { usePrefs } from '../../lib/prefs'
 import { hrFriendly, type Employee } from '../../lib/hr'
 import { dutiesApi, FREQ, type Duty } from '../../lib/hub'
 import { supabase } from '../../lib/supabase'
-import { useOrg } from './common'
+import { FocusPill, focusOf, useOrg } from './common'
 
 /** Duties for every post (e.g. Data Entry, Manager) and extra duties for one person. */
 export function Duties() {
@@ -21,7 +21,7 @@ export function Duties() {
   useEffect(() => { if (!pos && o.data?.positions[0]) setPos(o.data.positions[0].id) }, [o.data, pos])
   const list = useLoad(() => tab === 'post' ? (pos ? dutiesApi.ofPosition(pos) : Promise.resolve([])) : (person ? dutiesApi.ofEmployee(person.id) : Promise.resolve([])), [tab, pos, person])
   const postDuties = useLoad(() => tab === 'person' && person?.position_id ? dutiesApi.ofPosition(person.position_id) : Promise.resolve([] as Duty[]), [tab, person])
-  const [f, setF] = useState<{ id?: string; title: string; details: string; frequency: string; sort: string; zone: string } | null>(null)
+  const [f, setF] = useState<{ id?: string; title: string; details: string; frequency: string; sort: string; zone: string; focus: string } | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const editable = can('hr.duty.edit')
   async function find() {
@@ -39,7 +39,7 @@ export function Duties() {
     try {
       await dutiesApi.save({ position_id: tab === 'post' ? pos : null, employee_id: tab === 'person' ? person!.id : null,
         zone_id: tab === 'person' ? person!.zone_id : (f.zone || null), title: f.title.trim(), details: f.details.trim() || null,
-        frequency: f.frequency, sort: Number(f.sort) || 100 }, f.id)
+        frequency: f.frequency, sort: Number(f.sort) || 100, focus: tab === 'post' ? (f.focus || null) : null }, f.id)
       setF(null); await list.reload(); toast(L('সেভ হয়েছে', 'Saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
@@ -51,11 +51,13 @@ export function Duties() {
     <span className="duty-ic"><Icon name="tasks" size={16} /></span>
     <div style={{ flex: 1, minWidth: 0 }}><b>{d.title}</b> <Badge tone="info">{L(FREQ[d.frequency]?.[0] ?? d.frequency, FREQ[d.frequency]?.[1] ?? d.frequency)}</Badge>
       {!own && <Badge tone="neutral">{L('পদের দায়িত্ব', 'From the post')}</Badge>}
+      {d.focus ? <FocusPill f={focusOf(o.data?.positions, d.position_id, d.focus)} /> : focusOpts(d.position_id).length > 0 && <Badge tone="neutral">{L('সবার জন্য', 'Everyone')}</Badge>}
       {d.details && <div className="muted small pre-wrap">{d.details}</div>}</div>
     {own && editable && <span className="row-acts">
-      <button className="secondary sm" onClick={() => { setErr(''); setF({ id: d.id, title: d.title, details: d.details ?? '', frequency: d.frequency, sort: String(d.sort), zone: d.zone_id ?? '' }) }}><Icon name="edit" size={14} /></button>
+      <button className="secondary sm" onClick={() => { setErr(''); setF({ id: d.id, title: d.title, details: d.details ?? '', frequency: d.frequency, sort: String(d.sort), zone: d.zone_id ?? '', focus: d.focus ?? '' }) }}><Icon name="edit" size={14} /></button>
       <button className="secondary sm" onClick={() => void remove(d)}><Icon name="trash" size={14} /></button></span>}
   </li>
+  const focusOpts = (posId: string | null) => o.data?.positions.find(p => p.id === posId)?.focus_options ?? []
   const ready = tab === 'post' ? !!pos : !!person
   return <AppShell title={L('কাজের দায়িত্ব', 'Duties')} subtitle={L('প্রতিটি পদের দায়িত্ব, আর কারো বাড়তি দায়িত্ব থাকলে তার নামে। কর্মী নিজের প্রোফাইলে দেখতে পান।',
     'Duties of each post, and extra duties for a person. Staff see theirs on their profile.')}>
@@ -71,7 +73,7 @@ export function Duties() {
     <section className="panel">
       <div className="da-bar"><h2>{tab === 'post' ? `${L('দায়িত্ব', 'Duties')} — ${o.names.pos[pos] ?? ''}` : person ? `${L('দায়িত্ব', 'Duties')} — ${person.full_name}` : L('দায়িত্ব', 'Duties')}
         {' '}<span className="count-pill">{n(list.data?.length ?? 0)}</span></h2>
-        {editable && ready && <button onClick={() => { setErr(''); setF({ title: '', details: '', frequency: 'daily', sort: String(((list.data?.length ?? 0) + 1) * 10), zone: '' }) }}><Icon name="plus" size={15} />{L('দায়িত্ব যোগ', 'Add duty')}</button>}</div>
+        {editable && ready && <button onClick={() => { setErr(''); setF({ title: '', details: '', frequency: 'daily', sort: String(((list.data?.length ?? 0) + 1) * 10), zone: '', focus: '' }) }}><Icon name="plus" size={15} />{L('দায়িত্ব যোগ', 'Add duty')}</button>}</div>
       {err && !f && <p className="da-error">{err}</p>}
       {!ready ? <p className="muted">{tab === 'post' ? L('পদবি বেছে নিন।', 'Choose a post.') : L('কর্মীর এমপ্লয়ি আইডি লিখুন।', 'Type the employee ID.')}</p>
         : list.error ? <p className="da-error">{hrFriendly(list.error)}</p>
@@ -88,6 +90,9 @@ export function Duties() {
         {tab === 'post' && <Field label={L('কোথায় খাটবে', 'Applies in')} hint={L('জোনাল ম্যানেজার শুধু নিজের জোনের জন্য লিখতে পারেন', 'Zonal managers write for their zone')}>
           <select value={f.zone} onChange={e => setF({ ...f, zone: e.target.value })}><option value="">{L('পুরো কোম্পানি', 'Whole company')}</option>
             {o.data?.zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
+        {tab === 'post' && focusOpts(pos).length > 0 && <Field label={L('কার জন্য', 'For whom')} hint={L('যেমন সর্টিং-এর দায়িত্ব শুধু সর্টিং ফোকাসের কর্মীরা দেখবেন', 'e.g. sorting duties reach only Sorting staff')}>
+          <select value={f.focus} onChange={e => setF({ ...f, focus: e.target.value })}><option value="">{L('পদের সবার জন্য', 'Everyone in the post')}</option>
+            {focusOpts(pos).map(x => <option key={x.code} value={x.code}>{x.label_bn || x.label}</option>)}</select></Field>}
         <Field label={L('বিস্তারিত', 'Details')} wide><textarea rows={4} value={f.details} onChange={e => setF({ ...f, details: e.target.value })} /></Field>
       </div>
       {err && <p className="da-error">{err}</p>}

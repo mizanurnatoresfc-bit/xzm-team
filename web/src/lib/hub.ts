@@ -126,7 +126,7 @@ export const hubApi = {
 // ---------------------------------------------------------------- rider routes and duties
 export type HubRoute = { id: string; hub_id: string; zone_id: string; code: string; name: string; areas: string[]; note: string | null; status: string }
 export type RiderRoute = { id: string; route_id: string; employee_id: string; hub_id: string; effective_from: string; effective_to: string | null }
-export type Duty = { id: string; position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number }
+export type Duty = { id: string; position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number; focus?: string | null }
 export const FREQ: Record<string, [string, string]> = { daily: ['প্রতিদিন', 'Daily'], weekly: ['সাপ্তাহিক', 'Weekly'], monthly: ['মাসিক', 'Monthly'], as_needed: ['দরকার হলে', 'As needed'] }
 
 export const routesApi = {
@@ -170,7 +170,7 @@ export const dutiesApi = {
     return (data ?? []) as Duty[]
   },
   mine: (employee?: string) => rpc<Array<{ id: string; title: string; details: string | null; frequency: string; source: 'person' | 'post' }>>('my_duties', { p_employee: employee ?? null }),
-  save: async (d: { position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number }, id?: string) => {
+  save: async (d: { position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number; focus?: string | null }, id?: string) => {
     const { error } = id ? await supabase.from('job_duties').update(d).eq('id', id) : await supabase.from('job_duties').insert(d); fail(error)
   },
   remove: async (id: string) => {

@@ -30,13 +30,14 @@ export function hubLabel(h: { name: string; code?: string | null }): string {
   return h.code && /^\d+$/.test(String(h.code).trim()) ? `${h.name} #${String(h.code).trim()}` : h.name
 }
 export type Department = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null }
-export type Position = { id: string; department_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null; level?: 'hub' | 'zone' | 'head_office' }
+export type Position = { id: string; department_id: string; code: string; name: string; name_bn: string | null; status: string; archived_at: string | null; level?: 'hub' | 'zone' | 'head_office'; focus_options?: WorkFocus[] }
+export type WorkFocus = { code: string; label: string; label_bn: string; color: string }
 export type EmployeeStatus = 'applicant' | 'active' | 'inactive' | 'resigned' | 'terminated' | 'rejected'
 export type Employee = {
   id: string; employee_code: string | null; full_name: string; full_name_bn: string | null; mobile: string | null; email: string | null
   emergency_contact_name: string | null; emergency_contact_phone: string | null; emergency_contact_relation: string | null; reference_info: string | null
   department_id: string | null; position_id: string | null; zone_id: string | null; hub_id: string | null; reporting_manager_id: string | null
-  joining_date: string | null; status: EmployeeStatus; status_since: string | null; archived_at: string | null; profile_id: string | null; created_at: string; updated_at: string
+  joining_date: string | null; work_focus?: string | null; status: EmployeeStatus; status_since: string | null; archived_at: string | null; profile_id: string | null; created_at: string; updated_at: string
 }
 export type Application = { id: string; employee_id: string; status: 'draft' | 'submitted' | 'returned' | 'approved' | 'rejected'
   submitted_at: string | null; reviewed_at: string | null; review_note: string | null; created_at: string; created_by: string | null }
@@ -124,6 +125,7 @@ export const org = {
 
 // ---------- employees ----------
 export const hr = {
+  setWorkFocus: (employee: string, focus: string | null) => rpc<void>('hr_set_work_focus', { p_employee: employee, p_focus: focus ?? '' }),
   dashboard: (from: string, to: string, zone?: string | null, hub?: string | null) =>
     rpc<HrDashboard>('hr_dashboard', { p_from: from, p_to: to, p_zone: zone ?? null, p_hub: hub ?? null }),
   employees: async (opts: { q?: string; hub?: string; status?: string; limit?: number } = {}) => {

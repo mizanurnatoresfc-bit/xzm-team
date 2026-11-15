@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Badge, Field, Modal, useLoad } from '../accounts/ui'
-import { EMP_STATUS, hr, hrFriendly, hubLabel, nameMap, org, type EmployeeStatus } from '../../lib/hr'
+import { EMP_STATUS, hr, hrFriendly, hubLabel, nameMap, org, type EmployeeStatus, type Position, type WorkFocus } from '../../lib/hr'
 
 /** Hubs, zones, departments and positions the user can see, plus id -> name maps. */
 export function useOrg() {
@@ -12,6 +12,15 @@ export function useOrg() {
   }, [])
   const names = useMemo(() => ({ zone: nameMap(q.data?.zones), hub: nameMap(q.data?.hubs), dept: nameMap(q.data?.departments), pos: nameMap(q.data?.positions) }), [q.data])
   return { ...q, names }
+}
+
+/** The person's main work inside a post with focuses (e.g. Sorting in blue, Loader in orange). */
+export function focusOf(positions: Position[] | undefined, positionId: string | null, code: string | null | undefined): WorkFocus | null {
+  if (!code || !positionId) return null
+  return positions?.find(p => p.id === positionId)?.focus_options?.find(f => f.code === code) ?? null
+}
+export function FocusPill({ f }: { f: WorkFocus | null }) {
+  return f ? <span className={`focus-pill fc-${f.color}`}>{f.label_bn || f.label}</span> : null
 }
 
 export function EmpBadge({ status }: { status: EmployeeStatus }) {
