@@ -272,7 +272,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.5) setOpen(false) }}>
       <div className="side-head">
         <Link to="/app" className="logo" onClick={() => setOpen(false)}><BrandName /></Link>
-        <button type="button" className="side-fold" aria-label={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} title={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} onClick={toggleMini}>
+        <button type="button" className="side-fold" aria-label={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} title={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} onClick={e => { toggleMini(); e.currentTarget.blur() }}>
           <Icon name="chev" size={16} /></button>
         <button type="button" className="side-close" aria-label={L('মেনু বন্ধ', 'Close menu')} onClick={() => setOpen(false)}><Icon name="x" size={20} /></button>
       </div>

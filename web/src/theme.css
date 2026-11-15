@@ -879,12 +879,12 @@ button.sm{min-height:32px;border-radius:8px}
   .app-frame.side-mini{grid-template-columns:72px minmax(0,1fr)}
   .side-mini .side{width:72px;overflow-x:hidden;z-index:30;transition:width .18s ease,box-shadow .18s ease}
   .side-mini .side-fold svg{transform:none}
-  .side-mini .side:hover,.side-mini .side:focus-within{width:272px;box-shadow:14px 0 34px rgba(15,40,30,.14)}
-  .side-mini .side:not(:hover):not(:focus-within) :is(.t,.side-user>div,.side-search,.side-foot,.chev,.count,.ngi,.side-head .logo span:last-child,.side-fold){display:none!important}
-  .side-mini .side:not(:hover):not(:focus-within) :is(a.nl,.ngh){justify-content:center!important;padding:9px 0!important}
-  .side-mini .side:not(:hover):not(:focus-within) .side-user{justify-content:center;padding:4px 0 10px}
-  .side-mini .side:not(:hover):not(:focus-within) .side-head .logo{justify-content:center;padding:4px 0!important}
-  .side-mini .side:not(:hover):not(:focus-within) .ngrp.has-on>.ngh .gi{box-shadow:0 0 0 2px var(--primary)}
+  .side-mini .side:hover,.side-mini .side:has(:focus-visible){width:272px;box-shadow:14px 0 34px rgba(15,40,30,.14)}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) :is(.t,.side-user>div,.side-search,.side-foot,.chev,.count,.ngi,.side-head .logo span:last-child,.side-fold){display:none!important}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) :is(a.nl,.ngh){justify-content:center!important;padding:9px 0!important}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .side-user{justify-content:center;padding:4px 0 10px}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .side-head .logo{justify-content:center;padding:4px 0!important}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .ngrp.has-on>.ngh .gi{box-shadow:0 0 0 2px var(--primary)}
 }
 
 /* phone: slide-in drawer */
