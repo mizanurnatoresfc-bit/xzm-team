@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
@@ -6,33 +6,82 @@ import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { hrFriendly } from '../../lib/hr'
 import { ACTION_BN, EMOJIS, KIND_BN, ORDER_ACTION_BN, ORDER_STATUS_BN, PRIORITY_BN, isOrder, issues, type GroupHub, type InCharge, type IssueDetail, type IssueKind, type IssueRow, type OrderKind, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
 import { readLabel } from '../../lib/ocr'
-import { duplicates } from '../../lib/validate'
+import { duplicates, matches } from '../../lib/validate'
 import { Combo, DupNote, useDuplicates } from '../../components/inputs'
 import { useAuth } from '../../auth/AuthProvider'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
-type Tab = 'mine' | 'check' | 'given' | 'group' | 'hub' | 'orders'
+/** Which conversations the list shows. ("tab" in the address, as before.) */
+type Filter = 'all' | 'mine' | 'check' | 'given' | 'group' | 'hub' | 'orders'
+const FILTERS: Filter[] = ['all', 'mine', 'check', 'given', 'group', 'hub', 'orders']
 const errText = (e: unknown) => (e instanceof Error && !('code' in e) ? e.message : hrFriendly(e))
 const when = (s: string) => new Date(s).toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+/** Like a chat list: the time for today, the date for older. */
+const short = (s: string) => {
+  const day = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
+  const d = new Date(s)
+  return d.toLocaleString('bn-BD', day(d) === day(new Date()) ? { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' } : { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short' })
+}
 const TONE = { open: 'info', in_progress: 'warn', solved: 'ok', approved: 'ok', cancelled: 'neutral' } as const
 const STATUS_BN = { open: 'নতুন', in_progress: 'কাজ চলছে', solved: 'সমাধান — চেক বাকি', approved: 'অনুমোদিত', cancelled: 'বাতিল' } as const
 /** Status in the words of the kind: an order is prepared, sent and received; an issue is worked, solved and checked. */
 const statusText = (kind: string, status: keyof typeof STATUS_BN) => (isOrder(kind) ? ORDER_STATUS_BN : STATUS_BN)[status]
+const KIND_ICON: Record<IssueKind, string> = { parcel: '📦', vehicle: '🛵', staff: '👤', cash: '💵', other: '📝', store: '🧰', it: '💻' }
+/** True when the next step is this person's: their job to finish, or their turn to check. */
+const myTurn = (r: IssueRow) => (r.is_mine && (r.status === 'open' || r.status === 'in_progress')) || (r.is_giver && r.status === 'solved')
+
+// ------------------------------------------------------------------ each person's own settings (kept on this device)
+type Ui = { view: 'chat' | 'board'; first: Filter; dense: boolean; refresh: number; enterSends: boolean; groupsOnTop: boolean }
+const UI0: Ui = { view: 'chat', first: 'all', dense: false, refresh: 60, enterSends: true, groupsOnTop: true }
+const UI_KEY = 'xzm_issues_ui'
+function loadUi(): Ui {
+  try {
+    const u = { ...UI0, ...(JSON.parse(localStorage.getItem(UI_KEY) || '{}') as Partial<Ui>) }
+    return { ...u, view: u.view === 'board' ? 'board' : 'chat', first: FILTERS.includes(u.first) ? u.first : 'all', refresh: [0, 30, 60, 120].includes(u.refresh) ? u.refresh : 60 }
+  } catch { return UI0 }
+}
+function useUi() {
+  const [ui, set] = useState(loadUi)
+  const save = useCallback((p: Partial<Ui>) => set(u => { const n = { ...u, ...p }; try { localStorage.setItem(UI_KEY, JSON.stringify(n)) } catch { /* private window: the choice lasts until the page closes */ } return n }), [])
+  return [ui, save] as const
+}
+/** Runs `fn` every so many seconds while the page is in front (0 = never). */
+function useEvery(seconds: number, fn: () => void) {
+  const f = useRef(fn)
+  useEffect(() => { f.current = fn })
+  useEffect(() => {
+    if (!seconds) return
+    const t = window.setInterval(() => { if (document.visibilityState === 'visible') f.current() }, seconds * 1000)
+    return () => window.clearInterval(t)
+  }, [seconds])
+}
+const uniq = (rows: IssueRow[]) => [...new Map(rows.map(r => [r.id, r])).values()]
 
 export function Issues() {
   const [sp, setSp] = useSearchParams()
   const { toast, node } = useToast()
+  const [ui, setUi] = useUi()
   const panels = useLoad(() => issues.panels(), [])
   const groups = useLoad(() => issues.groupHubs(), [])
   const [creating, setCreating] = useState<string | null>(null)
   const [ordering, setOrdering] = useState<OrderKind | null>(null)
+  const [q, setQ] = useState('')
+  const [settings, setSettings] = useState(false)
+  const [desk, setDesk] = useState(false)
   const p: Panels = panels.data ?? { mine: [], to_check: [], given: [], waiting_for_check_of_mine: [], hub: [] }
-  const tab = (sp.get('tab') as Tab) || (p.to_check.length ? 'check' : p.mine.length ? 'mine' : 'group')
-  const open = sp.get('id')
-  const go = (t: Tab) => { const n = new URLSearchParams(sp); n.set('tab', t); n.delete('id'); setSp(n, { replace: true }) }
-  const openIssue = (id: string | null) => { const n = new URLSearchParams(sp); if (id) n.set('id', id); else n.delete('id'); setSp(n, { replace: true }) }
-  const refresh = () => { void panels.reload(); void groups.reload() }
   const hubs = groups.data ?? []
+  const asked = sp.get('tab') as Filter | null
+  const filter: Filter = asked && FILTERS.includes(asked) ? asked : ui.first
+  const open = sp.get('id')
+  const group = hubs.find(h => h.hub_id === sp.get('g')) ?? null
+  const put = (f: (n: URLSearchParams) => void) => { const n = new URLSearchParams(sp); f(n); setSp(n, { replace: true }) }
+  const go = (t: Filter) => put(n => n.set('tab', t))
+  const openIssue = (id: string | null) => put(n => { n.delete('g'); if (id) n.set('id', id); else n.delete('id') })
+  const openGroup = (h: string) => put(n => { n.delete('id'); n.set('g', h) })
+  const closeChat = () => put(n => { n.delete('id'); n.delete('g') })
+  const refresh = () => { void panels.reload(); void groups.reload() }
+  const changed = () => { refresh(); toast('হয়েছে') }
+  useEvery(ui.refresh, refresh)
   // A shortcut link (/app/issues?new=1) opens the new-issue form at once.
   useEffect(() => {
     if (!sp.get('new') || !hubs.length) return
@@ -46,127 +95,296 @@ export function Issues() {
     setOrdering(isOrder(k) ? k : 'store')
     const n = new URLSearchParams(sp); n.delete('order'); n.set('tab', 'orders'); setSp(n, { replace: true })
   }, [sp, hubs, setSp])
-  // Every open Store / IT order this person can see, whichever panel it sits in.
-  const orders = [...new Map([...p.mine, ...p.waiting_for_check_of_mine, ...p.to_check, ...p.given, ...p.hub].filter(r => isOrder(r.kind)).map(r => [r.id, r])).values()]
-  const tabs: Array<[Tab, string, number, string]> = [
-    ['mine', 'আমার কাজ', p.mine.length, 'tasks'], ['check', 'চেক বাকি', p.to_check.length, 'check'], ['given', 'আমি দিয়েছি', p.given.length, 'form'],
-    ['group', 'হাব গ্রুপ', hubs.reduce((a, h) => a + h.unseen, 0), 'users'], ['hub', 'হাবের সব ইস্যু', p.hub.length, 'grid'], ['orders', 'স্টোর / আইটি অর্ডার', orders.length, 'box']]
-  const late = [...p.mine, ...p.given].filter(r => r.overdue).length
-  const tiles: Array<[Tab, string, number, string]> = [['mine', 'আমার কাজ', p.mine.length, late ? 'warn' : ''], ['check', 'চেক বাকি', p.to_check.length, p.to_check.length ? 'bad' : ''], ['given', 'আমি দিয়েছি', p.given.length, '']]
-  return <AppShell title="ইস্যু ও ফলো-আপ" subtitle="কাজ দিন, সমাধান চেক করে অনুমোদন দিন — অনুমোদন না হলে ইস্যু প্যানেলেই থাকে">
-    <div className="is-tiles">{tiles.map(([k, l, c, tone]) => <button key={k} type="button" className={`is-tile ${tone}${tab === k ? ' on' : ''}`} onClick={() => go(k)}><b>{c}</b><span>{l}</span></button>)}</div>
-    <div className="rq-tabs">{tabs.map(([k, l, c, ic]) => <button key={k} type="button" className={`rq-tab${tab === k ? ' on' : ''}`} onClick={() => go(k)}>
-      <Icon name={ic} size={16} />{l}{c > 0 ? ` (${c})` : ''}</button>)}
-    {hubs.length > 0 && <button type="button" className="rq-tab" onClick={() => setCreating(hubs[0].hub_id)}><Icon name="plus" size={16} />নতুন ইস্যু</button>}
-    {hubs.length > 0 && <button type="button" className="rq-tab" onClick={() => setOrdering('store')}><Icon name="box" size={16} />স্টোর / আইটি অর্ডার দিন</button>}</div>
+
+  // Every open issue / order this person can see, whichever panel it sits in — newest first.
+  const everything = uniq([...p.to_check, ...p.mine, ...p.waiting_for_check_of_mine, ...p.given, ...p.hub]).sort((a, b) => b.created_at.localeCompare(a.created_at))
+  const ids = (rows: IssueRow[]) => new Set(rows.map(r => r.id))
+  const inFilter: Record<Exclude<Filter, 'all' | 'group'>, (r: IssueRow) => boolean> = {
+    mine: (s => (r: IssueRow) => s.has(r.id))(ids([...p.mine, ...p.waiting_for_check_of_mine])), check: (s => (r: IssueRow) => s.has(r.id))(ids(p.to_check)),
+    given: (s => (r: IssueRow) => s.has(r.id))(ids(p.given)), hub: (s => (r: IssueRow) => s.has(r.id))(ids(p.hub)), orders: r => isOrder(r.kind) }
+  const count = (f: Exclude<Filter, 'all' | 'group'>) => everything.filter(inFilter[f]).length
+  const rows = (filter === 'group' ? [] : filter === 'all' ? everything : everything.filter(inFilter[filter]))
+    .filter(r => matches(`${r.title} ${r.issue_no} ${r.assignee ?? ''} ${r.assignee_code ?? ''} ${r.hub ?? ''} ${r.parcel_ref ?? ''} ${r.assigned_by_name ?? ''}`, q))
+  const shownHubs = hubs.filter(h => matches(`${h.hub_name} ${h.hub_code}`, q))
+  const unseen = hubs.reduce((a, h) => a + h.unseen, 0)
+  const late = everything.filter(r => r.overdue && (r.is_mine || r.is_giver)).length
+  const chips: Array<[Filter, string, number, string]> = [['all', 'সব', everything.length, ''], ['mine', 'আমার কাজ', count('mine'), late ? 'warn' : ''], ['check', 'চেক বাকি', count('check'), count('check') ? 'bad' : ''],
+    ['given', 'আমি দিয়েছি', count('given'), ''], ['group', 'হাব গ্রুপ', unseen, unseen ? 'bad' : ''], ['hub', 'হাবের সব', count('hub'), ''], ['orders', 'অর্ডার', count('orders'), '']]
+  const EMPTY: Record<Filter, string> = { all: 'এখন কোনো খোলা ইস্যু নেই', mine: 'আপনাকে দেওয়া কোনো কাজ বাকি নেই', check: 'চেক করার মতো সমাধান করা কোনো ইস্যু নেই', given: 'আপনার দেওয়া কোনো কাজ এখন চলছে না',
+    group: 'আপনার জন্য কোনো হাব গ্রুপ নেই', hub: 'হাবে অন্য কোনো খোলা ইস্যু নেই', orders: 'এখন কোনো স্টোর / আইটি অর্ডার খোলা নেই' }
+
+  const bar = <div className="mg-bar">
+    <label className="mg-search"><Icon name="search" size={16} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="খুঁজুন — নাম, আইডি, হাব…" aria-label="ইস্যু খুঁজুন" /></label>
+    {hubs.length > 0 && <button type="button" className="mg-ic primary" title="নতুন ইস্যু" aria-label="নতুন ইস্যু" onClick={() => setCreating(group?.hub_id ?? hubs[0].hub_id)}><Icon name="plus" size={18} /></button>}
+    {hubs.length > 0 && <button type="button" className="mg-ic" title="স্টোর / আইটি অর্ডার দিন" aria-label="স্টোর / আইটি অর্ডার দিন" onClick={() => setOrdering('store')}><Icon name="box" size={18} /></button>}
+    <div className="mg-view" role="group" aria-label="চেহারা">
+      <button type="button" className={ui.view === 'chat' ? 'on' : ''} aria-pressed={ui.view === 'chat'} onClick={() => setUi({ view: 'chat' })}>চ্যাট</button>
+      <button type="button" className={ui.view === 'board' ? 'on' : ''} aria-pressed={ui.view === 'board'} onClick={() => setUi({ view: 'board' })}>বোর্ড</button></div>
+    <button type="button" className="mg-ic" title="আমার সেটিং" aria-label="আমার সেটিং" onClick={() => setSettings(true)}><Icon name="gear" size={18} /></button>
+  </div>
+  const chipRow = <div className="mg-chips">{chips.filter(([k]) => ui.view === 'chat' || k !== 'group').map(([k, l, c, tone]) => <button key={k} type="button" className={`mg-chip ${tone}${filter === k ? ' on' : ''}`} aria-pressed={filter === k} onClick={() => go(k)}>
+    {l}{c > 0 && <b>{c}</b>}</button>)}</div>
+  const deskRow = filter === 'orders' && <button type="button" className="mg-desk" onClick={() => setDesk(true)}><Icon name="user" size={15} /> স্টোর / আইটি অর্ডার কে পাবেন — দেখুন</button>
+  const groupRows = shownHubs.map(h => <button key={h.hub_id} type="button" className={`mg-row grp${group?.hub_id === h.hub_id ? ' on' : ''}`} onClick={() => openGroup(h.hub_id)}>
+    <span className="mg-av hub">{h.hub_name.slice(0, 1)}</span>
+    <span className="mg-tx"><b>{h.hub_name} গ্রুপ</b><small>{h.open_issues > 0 ? `${h.open_issues}টি খোলা ইস্যু` : 'হাবের সবার সাথে কথা'}</small></span>
+    <span className="mg-end">{h.unseen > 0 && <i className="mg-n">{h.unseen}</i>}</span></button>)
+  const chat = group ? <GroupChat key={group.hub_id} hub={group} ui={ui} onBack={closeChat} onOpenIssue={openIssue} onNew={() => setCreating(group.hub_id)} onSeen={() => void groups.reload()} />
+    : open ? <IssueChat key={open} id={open} row={everything.find(r => r.id === open)} refresh={ui.refresh} onBack={closeChat} onChanged={changed} /> : null
+
+  return <AppShell title="ইস্যু ও ফলো-আপ" subtitle="কাজ দিন, সমাধান চেক করে অনুমোদন দিন — অনুমোদন না হলে ইস্যু তালিকাতেই থাকে">
     {panels.error ? <p className="da-error">{errText(panels.error)}</p> : null}
-    {tab === 'mine' && <>
-      <List rows={p.mine} empty="আপনাকে দেওয়া কোনো কাজ বাকি নেই" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} />
-      {p.waiting_for_check_of_mine.length > 0 && <><h3 className="muted" style={{ margin: '16px 0 6px' }}>সমাধান জানিয়েছেন — যিনি দিয়েছেন তার চেকের অপেক্ষায়</h3>
-        <List rows={p.waiting_for_check_of_mine} empty="" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} /></>}</>}
-    {tab === 'check' && <List rows={p.to_check} empty="চেক করার মতো সমাধান করা কোনো ইস্যু নেই" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} />}
-    {tab === 'given' && <List rows={p.given} empty="আপনার দেওয়া কোনো কাজ এখন চলছে না" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} />}
-    {tab === 'hub' && <List rows={p.hub} empty="হাবে অন্য কোনো খোলা ইস্যু নেই" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} />}
-    {tab === 'group' && <Group hubs={hubs} onOpenIssue={openIssue} onNew={h => setCreating(h)} />}
-    {tab === 'orders' && <>
-      <OrderDesk canOrder={hubs.length > 0} onOrder={setOrdering} />
-      <List rows={orders} empty="এখন কোনো স্টোর / আইটি অর্ডার খোলা নেই" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} /></>}
-    {open && <Detail id={open} onClose={() => openIssue(null)} onChanged={() => { refresh(); toast('হয়েছে') }} />}
+    {ui.view === 'chat' ? <div className={`mg${chat ? ' has-open' : ''}${ui.dense ? ' dense' : ''}`}>
+      <aside className="mg-side">
+        {bar}{chipRow}
+        <div className="mg-list">
+          {deskRow}
+          {ui.groupsOnTop && (filter === 'all' || filter === 'group') && groupRows}
+          {rows.map(r => <Conv key={r.id} r={r} on={open === r.id} onOpen={() => openIssue(r.id)} />)}
+          {!ui.groupsOnTop && (filter === 'all' || filter === 'group') && groupRows}
+          {!rows.length && !(shownHubs.length && (filter === 'all' || filter === 'group')) && <div className="is-empty"><Icon name="check" size={28} /><p>{q ? 'কিছু মেলেনি' : panels.loading && !panels.data ? 'লোড হচ্ছে…' : EMPTY[filter]}</p></div>}
+        </div>
+      </aside>
+      <section className="mg-main">{chat ?? <div className="mg-none"><Icon name="note" size={38} /><b>একটি ইস্যু বা গ্রুপ বেছে নিন</b>
+        <p>বাম পাশের তালিকা থেকে যেটায় চাপবেন সেটির পুরো কথা এখানে খুলবে।</p>
+        {hubs.length > 0 && <button type="button" onClick={() => setCreating(hubs[0].hub_id)}><Icon name="plus" size={15} /> নতুন ইস্যু</button>}</div>}</section>
+    </div> : <div className={`bd${ui.dense ? ' dense' : ''}`}>
+      {bar}{chipRow}{deskRow}
+      {shownHubs.length > 0 && <div className="bd-groups">{shownHubs.map(h => <button key={h.hub_id} type="button" className="mg-chip" onClick={() => openGroup(h.hub_id)}>💬 {h.hub_name} গ্রুপ{h.unseen > 0 && <b>{h.unseen}</b>}</button>)}</div>}
+      <Board rows={rows} empty={q ? 'কিছু মেলেনি' : EMPTY[filter === 'group' ? 'all' : filter]} open={open} onOpen={openIssue} onChanged={changed} />
+      {chat && <><div className="mg-shade" onClick={closeChat} /><aside className="mg-drawer">{chat}</aside></>}
+    </div>}
+    {settings && <UiSettings ui={ui} onChange={setUi} onClose={() => setSettings(false)} />}
+    {desk && <Modal wide title="স্টোর / আইটি অর্ডার কে পাবেন" onClose={() => setDesk(false)} actions={<button type="button" onClick={() => setDesk(false)}>বন্ধ</button>}>
+      <OrderDesk canOrder={hubs.length > 0} onOrder={k => { setDesk(false); setOrdering(k) }} /></Modal>}
     {creating && <NewIssue hubs={hubs} hub={creating} onClose={() => setCreating(null)} onDone={id => { setCreating(null); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
-    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); go('orders'); openIssue(id) }} />}
+    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('g'); n.set('id', id) }) }} />}
     {node}
   </AppShell>
 }
 
-// ------------------------------------------------------------------ lists
-function List({ rows, empty, onOpen, onChanged }: { rows: IssueRow[]; empty: string; onOpen: (id: string) => void; onChanged?: () => void }) {
+// ------------------------------------------------------------------ the list (one line per issue, like a chat list)
+function Conv({ r, on, onOpen }: { r: IssueRow; on: boolean; onOpen: () => void }) {
+  return <button type="button" className={`mg-row s-${r.status}${on ? ' on' : ''}${myTurn(r) ? ' turn' : ''}`} onClick={onOpen}>
+    <span className="mg-av">{KIND_ICON[r.kind]}</span>
+    <span className="mg-tx"><b>{r.title}</b>
+      <small>{r.overdue && <em className="late">সময় পার · </em>}{r.priority === 'high' || r.priority === 'urgent' ? <em className="late">{PRIORITY_BN[r.priority]} · </em> : null}{statusText(r.kind, r.status)} · {r.assignee ?? 'কাউকে দেওয়া হয়নি'}</small>
+      <small className="more">{r.issue_no} · {r.hub}{r.parcel_ref ? ` · ${r.parcel_ref}` : ''}</small></span>
+    <span className="mg-end"><time>{short(r.created_at)}</time>{myTurn(r) && <i className="mg-dot" title="আপনার পালা" />}</span>
+  </button>
+}
+
+// ------------------------------------------------------------------ the board (new -> working -> waiting for the check)
+function Board({ rows, empty, open, onOpen, onChanged }: { rows: IssueRow[]; empty: string; open: string | null; onOpen: (id: string) => void; onChanged: () => void }) {
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   async function quick(r: IssueRow, a: 'start' | 'approve') {
     setBusy(r.id); setErr('')
-    try { await issues.act(r.id, a); onChanged?.() } catch (e) { setErr(errText(e)) } finally { setBusy('') }
+    try { await issues.act(r.id, a); onChanged() } catch (e) { setErr(errText(e)) } finally { setBusy('') }
   }
-  if (!rows.length) return empty ? <div className="is-empty"><Icon name="check" size={28} /><p>{empty}</p></div> : null
-  return <>{err && <p className="da-error" role="alert">{err}</p>}<div className="is-list">{rows.map(r => <div key={r.id} className={`is-card s-${r.status}${r.overdue ? ' late' : ''}`}>
-    <div className="head"><span className="no">{r.issue_no}</span><Badge tone={TONE[r.status]}>{statusText(r.kind, r.status)}</Badge>
-      {r.priority !== 'normal' && <Badge tone={r.priority === 'low' ? 'neutral' : 'bad'}>{PRIORITY_BN[r.priority]}</Badge>}
-      {r.overdue && <Badge tone="bad">সময় পার</Badge>}{r.reopen_count > 0 && <Badge tone="warn">ফেরত {r.reopen_count}</Badge>}
-      <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{when(r.created_at)}</span></div>
-    <div className="ttl" onClick={() => onOpen(r.id)}>{r.title}</div>
-    <div className="meta"><span>{KIND_BN[r.kind]} · {r.hub}{r.parcel_ref ? ` · ${r.parcel_ref}` : ''}</span>
-      <span>কাকে: {r.assignee ? `${r.assignee}${r.assignee_code ? ` (${r.assignee_code})` : ''}` : 'কাউকে দেওয়া হয়নি'}{r.assigned_by_nodi ? ' · নদী AI বেছেছে' : ''}</span>
-      <span>কে দিয়েছে: {r.assigned_by_name ?? '—'}</span></div>
-    <div className="acts">
-      {r.is_mine && r.status === 'open' && <button type="button" disabled={busy === r.id} onClick={() => void quick(r, 'start')}>{isOrder(r.kind) ? '▶ প্রস্তুত করছি' : '▶ শুরু করলাম'}</button>}
-      {r.is_mine && (r.status === 'open' || r.status === 'in_progress') && <button type="button" onClick={() => onOpen(r.id)}>{isOrder(r.kind) ? '✔ পাঠিয়েছি' : '✔ সমাধান জানান'}</button>}
-      {r.is_giver && r.status === 'solved' && <button type="button" disabled={busy === r.id} onClick={() => void quick(r, 'approve')}>{isOrder(r.kind) ? '✔ পেয়েছি' : '✔ অনুমোদন'}</button>}
-      {r.is_giver && r.status === 'solved' && <button type="button" className="secondary" onClick={() => onOpen(r.id)}>{isOrder(r.kind) ? '↩ পাইনি / দেখুন' : '↩ ফেরত / দেখুন'}</button>}
-      {!(r.is_mine && r.status !== 'solved') && !(r.is_giver && r.status === 'solved') && <button type="button" className="secondary" onClick={() => onOpen(r.id)}>খুলুন</button>}
-    </div></div>)}</div></>
+  const cols: Array<['open' | 'in_progress' | 'solved', string]> = [['open', 'নতুন'], ['in_progress', 'কাজ চলছে'], ['solved', 'সমাধান হয়েছে — চেক বাকি']]
+  if (!rows.length) return <div className="is-empty"><Icon name="check" size={28} /><p>{empty}</p></div>
+  return <>{err && <p className="da-error" role="alert">{err}</p>}<div className="bd-cols">{cols.map(([s, label]) => { const list = rows.filter(r => r.status === s); return <section key={s} className={`bd-col s-${s}`}>
+    <h3>{label}<b>{list.length}</b></h3>
+    {list.map(r => <div key={r.id} className={`bd-card${r.overdue ? ' late' : ''}${open === r.id ? ' on' : ''}${myTurn(r) ? ' turn' : ''}`}>
+      <button type="button" className="bd-open" onClick={() => onOpen(r.id)}>
+        <span className="t"><i>{KIND_ICON[r.kind]}</i>{r.title}</span>
+        <small>{r.issue_no} · {r.hub}{r.parcel_ref ? ` · ${r.parcel_ref}` : ''}</small>
+        <small>কাকে: {r.assignee ? `${r.assignee}${r.assignee_code ? ` (${r.assignee_code})` : ''}` : 'কাউকে দেওয়া হয়নি'}{r.assigned_by_nodi ? ' · নদী AI বেছেছে' : ''} · দিয়েছে: {r.assigned_by_name ?? '—'}</small>
+        <span className="tags">{r.priority !== 'normal' && <Badge tone={r.priority === 'low' ? 'neutral' : 'bad'}>{PRIORITY_BN[r.priority]}</Badge>}{r.overdue && <Badge tone="bad">সময় পার</Badge>}
+          {r.reopen_count > 0 && <Badge tone="warn">ফেরত {r.reopen_count}</Badge>}<time>{short(r.created_at)}</time></span></button>
+      {r.is_mine && r.status === 'open' && <button type="button" className="sm" disabled={busy === r.id} onClick={() => void quick(r, 'start')}>{isOrder(r.kind) ? '▶ প্রস্তুত করছি' : '▶ শুরু করলাম'}</button>}
+      {r.is_mine && r.status === 'in_progress' && <button type="button" className="sm" onClick={() => onOpen(r.id)}>{isOrder(r.kind) ? '✔ পাঠিয়েছি' : '✔ সমাধান জানান'}</button>}
+      {r.is_giver && r.status === 'solved' && <button type="button" className="sm" disabled={busy === r.id} onClick={() => void quick(r, 'approve')}>{isOrder(r.kind) ? '✔ পেয়েছি' : '✔ অনুমোদন'}</button>}
+    </div>)}
+    {!list.length && <p className="bd-none">কিছু নেই</p>}
+  </section> })}</div></>
 }
 
-// ------------------------------------------------------------------ one issue
-function Detail({ id, onClose, onChanged }: { id: string; onClose: () => void; onChanged: () => void }) {
+// ------------------------------------------------------------------ one issue, as a conversation
+function IssueChat({ id, row, refresh, onBack, onChanged }: { id: string; row?: IssueRow; refresh: number; onBack: () => void; onChanged: () => void }) {
   const d = useLoad(() => issues.detail(id), [id])
-  const p = useLoad(() => issues.panels(), [id])
   const [note, setNote] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [assign, setAssign] = useState(false)
   const [person, setPerson] = useState<RefPerson | null>(null)
+  const body = useRef<HTMLDivElement>(null)
   const x: IssueDetail | null = d.data
   const i = x?.issue
-  const mine = p.data?.mine.some(r => r.id === id) || p.data?.waiting_for_check_of_mine.some(r => r.id === id)
-  const giver = p.data?.given.some(r => r.id === id) || p.data?.to_check.some(r => r.id === id)
-  const needNote = (a: string) => a === 'reopen' || a === 'cancel'
+  const mine = !!row?.is_mine
+  const giver = !!row?.is_giver
   const order = !!i && isOrder(i.kind)
+  const n = x?.events.length ?? 0
+  useEvery(refresh, () => { if (!busy) void d.reload() })
+  useEffect(() => { body.current?.scrollTo({ top: body.current.scrollHeight }) }, [n])
   async function act(a: 'start' | 'solve' | 'approve' | 'reopen' | 'cancel') {
-    setErr(''); if (needNote(a) && !note.trim()) { setErr('কারণ লিখুন'); return }
+    setErr(''); if ((a === 'reopen' || a === 'cancel') && !note.trim()) { setErr('নিচের বাক্সে কারণ লিখুন'); return }
     if (a === 'solve' && !note.trim() && !file && !order) { setErr('কী করা হয়েছে লিখুন বা ছবি দিন'); return }
     setBusy(true)
     try {
       const photo = file && i ? await issues.uploadPhoto(i.hub_id, file) : null
       // "Sent" on an order needs no typing: a plain note is filled in.
-      await issues.act(id, a, a === 'solve' && order && !note.trim() && !file ? 'পাঠানো হয়েছে' : note, photo); setNote(''); setFile(null); await d.reload(); await p.reload(); onChanged()
+      await issues.act(id, a, a === 'solve' && order && !note.trim() && !file ? 'পাঠানো হয়েছে' : note, photo); setNote(''); setFile(null); await d.reload(); onChanged()
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
   async function doAssign() {
     if (person?.kind !== 'employee') { setErr('সিস্টেমের কাউকে বাছুন'); return }
     setBusy(true); setErr('')
-    try { await issues.assign(id, person.id, note); setAssign(false); setPerson(null); await d.reload(); await p.reload(); onChanged() } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
+    try { await issues.assign(id, person.id, note); setAssign(false); setPerson(null); setNote(''); await d.reload(); onChanged() } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
-  const live = i && (i.status === 'open' || i.status === 'in_progress' || i.status === 'solved')
-  return <Modal wide title={i ? `${i.issue_no} · ${i.title}` : 'ইস্যু'} onClose={onClose} actions={<>
-    {live && mine && i.status === 'open' && <button type="button" disabled={busy} onClick={() => void act('start')}>{order ? 'প্রস্তুত করছি' : 'কাজ শুরু করলাম'}</button>}
-    {live && mine && (i.status === 'open' || i.status === 'in_progress') && <button type="button" disabled={busy} onClick={() => void act('solve')}>{order ? 'পাঠিয়েছি' : 'সমাধান হয়েছে'}</button>}
-    {live && giver && i.status === 'solved' && <button type="button" disabled={busy} onClick={() => void act('approve')}>{order ? 'পেয়েছি' : 'চেক করেছি — অনুমোদন'}</button>}
-    {live && giver && i.status === 'solved' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('reopen')}>{order ? 'পাইনি / ভুল এসেছে' : 'ঠিক হয়নি — ফেরত'}</button>}
-    {live && giver && <button type="button" className="secondary" onClick={() => setAssign(a => !a)}>অন্যকে দিন</button>}
-    {live && giver && <button type="button" className="secondary" disabled={busy} onClick={() => void act('cancel')}>বাতিল</button>}
-    <button type="button" className="secondary" onClick={onClose}>বন্ধ</button></>}>
-    {d.loading && !x ? <p className="muted">লোড হচ্ছে…</p> : null}
-    {d.error ? <p className="da-error">{errText(d.error)}</p> : null}
-    {x && i && <>
-      <p><Badge tone={TONE[i.status]}>{order ? ORDER_STATUS_BN[i.status] : i.status_bn}</Badge> {KIND_BN[i.kind]} · {i.hub} · কাকে: {i.assignee ?? 'কাউকে দেওয়া হয়নি'}{i.assignee_code ? ` (${i.assignee_code})` : ''} · কে দিয়েছে: {i.assigned_by_name ?? '—'}</p>
-      {i.body && <p style={{ whiteSpace: 'pre-wrap' }}>{i.body}</p>}
-      {i.parcel_ref && <p className="muted">পার্সেল আইডি: <strong>{i.parcel_ref}</strong>{x.parcel ? ` · ${String(x.parcel.customer_name ?? '')} · ${String(x.parcel.status ?? '')}` : ''}</p>}
-      {i.photo_path && <Photo path={i.photo_path} />}
-      {i.solved_note && <p><strong>{order ? 'পাঠানোর নোট:' : 'সমাধান:'}</strong> {i.solved_note}</p>}{i.solve_photo && <Photo path={i.solve_photo} />}
-      {live && (mine || giver) && <Field label={order ? (mine && !giver ? 'কীভাবে পাঠালেন (ঐচ্ছিক) / ছবি' : 'মন্তব্য (পাইনি বা বাতিলে কারণ লাগবে)') : mine && !giver ? 'কী করেছেন (সমাধানে লাগবে) / ছবি' : 'মন্তব্য (ফেরত বা বাতিলে কারণ লাগবে)'} wide>
-        <textarea rows={2} value={note} onChange={e => setNote(e.target.value)} />
-        <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Field>}
-      {assign && <Field label="নতুন কাকে দেবেন" wide><PersonPicker value={person} onChange={setPerson} /><button type="button" disabled={busy} onClick={() => void doAssign()}>এই ব্যক্তিকে দিন</button></Field>}
+  const live = !!i && (i.status === 'open' || i.status === 'in_progress' || i.status === 'solved')
+  // Whose side of the conversation a step sits on: the one who does the job, or the one who gave it.
+  const side = (a: string) => {
+    if (a === 'assigned' || a === 'assigned_by_nodi') return 'sys'
+    const doer = a === 'started' || a === 'solved'
+    return (mine && !giver ? doer : !doer) ? 'me' : 'them'
+  }
+  const lastSolved = x ? [...x.events].reverse().find(e => e.action === 'solved')?.id : undefined
+  return <div className="mg-chat">
+    <header className="mg-head">
+      <button type="button" className="mg-ic back" aria-label="ফিরে যান" onClick={onBack}><Icon name="back" size={18} /></button>
+      <span className="mg-av">{i ? KIND_ICON[i.kind] : '…'}</span>
+      <div className="mg-tx"><b>{i ? i.title : 'ইস্যু'}</b>
+        {i && <small>{i.issue_no} · {KIND_BN[i.kind]} · {i.hub} · কাকে: {i.assignee ?? 'কাউকে দেওয়া হয়নি'}{i.assignee_code ? ` (${i.assignee_code})` : ''}</small>}</div>
+      {i && <Badge tone={TONE[i.status]}>{order ? ORDER_STATUS_BN[i.status] : i.status_bn}</Badge>}
+    </header>
+    <div className="mg-body" ref={body}>
+      {d.loading && !x ? <p className="muted">লোড হচ্ছে…</p> : null}
+      {d.error ? <p className="da-error">{errText(d.error)}</p> : null}
+      {!d.loading && !d.error && !x && <p className="muted">ইস্যুটি পাওয়া যায়নি, অথবা দেখার অনুমতি নেই।</p>}
+      {x && i && x.events.map(e => { const s = side(e.action); const label = (order ? ORDER_ACTION_BN[e.action] : undefined) ?? ACTION_BN[e.action] ?? e.action
+        if (s === 'sys') return <p key={e.id} className="mg-sys">{label}{e.note ? ` — ${e.note}` : ''} · {e.by_name} · {when(e.at)}</p>
+        const first = e.action === 'created'
+        return <div key={e.id} className={`mg-msg ${s} a-${e.action}`}>
+          <div className="mg-b"><strong>{label}</strong>
+            {first ? <>{<span className="tx">{i.body || i.title}</span>}{i.parcel_ref && <span className="ref">পার্সেল আইডি: <b>{i.parcel_ref}</b>{x.parcel ? ` · ${String(x.parcel.customer_name ?? '')} · ${String(x.parcel.status ?? '')}` : ''}</span>}{i.photo_path && <Photo path={i.photo_path} />}</>
+              : <>{e.note && <span className="tx">{e.note}</span>}{e.id === lastSolved && i.solve_photo && <Photo path={i.solve_photo} />}</>}</div>
+          <small>{e.by_name} · {when(e.at)}</small></div> })}
+      {i && !live && <p className="mg-sys">{i.status === 'cancelled' ? 'এই ইস্যু বাতিল করা হয়েছে' : order ? 'অর্ডার শেষ — পাওয়া গেছে' : 'চেক শেষ — ইস্যু বন্ধ'}</p>}
+    </div>
+    {live && (mine || giver) && <footer className="mg-foot">
+      {assign && <div className="mg-assign"><PersonPicker value={person} onChange={setPerson} /><button type="button" className="sm" disabled={busy} onClick={() => void doAssign()}>এই ব্যক্তিকে দিন</button></div>}
       {err && <p className="da-error" role="alert">{err}</p>}
-      <h4 style={{ margin: '12px 0 4px' }}>ইতিহাস</h4>
-      <ul style={{ margin: 0, paddingLeft: 18 }}>{x.events.map(e => <li key={e.id}><strong>{(order ? ORDER_ACTION_BN[e.action] : undefined) ?? ACTION_BN[e.action] ?? e.action}</strong> — {e.by_name}{e.note ? `: ${e.note}` : ''} <span className="muted">· {when(e.at)}</span></li>)}</ul>
-    </>}
-  </Modal>
+      <div className="mg-in">
+        <label className={`mg-ic clip${file ? ' has' : ''}`} title="ছবি দিন"><input type="file" accept="image/*" className="is-file" onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }} /><Icon name="upload" size={18} /></label>
+        <textarea rows={1} value={note} onChange={e => setNote(e.target.value)} aria-label="মন্তব্য"
+          placeholder={order ? (mine && !giver ? 'কীভাবে পাঠালেন (ঐচ্ছিক)' : 'মন্তব্য — পাইনি বা বাতিলে কারণ লাগবে') : mine && !giver ? 'কী করেছেন লিখুন (সমাধানে লাগবে)' : 'মন্তব্য — ফেরত বা বাতিলে কারণ লাগবে'} /></div>
+      {file && <p className="mg-file">📎 {file.name} <button type="button" className="link small" onClick={() => setFile(null)}>সরান</button></p>}
+      <div className="mg-acts">
+        {mine && i.status === 'open' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('start')}>{order ? '▶ প্রস্তুত করছি' : '▶ কাজ শুরু করলাম'}</button>}
+        {mine && (i.status === 'open' || i.status === 'in_progress') && <button type="button" disabled={busy} onClick={() => void act('solve')}>{order ? '✔ পাঠিয়েছি' : '✔ সমাধান হয়েছে'}</button>}
+        {giver && i.status === 'solved' && <button type="button" disabled={busy} onClick={() => void act('approve')}>{order ? '✔ পেয়েছি' : '✔ ঠিক আছে — অনুমোদন'}</button>}
+        {giver && i.status === 'solved' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('reopen')}>{order ? '↩ পাইনি / ভুল এসেছে' : '↩ ঠিক হয়নি — ফেরত'}</button>}
+        {giver && <button type="button" className="secondary" onClick={() => setAssign(a => !a)}>অন্যকে দিন</button>}
+        {giver && <button type="button" className="secondary" disabled={busy} onClick={() => void act('cancel')}>বাতিল</button>}
+      </div>
+    </footer>}
+  </div>
 }
 
 function Photo({ path }: { path: string }) {
   const u = useLoad(() => issues.photoUrl(path), [path])
-  return u.data ? <a href={u.data} target="_blank" rel="noreferrer"><img src={u.data} alt="ছবি" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 8, margin: '6px 0' }} /></a> : null
+  return u.data ? <a href={u.data} target="_blank" rel="noreferrer"><img src={u.data} alt="ছবি" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 8, margin: '6px 0', display: 'block' }} /></a> : null
+}
+
+// ------------------------------------------------------------------ the hub group, as a chat
+function GroupChat({ hub, ui, onBack, onOpenIssue, onNew, onSeen }: { hub: GroupHub; ui: Ui; onBack: () => void; onOpenIssue: (id: string) => void; onNew: () => void; onSeen: () => void }) {
+  const cur = hub.hub_id
+  const feed = useLoad(() => issues.feed(cur), [cur])
+  const [text, setText] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [pick, setPick] = useState('')
+  const [who, setWho] = useState<{ title: string; rows: Who[] } | null>(null)
+  const seenSent = useRef(new Set<string>())
+  const body = useRef<HTMLDivElement>(null)
+  const posts = [...(feed.data ?? [])].reverse()   // newest at the bottom, like a chat
+  const lastId = posts[posts.length - 1]?.id
+  useEvery(ui.refresh, () => { if (!busy) void feed.reload() })
+  useEffect(() => { body.current?.scrollTo({ top: body.current.scrollHeight }) }, [lastId])
+  // Opening the group marks the posts on screen as seen.
+  useEffect(() => {
+    const ids = (feed.data ?? []).filter(p => !p.seen_by_me && !seenSent.current.has(p.id)).map(p => p.id)
+    if (!ids.length) return
+    ids.forEach(i => seenSent.current.add(i)); void issues.markSeen(ids).then(onSeen).catch(() => ids.forEach(i => seenSent.current.delete(i)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feed.data])
+  async function send() {
+    if (busy || (!text.trim() && !file)) return
+    setErr(''); setBusy(true)
+    try { const photo = file ? await issues.uploadPhoto(cur, file) : null; await issues.post(cur, text, photo); setText(''); setFile(null); await feed.reload() } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
+  }
+  function key(e: KeyboardEvent<HTMLTextAreaElement>) { if (ui.enterSends && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }
+  async function react(p: Post, e: string) { setPick(''); try { await issues.react(p.id, e); await feed.reload() } catch (x) { setErr(errText(x)) } }
+  async function showSeen(p: Post) { try { setWho({ title: 'যারা দেখেছে', rows: await issues.seenBy(p.id) }) } catch (x) { setErr(errText(x)) } }
+  async function showReacts(p: Post) { try { setWho({ title: 'কে কী রিঅ্যাক্ট দিয়েছে', rows: await issues.reactedBy(p.id) }) } catch (x) { setErr(errText(x)) } }
+  return <div className="mg-chat">
+    <header className="mg-head">
+      <button type="button" className="mg-ic back" aria-label="ফিরে যান" onClick={onBack}><Icon name="back" size={18} /></button>
+      <span className="mg-av hub">{hub.hub_name.slice(0, 1)}</span>
+      <div className="mg-tx"><b>{hub.hub_name} গ্রুপ</b><small>{hub.open_issues > 0 ? `${hub.open_issues}টি খোলা ইস্যু` : 'হাবের সবার সাথে কথা'}</small></div>
+      <button type="button" className="sm" onClick={onNew}><Icon name="plus" size={14} /> এই হাবে ইস্যু</button>
+    </header>
+    <div className="mg-body" ref={body}>
+      {feed.loading && !feed.data ? <p className="muted">লোড হচ্ছে…</p> : null}
+      {feed.error ? <p className="da-error">{errText(feed.error)}</p> : null}
+      {feed.data && !feed.data.length && <p className="mg-sys">গ্রুপে এখনো কিছু নেই — প্রথম বার্তাটি লিখুন</p>}
+      {posts.map(p => <div key={p.id} className={`mg-msg ${p.mine ? 'me' : 'them'}${p.is_nodi ? ' nodi' : ''}`}>
+        {!p.mine && <span className="mg-av sm">{p.is_nodi ? '🤖' : (p.author_name || '?').slice(0, 1)}</span>}
+        <div className="mg-col">
+          {!p.mine && <small className="by">{p.is_nodi ? 'নদী AI' : p.author_name}</small>}
+          <div className="mg-b">{p.body && <span className="tx">{p.body}</span>}
+            {p.photo_path && <Photo path={p.photo_path} />}
+            {p.issue && <button type="button" className="mg-link" onClick={() => onOpenIssue(p.issue!.id)}>
+              <strong>{p.issue.issue_no}</strong> · {p.issue.title}<br /><Badge tone={TONE[p.issue.status]}>{STATUS_BN[p.issue.status]}</Badge> <span>{p.issue.assignee ?? 'কাউকে দেওয়া হয়নি'}</span></button>}</div>
+          <div className="mg-rx">
+            {EMOJIS.filter(e => p.reactions[e]).map(e => <button key={e} type="button" className={p.reactions[e].mine ? 'on' : ''} onClick={() => void react(p, e)}>{e} {p.reactions[e].n}</button>)}
+            <button type="button" aria-label="রিঅ্যাক্ট দিন" aria-expanded={pick === p.id} onClick={() => setPick(v => v === p.id ? '' : p.id)}>🙂+</button>
+            {Object.keys(p.reactions).length > 0 && <button type="button" onClick={() => void showReacts(p)}>কে?</button>}
+            <button type="button" onClick={() => void showSeen(p)}><Icon name="eye" size={12} /> {p.seen_count}</button>
+            <time>{short(p.created_at)}</time></div>
+          {pick === p.id && <div className="mg-pick">{EMOJIS.map(e => <button key={e} type="button" onClick={() => void react(p, e)}>{e}</button>)}</div>}
+        </div></div>)}
+    </div>
+    <footer className="mg-foot">
+      {err && <p className="da-error" role="alert">{err}</p>}
+      {file && <p className="mg-file">📎 {file.name} <button type="button" className="link small" onClick={() => setFile(null)}>সরান</button></p>}
+      <div className="mg-in">
+        <label className={`mg-ic clip${file ? ' has' : ''}`} title="ছবি দিন"><input type="file" accept="image/*" className="is-file" onChange={e => { setFile(e.target.files?.[0] ?? null); e.target.value = '' }} /><Icon name="upload" size={18} /></label>
+        <textarea rows={1} placeholder="গ্রুপে লিখুন…" aria-label="গ্রুপে লিখুন" value={text} onChange={e => setText(e.target.value)} onKeyDown={key} />
+        <button type="button" className="mg-send" disabled={busy || (!text.trim() && !file)} onClick={() => void send()}>পাঠান</button></div>
+    </footer>
+    {who && <Modal title={who.title} onClose={() => setWho(null)} actions={<button type="button" onClick={() => setWho(null)}>বন্ধ</button>}>
+      {who.rows.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{who.rows.map((w, k) => <li key={k}>{w.emoji ? `${w.emoji} ` : ''}{w.full_name}{w.employee_code ? ` (${w.employee_code})` : ''} <span className="muted">· {when(w.seen_at ?? w.at ?? '')}</span></li>)}</ul> : <p className="muted">কেউ নেই</p>}
+    </Modal>}
+  </div>
+}
+
+// ------------------------------------------------------------------ "my settings" for this page
+function Seg<T extends string | number | boolean>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: Array<[T, ReactNode]> }) {
+  return <div className="da-seg">{options.map(([v, l]) => <button key={String(v)} type="button" className={value === v ? '' : 'secondary'} aria-pressed={value === v} onClick={() => onChange(v)}>{l}</button>)}</div>
+}
+function UiSettings({ ui, onChange, onClose }: { ui: Ui; onChange: (p: Partial<Ui>) => void; onClose: () => void }) {
+  return <Modal title="আমার সেটিং — ইস্যু ও ফলো-আপ" onClose={onClose} actions={<><button type="button" onClick={onClose}>ঠিক আছে</button>
+    <button type="button" className="secondary" onClick={() => onChange(UI0)}>আগের মতো করুন</button></>}>
+    <div className="mg-set">
+      <div><b>চেহারা</b><small>চ্যাট: মেসেঞ্জারের মতো তালিকা ও কথা। বোর্ড: কাজ কোন ধাপে আছে তা কলামে।</small>
+        <Seg value={ui.view} onChange={v => onChange({ view: v })} options={[['chat', '💬 চ্যাট'], ['board', '🗂 বোর্ড']]} /></div>
+      <div><b>পাতা খুললে প্রথমে যা দেখাবে</b>
+        <select value={ui.first} onChange={e => onChange({ first: e.target.value as Filter })}>
+          <option value="all">সব</option><option value="mine">আমার কাজ</option><option value="check">চেক বাকি</option><option value="given">আমি দিয়েছি</option>
+          <option value="group">হাব গ্রুপ</option><option value="hub">হাবের সব ইস্যু</option><option value="orders">স্টোর / আইটি অর্ডার</option></select></div>
+      <div><b>তালিকার আকার</b><Seg value={ui.dense} onChange={v => onChange({ dense: v })} options={[[false, 'বড় (আরামদায়ক)'], [true, 'ছোট (বেশি দেখা যায়)']]} /></div>
+      <div><b>হাব গ্রুপ তালিকার কোথায়</b><Seg value={ui.groupsOnTop} onChange={v => onChange({ groupsOnTop: v })} options={[[true, 'উপরে'], [false, 'নিচে']]} /></div>
+      <div><b>নিজে থেকে নতুন তথ্য আনা</b><small>পাতা খোলা থাকলে কত সময় পরপর নতুন ইস্যু ও বার্তা আসবে।</small>
+        <Seg value={ui.refresh} onChange={v => onChange({ refresh: v })} options={[[30, '৩০ সেকেন্ড'], [60, '১ মিনিট'], [120, '২ মিনিট'], [0, 'বন্ধ']]} /></div>
+      <div><b>গ্রুপে Enter চাপলে</b><Seg value={ui.enterSends} onChange={v => onChange({ enterSends: v })} options={[[true, 'বার্তা চলে যাবে'], [false, 'নতুন লাইন হবে']]} /></div>
+      <p className="muted small" style={{ margin: 0 }}>এই সেটিং শুধু আপনার এই ফোন / কম্পিউটারে থাকে — অন্য কারো পাতা বদলায় না।</p>
+    </div>
+  </Modal>
 }
 
 // ------------------------------------------------------------------ new issue
@@ -339,58 +557,4 @@ function NewOrder({ hubs, kind: k0, onClose, onDone }: { hubs: GroupHub[]; kind:
     {pickSomeone && <PersonPicker value={person} onChange={setPerson} />}
     {err && <p className="da-error" role="alert">{err}</p>}
   </Modal>
-}
-
-// ------------------------------------------------------------------ hub group
-function Group({ hubs, onOpenIssue, onNew }: { hubs: GroupHub[]; onOpenIssue: (id: string) => void; onNew: (hub: string) => void }) {
-  const [hub, setHub] = useState('')
-  const cur = hub || hubs[0]?.hub_id || ''
-  const feed = useLoad(() => (cur ? issues.feed(cur) : Promise.resolve([] as Post[])), [cur])
-  const [text, setText] = useState('')
-  const [file, setFile] = useState<File | null>(null)
-  const [err, setErr] = useState('')
-  const [who, setWho] = useState<{ title: string; rows: Who[] } | null>(null)
-  const seenSent = useRef(new Set<string>())
-  // Opening the group marks the posts on screen as seen.
-  useEffect(() => {
-    const ids = (feed.data ?? []).filter(p => !p.seen_by_me && !seenSent.current.has(p.id)).map(p => p.id)
-    if (!ids.length) return
-    ids.forEach(i => seenSent.current.add(i)); void issues.markSeen(ids).catch(() => ids.forEach(i => seenSent.current.delete(i)))
-  }, [feed.data])
-  const send = useCallback(async () => {
-    setErr('')
-    try { const photo = file ? await issues.uploadPhoto(cur, file) : null; await issues.post(cur, text, photo); setText(''); setFile(null); await feed.reload() } catch (e) { setErr(errText(e)) }
-  }, [cur, text, file, feed])
-  async function react(p: Post, e: string) { try { await issues.react(p.id, e); await feed.reload() } catch (x) { setErr(errText(x)) } }
-  async function showSeen(p: Post) { try { setWho({ title: 'যারা দেখেছে', rows: await issues.seenBy(p.id) }) } catch (x) { setErr(errText(x)) } }
-  async function showReacts(p: Post) { try { setWho({ title: 'কে কী রিঅ্যাক্ট দিয়েছে', rows: await issues.reactedBy(p.id) }) } catch (x) { setErr(errText(x)) } }
-  if (!hubs.length) return <p className="muted" style={{ padding: 16 }}>আপনার জন্য কোনো হাব গ্রুপ নেই</p>
-  return <div>
-    <div style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '0 0 8px', flexWrap: 'wrap' }}>
-      <select value={cur} onChange={e => setHub(e.target.value)}>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}{h.unseen ? ` (${h.unseen} নতুন)` : ''}</option>)}</select>
-      <button type="button" onClick={() => onNew(cur)}><Icon name="plus" size={14} /> এই হাবে ইস্যু</button></div>
-    <div className="is-composer">
-      <textarea rows={2} placeholder="গ্রুপে লিখুন…" value={text} onChange={e => setText(e.target.value)} style={{ width: '100%' }} />
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
-        <input type="file" accept="image/*" capture="environment" onChange={e => setFile(e.target.files?.[0] ?? null)} />
-        <button type="button" disabled={!text.trim() && !file} onClick={() => void send()} style={{ marginLeft: 'auto' }}>পাঠান</button></div>
-      {err && <p className="da-error" role="alert">{err}</p>}</div>
-    {feed.loading && !feed.data ? <p className="muted">লোড হচ্ছে…</p> : null}
-    <div style={{ display: 'grid', gap: 10 }}>{(feed.data ?? []).map(p => <div key={p.id} className={`is-post${p.is_nodi ? ' nodi' : ''}`}>
-      <div className="who"><span className="is-av">{p.is_nodi ? '🤖' : (p.author_name || '?').slice(0, 1)}</span><div><strong>{p.is_nodi ? 'নদী AI' : p.author_name}</strong><div className="muted" style={{ fontSize: 12 }}>{when(p.created_at)}</div></div></div>
-      {p.body && <p style={{ margin: '4px 0', whiteSpace: 'pre-wrap' }}>{p.body}</p>}
-      {p.photo_path && <Photo path={p.photo_path} />}
-      {p.issue && <button type="button" className="secondary" style={{ textAlign: 'left', width: '100%' }} onClick={() => onOpenIssue(p.issue!.id)}>
-        <strong>{p.issue.issue_no}</strong> · {p.issue.title} · <Badge tone={TONE[p.issue.status]}>{STATUS_BN[p.issue.status]}</Badge>
-        <span className="muted"> · {p.issue.assignee ?? 'কাউকে দেওয়া হয়নি'}</span></button>}
-      <div className="rx">
-        {EMOJIS.map(e => { const r = p.reactions[e]; return <button key={e} type="button" className={r?.mine ? '' : 'secondary'} onClick={() => void react(p, e)}>{e}{r ? ` ${r.n}` : ''}</button> })}
-        {Object.keys(p.reactions).length > 0 && <button type="button" className="secondary" onClick={() => void showReacts(p)}>কে?</button>}
-        <button type="button" className="secondary" style={{ marginLeft: 'auto' }} onClick={() => void showSeen(p)}><Icon name="eye" size={14} /> {p.seen_count} জন দেখেছে</button></div>
-    </div>)}
-    {feed.data && !feed.data.length && <p className="muted" style={{ padding: 16 }}>গ্রুপে এখনো কিছু নেই</p>}</div>
-    {who && <Modal title={who.title} onClose={() => setWho(null)} actions={<button type="button" onClick={() => setWho(null)}>বন্ধ</button>}>
-      {who.rows.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{who.rows.map((w, k) => <li key={k}>{w.emoji ? `${w.emoji} ` : ''}{w.full_name}{w.employee_code ? ` (${w.employee_code})` : ''} <span className="muted">· {when(w.seen_at ?? w.at ?? '')}</span></li>)}</ul> : <p className="muted">কেউ নেই</p>}
-    </Modal>}
-  </div>
 }
