@@ -56,7 +56,7 @@ export function Employees() {
   return <AppShell title="কর্মী" subtitle={`${bn(all.filter(e => e.status === 'active').length)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।`}
     actions={<><button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hub || null, status: status || 'active' }).then(n => toast(n ? `ID Create ফাইল নামানো হয়েছে — ${n} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ ID Create ফাইল</button>
       <ExportByFormat zone={zone || null} hub={hub || null} status={status || null} q={q || null} title="কর্মী তালিকা" />
-      {can('hr.application.create') && <button onClick={() => setOpen(true)}>+ নতুন কর্মী</button>}</>}>
+      {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setOpen(true)}>+ নতুন কর্মী</button>}</>}>
     {node}
     <section className="panel emp-board">
       <div className="eb-top no-print">
@@ -77,7 +77,7 @@ export function Employees() {
           {l} <b>{bn(base.filter(e => inStatus(e, k)).length)}</b></button>)}</div>
       </div>
       {list.error ? <p className="da-error">{hrFriendly(list.error)}</p> : null}
-      <DataTable<Employee> title="কর্মী তালিকা" file="employees" rows={list.data ? rows : null} rowKey={e => e.id} search={false} phoneView="list"
+      <DataTable<Employee> title="কর্মী তালিকা" file="employees" rows={list.data ? rows : null} rowKey={e => e.id} search={false} phoneView="list" onRowClick={e => nav(`/app/hr/employees/${e.id}`)}
         empty={<p className="muted">{list.loading ? 'লোড হচ্ছে…' : 'কোনো কর্মী পাওয়া যায়নি।'}</p>}
         bulk={(marked, clear) => <>
           {canMove && <button type="button" className="sm" onClick={() => setAct({ kind: 'transfer', list: marked, clear })}>অন্য হাবে বদলি</button>}
@@ -97,6 +97,7 @@ export function Employees() {
             <button type="button" className="sm" onClick={() => nav(`/app/hr/employees/${e.id}`)}>দেখুন</button></span> },
         ]} />
     </section>
+    {can('hr.application.create') && <button type="button" className="nv-fab no-print" onClick={() => setOpen(true)}><Icon name="plus" size={22} /> নতুন কর্মী</button>}
     {act?.kind === 'transfer' && <TransferAction list={act.list} hubs={o.data?.hubs ?? []} onClose={() => setAct(null)} onDone={done} />}
     {act?.kind === 'status' && <StatusAction list={act.list} onClose={() => setAct(null)} onDone={done} />}
     {act?.kind === 'wrong' && <RemoveWrong list={act.list} onClose={() => setAct(null)} onDone={done} />}
