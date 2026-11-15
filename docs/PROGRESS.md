@@ -313,7 +313,7 @@ Built from the owner's own nine-point list.
 - Tests: **826 SQL assertions** (new `99j_sheet_made_easy.sql`; `90`, `99g` updated where the old rules changed). Browser flow (`harness/easy_flow.py`): the six tabs → a payment typed as `101001` comes out SFC-101001 → an expense in the four front boxes → a second hisab for the same rider → the collectors strip → a cash note → the day closed with its totals.
 
 ## 2026-11-15 — ইস্যু / ফলো-আপ ও হাব গ্রুপ (Nodi AI ধাপ ১)
-- Migration `20261115001000_hub_issues.sql`: `issues` (IS-00001; open → in_progress → solved → approved / cancelled), `issue_events` (log), `hub_posts`
+- Migration `20261115001200_hub_issues.sql`: `issues` (IS-00001; open → in_progress → solved → approved / cancelled), `issue_events` (log), `hub_posts`
   (hub group; `author_profile` null = নদী AI), `hub_post_reactions` (👍 ❤️ 😮 😢 ✅ 🙏, one per person per emoji), `hub_post_seen`. Private bucket `issue-photos` (`<hub_id>/<file>`).
   Perms `issue.issue.view/create/approve`, `issue.group.view`. A hub group is readable by people posted at the hub and by anyone whose permission reaches it (`private.in_hub_group`).
 - **Rule:** an issue leaves the assignee's panel when solved, but stays on the GIVER's panel ("চেক বাকি") until the giver approves; "ফেরত" (reopen, reason required) sends it back.
@@ -327,7 +327,7 @@ Built from the owner's own nine-point list.
 - **Not built yet (next):** নদী AI avatar + voice/multi-command (Claude API through an Edge Function), training centre, reading a parcel ID from a photo, scheduling the follow-up.
 
 ## 2026-11-15 — নদী AI: API ব্যবস্থাপনা
-- Migration `20261115001100_nodi_ai.sql`: perms `nodi.assistant.view` / `nodi.settings.configure`; settings `nodi.enabled/model/daily_limit/max_tokens`; `nodi_usage` log;
+- Migration `20261115001300_nodi_ai.sql`: perms `nodi.assistant.view` / `nodi.settings.configure`; settings `nodi.enabled/model/daily_limit/max_tokens`; `nodi_usage` log;
   `nodi_gate()` (permission in any scope + on/off + daily limit, as the caller), `nodi_log()` (service role only), `nodi_settings/configure/usage_summary` (admin).
 - Edge Function `supabase/functions/nodi-ai` (verify_jwt off, token checked inside): actions `status` and `chat`. The Anthropic key exists ONLY as the function secret `ANTHROPIC_API_KEY`.
 - Page `/app/nodi` (pages/users/NodiSettings.tsx): key present or not, on/off, model, daily limit, answer length, test box, usage table.
