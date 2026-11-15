@@ -11,6 +11,7 @@ import { formatFriendly, staffAdmin, type HubSummary } from '../../lib/staffAdmi
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 import { HubPostMatrix } from './HubPostMatrix'
 import { download, xlsxBlob } from '../../lib/xlsx'
+import { Combo } from '../../components/inputs'
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
@@ -273,8 +274,7 @@ function TransferAction({ list, hubs, onClose, onDone }: { list: Employee[]; hub
       <button disabled={busy} onClick={() => void go()}>{L('বদলি করুন', 'Transfer')}</button></>}>
     <Names list={list} />
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-      <Field label={L('নতুন হাব', 'New hub')}><select value={hub} onChange={e => setHub(e.target.value)}><option value="">{L('বেছে নিন…', 'Choose…')}</option>
-        {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+      <Field label={L('নতুন হাব', 'New hub')}><Combo value={hub} onChange={setHub} placeholder={L('বেছে নিন…', 'Choose…')} options={hubs.map(h => ({ value: h.id, label: h.name }))} /></Field>
       <Field label={L('যেদিন থেকে', 'From')}><input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
       <Field wide label={L('কারণ', 'Reason')}><input value={reason} onChange={e => setReason(e.target.value)} placeholder={L('যেমন: নতুন হাবে জনবল দরকার', 'e.g. the new hub needs staff')} /></Field>
     </div>

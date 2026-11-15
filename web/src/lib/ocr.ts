@@ -91,3 +91,34 @@ export function parseBill(raw: string, confidence: number, templates: Template[]
   return { expense_name: tpl?.name ?? firstLine, template_id: tpl?.id ?? null, category: cat, bill_no: bill ? bill[1] : null,
            reference_no: ref ? ref[1] : null, amount: findAmount(t), bill_date: findDate(t), confidence, text: raw.slice(0, 2000) }
 }
+
+// ---- Parcel labels: read the parcel ID from a label screenshot or photo, so nobody has to type it. ----
+/** ID-looking pieces of text, the most likely first. Phone numbers and dates are left out. */
+export function labelIds(raw: string): string[] {
+  const t = toLatin(raw).toUpperCase()
+  const out: string[] = []
+  const add = (s: string) => {
+    const v = s.replace(/^[-#:.\s]+|[-.\s]+$/g, '')
+    if (v.length < 6 || v.length > 24 || !/\d{4}/.test(v)) return
+    if (/^(?:\+?88)?01[3-9]\d{8}$/.test(v) || /^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}$/.test(v)) return
+    if (!out.includes(v)) out.push(v)
+  }
+  for (const m of t.matchAll(/(?:PARCEL|CONSIGNMENT|TRACKING|INVOICE|ORDER|\bCN|\bID)\s*(?:ID|NO\.?|NUMBER|CODE)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{5,23})/g)) add(m[1])
+  for (const m of t.matchAll(/\b[A-Z]{0,6}-?\d{6,}[A-Z0-9]*\b/g)) add(m[0])
+  return out.slice(0, 5)
+}
+
+type Detector = { detect: (src: ImageBitmapSource) => Promise<Array<{ rawValue: string }>> }
+/** Barcode / QR first (instant, where the browser can do it), then the printed text. Empty list = nothing readable. */
+export async function readLabel(file: File, onProgress?: (p: number) => void): Promise<string[]> {
+  const Ctor = (window as unknown as { BarcodeDetector?: new () => Detector }).BarcodeDetector
+  if (Ctor && typeof createImageBitmap === 'function') {
+    try {
+      const codes = await new Ctor().detect(await createImageBitmap(file))
+      const ids = codes.map(c => c.rawValue.trim()).flatMap(v => /^[\w-]{4,40}$/.test(v) ? [v.toUpperCase()] : labelIds(v))
+      if (ids.length) return [...new Set(ids)].slice(0, 5)
+    } catch { /* fall through to reading the text */ }
+  }
+  const { text } = await readImage(file, 'eng', onProgress)
+  return labelIds(text)
+}

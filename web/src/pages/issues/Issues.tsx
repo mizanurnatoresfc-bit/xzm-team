@@ -5,6 +5,9 @@ import { Icon } from '../../components/Icon'
 import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { hrFriendly } from '../../lib/hr'
 import { ACTION_BN, EMOJIS, KIND_BN, PRIORITY_BN, issues, type GroupHub, type IssueDetail, type IssueKind, type IssueRow, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
+import { readLabel } from '../../lib/ocr'
+import { duplicates } from '../../lib/validate'
+import { DupNote, useDuplicates } from '../../components/inputs'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
 type Tab = 'mine' | 'check' | 'given' | 'group' | 'hub'
@@ -26,6 +29,12 @@ export function Issues() {
   const openIssue = (id: string | null) => { const n = new URLSearchParams(sp); if (id) n.set('id', id); else n.delete('id'); setSp(n, { replace: true }) }
   const refresh = () => { void panels.reload(); void groups.reload() }
   const hubs = groups.data ?? []
+  // A shortcut link (/app/issues?new=1) opens the new-issue form at once.
+  useEffect(() => {
+    if (!sp.get('new') || !hubs.length) return
+    setCreating(c => c ?? hubs[0].hub_id)
+    const n = new URLSearchParams(sp); n.delete('new'); setSp(n, { replace: true })
+  }, [sp, hubs, setSp])
   const tabs: Array<[Tab, string, number, string]> = [
     ['mine', 'আমার কাজ', p.mine.length, 'tasks'], ['check', 'চেক বাকি', p.to_check.length, 'check'], ['given', 'আমি দিয়েছি', p.given.length, 'form'],
     ['group', 'হাব গ্রুপ', hubs.reduce((a, h) => a + h.unseen, 0), 'users'], ['hub', 'হাবের সব ইস্যু', p.hub.length, 'grid']]
@@ -121,7 +130,7 @@ function Detail({ id, onClose, onChanged }: { id: string; onClose: () => void; o
     {x && i && <>
       <p><Badge tone={TONE[i.status]}>{i.status_bn}</Badge> {KIND_BN[i.kind]} · {i.hub} · কাকে: {i.assignee ?? 'কাউকে দেওয়া হয়নি'}{i.assignee_code ? ` (${i.assignee_code})` : ''} · কে দিয়েছে: {i.assigned_by_name ?? '—'}</p>
       {i.body && <p style={{ whiteSpace: 'pre-wrap' }}>{i.body}</p>}
-      {i.parcel_ref && <p className="muted">পার্সেল আইডি: <strong>{i.parcel_ref}</strong>{x.parcel ? ` · ${String(x.parcel.customer_name ?? '')} · ${String(x.parcel.status ?? '')}` : ' · (এই হাবের পার্সেল তালিকায় পাওয়া যায়নি)'}</p>}
+      {i.parcel_ref && <p className="muted">পার্সেল আইডি: <strong>{i.parcel_ref}</strong>{x.parcel ? ` · ${String(x.parcel.customer_name ?? '')} · ${String(x.parcel.status ?? '')}` : ''}</p>}
       {i.photo_path && <Photo path={i.photo_path} />}
       {i.solved_note && <p><strong>সমাধান:</strong> {i.solved_note}</p>}{i.solve_photo && <Photo path={i.solve_photo} />}
       {live && (mine || giver) && <Field label={mine && !giver ? 'কী করেছেন (সমাধানে লাগবে) / ছবি' : 'মন্তব্য (ফেরত বা বাতিলে কারণ লাগবে)'} wide>
@@ -141,16 +150,49 @@ function Photo({ path }: { path: string }) {
 }
 
 // ------------------------------------------------------------------ new issue
+/** Fast path: give the label screenshot (choose, drop, paste or camera), the parcel ID is read from it, pick who gets it. */
 function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: string; onClose: () => void; onDone: (id: string) => void }) {
   const [hub, setHub] = useState(h0)
   const [f, setF] = useState({ title: '', body: '', parcel: '', kind: 'parcel' as IssueKind, priority: 'normal' as Priority, due: '' })
   const [person, setPerson] = useState<RefPerson | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState('')
+  const [scan, setScan] = useState<{ state: 'idle' | 'reading' | 'done' | 'failed'; ids: string[]; pct: number }>({ state: 'idle', ids: [], pct: 0 })
+  const [more, setMore] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const latest = useRef<File | null>(null)
+  const same = useDuplicates(f.parcel, duplicates.openIssuesByParcel, v => v.trim().length >= 4)
+
+  const take = useCallback((img: File | null) => {
+    setErr('')
+    if (img && !img.type.startsWith('image/')) { setErr('শুধু ছবি দিন (JPG / PNG)'); return }
+    latest.current = img; setFile(img)
+    if (!img) { setScan({ state: 'idle', ids: [], pct: 0 }); return }
+    setScan({ state: 'reading', ids: [], pct: 0 })
+    void readLabel(img, pct => { if (latest.current === img) setScan(v => v.state === 'reading' ? { ...v, pct } : v) }).then(ids => {
+      if (latest.current !== img) return
+      setScan({ state: ids.length ? 'done' : 'failed', ids, pct: 1 })
+      // Only fills an empty box: an ID the person typed is never replaced.
+      if (ids.length) setF(v => v.parcel.trim() ? v : { ...v, parcel: ids[0] })
+    }).catch(() => { if (latest.current === img) setScan({ state: 'failed', ids: [], pct: 0 }) })
+  }, [])
+  useEffect(() => {
+    if (!file) { setPreview(''); return }
+    const u = URL.createObjectURL(file); setPreview(u); return () => URL.revokeObjectURL(u)
+  }, [file])
+  // A copied screenshot can be pasted straight in (Ctrl+V).
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const img = [...(e.clipboardData?.items ?? [])].find(i => i.kind === 'file' && i.type.startsWith('image/'))?.getAsFile()
+      if (img) { e.preventDefault(); take(img) }
+    }
+    window.addEventListener('paste', onPaste); return () => window.removeEventListener('paste', onPaste)
+  }, [take])
+
   async function save() {
     setErr('')
-    if (!f.title.trim() && !f.parcel.trim() && !file) { setErr('কী সমস্যা লিখুন, পার্সেল আইডি দিন বা ছবি দিন'); return }
+    if (!f.title.trim() && !f.parcel.trim() && !file) { setErr('লেবেলের ছবি দিন, পার্সেল আইডি দিন বা কী সমস্যা লিখুন'); return }
     setBusy(true)
     try {
       const photo = file ? await issues.uploadPhoto(hub, file) : null
@@ -158,18 +200,35 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
         due: f.due ? new Date(f.due).toISOString() : null, priority: f.priority }))
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
-  return <Modal wide title="নতুন ইস্যু / কাজ দিন" onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : 'ইস্যু তৈরি করুন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
-    <div className="da-form">
-      <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
-      <Field label="ধরন"><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as IssueKind })}>{Object.entries(KIND_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-      <Field label="পার্সেল আইডি" hint="দিলে ওই পার্সেলের রাইডারকে কাজ চলে যায় (কাউকে না বাছলে)"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} /></Field>
-      <Field label="গুরুত্ব"><select value={f.priority} onChange={e => setF({ ...f, priority: e.target.value as Priority })}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-      <Field label="কী সমস্যা" wide><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></Field>
-      <Field label="বিস্তারিত" wide><textarea rows={2} value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></Field>
-      <Field label="শেষ সময় (ঐচ্ছিক)"><input type="datetime-local" value={f.due} onChange={e => setF({ ...f, due: e.target.value })} /></Field>
-      <Field label="ছবি (পার্সেল লেবেল / সমস্যা)"><input type="file" accept="image/*" capture="environment" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Field>
-      <Field label="কাকে দেবেন" wide hint="না বাছলে পার্সেলের রাইডার, নাহলে পরে দেওয়া যাবে"><PersonPicker value={person} onChange={setPerson} /></Field>
+  return <Modal wide title="নতুন ইস্যু / কাজ দিন" onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : person ? 'ইস্যু তৈরি করে কাজ দিন' : 'ইস্যু তৈরি করুন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
+    <label className={`is-drop${preview ? ' has' : ''}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); take(e.dataTransfer.files?.[0] ?? null) }}>
+      <input type="file" accept="image/*" className="is-file" onChange={e => { take(e.target.files?.[0] ?? null); e.target.value = '' }} />
+      {preview ? <img src={preview} alt="লেবেলের ছবি" /> : <><Icon name="scan" size={30} /><b>পার্সেল লেবেলের স্ক্রিনশট / ছবি দিন</b>
+        <small>চাপ দিয়ে গ্যালারি থেকে বাছুন, টেনে আনুন, অথবা কপি করা স্ক্রিনশট পেস্ট করুন (Ctrl+V)</small></>}
+    </label>
+    <div className="is-drop-acts">
+      <label className="btn-ghost sm"><input type="file" accept="image/*" capture="environment" className="is-file" onChange={e => { take(e.target.files?.[0] ?? null); e.target.value = '' }} /><Icon name="scan" size={14} /> ক্যামেরায় তুলুন</label>
+      {file && <button type="button" className="secondary sm" onClick={() => take(null)}>ছবি সরান</button>}
+      <span className="muted small" role="status">
+        {scan.state === 'reading' && `ছবি থেকে আইডি পড়া হচ্ছে… ${Math.round(scan.pct * 100)}%`}
+        {scan.state === 'failed' && 'ছবি থেকে আইডি পড়া যায়নি — নিচে নিজে লিখতে পারেন (না লিখলেও ছবি থাকবে)'}
+        {scan.state === 'done' && 'ছবিতে পাওয়া আইডি — মিলিয়ে নিন:'}</span>
+      {scan.state === 'done' && scan.ids.map(id => <button key={id} type="button" className={`secondary sm${f.parcel === id ? ' on' : ''}`} onClick={() => setF({ ...f, parcel: id })}>{id}</button>)}
     </div>
+    <div className="da-form">
+      <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} />
+        {same.length > 0 && <DupNote>এই পার্সেলে আগে থেকেই ইস্যু খোলা আছে: {same.map(x => `${x.issue_no} (${STATUS_BN[x.status as keyof typeof STATUS_BN] ?? x.status})`).join(', ')} — আবার দিলে দুটো হবে।</DupNote>}</Field>
+      <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
+      <Field label="কী সমস্যা" wide hint="না লিখলে পার্সেল আইডি দিয়েই ইস্যুর নাম হবে"><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="যেমন: কাস্টমার ফোন ধরছে না" /></Field>
+      <Field label="কাকে দেবেন" wide hint="এখন না বাছলে পরে দেওয়া যাবে"><PersonPicker value={person} onChange={setPerson} /></Field>
+    </div>
+    <button type="button" className="link" aria-expanded={more} onClick={() => setMore(m => !m)}>{more ? '▾ কম দেখান' : '▸ আরও তথ্য (ধরন, গুরুত্ব, শেষ সময়, বিস্তারিত)'}</button>
+    {more && <div className="da-form">
+      <Field label="ধরন"><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as IssueKind })}>{Object.entries(KIND_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+      <Field label="গুরুত্ব"><select value={f.priority} onChange={e => setF({ ...f, priority: e.target.value as Priority })}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+      <Field label="শেষ সময় (ঐচ্ছিক)"><input type="datetime-local" value={f.due} onChange={e => setF({ ...f, due: e.target.value })} /></Field>
+      <Field label="বিস্তারিত" wide><textarea rows={2} value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></Field>
+    </div>}
     {err && <p className="da-error" role="alert">{err}</p>}
   </Modal>
 }

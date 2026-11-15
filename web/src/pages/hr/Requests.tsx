@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Combo } from '../../components/inputs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
@@ -101,14 +102,14 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
     <section className="panel">
       <h2 className="rq-h"><span className="rq-step">১</span>{canOthers ? 'হাব ও স্টাফ' : 'আমি'}</h2>
       {canOthers ? <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label="হাব"><select value={hub} onChange={e => { setHub(e.target.value); setEmp(null) }}><option value="">বেছে নিন…</option>
-          {o.data?.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+        <Field label="হাব"><Combo value={hub} onChange={v => { setHub(v); setEmp(null) }} options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
         <Field label="স্টাফ" hint={fmt && !fmt.needs_employee ? 'নতুন আইডির জন্য স্টাফ লাগবে না' : undefined}>
-          <select value={emp?.id ?? ''} disabled={!hub || (fmt ? !fmt.needs_employee : false)} onChange={e => setEmp(staff.data?.find(x => x.id === e.target.value) ?? null)}>
-            <option value="">{hub ? (staff.loading ? 'লোড হচ্ছে…' : 'বেছে নিন…') : 'আগে হাব বাছুন'}</option>
-            {me && me.hub_id === hub && <option value={me.id}>★ আমি — {me.full_name}</option>}
-            {(staff.data ?? []).filter(x => x.id !== me?.id).map(x => <option key={x.id} value={x.id}>{x.employee_code ? `${x.employee_code} · ` : ''}{x.full_name}{x.status !== 'active' ? ` (${x.status})` : ''}</option>)}
-          </select></Field>
+          <Combo value={emp?.id ?? ''} disabled={!hub || (fmt ? !fmt.needs_employee : false)}
+            onChange={v => setEmp(v === me?.id ? me : staff.data?.find(x => x.id === v) ?? null)}
+            placeholder={hub ? (staff.loading ? 'লোড হচ্ছে…' : 'নাম, আইডি বা মোবাইল লিখে খুঁজুন…') : 'আগে হাব বাছুন'}
+            options={[...(me && me.hub_id === hub ? [{ value: me.id, label: `★ আমি — ${me.full_name}`, sub: me.employee_code ? `#${me.employee_code}` : '' }] : []),
+              ...(staff.data ?? []).filter(x => x.id !== me?.id).map(x => ({ value: x.id, label: x.full_name, keywords: x.mobile ?? '',
+                sub: [x.employee_code && `#${x.employee_code}`, posName(x.position_id), x.status !== 'active' ? x.status : ''].filter(Boolean).join(' · ') }))]} /></Field>
       </div> : me && <div className="rq-me"><span className="rq-av">{me.full_name.slice(0, 1)}</span><div><b>{me.full_name}</b>
         <div className="muted small">{me.employee_code ? `আইডি ${me.employee_code} · ` : ''}{hubName(me.hub_id)} · {posName(me.position_id)}</div></div></div>}
     </section>

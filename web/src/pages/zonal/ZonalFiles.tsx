@@ -8,6 +8,7 @@ import { hr, hrFriendly } from '../../lib/hr'
 import { hrReq, STATUS, type EmpRow, type ReqFormat } from '../../lib/hrreq'
 import { EMP_ST_BN, REG_KIND, manpower, type RegisterRow } from '../../lib/manpower'
 import { download, xlsxBlob } from '../../lib/xlsx'
+import { Combo } from '../../components/inputs'
 import { useOrg } from '../hr/common'
 
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
@@ -80,10 +81,9 @@ function Mark({ onDone }: { onDone: (m: string) => void }) {
     <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
       <Field label="কী করবেন"><select value={kind} onChange={e => { setKind(e.target.value as MarkKind); setPicked({}) }}>
         {(Object.keys(MARK) as MarkKind[]).map(k => <option key={k} value={k}>{MARK[k].label}</option>)}</select></Field>
-      <Field label="কোন হাবের কর্মী"><select value={hub} onChange={e => { setHub(e.target.value); setPicked({}) }}>
-        <option value="">বেছে নিন…</option>{o.data?.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+      <Field label="কোন হাবের কর্মী"><Combo value={hub} onChange={v => { setHub(v); setPicked({}) }} options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
       {kind === 'id_transfer' && <Field label="নতুন হাব (সবার জন্য)" hint="কারো আলাদা হাব হলে তালিকায় তার পাশে দিন">
-        <select value={common.to} onChange={e => setCommon({ ...common, to: e.target.value })}><option value="">—</option>{hubsOther.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>}
+        <Combo value={common.to} onChange={v => setCommon({ ...common, to: v })} placeholder="—" options={hubsOther.map(h => ({ value: h.id, label: h.name }))} /></Field>}
       {kind === 'id_inactive' && <Field label="ধরন"><select value={common.type} onChange={e => setCommon({ ...common, type: e.target.value })}>{INACTIVE_TYPES.map(t => <option key={t}>{t}</option>)}</select></Field>}
       <Field label={kind === 'id_inactive' ? 'শেষ কর্মদিবস' : 'কবে থেকে'}><input type="date" value={common.date} onChange={e => setCommon({ ...common, date: e.target.value })} /></Field>
       <Field wide label="কারণ"><input value={common.reason} onChange={e => setCommon({ ...common, reason: e.target.value })} placeholder="যেমন: নতুন হাবে জনবল দরকার" /></Field>

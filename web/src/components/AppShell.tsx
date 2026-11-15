@@ -188,6 +188,7 @@ const VIEW_TABS: Record<DashView, Tab[]> = {
   zone: TABS,
 }
 const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; tone: string }> = [
+  { to: '/app/issues?new=1', icon: 'scan', bn: 'লেবেল দিয়ে ইস্যু', en: 'Issue from label', perms: null, tone: 'r' },
   { to: '/app/hub/attendance', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
   { to: '/app/hub/late', icon: 'clock', bn: 'দেরি লিখুন', en: 'Late', perms: ['hr.attendance.create'], tone: 'o' },
   { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },
