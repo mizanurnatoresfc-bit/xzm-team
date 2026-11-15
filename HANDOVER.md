@@ -129,3 +129,12 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   renames an archived code holder to `<code>-OLD`. Applied: #731 (GPS), #779 (active Lalpur; old archived → 779-OLD). 8 rows wait for the owner on the page.
 - Page `/app/org/hubs` (pages/org/Hubs.tsx): stats, region/area tree, import panel, OpenStreetMap view (components/OsmMap.tsx, no library), list,
   details/edit/location (tap map or "আমার লোকেশন")/active-inactive/archive. netlify.toml allows geolocation=(self).
+
+## 2026-11-15 — HR & operation requests
+- Migration `20261115000500_hr_requests.sql`: `hr_request_formats` (ID_CREATE / ID_TRANSFER / ID_ACTIVE / ID_INACTIVE + custom, field list jsonb with
+  `prefill` keys), `hr_requests` (HR-00001 numbers), `hr_request_events` (log), `notifications` (bell). Perms `hr.request.view/create/approve/configure`.
+- RPCs: `hr_request_submit` (self_service formats for own ID without perms), `hr_request_update` (processing/done/rejected, notifies submitter,
+  employee, reference), `hr_request_cancel`, `hr_request_summary` (invoker; counts by kind:status).
+- Page `/app/hr/requests` (pages/hr/Requests.tsx): new (hub→staff→format, prefilled locked fields, reference picker or manual), approval list + detail
+  (log, apply transfer/status in system, "নিয়োগ দিন" opens NewApplication prefilled), report matrix, format settings (field builder).
+- Dashboard `HrReqPanel`; bell shows notifications + pending HR requests. Real phone push (FCM) is not set up yet — in-app only.
