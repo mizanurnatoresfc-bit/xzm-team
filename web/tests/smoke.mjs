@@ -59,6 +59,11 @@ try {
       if (u.includes('rpc/dashboard_home')) return j({ panels: ['my_work', 'quick_links'], today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
       if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 0, unseen: 0 }])
+      if (u.includes('rpc/issue_order_incharge_set')) return j(null)
+      if (u.includes('rpc/issue_order_incharge')) return j({ store: { id: 'e05', name: 'Store Keeper', code: '1005', hub: 'Natore Sadar', has_login: true }, it: null })
+      if (u.includes('rpc/issue_panels')) return j({ to_check: [], given: [], waiting_for_check_of_mine: [], hub: [], mine: [{ id: 'o1', issue_no: 'IS-00009', title: 'স্টোর অর্ডার: টেপ', kind: 'store',
+        priority: 'normal', status: 'open', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null, created_at: '2026-11-15T04:00:00Z', solved_at: null, reopen_count: 0,
+        assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: false }] })
       if (u.includes('rpc/issue_create')) { created.push(r.request().postDataJSON()); return j('i1') }
       if (u.includes('/storage/v1/object/')) return j({ Key: 'issue-photos/h1/label.png', Id: '1' })
       if (u.includes('/rpc/')) return j(null)
@@ -145,6 +150,26 @@ try {
     await page.locator('.da-modal-acts button').first().click()
     await page.waitForFunction(() => !document.querySelector('.is-drop'), null, { timeout: 8000 }).catch(() => {})
     check(created.length === 1 && created[0].p_parcel_ref === 'TEST123456' && !!created[0].p_photo && created[0].p_hub === 'h1' && created[0].p_assignee === 'e07', `${size}: the issue is created with the picture, the parcel ID and the person`)
+
+    // Store / IT order: the form names who will get it, the order is saved as kind 'store' without picking a person; the list uses order words
+    await page.goto(`${BASE}/app/issues?order=store`); await page.waitForSelector('.od-to')
+    check((await page.locator('.od-to').innerText()).includes('Store Keeper'), `${size}: the order form shows who will receive a Store order`)
+    await page.locator('.da-modal textarea').fill('পলি ব্যাগ ২০০টা\nটেপ ১০টা'); await fits('order form')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-order.png` })
+    await page.locator('.da-modal .da-seg button').nth(1).click()
+    await page.waitForSelector('.da-modal .pp', { timeout: 5000 }).catch(() => {})
+    check(await page.locator('.da-modal .pp').count() === 1, `${size}: with no IT in-charge the form asks who should get it`)
+    await page.locator('.da-modal .da-seg button').nth(0).click()
+    await page.locator('.da-modal-acts button').first().click()
+    await page.waitForFunction(() => !document.querySelector('.od-to'), null, { timeout: 8000 }).catch(() => {})
+    const order = created[created.length - 1] ?? {}
+    check(order.p_kind === 'store' && order.p_assignee === null && String(order.p_title).startsWith('স্টোর অর্ডার: পলি ব্যাগ') && String(order.p_body).includes('টেপ ১০টা'),
+      `${size}: the Store order is saved in the person's own words and left for the in-charge`)
+    await page.goto(`${BASE}/app/issues?tab=orders`); await page.waitForSelector('.od-desk')
+    check(await page.locator('.od-kind').count() === 2 && await page.locator('.is-card').count() === 1, `${size}: the orders tab shows Store, IT and the open order`)
+    check((await page.locator('.is-card').innerText()).includes('প্রস্তুত করছি'), `${size}: an order is worked in order words (prepare, sent, received)`)
+    await fits('orders tab')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-orders.png`, fullPage: true })
 
     // new staff form: the mobile box tidies and checks itself, and warns about a number that is already used
     await page.goto(`${BASE}/app/zonal/staff`)

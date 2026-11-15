@@ -1,7 +1,12 @@
 import { supabase } from './supabase'
 
 /** Issues (follow-up) and the hub group. Every write goes through a database function. */
-export type IssueKind = 'parcel' | 'vehicle' | 'staff' | 'cash' | 'other'
+export type IssueKind = 'parcel' | 'vehicle' | 'staff' | 'cash' | 'other' | 'store' | 'it'
+export type OrderKind = 'store' | 'it'
+/** A Store / IT order is an issue of one of these two kinds. */
+export const isOrder = (k: string): k is OrderKind => k === 'store' || k === 'it'
+/** The person who receives a kind of order. */
+export type InCharge = { id: string; name: string; code: string | null; hub: string | null; has_login: boolean }
 export type IssueStatus = 'open' | 'in_progress' | 'solved' | 'approved' | 'cancelled'
 export type Priority = 'low' | 'normal' | 'high' | 'urgent'
 export type IssueRow = {
@@ -24,12 +29,18 @@ export type Post = {
 }
 export type Who = { full_name: string; employee_code: string | null; seen_at?: string; at?: string; emoji?: string }
 
-export const KIND_BN: Record<IssueKind, string> = { parcel: 'পার্সেল', vehicle: 'গাড়ি', staff: 'স্টাফ', cash: 'টাকা', other: 'অন্যান্য' }
+export const KIND_BN: Record<IssueKind, string> = { parcel: 'পার্সেল', vehicle: 'গাড়ি', staff: 'স্টাফ', cash: 'টাকা', other: 'অন্যান্য', store: 'স্টোর অর্ডার', it: 'আইটি অর্ডার' }
 export const PRIORITY_BN: Record<Priority, string> = { low: 'কম', normal: 'সাধারণ', high: 'জরুরি', urgent: 'অতি জরুরি' }
 export const EMOJIS = ['👍', '❤️', '😮', '😢', '✅', '🙏']
 export const ACTION_BN: Record<string, string> = {
   created: 'ইস্যু তৈরি', assigned: 'কাজ দেওয়া', assigned_by_nodi: 'নদী AI কাজ দিল', started: 'কাজ শুরু', solved: 'সমাধান জানানো',
   approved: 'অনুমোদন', reopened: 'আবার করতে বলা', cancelled: 'বাতিল',
+}
+
+// The same steps read differently for an order: prepare -> sent -> received.
+export const ORDER_STATUS_BN: Record<IssueStatus, string> = { open: 'নতুন অর্ডার', in_progress: 'প্রস্তুত হচ্ছে', solved: 'পাঠানো হয়েছে — পাওয়া বাকি', approved: 'পেয়েছি', cancelled: 'বাতিল' }
+export const ORDER_ACTION_BN: Record<string, string> = {
+  created: 'অর্ডার দেওয়া', assigned: 'যার কাছে গেল', started: 'প্রস্তুত করা শুরু', solved: 'পাঠানো হয়েছে', approved: 'পেয়েছি', reopened: 'পাইনি — আবার চাওয়া', cancelled: 'বাতিল',
 }
 
 function fail(error: { message: string } | null) { if (error) throw error }
@@ -47,6 +58,9 @@ export const issues = {
   act: (id: string, action: 'start' | 'solve' | 'approve' | 'reopen' | 'cancel', note?: string, photo?: string | null) =>
     rpc<void>('issue_act', { p_id: id, p_action: action, p_note: note ?? null, p_photo: photo ?? null }),
   groupHubs: () => rpc<GroupHub[]>('hub_group_hubs'),
+  /** Who receives Store and IT orders (null where nobody is set). */
+  orderIncharge: () => rpc<Record<OrderKind, InCharge | null> | null>('issue_order_incharge'),
+  setOrderIncharge: (kind: OrderKind, employee: string | null) => rpc<void>('issue_order_incharge_set', { p_kind: kind, p_employee: employee }),
   feed: (hub: string, before?: string | null) => rpc<Post[]>('hub_feed', { p_hub: hub, p_before: before ?? null, p_limit: 30 }),
   post: (hub: string, body: string, photo?: string | null) => rpc<string>('hub_post_create', { p_hub: hub, p_body: body, p_photo: photo ?? null }),
   react: (post: string, emoji: string) => rpc<boolean>('hub_post_react', { p_post: post, p_emoji: emoji }),

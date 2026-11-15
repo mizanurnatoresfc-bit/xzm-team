@@ -47,6 +47,7 @@ const GROUPS: Group[] = [
   ] },
   { key: 'issues', icon: 'tasks', bn: 'ইস্যু ও ফলো-আপ', en: 'Issues & follow-up', items: [
     { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু ও হাব গ্রুপ', en: 'Issues & hub group', perms: null },
+    { to: '/app/issues?tab=orders', icon: 'box', bn: 'স্টোর / আইটি অর্ডার', en: 'Store / IT orders', perms: null },
   ] },
   { key: 'vehicles', icon: 'truck', bn: 'গাড়ি ম্যানেজমেন্ট', en: 'Vehicle Management', items: [
     { to: '/app/vehicles/overview', icon: 'dash', bn: 'গাড়ির অবস্থা', en: 'Fleet overview', perms: ['vehicle.vehicle.view', 'da.sheet.view'] },
@@ -189,6 +190,7 @@ const VIEW_TABS: Record<DashView, Tab[]> = {
 }
 const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; tone: string }> = [
   { to: '/app/issues?new=1', icon: 'scan', bn: 'লেবেল দিয়ে ইস্যু', en: 'Issue from label', perms: null, tone: 'r' },
+  { to: '/app/issues?order=store', icon: 'box', bn: 'স্টোর / আইটি অর্ডার', en: 'Store / IT order', perms: null, tone: 'b' },
   { to: '/app/hub/attendance', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
   { to: '/app/hub/late', icon: 'clock', bn: 'দেরি লিখুন', en: 'Late', perms: ['hr.attendance.create'], tone: 'o' },
   { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },

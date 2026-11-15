@@ -4,17 +4,20 @@ import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { hrFriendly } from '../../lib/hr'
-import { ACTION_BN, EMOJIS, KIND_BN, PRIORITY_BN, issues, type GroupHub, type IssueDetail, type IssueKind, type IssueRow, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
+import { ACTION_BN, EMOJIS, KIND_BN, ORDER_ACTION_BN, ORDER_STATUS_BN, PRIORITY_BN, isOrder, issues, type GroupHub, type InCharge, type IssueDetail, type IssueKind, type IssueRow, type OrderKind, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
 import { readLabel } from '../../lib/ocr'
 import { duplicates } from '../../lib/validate'
-import { DupNote, useDuplicates } from '../../components/inputs'
+import { Combo, DupNote, useDuplicates } from '../../components/inputs'
+import { useAuth } from '../../auth/AuthProvider'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
-type Tab = 'mine' | 'check' | 'given' | 'group' | 'hub'
+type Tab = 'mine' | 'check' | 'given' | 'group' | 'hub' | 'orders'
 const errText = (e: unknown) => (e instanceof Error && !('code' in e) ? e.message : hrFriendly(e))
 const when = (s: string) => new Date(s).toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 const TONE = { open: 'info', in_progress: 'warn', solved: 'ok', approved: 'ok', cancelled: 'neutral' } as const
 const STATUS_BN = { open: 'নতুন', in_progress: 'কাজ চলছে', solved: 'সমাধান — চেক বাকি', approved: 'অনুমোদিত', cancelled: 'বাতিল' } as const
+/** Status in the words of the kind: an order is prepared, sent and received; an issue is worked, solved and checked. */
+const statusText = (kind: string, status: keyof typeof STATUS_BN) => (isOrder(kind) ? ORDER_STATUS_BN : STATUS_BN)[status]
 
 export function Issues() {
   const [sp, setSp] = useSearchParams()
@@ -22,6 +25,7 @@ export function Issues() {
   const panels = useLoad(() => issues.panels(), [])
   const groups = useLoad(() => issues.groupHubs(), [])
   const [creating, setCreating] = useState<string | null>(null)
+  const [ordering, setOrdering] = useState<OrderKind | null>(null)
   const p: Panels = panels.data ?? { mine: [], to_check: [], given: [], waiting_for_check_of_mine: [], hub: [] }
   const tab = (sp.get('tab') as Tab) || (p.to_check.length ? 'check' : p.mine.length ? 'mine' : 'group')
   const open = sp.get('id')
@@ -35,16 +39,26 @@ export function Issues() {
     setCreating(c => c ?? hubs[0].hub_id)
     const n = new URLSearchParams(sp); n.delete('new'); setSp(n, { replace: true })
   }, [sp, hubs, setSp])
+  // ...and /app/issues?order=store (or it) opens the order form.
+  useEffect(() => {
+    const k = sp.get('order')
+    if (!k || !hubs.length) return
+    setOrdering(isOrder(k) ? k : 'store')
+    const n = new URLSearchParams(sp); n.delete('order'); n.set('tab', 'orders'); setSp(n, { replace: true })
+  }, [sp, hubs, setSp])
+  // Every open Store / IT order this person can see, whichever panel it sits in.
+  const orders = [...new Map([...p.mine, ...p.waiting_for_check_of_mine, ...p.to_check, ...p.given, ...p.hub].filter(r => isOrder(r.kind)).map(r => [r.id, r])).values()]
   const tabs: Array<[Tab, string, number, string]> = [
     ['mine', 'আমার কাজ', p.mine.length, 'tasks'], ['check', 'চেক বাকি', p.to_check.length, 'check'], ['given', 'আমি দিয়েছি', p.given.length, 'form'],
-    ['group', 'হাব গ্রুপ', hubs.reduce((a, h) => a + h.unseen, 0), 'users'], ['hub', 'হাবের সব ইস্যু', p.hub.length, 'grid']]
+    ['group', 'হাব গ্রুপ', hubs.reduce((a, h) => a + h.unseen, 0), 'users'], ['hub', 'হাবের সব ইস্যু', p.hub.length, 'grid'], ['orders', 'স্টোর / আইটি অর্ডার', orders.length, 'box']]
   const late = [...p.mine, ...p.given].filter(r => r.overdue).length
   const tiles: Array<[Tab, string, number, string]> = [['mine', 'আমার কাজ', p.mine.length, late ? 'warn' : ''], ['check', 'চেক বাকি', p.to_check.length, p.to_check.length ? 'bad' : ''], ['given', 'আমি দিয়েছি', p.given.length, '']]
   return <AppShell title="ইস্যু ও ফলো-আপ" subtitle="কাজ দিন, সমাধান চেক করে অনুমোদন দিন — অনুমোদন না হলে ইস্যু প্যানেলেই থাকে">
     <div className="is-tiles">{tiles.map(([k, l, c, tone]) => <button key={k} type="button" className={`is-tile ${tone}${tab === k ? ' on' : ''}`} onClick={() => go(k)}><b>{c}</b><span>{l}</span></button>)}</div>
     <div className="rq-tabs">{tabs.map(([k, l, c, ic]) => <button key={k} type="button" className={`rq-tab${tab === k ? ' on' : ''}`} onClick={() => go(k)}>
       <Icon name={ic} size={16} />{l}{c > 0 ? ` (${c})` : ''}</button>)}
-    {hubs.length > 0 && <button type="button" className="rq-tab" onClick={() => setCreating(hubs[0].hub_id)}><Icon name="plus" size={16} />নতুন ইস্যু</button>}</div>
+    {hubs.length > 0 && <button type="button" className="rq-tab" onClick={() => setCreating(hubs[0].hub_id)}><Icon name="plus" size={16} />নতুন ইস্যু</button>}
+    {hubs.length > 0 && <button type="button" className="rq-tab" onClick={() => setOrdering('store')}><Icon name="box" size={16} />স্টোর / আইটি অর্ডার দিন</button>}</div>
     {panels.error ? <p className="da-error">{errText(panels.error)}</p> : null}
     {tab === 'mine' && <>
       <List rows={p.mine} empty="আপনাকে দেওয়া কোনো কাজ বাকি নেই" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} />
@@ -54,8 +68,12 @@ export function Issues() {
     {tab === 'given' && <List rows={p.given} empty="আপনার দেওয়া কোনো কাজ এখন চলছে না" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} />}
     {tab === 'hub' && <List rows={p.hub} empty="হাবে অন্য কোনো খোলা ইস্যু নেই" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} />}
     {tab === 'group' && <Group hubs={hubs} onOpenIssue={openIssue} onNew={h => setCreating(h)} />}
+    {tab === 'orders' && <>
+      <OrderDesk canOrder={hubs.length > 0} onOrder={setOrdering} />
+      <List rows={orders} empty="এখন কোনো স্টোর / আইটি অর্ডার খোলা নেই" onOpen={openIssue} onChanged={() => { refresh(); toast('হয়েছে') }} /></>}
     {open && <Detail id={open} onClose={() => openIssue(null)} onChanged={() => { refresh(); toast('হয়েছে') }} />}
     {creating && <NewIssue hubs={hubs} hub={creating} onClose={() => setCreating(null)} onDone={id => { setCreating(null); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
+    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); go('orders'); openIssue(id) }} />}
     {node}
   </AppShell>
 }
@@ -70,7 +88,7 @@ function List({ rows, empty, onOpen, onChanged }: { rows: IssueRow[]; empty: str
   }
   if (!rows.length) return empty ? <div className="is-empty"><Icon name="check" size={28} /><p>{empty}</p></div> : null
   return <>{err && <p className="da-error" role="alert">{err}</p>}<div className="is-list">{rows.map(r => <div key={r.id} className={`is-card s-${r.status}${r.overdue ? ' late' : ''}`}>
-    <div className="head"><span className="no">{r.issue_no}</span><Badge tone={TONE[r.status]}>{STATUS_BN[r.status]}</Badge>
+    <div className="head"><span className="no">{r.issue_no}</span><Badge tone={TONE[r.status]}>{statusText(r.kind, r.status)}</Badge>
       {r.priority !== 'normal' && <Badge tone={r.priority === 'low' ? 'neutral' : 'bad'}>{PRIORITY_BN[r.priority]}</Badge>}
       {r.overdue && <Badge tone="bad">সময় পার</Badge>}{r.reopen_count > 0 && <Badge tone="warn">ফেরত {r.reopen_count}</Badge>}
       <span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>{when(r.created_at)}</span></div>
@@ -79,10 +97,10 @@ function List({ rows, empty, onOpen, onChanged }: { rows: IssueRow[]; empty: str
       <span>কাকে: {r.assignee ? `${r.assignee}${r.assignee_code ? ` (${r.assignee_code})` : ''}` : 'কাউকে দেওয়া হয়নি'}{r.assigned_by_nodi ? ' · নদী AI বেছেছে' : ''}</span>
       <span>কে দিয়েছে: {r.assigned_by_name ?? '—'}</span></div>
     <div className="acts">
-      {r.is_mine && r.status === 'open' && <button type="button" disabled={busy === r.id} onClick={() => void quick(r, 'start')}>▶ শুরু করলাম</button>}
-      {r.is_mine && (r.status === 'open' || r.status === 'in_progress') && <button type="button" onClick={() => onOpen(r.id)}>✔ সমাধান জানান</button>}
-      {r.is_giver && r.status === 'solved' && <button type="button" disabled={busy === r.id} onClick={() => void quick(r, 'approve')}>✔ অনুমোদন</button>}
-      {r.is_giver && r.status === 'solved' && <button type="button" className="secondary" onClick={() => onOpen(r.id)}>↩ ফেরত / দেখুন</button>}
+      {r.is_mine && r.status === 'open' && <button type="button" disabled={busy === r.id} onClick={() => void quick(r, 'start')}>{isOrder(r.kind) ? '▶ প্রস্তুত করছি' : '▶ শুরু করলাম'}</button>}
+      {r.is_mine && (r.status === 'open' || r.status === 'in_progress') && <button type="button" onClick={() => onOpen(r.id)}>{isOrder(r.kind) ? '✔ পাঠিয়েছি' : '✔ সমাধান জানান'}</button>}
+      {r.is_giver && r.status === 'solved' && <button type="button" disabled={busy === r.id} onClick={() => void quick(r, 'approve')}>{isOrder(r.kind) ? '✔ পেয়েছি' : '✔ অনুমোদন'}</button>}
+      {r.is_giver && r.status === 'solved' && <button type="button" className="secondary" onClick={() => onOpen(r.id)}>{isOrder(r.kind) ? '↩ পাইনি / দেখুন' : '↩ ফেরত / দেখুন'}</button>}
       {!(r.is_mine && r.status !== 'solved') && !(r.is_giver && r.status === 'solved') && <button type="button" className="secondary" onClick={() => onOpen(r.id)}>খুলুন</button>}
     </div></div>)}</div></>
 }
@@ -102,13 +120,15 @@ function Detail({ id, onClose, onChanged }: { id: string; onClose: () => void; o
   const mine = p.data?.mine.some(r => r.id === id) || p.data?.waiting_for_check_of_mine.some(r => r.id === id)
   const giver = p.data?.given.some(r => r.id === id) || p.data?.to_check.some(r => r.id === id)
   const needNote = (a: string) => a === 'reopen' || a === 'cancel'
+  const order = !!i && isOrder(i.kind)
   async function act(a: 'start' | 'solve' | 'approve' | 'reopen' | 'cancel') {
     setErr(''); if (needNote(a) && !note.trim()) { setErr('কারণ লিখুন'); return }
-    if (a === 'solve' && !note.trim() && !file) { setErr('কী করা হয়েছে লিখুন বা ছবি দিন'); return }
+    if (a === 'solve' && !note.trim() && !file && !order) { setErr('কী করা হয়েছে লিখুন বা ছবি দিন'); return }
     setBusy(true)
     try {
       const photo = file && i ? await issues.uploadPhoto(i.hub_id, file) : null
-      await issues.act(id, a, note, photo); setNote(''); setFile(null); await d.reload(); await p.reload(); onChanged()
+      // "Sent" on an order needs no typing: a plain note is filled in.
+      await issues.act(id, a, a === 'solve' && order && !note.trim() && !file ? 'পাঠানো হয়েছে' : note, photo); setNote(''); setFile(null); await d.reload(); await p.reload(); onChanged()
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
   async function doAssign() {
@@ -118,28 +138,28 @@ function Detail({ id, onClose, onChanged }: { id: string; onClose: () => void; o
   }
   const live = i && (i.status === 'open' || i.status === 'in_progress' || i.status === 'solved')
   return <Modal wide title={i ? `${i.issue_no} · ${i.title}` : 'ইস্যু'} onClose={onClose} actions={<>
-    {live && mine && i.status === 'open' && <button type="button" disabled={busy} onClick={() => void act('start')}>কাজ শুরু করলাম</button>}
-    {live && mine && (i.status === 'open' || i.status === 'in_progress') && <button type="button" disabled={busy} onClick={() => void act('solve')}>সমাধান হয়েছে</button>}
-    {live && giver && i.status === 'solved' && <button type="button" disabled={busy} onClick={() => void act('approve')}>চেক করেছি — অনুমোদন</button>}
-    {live && giver && i.status === 'solved' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('reopen')}>ঠিক হয়নি — ফেরত</button>}
+    {live && mine && i.status === 'open' && <button type="button" disabled={busy} onClick={() => void act('start')}>{order ? 'প্রস্তুত করছি' : 'কাজ শুরু করলাম'}</button>}
+    {live && mine && (i.status === 'open' || i.status === 'in_progress') && <button type="button" disabled={busy} onClick={() => void act('solve')}>{order ? 'পাঠিয়েছি' : 'সমাধান হয়েছে'}</button>}
+    {live && giver && i.status === 'solved' && <button type="button" disabled={busy} onClick={() => void act('approve')}>{order ? 'পেয়েছি' : 'চেক করেছি — অনুমোদন'}</button>}
+    {live && giver && i.status === 'solved' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('reopen')}>{order ? 'পাইনি / ভুল এসেছে' : 'ঠিক হয়নি — ফেরত'}</button>}
     {live && giver && <button type="button" className="secondary" onClick={() => setAssign(a => !a)}>অন্যকে দিন</button>}
     {live && giver && <button type="button" className="secondary" disabled={busy} onClick={() => void act('cancel')}>বাতিল</button>}
     <button type="button" className="secondary" onClick={onClose}>বন্ধ</button></>}>
     {d.loading && !x ? <p className="muted">লোড হচ্ছে…</p> : null}
     {d.error ? <p className="da-error">{errText(d.error)}</p> : null}
     {x && i && <>
-      <p><Badge tone={TONE[i.status]}>{i.status_bn}</Badge> {KIND_BN[i.kind]} · {i.hub} · কাকে: {i.assignee ?? 'কাউকে দেওয়া হয়নি'}{i.assignee_code ? ` (${i.assignee_code})` : ''} · কে দিয়েছে: {i.assigned_by_name ?? '—'}</p>
+      <p><Badge tone={TONE[i.status]}>{order ? ORDER_STATUS_BN[i.status] : i.status_bn}</Badge> {KIND_BN[i.kind]} · {i.hub} · কাকে: {i.assignee ?? 'কাউকে দেওয়া হয়নি'}{i.assignee_code ? ` (${i.assignee_code})` : ''} · কে দিয়েছে: {i.assigned_by_name ?? '—'}</p>
       {i.body && <p style={{ whiteSpace: 'pre-wrap' }}>{i.body}</p>}
       {i.parcel_ref && <p className="muted">পার্সেল আইডি: <strong>{i.parcel_ref}</strong>{x.parcel ? ` · ${String(x.parcel.customer_name ?? '')} · ${String(x.parcel.status ?? '')}` : ''}</p>}
       {i.photo_path && <Photo path={i.photo_path} />}
-      {i.solved_note && <p><strong>সমাধান:</strong> {i.solved_note}</p>}{i.solve_photo && <Photo path={i.solve_photo} />}
-      {live && (mine || giver) && <Field label={mine && !giver ? 'কী করেছেন (সমাধানে লাগবে) / ছবি' : 'মন্তব্য (ফেরত বা বাতিলে কারণ লাগবে)'} wide>
+      {i.solved_note && <p><strong>{order ? 'পাঠানোর নোট:' : 'সমাধান:'}</strong> {i.solved_note}</p>}{i.solve_photo && <Photo path={i.solve_photo} />}
+      {live && (mine || giver) && <Field label={order ? (mine && !giver ? 'কীভাবে পাঠালেন (ঐচ্ছিক) / ছবি' : 'মন্তব্য (পাইনি বা বাতিলে কারণ লাগবে)') : mine && !giver ? 'কী করেছেন (সমাধানে লাগবে) / ছবি' : 'মন্তব্য (ফেরত বা বাতিলে কারণ লাগবে)'} wide>
         <textarea rows={2} value={note} onChange={e => setNote(e.target.value)} />
-        <input type="file" accept="image/*" capture="environment" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Field>}
+        <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Field>}
       {assign && <Field label="নতুন কাকে দেবেন" wide><PersonPicker value={person} onChange={setPerson} /><button type="button" disabled={busy} onClick={() => void doAssign()}>এই ব্যক্তিকে দিন</button></Field>}
       {err && <p className="da-error" role="alert">{err}</p>}
       <h4 style={{ margin: '12px 0 4px' }}>ইতিহাস</h4>
-      <ul style={{ margin: 0, paddingLeft: 18 }}>{x.events.map(e => <li key={e.id}><strong>{ACTION_BN[e.action] ?? e.action}</strong> — {e.by_name}{e.note ? `: ${e.note}` : ''} <span className="muted">· {when(e.at)}</span></li>)}</ul>
+      <ul style={{ margin: 0, paddingLeft: 18 }}>{x.events.map(e => <li key={e.id}><strong>{(order ? ORDER_ACTION_BN[e.action] : undefined) ?? ACTION_BN[e.action] ?? e.action}</strong> — {e.by_name}{e.note ? `: ${e.note}` : ''} <span className="muted">· {when(e.at)}</span></li>)}</ul>
     </>}
   </Modal>
 }
@@ -229,6 +249,94 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
       <Field label="শেষ সময় (ঐচ্ছিক)"><input type="datetime-local" value={f.due} onChange={e => setF({ ...f, due: e.target.value })} /></Field>
       <Field label="বিস্তারিত" wide><textarea rows={2} value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></Field>
     </div>}
+    {err && <p className="da-error" role="alert">{err}</p>}
+  </Modal>
+}
+
+// ------------------------------------------------------------------ store / IT orders
+const ORDER_NAME: Record<OrderKind, string> = { store: 'স্টোর', it: 'আইটি' }
+const ORDER_HINT: Record<OrderKind, string> = {
+  store: 'যেমন: পলি ব্যাগ ২০০টা, টেপ ১০টা, প্রিন্টার কাগজ ২ রিম',
+  it: 'যেমন: স্ক্যানার কাজ করছে না — নতুন একটা লাগবে; অথবা প্রিন্টারের কালি ২টা',
+}
+function whoText(w: InCharge) { return `${w.name}${w.code ? ` (#${w.code})` : ''}${w.hub ? ` · ${w.hub}` : ''}` }
+
+/** Top of the orders tab: the two order buttons, and who receives each kind (the admin can change it). */
+function OrderDesk({ canOrder, onOrder }: { canOrder: boolean; onOrder: (k: OrderKind) => void }) {
+  const { can } = useAuth()
+  const inc = useLoad(() => issues.orderIncharge(), [])
+  const [edit, setEdit] = useState<OrderKind | null>(null)
+  const [person, setPerson] = useState<RefPerson | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const admin = can('system.settings.configure')
+  async function save(kind: OrderKind, employee: string | null) {
+    setBusy(true); setErr('')
+    try { await issues.setOrderIncharge(kind, employee); setEdit(null); setPerson(null); await inc.reload() } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
+  }
+  return <section className="panel od-desk">
+    <div className="od-kinds">{(['store', 'it'] as OrderKind[]).map(k => { const w = inc.data?.[k] ?? null; return <div key={k} className="od-kind">
+      <div className="od-head"><b>{ORDER_NAME[k]} অর্ডার</b>
+        {canOrder && <button type="button" className="sm" onClick={() => onOrder(k)}><Icon name="plus" size={14} /> অর্ডার দিন</button>}</div>
+      <p className="muted small" style={{ margin: 0 }}>অর্ডার যাঁর কাছে যাবে: {inc.loading ? '…' : w ? <b>{whoText(w)}</b> : <span className="warn">কাউকে ঠিক করা হয়নি — অর্ডার জমা হবে, কিন্তু কারো কাছে যাবে না</span>}
+        {w && !w.has_login && <span className="warn"> — এই কর্মীর লগইন নেই, তাই অর্ডার দেখতে পারবেন না</span>}</p>
+      {admin && edit !== k && <button type="button" className="link small" onClick={() => { setEdit(k); setPerson(null); setErr('') }}>{w ? 'বদলান' : 'দায়িত্বে একজনকে ঠিক করুন'}</button>}
+      {admin && edit === k && <div className="od-edit"><PersonPicker value={person} onChange={setPerson} />
+        <div className="row-acts"><button type="button" className="sm" disabled={busy || person?.kind !== 'employee'} onClick={() => person?.kind === 'employee' && void save(k, person.id)}>সেভ করুন</button>
+          {w && <button type="button" className="secondary sm" disabled={busy} onClick={() => void save(k, null)}>কাউকে রাখব না</button>}
+          <button type="button" className="secondary sm" onClick={() => setEdit(null)}>বাতিল</button></div>
+        <p className="muted small" style={{ margin: 0 }}>সিস্টেমের একজন সক্রিয় কর্মী বাছুন (নিজে লেখা নাম চলবে না)। অর্ডার দেখতে তাঁর লগইন থাকা লাগবে।</p></div>}
+    </div> })}</div>
+    {inc.error ? <p className="da-error">{errText(inc.error)}</p> : null}
+    {err && <p className="da-error" role="alert">{err}</p>}
+    <p className="muted small" style={{ margin: '8px 0 0' }}>হাব লিখে অর্ডার দেয় → দায়িত্বে থাকা ব্যক্তি “পাঠিয়েছি” দেন → হাব “পেয়েছি” দিলে অর্ডার শেষ। “পেয়েছি” না দেওয়া পর্যন্ত অর্ডার তালিকায় থাকে।</p>
+  </section>
+}
+
+/** Order form: Store or IT, which hub, what is needed in the person's own words. It goes to the in-charge by itself. */
+function NewOrder({ hubs, kind: k0, onClose, onDone }: { hubs: GroupHub[]; kind: OrderKind; onClose: () => void; onDone: (id: string) => void }) {
+  const [kind, setKind] = useState<OrderKind>(k0)
+  const [hub, setHub] = useState(hubs[0]?.hub_id ?? '')
+  const [text, setText] = useState('')
+  const [priority, setPriority] = useState<Priority>('normal')
+  const [due, setDue] = useState('')
+  const [file, setFile] = useState<File | null>(null)
+  const [other, setOther] = useState(false)
+  const [person, setPerson] = useState<RefPerson | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const inc = useLoad(() => issues.orderIncharge(), [])
+  const who = inc.data?.[kind] ?? null
+  const pickSomeone = other || (!inc.loading && !who)
+  async function save() {
+    setErr('')
+    const body = text.trim()
+    if (!hub) { setErr('হাব বেছে নিন'); return }
+    if (!body) { setErr('কী কী লাগবে লিখুন'); return }
+    setBusy(true)
+    try {
+      const photo = file ? await issues.uploadPhoto(hub, file) : null
+      const first = body.split('\n')[0].trim()
+      onDone(await issues.create({ hub, kind, title: `${KIND_BN[kind]}: ${first.length > 60 ? first.slice(0, 58) + '…' : first}`, body, photo, priority,
+        assignee: pickSomeone && person?.kind === 'employee' ? person.id : null, due: due ? new Date(`${due}T18:00:00`).toISOString() : null }))
+    } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
+  }
+  return <Modal wide title="স্টোর / আইটি অর্ডার" onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : 'অর্ডার দিন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
+    <div className="da-seg" role="group" aria-label="কোথায় অর্ডার">{(['store', 'it'] as OrderKind[]).map(k => <button key={k} type="button" className={kind === k ? '' : 'secondary'} aria-pressed={kind === k} onClick={() => setKind(k)}>{ORDER_NAME[k]}</button>)}</div>
+    <div className="da-form" style={{ marginTop: 12 }}>
+      <Field label="কোন হাবের জন্য" required><Combo value={hub} onChange={setHub} clearable={false} options={hubs.map(h => ({ value: h.hub_id, label: h.hub_name }))} /></Field>
+      <Field label="গুরুত্ব"><select value={priority} onChange={e => setPriority(e.target.value as Priority)}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
+      <Field label="কী কী লাগবে" wide required hint="যেভাবে বলেন সেভাবেই লিখুন — জিনিসের নাম আর পরিমাণ"><textarea rows={4} value={text} onChange={e => setText(e.target.value)} placeholder={ORDER_HINT[kind]} /></Field>
+      <Field label="কবে লাগবে (ঐচ্ছিক)"><input type="date" value={due} onChange={e => setDue(e.target.value)} /></Field>
+      <Field label="ছবি (ঐচ্ছিক)"><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Field>
+    </div>
+    <div className="od-to">
+      {inc.loading ? <span className="muted small">লোড হচ্ছে…</span>
+        : who && !other ? <><span>অর্ডার যাবে: <b>{whoText(who)}</b></span><button type="button" className="link small" onClick={() => setOther(true)}>অন্য কাউকে দিন</button></>
+        : <><span className={who ? '' : 'warn'}>{who ? 'কাকে দেবেন বাছুন' : `${ORDER_NAME[kind]}ের দায়িত্বে কাউকে ঠিক করা হয়নি — নিচে একজনকে বাছুন, নাহলে অর্ডার জমা থাকবে আর পরে দেওয়া যাবে`}</span>
+          {who && <button type="button" className="link small" onClick={() => { setOther(false); setPerson(null) }}>{whoText(who)}-কেই দিন</button>}</>}
+    </div>
+    {pickSomeone && <PersonPicker value={person} onChange={setPerson} />}
     {err && <p className="da-error" role="alert">{err}</p>}
   </Modal>
 }
