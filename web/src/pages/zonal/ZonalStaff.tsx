@@ -10,6 +10,7 @@ import { dmy, EMP_STATUS, hr, hrFriendly, type Employee, type EmployeeStatus } f
 import { formatFriendly, staffAdmin, type HubSummary } from '../../lib/staffAdmin'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 import { HubPostMatrix } from './HubPostMatrix'
+import { download, xlsxBlob } from '../../lib/xlsx'
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
@@ -219,30 +220,57 @@ function QuickTransfer({ onClose, onDone }: { onClose: () => void; onDone: (m: s
 
 function TransferAction({ list, hubs, onClose, onDone }: { list: Employee[]; hubs: Array<{ id: string; name: string }>; onClose: () => void; onDone: (m: string) => void }) {
   const { L, n } = usePrefs()
+  const o = useOrg()
   const [hub, setHub] = useState('')
   const [date, setDate] = useState(today())
   const [reason, setReason] = useState('')
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const [moved, setMoved] = useState<{ people: Employee[]; msg: string; bad: string[] } | null>(null)
   const targets = list.filter(e => e.status === 'active')
+  const hubName = (id: string | null) => id ? o.names.hub[id] ?? hubs.find(h => h.id === id)?.name ?? '' : ''
+  // The company's "Employee Transfer" layout — the same columns as the zonal file centre.
+  function excel(people: Employee[], remark: string) {
+    download(xlsxBlob('Employee Transfer', `${hubName(hub)} · ${date}`,
+      ['SL', 'Employee ID', 'Name', 'Phone Number', 'Designation', 'Present Hub', 'Transfer Hub', 'Effective Date', 'Reason', 'Reference Name & ID', 'Remarks'],
+      people.map((e, i) => [i + 1, e.employee_code, e.full_name, e.mobile, e.position_id ? o.names.pos[e.position_id] ?? '' : '', hubName(e.hub_id), hubName(hub), date, reason.trim(), e.reference_info, remark])),
+      `Transfer-${date}.xlsx`)
+  }
+  function check() {
+    if (!hub) return L('কোন হাবে যাবেন বেছে নিন', 'Choose the new hub')
+    if (!reason.trim()) return L('কারণ লিখুন', 'Enter a reason')
+    if (!targets.length) return L('শুধু সক্রিয় কর্মীদের বদলি করা যায়', 'Only active staff can be transferred')
+    return ''
+  }
   async function go() {
-    setErr('')
-    if (!hub) return setErr(L('কোন হাবে যাবেন বেছে নিন', 'Choose the new hub'))
-    if (!reason.trim()) return setErr(L('কারণ লিখুন', 'Enter a reason'))
-    if (!targets.length) return setErr(L('শুধু সক্রিয় কর্মীদের বদলি করা যায়', 'Only active staff can be transferred'))
+    const problem = check()
+    setErr(problem)
+    if (problem) return
     setBusy(true)
-    let ok = 0; const bad: string[] = []
+    const done: Employee[] = []; const bad: string[] = []
     for (const e of targets) {
       try {
         await hr.transfer(e.id, { hub, department: e.department_id, position: e.position_id, manager: null, effective: date, reason: reason.trim(), type: 'transfer' })
-        ok++
+        done.push(e)
       } catch (x) { bad.push(`${e.full_name}: ${hrFriendly(x)}`) }
     }
     setBusy(false)
-    if (ok) onDone(L(`${n(ok)} জনকে বদলি করা হয়েছে`, `${ok} transferred`) + (bad.length ? L(`, ${n(bad.length)} জনে সমস্যা`, `, ${bad.length} failed`) : ''))
-    if (!ok) setErr(bad.join(' · '))
+    if (!done.length) return setErr(bad.join(' · '))
+    setMoved({ people: done, bad, msg: L(`${n(done.length)} জনকে বদলি করা হয়েছে`, `${done.length} transferred`) + (bad.length ? L(`, ${n(bad.length)} জনে সমস্যা`, `, ${bad.length} failed`) : '') })
   }
+  if (moved) return <Modal title={L('বদলি হয়েছে', 'Transfer done')} onClose={() => onDone(moved.msg)}
+    actions={<><button className="secondary" onClick={() => onDone(moved.msg)}>{L('বন্ধ করুন', 'Close')}</button>
+      <button onClick={() => excel(moved.people, 'সিস্টেমে হয়েছে')}>{L('Excel ফাইল নামান', 'Download Excel file')}</button></>}>
+    <p><b>{moved.msg}</b> → {hubName(hub)}</p>
+    <Names list={moved.people} />
+    {moved.bad.length > 0 && <p className="da-error">{moved.bad.join(' · ')}</p>}
+    <p className="muted small">{L('কোম্পানির ফরম্যাটে বদলির Excel ফাইল এখান থেকে নিন। পরে লাগলে “জোনাল ফাইল” পাতায় তারিখ ধরে আবার পাওয়া যাবে।',
+      'Take the transfer Excel in the company layout here. Later it is also on the "Zonal files" page by date.')}</p>
+  </Modal>
   return <Modal title={L('অন্য হাবে বদলি', 'Transfer to another hub')} onClose={onClose}
-    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void go()}>{L('বদলি করুন', 'Transfer')}</button></>}>
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button>
+      <button className="secondary" disabled={busy} title={L('বদলি না করে শুধু ফাইল', 'File only, no transfer')}
+        onClick={() => { const problem = check(); setErr(problem); if (!problem) excel(targets, 'প্রস্তাবিত') }}>{L('শুধু Excel', 'Excel only')}</button>
+      <button disabled={busy} onClick={() => void go()}>{L('বদলি করুন', 'Transfer')}</button></>}>
     <Names list={list} />
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
       <Field label={L('নতুন হাব', 'New hub')}><select value={hub} onChange={e => setHub(e.target.value)}><option value="">{L('বেছে নিন…', 'Choose…')}</option>
@@ -250,7 +278,8 @@ function TransferAction({ list, hubs, onClose, onDone }: { list: Employee[]; hub
       <Field label={L('যেদিন থেকে', 'From')}><input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
       <Field wide label={L('কারণ', 'Reason')}><input value={reason} onChange={e => setReason(e.target.value)} placeholder={L('যেমন: নতুন হাবে জনবল দরকার', 'e.g. the new hub needs staff')} /></Field>
     </div>
-    <p className="muted small">{L('পদবি আর বিভাগ আগের মতোই থাকবে। বদলির হিসাব প্রোফাইলের ইতিহাসে থেকে যাবে।', 'Position and department stay the same. The move is kept in the profile history.')}</p>
+    <p className="muted small">{L('পদবি আর বিভাগ আগের মতোই থাকবে। বদলির হিসাব প্রোফাইলের ইতিহাসে থেকে যাবে। বদলির পর কোম্পানির ফরম্যাটে Excel ফাইল নামানো যাবে।',
+      'Position and department stay the same. The move is kept in the profile history. After the transfer you can download the Excel file in the company layout.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }
