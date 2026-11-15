@@ -822,3 +822,35 @@ button.sm{min-height:32px;border-radius:8px}
   button.sm{min-width:40px}
   button.link{min-height:32px;padding:4px 2px}
 }
+
+/* ---------- Home view switch (আমি / হাব / জোন) + new panels ---------- */
+.view-switch{display:flex;gap:4px;padding:5px;margin:14px 0 4px;border-radius:16px;background:var(--surface);box-shadow:var(--card-shadow,0 2px 10px rgba(0,0,0,.06))}
+.view-switch button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:42px;border-radius:12px!important;border:0!important;
+  background:transparent!important;color:var(--muted)!important;font-weight:700;font-size:14px;box-shadow:none!important;transition:background .18s,color .18s}
+.view-switch button.on{background:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 70%,#14b8a6))!important;color:#fff!important;box-shadow:0 6px 14px color-mix(in srgb,var(--primary) 30%,transparent)!important}
+.myday-att{display:flex;align-items:center;gap:12px;border-radius:16px;padding:14px;margin-bottom:12px;background:var(--t-o);color:var(--t-o-fg)}
+.myday-att.t-g{background:var(--t-g);color:var(--t-g-fg)}.myday-att.t-r{background:var(--t-r);color:var(--t-r-fg)}.myday-att.t-p{background:var(--t-p);color:var(--t-p-fg)}.myday-att.t-b{background:var(--t-b);color:var(--t-b-fg)}
+.myday-att .ma-ic{width:44px;height:44px;border-radius:14px;background:var(--surface);display:grid;place-items:center;flex:none}
+.myday-att small{display:block;font-size:12px;opacity:.85}.myday-att b{font-size:18px}
+.myday-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.myday-box{border-radius:14px;background:var(--canvas);padding:12px}
+.myday-box h3{display:flex;align-items:center;gap:6px;font-size:14px;margin:0 0 8px}.myday-box h3 .cnt{margin-left:auto;font-size:12px;color:var(--muted)}
+.myday-box ul{margin:0;padding-left:18px;font-size:13.5px;display:flex;flex-direction:column;gap:4px}
+.myday-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.myday-chips span{background:var(--surface);border-radius:999px;padding:2px 8px;font-size:12px}
+.myday-acts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.myday-acts .ma{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:14px;text-decoration:none;font-weight:700;font-size:12.5px;text-align:center}
+.myday-acts .ma.t-g{background:var(--t-g);color:var(--t-g-fg)}.myday-acts .ma.t-o{background:var(--t-o);color:var(--t-o-fg)}.myday-acts .ma.t-p{background:var(--t-p);color:var(--t-p-fg)}.myday-acts .ma.t-b{background:var(--t-b);color:var(--t-b-fg)}
+.ht-pick{width:auto!important;max-width:60%;min-height:36px!important;padding:4px 10px;font-size:13px!important}
+.ht-sheet{display:flex;align-items:center;gap:10px;border-radius:14px;padding:12px 14px;margin:0 0 12px;text-decoration:none;font-size:14px}
+.ht-sheet span{flex:1}.ht-sheet.t-g{background:var(--t-g);color:var(--t-g-fg)}.ht-sheet.t-o{background:var(--t-o);color:var(--t-o-fg)}.ht-sheet.t-r{background:var(--t-r);color:var(--t-r-fg)}.ht-sheet.t-b{background:var(--t-b);color:var(--t-b-fg)}
+.ap-total{background:var(--bad-fg);color:#fff;border-radius:999px;padding:2px 10px;font-weight:800;font-size:13px}
+.ap-clear{display:flex;align-items:center;gap:8px;background:var(--t-g);color:var(--t-g-fg);border-radius:14px;padding:14px;font-weight:700}
+.ap-list{display:flex;flex-direction:column;gap:8px}
+.ap-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:var(--canvas);text-decoration:none;color:var(--text)}
+.ap-row.zero{opacity:.6}.ap-t{flex:1;font-weight:600}
+.ap-c{min-width:30px;text-align:center;border-radius:999px;padding:2px 8px;font-weight:800;background:var(--surface);color:var(--muted)}
+.ap-c.on{background:var(--warn-bg);color:var(--warn-fg)}
+.vw-tag{display:inline-block;border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:700;margin-right:4px}
+.vw-tag.v-self{background:var(--t-p);color:var(--t-p-fg)}.vw-tag.v-hub{background:var(--t-b);color:var(--t-b-fg)}.vw-tag.v-zone{background:var(--t-g);color:var(--t-g-fg)}
+.rd-view{width:auto!important;min-height:34px!important;font-size:13px!important;padding:4px 8px}
+@media (max-width:700px){.myday-grid{grid-template-columns:1fr}.myday-acts{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.myday-acts .ma{font-size:11.5px;padding:10px 2px}}

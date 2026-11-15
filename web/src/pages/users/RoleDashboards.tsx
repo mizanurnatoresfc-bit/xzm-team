@@ -3,7 +3,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Badge, Modal, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
-import { dashboard, dashboardFriendly, PANELS, panelLabel, panelNote, type PanelCode, type RoleDashboard } from '../../lib/dashboard'
+import { dashboard, dashboardFriendly, PANELS, VIEWS, VIEW_OF, panelLabel, panelNote, type DashView, type PanelCode, type RoleDashboard } from '../../lib/dashboard'
 
 const isSuper = (grants: { is_super: boolean; scope_type: string }[]) => grants.some(g => g.is_super && g.scope_type === 'global')
 
@@ -12,7 +12,16 @@ export function RoleDashboards() {
   const { grants } = useAuth()
   const { L, n, lang } = usePrefs()
   const sup = isSuper(grants)
-  const list = useLoad(() => sup ? dashboard.roleLayouts() : Promise.resolve([]), [sup])
+  const list = useLoad(async () => {
+    if (!sup) return [] as RoleDashboard[]
+    const [rows, views] = await Promise.all([dashboard.roleLayouts(), dashboard.roleViews()])
+    return rows.map(r => ({ ...r, default_view: views[r.role_id] ?? null }))
+  }, [sup])
+  const viewName = (v: DashView | null | undefined) => { const x = VIEWS.find(y => y[0] === v); return x ? L(x[1], x[2]) : L('নিজে ঠিক হবে', 'Automatic') }
+  async function setRoleView(r: RoleDashboard, v: string) {
+    try { await dashboard.setRoleView(r.role_id, (v || null) as DashView | null); toast(L(`${r.name}: প্রথমে "${viewName(v as DashView)}" ভিউ খুলবে`, 'Saved')); void list.reload() }
+    catch (e) { toast(dashboardFriendly(e)) }
+  }
   const [edit, setEdit] = useState<RoleDashboard | null>(null)
   const { toast, node } = useToast()
 
@@ -24,10 +33,12 @@ export function RoleDashboards() {
       {list.error ? <p className="da-error">{dashboardFriendly(list.error)}</p> : null}
       <section className="panel">
         <div className="da-table-wrap"><table className="da-table">
-          <thead><tr><th>{L('রোল', 'Role')}</th><th>{L('ইউজার', 'Users')}</th><th>{L('হোম পেজে যা দেখবে', 'What they see on the home page')}</th><th /></tr></thead>
+          <thead><tr><th>{L('রোল', 'Role')}</th><th>{L('ইউজার', 'Users')}</th><th>{L('প্রথমে কোন ভিউ', 'Opens on')}</th><th>{L('হোম পেজে যা দেখবে', 'What they see on the home page')}</th><th /></tr></thead>
           <tbody>{(list.data ?? []).map(r => <tr key={r.role_id}>
             <td><strong>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</strong>{r.is_super ? <> <Badge tone="bad">{L('সব ক্ষমতা', 'Full control')}</Badge></> : null}</td>
             <td>{n(r.user_count)}</td>
+            <td data-label={L('প্রথমে কোন ভিউ', 'Opens on')}><select className="rd-view" value={r.default_view ?? ''} onChange={e => void setRoleView(r, e.target.value)}>
+              <option value="">{L('নিজে ঠিক হবে', 'Automatic')}</option>{VIEWS.map(([v, bn, en]) => <option key={v} value={v}>{L(bn, en)}</option>)}</select></td>
             <td className="small">{r.panels.length ? r.panels.map(p => panelLabel(p, lang)).join(' · ')
               : <span className="muted">{L('আলাদা করে কিছু বলা নেই — অনুমতি অনুযায়ী দেখাবে', 'Nothing set — follows their permissions')}</span>}</td>
             <td style={{ textAlign: 'right' }}><button className="secondary sm" onClick={() => setEdit(r)}>{L('বদলান', 'Change')}</button></td>
@@ -64,12 +75,13 @@ function LayoutEditor({ role, onClose, onDone }: { role: RoleDashboard; onClose:
     <p className="muted small">{L('টিক দিলে প্যানেলটি এই রোলের হোম পেজে আসবে। উপরে-নিচে সাজিয়ে ক্রম ঠিক করুন। কিছুই টিক না দিলে অনুমতি অনুযায়ী আপনা-আপনি সাজবে।',
       'Tick a panel to put it on this role’s home page, and use the arrows for the order. Tick nothing and it arranges itself from their permissions.')}</p>
     <div className="da-table-wrap"><table className="da-table">
-      <thead><tr><th>{L('দেখাবে', 'Show')}</th><th>{L('প্যানেল', 'Panel')}</th><th>{L('কী থাকে', 'What it holds')}</th><th>{L('ক্রম', 'Order')}</th></tr></thead>
-      <tbody>{PANELS.map(([code]) => {
+      <thead><tr><th>{L('দেখাবে', 'Show')}</th><th>{L('প্যানেল', 'Panel')}</th><th>{L('কোন ভিউতে', 'In view')}</th><th>{L('কী থাকে', 'What it holds')}</th><th>{L('ক্রম', 'Order')}</th></tr></thead>
+      <tbody>{[...PANELS].sort((a, b) => VIEWS.findIndex(v => v[0] === VIEW_OF[a[0]]?.[0]) - VIEWS.findIndex(v => v[0] === VIEW_OF[b[0]]?.[0])).map(([code]) => {
         const on = picked.includes(code)
         return <tr key={code}>
           <td><input type="checkbox" style={{ width: 'auto' }} aria-label={code} checked={on} onChange={() => toggle(code)} /></td>
           <td><strong>{panelLabel(code, lang)}</strong></td>
+          <td data-label={L('কোন ভিউতে', 'In view')}>{(VIEW_OF[code] ?? []).map(v => <span key={v} className={`vw-tag v-${v}`}>{L(...(VIEWS.find(x => x[0] === v)!.slice(1, 3) as [string, string]))}</span>)}</td>
           <td className="small muted">{panelNote(code, lang)}</td>
           <td style={{ whiteSpace: 'nowrap' }}>{on && <>
             <button className="secondary sm" aria-label={`${code} up`} disabled={picked.indexOf(code) === 0} onClick={() => move(code, -1)}>↑</button>{' '}

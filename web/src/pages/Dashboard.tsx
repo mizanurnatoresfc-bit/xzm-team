@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AppShell, useMyPhoto } from '../components/AppShell'
@@ -7,7 +7,8 @@ import { NetworkPanel } from '../components/NetworkPanel'
 import { HrReqPanel } from '../components/HrReqPanel'
 import { Badge, Stat, useLoad } from './accounts/ui'
 import { usePrefs } from '../lib/prefs'
-import { dashboard, dashboardFriendly, panelLabel, type PanelCode } from '../lib/dashboard'
+import { VIEWS, VIEW_OF, dashboard, dashboardFriendly, panelLabel, pickedView, setView, type DashView, type PanelCode } from '../lib/dashboard'
+import { ApprovalsPanel, HubTodayPanel, MyDayPanel } from '../components/HomePanels'
 
 const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
   ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
@@ -29,6 +30,16 @@ export function Dashboard() {
   const d = home.data
   const name = d?.me?.name || session?.user.user_metadata?.full_name || session?.user.email || L('ব্যবহারকারী', 'User')
   const has = (p: PanelCode) => !!d?.panels.includes(p)
+  // Views (আমি / হাব / জোন): only those with at least one panel this person may see.
+  const views = VIEWS.filter(([v]) => (d?.panels ?? []).some(p => VIEW_OF[p]?.includes(v)))
+  const [view, setV] = useState<DashView | null>(pickedView())
+  const [defView, setDefView] = useState<DashView | null>(null)
+  useEffect(() => { void dashboard.defaultView().then(setDefView) }, [])
+  const cur: DashView | null = views.find(x => x[0] === view)?.[0] ?? views.find(x => x[0] === defView)?.[0] ?? views[views.length - 1]?.[0] ?? null
+  const vis = (p: PanelCode) => has(p) && !!cur && !!VIEW_OF[p]?.includes(cur)
+  const pickView = (v: DashView) => { setV(v); setView(v) }
+  // Let the tab bar follow the view on show, without saving it as the person's choice.
+  useEffect(() => { if (cur) setView(cur, false) }, [cur])
   const where = [d?.me?.position, d?.me?.hub, d?.me?.zone].filter(Boolean).join(' · ')
   const photo = useMyPhoto()
   const hour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', hour12: false }))
@@ -62,6 +73,9 @@ export function Dashboard() {
         <div className="g-sub">{where || L('আজকের কাজ এক নজরে', 'Today at a glance')}</div></div>
       {d?.my_work && <div className="g-badge"><b>{n(d.my_work.tasks_open)}</b>{L('খোলা কাজ', 'open tasks')}</div>}
     </div>
+    {views.length > 1 && <div className="view-switch" role="tablist" aria-label={L('ড্যাশবোর্ড', 'Dashboard')}>
+      {views.map(([v, bn, en, ic]) => <button key={v} type="button" role="tab" aria-selected={cur === v} className={cur === v ? 'on' : ''} onClick={() => pickView(v)}>
+        <Icon name={ic} size={17} />{L(bn, en)}</button>)}</div>}
     {d?.my_work && !d.my_work.marked_today && <Link to="/app/hub/attendance" className="alert-card warn"><span className="ai"><Icon name="clock" size={20} /></span>
       <span>{L('আজকের হাজিরা এখনো দেওয়া হয়নি', 'Your attendance for today is not marked yet')}</span></Link>}
     {d?.my_work && d.my_work.tasks_due > 0 && <Link to="/app/hub/tasks" className="alert-card bad"><span className="ai"><Icon name="alert" size={20} /></span>
@@ -71,10 +85,13 @@ export function Dashboard() {
     <div className="home-tiles">{TILES.filter(t => !t[5] || t[5].some(p => can(p))).map(([to, ic, bn, en, tone]) =>
       <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}</div>
 
-    <HrReqPanel />
-    <NetworkPanel />
+    {vis('my_day') && <MyDayPanel />}
+    {vis('hub_today') && <HubTodayPanel />}
+    {vis('network') && <NetworkPanel />}
+    {vis('approvals') && <ApprovalsPanel />}
+    {vis('my_requests') && <HrReqPanel />}
 
-    {has('my_work') && d?.my_work && <Panel code="my_work">
+    {vis('my_work') && d?.my_work && <Panel code="my_work">
       <div className="da-stats">
         <Stat icon="log" label={L('আমার দায়িত্ব', 'My tasks')} value={n(d.my_work.tasks_open)}
           sub={d.my_work.tasks_due ? <span className="warn">{L(`${n(d.my_work.tasks_due)} টির সময় শেষ`, `${d.my_work.tasks_due} due`)}</span> : L('সব ঠিক আছে', 'All clear')} tone={d.my_work.tasks_due ? 'warn' : undefined} />
@@ -86,7 +103,7 @@ export function Dashboard() {
       <p className="muted small"><Link to="/app/me">{L('আমার প্রোফাইল', 'My profile')}</Link> · <Link to="/app/hr/leave">{L('ছুটি', 'Leave')}</Link> · <Link to="/app/accounts/mine">{L('আমার হিসাব', 'My accounts')}</Link></p>
     </Panel>}
 
-    {has('hr_overview') && d?.hr_overview && <Panel code="hr_overview" to="/app/hr">
+    {vis('hr_overview') && d?.hr_overview && <Panel code="hr_overview" to="/app/hr">
       <div className="da-stats">
         <Stat icon="users" label={L('মোট কর্মী', 'Staff')} value={n(d.hr_overview.total)} />
         <Stat icon="check" tone="ok" label={L('সক্রিয়', 'Active')} value={n(d.hr_overview.active)} />
@@ -97,7 +114,7 @@ export function Dashboard() {
       </div>
     </Panel>}
 
-    {has('hr_pending') && d?.hr_pending && <Panel code="hr_pending">
+    {vis('hr_pending') && d?.hr_pending && <Panel code="hr_pending">
       <div className="da-stats">
         <Row to="/app/hr/applications" icon="form" label={L('আইডি আবেদন', 'ID applications')} value={d.hr_pending.applications} />
         <Row to="/app/hr/leave" icon="log" label={L('ছুটির আবেদন', 'Leave requests')} value={d.hr_pending.leave} />
@@ -106,7 +123,7 @@ export function Dashboard() {
       </div>
     </Panel>}
 
-    {has('hub_staff') && d?.hub_staff && <Panel code="hub_staff" to="/app/zonal/staff">
+    {vis('hub_staff') && d?.hub_staff && <Panel code="hub_staff" to="/app/zonal/staff">
       {!d.hub_staff.length ? <p className="muted">{L('কোনো হাব নেই।', 'No hubs yet.')}</p> :
         <div className="da-table-wrap"><table className="da-table">
           <thead><tr><th>{L('হাব', 'Hub')}</th><th>{L('মোট', 'Total')}</th><th>{L('সক্রিয়', 'Active')}</th><th>{L('নিষ্ক্রিয়', 'Inactive')}</th><th>{L('আইডির অপেক্ষায়', 'Waiting')}</th></tr></thead>
@@ -118,7 +135,7 @@ export function Dashboard() {
       {d.hub_staff.length > 10 && <p className="muted small">{L(`আরও ${n(d.hub_staff.length - 10)}টি হাব — পুরো তালিকা দেখুন`, `${d.hub_staff.length - 10} more hubs — see the full list`)}</p>}
     </Panel>}
 
-    {has('ops_today') && d?.ops_today && <Panel code="ops_today">
+    {vis('ops_today') && d?.ops_today && <Panel code="ops_today">
       <div className="da-stats">
         <Stat icon="hub" label={L('হাবে আছে', 'At the hub')} value={n(d.ops_today.at_hub)} />
         <Stat icon="truck" label={L('ডেলিভারিতে গেছে', 'Out for delivery')} value={n(d.ops_today.out_for_delivery)} />
@@ -129,7 +146,7 @@ export function Dashboard() {
       </div>
     </Panel>}
 
-    {has('cash_today') && d?.cash_today && <Panel code="cash_today">
+    {vis('cash_today') && d?.cash_today && <Panel code="cash_today">
       <div className="da-stats">
         <Stat icon="wallet" label={L('আজ আদায়', 'Collected today')} value={`৳ ${n(d.cash_today.collected_today)}`} />
         <Stat icon="clock" tone={d.cash_today.handovers_waiting ? 'warn' : undefined} label={L('হ্যান্ডওভার অপেক্ষায়', 'Handovers waiting')} value={n(d.cash_today.handovers_waiting)} />
@@ -139,7 +156,7 @@ export function Dashboard() {
       </div>
     </Panel>}
 
-    {has('accounts_today') && d?.accounts_today && <Panel code="accounts_today" to="/app/accounts/daily">
+    {vis('accounts_today') && d?.accounts_today && <Panel code="accounts_today" to="/app/accounts/daily">
       <div className="da-stats">
         <Stat icon="hub" label={L('হাব', 'Hubs')} value={n(d.accounts_today.hubs)} />
         <Stat icon="ledger" tone={d.accounts_today.open ? 'warn' : undefined} label={L('খোলা খাতা', 'Open sheets')} value={n(d.accounts_today.open)} />
@@ -149,7 +166,7 @@ export function Dashboard() {
       </div>
     </Panel>}
 
-    {has('zonal_overview') && d?.zonal_overview && <Panel code="zonal_overview" to="/app/zonal/staff">
+    {vis('zonal_overview') && d?.zonal_overview && <Panel code="zonal_overview" to="/app/zonal/staff">
       <div className="da-stats">
         <Stat icon="map" label={L('এরিয়া', 'Areas')} value={n(d.zonal_overview.zones)} />
         <Stat icon="hub" label={L('হাব', 'Hubs')} value={n(d.zonal_overview.hubs)} />
@@ -161,7 +178,7 @@ export function Dashboard() {
       </div>
     </Panel>}
 
-    {has('quick_links') && <Panel code="quick_links">
+    {vis('quick_links') && <Panel code="quick_links">
       <div className="da-cards">{CARDS.filter(c => !c[6] || c[6].some(p => can(p))).map(([to, ic, bn, en, dbn, den]) =>
         <Link key={to} to={to} className="da-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <span className="ri"><Icon name={ic} /></span><strong>{L(bn, en)}</strong><span className="muted small">{L(dbn, den)}</span></Link>)}</div>

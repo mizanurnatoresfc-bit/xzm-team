@@ -6,6 +6,7 @@ import { isDark, usePrefs } from '../lib/prefs'
 import { Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq, type Notice } from '../lib/hrreq'
+import { getView, type DashView } from '../lib/dashboard'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
 type Group = { key: string; icon: string; bn: string; en: string; items: Item[] }
@@ -149,6 +150,21 @@ const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: str
   { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
   { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Staff', perms: ['hr.employee.view'], match: '/app/hr' },
 ]
+// The tab bar follows the home view: a staff member's own app, a hub manager's hub app, or the full zone app.
+type Tab = { to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }
+const HOME_TAB: Tab = { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', perms: null, match: '/app$' }
+const VIEW_TABS: Record<DashView, Tab[]> = {
+  self: [HOME_TAB,
+    { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null, match: '/app/accounts' },
+    { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' },
+    { to: '/app/me', icon: 'user', bn: 'প্রোফাইল', en: 'Profile', perms: null, match: '/app/me' }],
+  hub: [HOME_TAB,
+    { to: '/app/hub/attendance', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub/(?!team)' },
+    { to: '/app/hub/team', icon: 'users', bn: 'টিম', en: 'Team', perms: ['hr.employee.view'], match: '/app/hub/team' },
+    { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
+    { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' }],
+  zone: TABS,
+}
 const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; tone: string }> = [
   { to: '/app/hub/attendance', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
   { to: '/app/hub/late', icon: 'clock', bn: 'দেরি লিখুন', en: 'Late', perms: ['hr.attendance.create'], tone: 'o' },
@@ -187,6 +203,11 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [photo, setPhoto] = useState<string | null>(null)
   const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0, hrreq: 0 })
   const [notes, setNotes] = useState<Notice[]>([])
+  const [dview, setDview] = useState<DashView | null>(getView())
+  useEffect(() => {
+    const f = (e: Event) => setDview((e as CustomEvent<DashView>).detail)
+    window.addEventListener('xzm-view', f); return () => window.removeEventListener('xzm-view', f)
+  }, [])
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() => { try { return JSON.parse(sessionStorage.getItem('xzm_ng') || '{}') } catch { return {} } })
   const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
@@ -295,7 +316,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       </main>
     </div>
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
-      {TABS.filter(t => allowed(t.perms)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
+      {(dview ? VIEW_TABS[dview] : TABS).filter(t => allowed(t.perms)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}
       <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => setOpen(true)}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
     </nav>
