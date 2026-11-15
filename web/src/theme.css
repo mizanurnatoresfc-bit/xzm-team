@@ -1432,3 +1432,26 @@ a.nv-row:hover{background:var(--canvas)}a.nv-row:active{background:var(--primary
   .nv-tools{justify-content:space-between}
 }
 @media print{.nv-fab{display:none}}
+
+/* ---- staff list on a phone: compact native rows (tap a row to open the person) ---- */
+@media (max-width:899px){
+  .emp-board{padding-bottom:76px}
+  .emp-board .eb-chips,.emp-board .eb-filters .emp-status{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:0 12px 2px}
+  .emp-board .eb-chips::-webkit-scrollbar,.emp-board .emp-status::-webkit-scrollbar{display:none}
+  .emp-board .chip-toggle{flex:none;white-space:nowrap;min-height:36px;border-radius:10px}
+  .emp-board .dv-list{border-radius:20px;box-shadow:var(--shadow)}
+  .emp-board .dv-list li{gap:12px;min-height:68px;padding:10px 14px}
+  .emp-board .dv-list li:active{background:var(--primary-50)}
+  .emp-board .dv-list input[type=checkbox]{width:22px;height:22px}
+  .emp-board .dv-line{gap:3px}
+  .emp-board .emp-tname{gap:12px}
+  .emp-board .emp-tname .ec-av.sm{width:44px;height:44px;border-radius:50%;font-size:15px}
+  .emp-board .emp-tname b{font-size:15.5px;font-weight:600}
+  .emp-board .dv-sub{padding-left:56px;gap:4px 8px;align-items:center;font-size:12.5px}
+  .emp-board .dv-sub i{display:none}
+  .emp-board .dv-sub a{color:var(--muted);text-decoration:none}
+  .emp-board .dv-sub .da-badge{min-height:20px;padding:0 8px;font-size:11.5px}
+  .emp-board .dv-acts .row-acts .secondary{display:none}
+  .emp-board .dv-acts .row-acts button{min-height:36px;border-radius:99px;padding:0 12px;background:var(--primary-50)!important;color:var(--primary)!important;border:0!important;box-shadow:none}
+  .emp-board .dv-bulk{position:sticky;top:64px;z-index:6;box-shadow:var(--shadow)}
+}
