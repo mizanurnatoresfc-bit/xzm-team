@@ -31,6 +31,7 @@ const FieldSettings = lazy(() => import('./pages/hr/FieldSettings').then(m => ({
 const Referrals = lazy(() => import('./pages/hr/Referrals').then(m => ({ default: m.Referrals })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
+const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
 const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
 const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
 const MyProfile = lazy(() => import('./pages/MyProfile').then(m => ({ default: m.MyProfile })))
@@ -114,6 +115,7 @@ export default function App() {
       <Route path="/app/roles" element={<Roles />} />
       <Route path="/app/roles/:id" element={<RoleEditor />} />
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
+      <Route path="/app/nodi/chat" element={<NodiChat />} />
       <Route path="/app/nodi" element={<NodiSettings />} />
       <Route path="/app/branding" element={<BrandingSettings />} />
     </Route>

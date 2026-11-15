@@ -332,3 +332,11 @@ Built from the owner's own nine-point list.
 - Edge Function `supabase/functions/nodi-ai` (verify_jwt off, token checked inside): actions `status` and `chat`. The Anthropic key exists ONLY as the function secret `ANTHROPIC_API_KEY`.
 - Page `/app/nodi` (pages/users/NodiSettings.tsx): key present or not, on/off, model, daily limit, answer length, test box, usage table.
 - Tests: 12 new assertions (`99m_nodi_ai.sql`). **Not applied to the live project and the function is not deployed yet.**
+
+## 2026-11-15 — নদী AI চ্যাট, কণ্ঠ ও একাধিক কমান্ড (লাইভ ডেভ প্রজেক্টে)
+- Edge Function `nodi-ai` v2: Claude tool-use loop (max 6 steps). Tools: `list_hubs`, `my_issues`, `create_issue`, `issue_action`, `post_to_hub`.
+  Every tool runs AS THE CALLER (same RPCs and permission checks as the app), so নদী can never do more than the person could. One chat request = one count against the daily limit.
+- Page `/app/nodi/chat` (pages/nodi/NodiChat.tsx): avatar (components/NodiAvatar.tsx, talking/listening animation), voice input (browser SpeechRecognition, bn-BD — the text is shown before sending),
+  optional spoken answers (speechSynthesis), action chips for what was done, floating avatar button on every page for people with `nodi.assistant.view`.
+- Follow-up: `pg_cron` job `nodi-issue-followup` runs `issue_nudge_due(6)` at minute 7 of every hour.
+- Applied live on `xzm-team-erp-dev`: nodi_ai, hub_issues (a–e), nodi_followup_schedule. The Anthropic key must be added as the function secret `ANTHROPIC_API_KEY`.
