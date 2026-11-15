@@ -68,6 +68,7 @@ export const office = {
     const { data, error } = await supabase.from('office_assets').select('*').eq('property_id', p).is('archived_at', null).order('kind').order('name'); fail(error)
     return (data ?? []) as Asset[]
   },
+  createHubOffices: async (zone: string | null) => { const { data, error } = await supabase.rpc('office_create_hub_offices', { p_zone: zone }); fail(error); return (data ?? 0) as number },
   saveProperty: save('office_properties'), saveRoom: save('office_rooms'), saveDesk: save('office_desks'), saveAsset: save('office_assets'),
   archiveProperty: archive('office_properties'), archiveRoom: archive('office_rooms'), archiveDesk: archive('office_desks'), archiveAsset: archive('office_assets'),
   /** Add the usual items of a room kind or a desk in one go. */

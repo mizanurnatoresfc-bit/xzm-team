@@ -160,13 +160,21 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
       setF(null); await reload(); toast(L('সেভ হয়েছে', 'Saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
+  async function fromHubs() {
+    setBusy(true); setErr('')
+    try { const n = await office.createHubOffices(null); await reload(); toast(n ? L(`${n.toLocaleString('bn-BD')}টি হাবের অফিস তৈরি হয়েছে (ঠিকানাসহ)`, `${n} hub offices created`) : L('সব হাবের অফিস আগেই আছে', 'Every hub already has an office')) }
+    catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
   async function remove(x: Property) {
     const r = ask(L(`"${x.name}" সরানোর কারণ`, `Why remove "${x.name}"?`)); if (!r) return
     try { await office.archiveProperty(x.id, r); await reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   return <section className="panel">{node}
     <div className="da-bar"><h2>{L('অফিস ও আবাসিক', 'Offices & residences')}</h2>
-      {can('office.property.create') && <button onClick={() => { setErr(''); setF({ kind: 'office', code: '', name: '', zone_id: o.data?.zones[0]?.id }) }}><Icon name="plus" size={15} />{L('নতুন যোগ', 'Add')}</button>}</div>
+      <span className="row-acts">
+        {can('office.property.create') && <button className="secondary" disabled={busy} onClick={() => void fromHubs()}><Icon name="hub" size={15} />{L('হাব থেকে অফিস তৈরি', 'Offices from hubs')}</button>}
+        {can('office.property.create') && <button onClick={() => { setErr(''); setF({ kind: 'office', code: '', name: '', zone_id: o.data?.zones[0]?.id }) }}><Icon name="plus" size={15} />{L('নতুন যোগ', 'Add')}</button>}</span></div>
+    <p className="muted small">{L('হাবের ঠিকানা এখানে রাখা হয়: হাবের অফিসের ঠিকানা বদলালে হাবের ঠিকানাও বদলে যায়।', 'Hub addresses live here: changing a hub office address changes the hub address too.')}</p>
     {err && !f && <p className="da-error">{err}</p>}
     <DataTable<Property> title={L('অফিস ও আবাসিক', 'Offices & residences')} file="office-places" rows={list} rowKey={r => r.id}
       empty={<p className="muted">{L('এখনো কিছু যোগ হয়নি।', 'Nothing yet.')}</p>}
@@ -190,7 +198,7 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
         <Field label={L('নাম', 'Name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
         <Field label={L('এরিয়া', 'Area')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value, hub_id: null })}>
           {o.data?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
-        <Field label={L('হাব (ইচ্ছা হলে)', 'Hub (optional)')}><select value={f.hub_id ?? ''} onChange={e => setF({ ...f, hub_id: e.target.value || null })}><option value="">—</option>
+        <Field label={L('হাব (ইচ্ছা হলে)', 'Hub (optional)')}><select value={f.hub_id ?? ''} onChange={e => { const h = o.data?.hubs.find(x => x.id === e.target.value); setF({ ...f, hub_id: e.target.value || null, name: f.name || h?.name || '', address: f.address || h?.address || '' }) }}><option value="">—</option>
           {o.data?.hubs.filter(h => !h.archived_at && h.zone_id === f.zone_id).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
         <Field label={L('বাড়ির সামনের দিক', 'Front faces')}><select value={f.front_direction ?? ''} onChange={e => setF({ ...f, front_direction: e.target.value || null })}><option value="">—</option>
           {Object.entries(DIR).filter(([k]) => k !== 'c').map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select></Field>
