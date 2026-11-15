@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { da, type DaSettings, type Category, type Template, type RefPerson, type Vehicle, type FixedExpense } from '../../lib/dailyAccounts'
 import { autoCode, org } from '../../lib/hr'
 import { AccountsShell, Field, ErrorNote, Badge, Modal, useLoad, useToast } from './ui'
+import { BankChargeCard, LayoutCard } from './sheetTools'
 
 // Zonal / Accounts settings for Daily Accounts. Every change is validated and audited in the database.
 export function AccountsSettings() {
@@ -84,6 +85,12 @@ export function AccountsSettings() {
     <FixedLinesCard riders={s['da.fixed_riders'] ?? []} expenses={s['da.fixed_expenses'] ?? []} cats={s['da.expense_categories']}
       onSave={async (r, x) => { set('da.fixed_riders', r); set('da.fixed_expenses', x); setErr(null)
         try { await da.configure('da.fixed_riders', r); await da.configure('da.fixed_expenses', x); toast('প্রতিদিনের লাইন সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />
+    <div className="da-grid2">
+      <BankChargeCard value={s['da.bank_charge']}
+        onSave={async v => { setErr(null); try { await da.configure('da.bank_charge', v); toast('ব্যাংক চার্জ সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />
+      <LayoutCard value={s['da.layout']}
+        onSave={async v => { setErr(null); try { await da.configure('da.layout', v); toast('খাতার অংশ সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />
+    </div>
     <TemplatesCard cats={s['da.expense_categories']} />
     <AccessCard />
   </AccountsShell>

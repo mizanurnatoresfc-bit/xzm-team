@@ -70,6 +70,8 @@ export type Sheet = {
     last_saved_at: string
     closed_at: string | null; closed_by: string | null
     closed_totals: ClosedTotals | null
+    /** The day's bank work: done once every deposit has its slip. */
+    bank_done_at?: string | null; bank_done_by?: string | null; bank_done_note?: string | null
   }
   hub: { id: string; code: string; name: string; name_bn: string | null }
   zone: { id: string; code: string; name: string }
@@ -81,8 +83,24 @@ export type Sheet = {
   totals?: { riders: number; delivery: number; pickup: number; amount: number; paid: number; due: number
              mobile_banking: number; merchant_cash: number; transport_expense: number; employee_expense: number }
   events: SheetEvent[]; visits?: Visit[]
+  /** Update report IDs with their amounts, the day's bank deposits, and values of one's own columns. */
+  report_ids?: ReportId[]; deposits?: Deposit[]; cells?: Cell[]
   can_edit: boolean; can_verify: boolean; can_reopen: boolean
+  /** May change how the parts of the sheet are laid out (Super Admin / settings permission). */
+  can_layout?: boolean
 }
+
+export type ReportId = { id: string; no: number; report_no: string; amount: number; remarks: string | null; created_by: string; created_at: string }
+export type Deposit = { id: string; no: number; method: 'bank' | 'bkash' | 'nagad' | 'rocket' | 'other'; bank_name: string | null
+  amount: number; charge: number; charge_auto: boolean; transport: number; people: string | null; ref_no: string | null
+  slip_path: string | null; deposited_on: string; remarks: string | null; created_by: string; created_at: string }
+export type Cell = { section: string; row_id: string; col: string; value: string | null }
+
+/** How one part of the sheet is laid out: hidden columns, other names, own columns, switched off. */
+export type SectionLayout = { hidden?: string[]; labels?: Record<string, string>; extra?: Array<{ key: string; label: string }>; off?: boolean }
+export type Layout = Record<string, SectionLayout>
+export type BankCharge = { limit: number; low: number; high: number; vat: number; off_days?: Array<number | string>
+  holidays?: string[]; transport?: number; effective_from?: string | null }
 
 export type Category = { code: string; en: string; bn: string
   /** What belongs in this category, in the company's own words (the categories handbook). */
@@ -117,6 +135,8 @@ export type DaSettings = {
   'da.bill_upload': { max_mb: number; types: string[]; required_over: number | null }
   'da.ocr': { engine: string; languages: string; min_confidence: number; require_verification: boolean }
   'da.require_assignment': boolean
+  'da.layout'?: Layout
+  'da.bank_charge'?: BankCharge
 }
 
 export type FixedExpense = { name: string; category: string; kind?: 'transport' | 'employee'; amount?: number }
@@ -292,6 +312,20 @@ export const da = {
     rpc<string>('da_note_save', { p_session: a.session, p_amount: a.amount, p_method: a.method ?? 'cash',
       p_from_code: a.fromCode ?? null, p_from_name: a.fromName ?? null, p_note: a.note ?? null, p_id: a.id ?? null }),
   removeNote: (id: string, reason: string) => rpc<void>('da_note_remove', { p_id: id, p_reason: reason }),
+  saveReport: (a: { session: string; reportNo: string; amount: number; remarks?: string | null; id?: string | null }) =>
+    rpc<string>('da_report_save', { p_session: a.session, p_report_no: a.reportNo, p_amount: a.amount, p_remarks: a.remarks ?? null, p_id: a.id ?? null }),
+  removeReport: (id: string, reason: string) => rpc<void>('da_report_remove', { p_id: id, p_reason: reason }),
+  saveDeposit: (a: { session: string; amount: number; method?: string; bank?: string | null; ref?: string | null; slip?: string | null
+                     date?: string | null; transport?: number | null; charge?: number | null; people?: string | null; remarks?: string | null; id?: string | null }) =>
+    rpc<string>('da_deposit_save', { p_session: a.session, p_amount: a.amount, p_method: a.method ?? 'bank', p_bank: a.bank ?? null,
+      p_ref: a.ref ?? null, p_slip: a.slip ?? null, p_date: a.date ?? null, p_transport: a.transport ?? null, p_charge: a.charge ?? null,
+      p_people: a.people ?? null, p_remarks: a.remarks ?? null, p_id: a.id ?? null }),
+  removeDeposit: (id: string, reason: string) => rpc<void>('da_deposit_remove', { p_id: id, p_reason: reason }),
+  bankCharge: (amount: number, method = 'bank', date?: string | null) =>
+    rpc<number>('da_bank_charge', { p_amount: amount, p_method: method, p_date: date ?? null }),
+  bankDone: (session: string, note?: string | null) => rpc<void>('da_bank_done', { p_session: session, p_note: note ?? null }),
+  setCell: (session: string, section: string, row: string, col: string, value: string | null) =>
+    rpc<void>('da_cell_set', { p_session: session, p_section: section, p_row: row, p_col: col, p_value: value }),
   myHandovers: (days = 30) => rpc<Handover[]>('da_my_handovers', { p_days: days }),
 
   report: (kind: ReportKind, from: string, to: string, hub?: string | null, zone?: string | null) =>

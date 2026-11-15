@@ -122,3 +122,21 @@ section.panel[id^="da-"]{scroll-margin-top:110px}
 .da-tabs button.on{background:var(--primary);border-color:var(--primary);color:#fff}
 .da-collectors{margin-top:16px}
 @media print{.da-tabs{display:none}}
+
+/* The sheet as a tool: ⋮ menus, own columns, laying out columns, printing one part */
+.dot-menu{position:relative;display:inline-flex}
+.dot-menu>button.icon{font-size:20px;line-height:1;font-weight:700}
+.dot-pop{position:absolute;right:0;top:44px;z-index:40;min-width:260px;display:flex;flex-direction:column;gap:2px;padding:6px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.14)}
+.dot-pop button.mi{background:none;border:0;color:var(--text);justify-content:flex-start;text-align:left;font-weight:500;min-height:40px;padding:8px 10px;width:100%}
+.dot-pop button.mi:hover{background:var(--canvas)!important;color:var(--text)}
+.dot-pop button.mi.danger-text{color:var(--bad-fg)}
+.lay-list{display:flex;flex-direction:column;gap:6px;margin:6px 0 10px}
+.lay-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:center}
+.lay-row input:not([type=checkbox]){margin:0}
+.cell-edit{text-decoration:none;min-width:24px;text-align:left}
+.upload-btn{display:inline-flex;align-items:center;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;font-weight:600}
+@media print{
+  body.printing-solo .print-area>:not(.print-solo){display:none!important}
+  body.printing-solo .da-stats,body.printing-solo .da-collectors{display:none!important}
+}

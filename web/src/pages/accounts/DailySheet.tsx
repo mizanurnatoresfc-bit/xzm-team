@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   da, num, taka, dateBn, timeBn, duration, todayDhaka, EVENT_LABEL,
@@ -9,6 +9,10 @@ import { readImage, parsePayment, parseBill } from '../../lib/ocr'
 import { printVoucher } from '../../lib/voucher'
 import { printArea } from '../../lib/xlsx'
 import { AccountsShell, Stat, StatusBadge, Badge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
+import { SectionMenu, ExtraHeads, ExtraCells, ExtraBlanks, BankPanel, useApplyLayout, isOff } from './sheetTools'
+
+const EMPTY_LAYOUT = {}
+type LS = (m: string) => Promise<void>
 
 export function DailySheet() {
   const { id = '' } = useParams()
@@ -18,6 +22,8 @@ export function DailySheet() {
   const { toast, node } = useToast()
   const s = sheet.data
   const [tab, setTab] = useState('riders')
+  const area = useRef<HTMLDivElement>(null)
+  useApplyLayout(area, settings.data?.['da.layout'] ?? EMPTY_LAYOUT, s ? `${tab}-${s.session.id}` : null)
 
   // Page tracking: entry, a heartbeat every minute, exit
   useEffect(() => {
@@ -33,15 +39,20 @@ export function DailySheet() {
   if (!s || !settings.data) return <AccountsShell title="হিসাব খাতা"><p className="muted">লোড হচ্ছে…</p></AccountsShell>
   const t = s.totals
   const reload = async (msg?: string) => { await sheet.reload(); if (msg) toast(msg) }
+  const layoutSaved: LS = async (msg) => { await settings.reload(); await sheet.reload(); toast(msg) }
+  const st = settings.data
 
-  const tabs: Array<[string, string, number | null]> = [
+  const allTabs: Array<[string, string, number | null]> = [
     ['riders', 'রাইডার', s.riders.length],
     ['payment', 'পেমেন্ট', s.merchant_payments.length],
     ['expense', 'খরচ', s.expenses.length],
     ['claims', 'জমা বিল', null],
     ['notes', 'নোট', s.notes_in?.length ?? 0],
+    ['bank', 'ব্যাংক ডিপোজিট', s.deposits?.length ?? 0],
     ['close', 'দিন শেষ', null],
   ]
+  // A part the Super Admin switched off is not shown (the bank tab goes when both of its parts are off)
+  const tabs = allTabs.filter(([k]) => k === 'close' || (k === 'bank' ? !(isOff(st, 'reports') && isOff(st, 'deposits')) : !isOff(st, k)))
 
   return <AccountsShell title={`${s.hub.name} · ${dateBn(s.session.account_date)}`}
     subtitle={`হিসাব নং ${num(s.session.no)} · শুরু করেছেন ${s.session.started_by_name ?? '—'}${s.session.started_by_code ? ` (ID ${s.session.started_by_code})` : ''} · ${timeBn(s.session.started_at)}`}
@@ -63,13 +74,14 @@ export function DailySheet() {
         {label}{count !== null ? ` (${num(count)})` : ''}</button>)}
     </nav>
 
-    <div className="print-area">
-      {tab === 'riders' && <RidersTab s={s} settings={settings.data} reload={reload} />}
-      {tab === 'payment' && <MerchantTab s={s} settings={settings.data} reload={reload} />}
-      {tab === 'expense' && <ExpenseTab s={s} settings={settings.data} templates={templates.data ?? []} reload={reload} />}
-      {tab === 'claims' && <ClaimsPanel s={s} cats={settings.data['da.expense_categories']} reload={reload} />}
-      {tab === 'notes' && <NotesPanel s={s} settings={settings.data} reload={reload} />}
-      {tab === 'close' && <><ClosingBox s={s} settings={settings.data} /><CloseDay s={s} reload={reload} />
+    <div className="print-area" ref={area}>
+      {tab === 'riders' && <RidersTab s={s} settings={st} reload={reload} ls={layoutSaved} />}
+      {tab === 'payment' && <MerchantTab s={s} settings={st} reload={reload} ls={layoutSaved} />}
+      {tab === 'expense' && <ExpenseTab s={s} settings={st} templates={templates.data ?? []} reload={reload} ls={layoutSaved} />}
+      {tab === 'claims' && <ClaimsPanel s={s} settings={st} cats={st['da.expense_categories']} reload={reload} ls={layoutSaved} />}
+      {tab === 'notes' && <NotesPanel s={s} settings={st} reload={reload} ls={layoutSaved} />}
+      {tab === 'bank' && <BankPanel s={s} settings={st} reload={reload} onLayoutSaved={layoutSaved} />}
+      {tab === 'close' && <><ClosingBox s={s} settings={st} /><CloseDay s={s} reload={reload} />
         <details className="panel no-print" id="da-history"><summary><b>ইতিহাস — কে কখন কী করেছেন</b></summary><HistoryTab s={s} /></details></>}
     </div>
     <CollectorStrip s={s} reload={reload} />
@@ -84,7 +96,7 @@ type RiderDraft = { line?: string; code: string; name?: string; mobile?: string 
   delivery: string; pickup: string; amount: string; paid: string; due: string; mb: string; remarks: string }
 const emptyRider: RiderDraft = { code: '', delivery: '', pickup: '', amount: '', paid: '', due: '', mb: '', remarks: '' }
 
-function RidersTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void> }) {
+function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void>; ls: LS }) {
   const fields = settings['da.rider_fields']
   const manualDue = settings['da.due_rule'] === 'manual'
   const [d, setD] = useState<RiderDraft | null>(null)
@@ -120,12 +132,13 @@ function RidersTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; re
     <div className="da-bar"><h2>রাইডার-ভিত্তিক হিসাব</h2>
       {s.can_edit && <div className="row no-print">
         {missing.length > 0 && <Badge tone="warn">এখনো হিসাব বাকি: {num(missing.length)} জন</Badge>}
-        <button onClick={() => { setErr(null); setD({ ...emptyRider }) }}>＋ রাইডার যোগ</button></div>}</div>
+        <button onClick={() => { setErr(null); setD({ ...emptyRider }) }}>＋ রাইডার যোগ</button></div>}
+      <SectionMenu sec="riders" title="রাইডার-ভিত্তিক হিসাব" s={s} settings={settings} onAdd={() => { setErr(null); setD({ ...emptyRider }) }} addLabel="＋ রাইডার যোগ" onLayoutSaved={ls} /></div>
     {missing.length > 0 && <p className="muted small no-print">যাঁদের লাইন এখনো ওঠেনি: {missing.map(m => `${m.employee_code} ${m.full_name}`).join(' · ')}</p>}
     <p className="muted small">বকেয়া নিয়ম: {manualDue ? 'নিজে লিখবেন' : 'টাকা − জমা'} · মোবাইল ব্যাংকিং: {settings['da.mobile_banking_rule'] === 'separate' ? 'আলাদা হিসাব (বকেয়ার সাথে যোগ-বিয়োগ হয় না)' : settings['da.mobile_banking_rule'] === 'reduces_due' ? 'বকেয়া থেকে বাদ যায়' : 'বকেয়ার সাথে যোগ হয়'}</p>
-    <div className="da-table-wrap"><table className="da-table">
+    <div className="da-table-wrap"><table className="da-table" data-sec="riders">
       <thead><tr><th>নং</th><th>Employee ID</th><th>রাইডারের নাম</th><th>মোবাইল</th>
-        {fields.filter(f => f !== 'remarks').map(f => <th key={f} className="r">{F_LABEL[f]}</th>)}{fields.includes('remarks') && <th>মন্তব্য</th>}<th className="no-print" /></tr></thead>
+        {fields.filter(f => f !== 'remarks').map(f => <th key={f} className="r">{F_LABEL[f]}</th>)}{fields.includes('remarks') && <th>মন্তব্য</th>}<ExtraHeads settings={settings} sec="riders" /><th className="no-print" /></tr></thead>
       <tbody>{s.riders.map(r => <tr key={r.id}>
         <td data-l="নং">{num(r.no)}</td><td data-l="ID">{r.employee_code}</td><td data-l="নাম"><b>{r.rider_name}</b></td><td data-l="মোবাইল">{r.mobile ?? '—'}</td>
         {fields.includes('delivery_qty') && <td data-l="ডেলিভারি" className="r">{num(r.delivery_qty)}</td>}
@@ -135,6 +148,7 @@ function RidersTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; re
         {fields.includes('due') && <td data-l="বকেয়া" className="r"><b className={r.due > 0 ? 'bad' : ''}>{taka(r.due)}</b></td>}
         {fields.includes('mobile_banking') && <td data-l="মোবাইল ব্যাংকিং" className="r">{taka(r.mobile_banking)}</td>}
         {fields.includes('remarks') && <td data-l="মন্তব্য">{r.remarks ?? ''}</td>}
+        <ExtraCells s={s} settings={settings} sec="riders" row={r.id} reload={reload} />
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(r)}>এডিট</button>
           <button className="danger sm" onClick={() => setRemove(r)}>বাদ</button></span>}</td></tr>)}
         {s.riders.length === 0 && <tr><td colSpan={12} className="muted">এখনো কোনো রাইডার যোগ হয়নি।</td></tr>}</tbody>
@@ -145,7 +159,7 @@ function RidersTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; re
         {fields.includes('paid_amount') && <td data-l="মোট জমা" className="r">{taka(sum(r => r.paid_amount))}</td>}
         {fields.includes('due') && <td data-l="মোট বকেয়া" className="r"><b className={sum(r => r.due) > 0 ? 'bad' : ''}>{taka(sum(r => r.due))}</b></td>}
         {fields.includes('mobile_banking') && <td data-l="মোট মোবাইল ব্যাংকিং" className="r">{taka(sum(r => r.mobile_banking))}</td>}
-        {fields.includes('remarks') && <td className="no-print" />}<td className="no-print" /></tr></tfoot>}</table></div>
+        {fields.includes('remarks') && <td className="no-print" />}<ExtraBlanks settings={settings} sec="riders" /><td className="no-print" /></tr></tfoot>}</table></div>
 
     {d && <Modal title={d.line ? 'রাইডারের হিসাব এডিট' : 'রাইডার যোগ'} onClose={() => setD(null)} wide
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || !d.code || d.allowed === false} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'সেভ'}</button></>}>
@@ -203,7 +217,7 @@ type MDraft = { line?: string; merchantQ: string; merchant?: string; merchantNam
   path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string
   /** What the hub's own record says about this Payment ID: found, or not found. */
   match?: string; matched?: boolean; byHand?: boolean }
-function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void> }) {
+function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void>; ls: LS }) {
   const [d, setD] = useState<MDraft | null>(null)
   const [opts, setOpts] = useState<Array<{ merchant_id: string; code: string; name: string }>>([])
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false)
@@ -251,13 +265,15 @@ function MerchantTab({ s, settings, reload }: { s: Sheet; settings: DaSettings; 
   const total = s.merchant_payments.reduce((a, m) => a + m.amount, 0)
 
   return <section className="panel" id="da-merchant">
-    <div className="da-bar"><h2>মার্চেন্ট ক্যাশ পেমেন্ট</h2>{s.can_edit && <button className="no-print" onClick={() => { setErr(null); setD({ ...blank }) }}>＋ পেমেন্ট যোগ</button>}</div>
-    <div className="da-table-wrap"><table className="da-table"><thead><tr><th>নং</th><th>কে নিয়েছে</th><th>Payment ID</th><th>Transaction ID</th><th className="r">টাকা</th><th>তারিখ</th><th>মিল</th><th>OCR</th><th>স্ক্রিনশট</th><th>মন্তব্য</th><th className="no-print" /></tr></thead>
+    <div className="da-bar"><h2>মার্চেন্ট ক্যাশ পেমেন্ট</h2><div className="row no-print">{s.can_edit && <button onClick={() => { setErr(null); setD({ ...blank }) }}>＋ পেমেন্ট যোগ</button>}
+      <SectionMenu sec="payment" title="মার্চেন্ট ক্যাশ পেমেন্ট" s={s} settings={settings} onAdd={() => { setErr(null); setD({ ...blank }) }} addLabel="＋ পেমেন্ট যোগ" onLayoutSaved={ls} /></div></div>
+    <div className="da-table-wrap"><table className="da-table" data-sec="payment"><thead><tr><th>নং</th><th>কে নিয়েছে</th><th>Payment ID</th><th>Transaction ID</th><th className="r">টাকা</th><th>তারিখ</th><th>মিল</th><th>OCR</th><th>স্ক্রিনশট</th><th>মন্তব্য</th><ExtraHeads settings={settings} sec="payment" /><th className="no-print" /></tr></thead>
       <tbody>{s.merchant_payments.map(m => <tr key={m.id}><td data-l="নং">{num(m.no)}</td><td data-l="কে নিয়েছে">{m.merchant_id || m.payee_name ? <b>{m.merchant_name}</b> : <span className="muted">—</span>}</td><td data-l="Payment ID">{m.payment_ref ?? '—'}</td>
         <td data-l="Transaction ID">{m.transaction_id ?? '—'}</td><td data-l="টাকা" className="r">{taka(m.amount)}</td><td data-l="তারিখ">{dateBn(m.payment_date)}</td>
         <td data-l="মিল">{m.match_status === 'matched' ? <Badge tone="ok">মিলেছে</Badge> : m.match_status === 'mismatch' ? <Badge tone="bad">অমিল</Badge> : <Badge>রেকর্ড নেই</Badge>}</td>
         <td data-l="OCR">{!m.ocr ? '—' : m.ocr_verified ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>}</td>
         <td data-l="স্ক্রিনশট">{m.screenshot_path ? <FileLink path={m.screenshot_path} /> : '—'}</td><td data-l="মন্তব্য">{m.remarks ?? ''}</td>
+        <ExtraCells s={s} settings={settings} sec="payment" row={m.id} reload={reload} />
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(m)}>এডিট</button><button className="danger sm" onClick={() => setRemove(m)}>বাদ</button></span>}</td></tr>)}
         {s.merchant_payments.length === 0 && <tr><td colSpan={11} className="muted">কোনো মার্চেন্ট পেমেন্ট নেই।</td></tr>}</tbody>
       {s.merchant_payments.length > 0 && <tfoot><tr><td colSpan={4}>মোট ({num(s.merchant_payments.length)} টি)</td>
@@ -318,7 +334,7 @@ function FileLink({ path }: { path: string }) {
 type XDraft = { line?: string; kind: 'transport' | 'employee'; employee: string; employeeName?: string; template: string; name: string; category: string; amount: string
   date: string; billNo: string; ref: string; paidBy: string; path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string
   vehicle: string; refName: string; refPhone: string; refPosition: string }
-function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: DaSettings; templates: Template[]; reload: (m?: string) => Promise<void> }) {
+function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; settings: DaSettings; templates: Template[]; reload: (m?: string) => Promise<void>; ls: LS }) {
   const cats = settings['da.expense_categories']
   const catL = (c: string) => cats.find(x => x.code === c)?.bn ?? c
   const refCfg = settings['da.reference_setup']; const billCfg = settings['da.bill_upload']
@@ -389,9 +405,10 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
     <div className="da-bar"><h2>যাতায়াত ও হাব কর্মীর খরচ</h2>
       <div className="row no-print"><select value={kindF} onChange={e => setKindF(e.target.value as typeof kindF)} aria-label="ধরন">
         <option value="all">সব</option><option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select>
-        {s.can_edit && <><button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ যাতায়াত খরচ</button><button className="secondary" onClick={() => { setErr(null); setD(blank('employee')) }}>＋ কর্মীর খরচ</button></>}</div></div>
+        {s.can_edit && <><button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ যাতায়াত খরচ</button><button className="secondary" onClick={() => { setErr(null); setD(blank('employee')) }}>＋ কর্মীর খরচ</button></>}
+        <SectionMenu sec="expense" title="যাতায়াত ও হাব কর্মীর খরচ" s={s} settings={settings} onAdd={() => { setErr(null); setD(blank('transport')) }} addLabel="＋ খরচ যোগ" onLayoutSaved={ls} /></div></div>
     <ErrorNote error={err && !d ? err : null} />
-    <div className="da-table-wrap"><table className="da-table"><thead><tr><th>নং</th><th>ধরন</th><th>কর্মী</th><th>খরচের নাম</th><th>খাত</th><th className="r">বিল</th><th>তারিখ</th><th>বিল / রেফ.</th><th>দিয়েছেন</th><th>বিল ফাইল</th><th>ভাউচার</th><th>OCR</th><th className="no-print" /></tr></thead>
+    <div className="da-table-wrap"><table className="da-table" data-sec="expense"><thead><tr><th>নং</th><th>ধরন</th><th>কর্মী</th><th>খরচের নাম</th><th>খাত</th><th className="r">বিল</th><th>তারিখ</th><th>বিল / রেফ.</th><th>দিয়েছেন</th><th>বিল ফাইল</th><th>ভাউচার</th><th>OCR</th><ExtraHeads settings={settings} sec="expense" /><th className="no-print" /></tr></thead>
       <tbody>{list.map(x => <tr key={x.id}><td data-l="নং">{num(x.no)}</td><td data-l="ধরন">{x.kind === 'transport' ? 'যাতায়াত' : 'কর্মী'}</td>
         <td data-l="কর্মী">{x.employee_name ? <>{x.employee_name}<span className="sec">ID {x.employee_code}</span></> : '—'}</td><td data-l="নাম"><b>{x.expense_name}</b></td>
         <td data-l="খাত">{catL(x.category)}</td><td data-l="বিল" className="r">{taka(x.amount)}</td><td data-l="তারিখ">{dateBn(x.bill_date)}</td>
@@ -402,6 +419,7 @@ function ExpenseTab({ s, settings, templates, reload }: { s: Sheet; settings: Da
           : x.attachment_path || x.bill_no ? <span className="muted">লাগবে না</span>
           : s.can_edit ? <button className="secondary sm no-print" onClick={() => void makeVoucher(x)}>ভাউচার বানান</button> : '—'}</td>
         <td data-l="OCR">{!x.ocr ? '—' : x.ocr_verified ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>}</td>
+        <ExtraCells s={s} settings={settings} sec="expense" row={x.id} reload={reload} />
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(x)}>এডিট</button><button className="danger sm" onClick={() => setRemove(x)}>বাদ</button></span>}</td></tr>)}
         {list.length === 0 && <tr><td colSpan={13} className="muted">কোনো খরচ নেই।</td></tr>}</tbody>
       {list.length > 0 && <tfoot><tr><td colSpan={5}>মোট ({num(list.length)} টি) · যাতায়াত {taka(tSum)} · কর্মী {taka(eSum)}</td>
@@ -467,7 +485,7 @@ function CatHelp({ cat, amount }: { cat?: Category; amount: number }) {
 }
 
 /** Bills the staff put up themselves. The manager takes one in with a click. */
-function ClaimsPanel({ s, cats, reload }: { s: Sheet; cats: Category[]; reload: (m?: string) => Promise<void> }) {
+function ClaimsPanel({ s, settings, cats, reload, ls }: { s: Sheet; settings: DaSettings; cats: Category[]; reload: (m?: string) => Promise<void>; ls: LS }) {
   const claims = useLoad(() => s.can_edit ? da.sheetClaims(s.session.id) : Promise.resolve([] as Claim[]), [s.session.id, s.can_edit])
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -489,11 +507,12 @@ function ClaimsPanel({ s, cats, reload }: { s: Sheet; cats: Category[]; reload: 
 
   if (!s.can_edit && list.length === 0) return null
   return <section className="panel" id="da-claims">
-    <div className="da-bar"><h2>কর্মীদের জমা দেওয়া বিল {list.length > 0 && <Badge tone="warn">{num(list.length)} টি</Badge>}</h2></div>
+    <div className="da-bar"><h2>কর্মীদের জমা দেওয়া বিল {list.length > 0 && <Badge tone="warn">{num(list.length)} টি</Badge>}</h2>
+      <SectionMenu sec="claims" title="কর্মীদের জমা দেওয়া বিল" s={s} settings={settings} onLayoutSaved={ls} /></div>
     <p className="muted small">কর্মীরা “আমার হিসাব” থেকে নিজের খরচ জমা দেন। এখান থেকে এক ক্লিকে আজকের খাতায় তুলে নিন।</p>
     <ErrorNote error={err ?? claims.error} />
     {list.length === 0 ? <p className="muted">এখন কোনো বিল অপেক্ষায় নেই।</p> :
-      <div className="da-table-wrap"><table className="da-table">
+      <div className="da-table-wrap"><table className="da-table" data-sec="claims">
         <thead><tr><th>নং</th><th>কে</th><th>খরচ</th><th>খাত</th><th className="r">টাকা</th><th>তারিখ</th><th>গাড়ি</th><th>রেফারেন্স</th><th>বিল ফাইল</th><th className="no-print" /></tr></thead>
         <tbody>{list.map(c => <tr key={c.id}>
           <td data-l="নং">{num(c.no)}</td>
@@ -687,7 +706,7 @@ function CollectorStrip({ s, reload }: { s: Sheet; reload: (m?: string) => Promi
 type NoteDraft = { id?: string; amount: string; method: string; code: string; name: string; note: string }
 
 /** Money that came to hand: who gave it, how much, by which wallet. */
-function NotesPanel({ s, settings, reload }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void> }) {
+function NotesPanel({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void>; ls: LS }) {
   const methods = settings['da.note_methods'] ?? ['cash']
   const [d, setD] = useState<NoteDraft | null>(null)
   const [err, setErr] = useState<unknown>(null)
@@ -708,11 +727,12 @@ function NotesPanel({ s, settings, reload }: { s: Sheet; settings: DaSettings; r
 
   return <section className="panel" id="da-notes">
     <div className="da-bar"><h2>জমা ও নোট</h2>
-      {s.can_edit && <button className="no-print" onClick={() => { setErr(null); setD({ amount: '', method: 'cash', code: '', name: '', note: '' }) }}>＋ নোট যোগ</button>}</div>
+      <div className="row no-print">{s.can_edit && <button onClick={() => { setErr(null); setD({ amount: '', method: 'cash', code: '', name: '', note: '' }) }}>＋ নোট যোগ</button>}
+        <SectionMenu sec="notes" title="জমা ও নোট" s={s} settings={settings} onAdd={() => { setErr(null); setD({ amount: '', method: 'cash', code: '', name: '', note: '' }) }} addLabel="＋ নোট যোগ" onLayoutSaved={ls} /></div></div>
     <p className="muted small">কে কত টাকা জমা দিয়ে গেলেন, কোন মাধ্যমে — এখানে লিখে রাখুন। যাঁর নামে লেখা হবে, তিনি নিজের পাতায় দেখতে পাবেন।</p>
     <ErrorNote error={err} />
-    <div className="da-table-wrap"><table className="da-table">
-      <thead><tr><th>নং</th><th>কার কাছ থেকে</th><th>মাধ্যম</th><th className="r">টাকা</th><th>নোট</th><th>সময়</th><th className="no-print" /></tr></thead>
+    <div className="da-table-wrap"><table className="da-table" data-sec="notes">
+      <thead><tr><th>নং</th><th>কার কাছ থেকে</th><th>মাধ্যম</th><th className="r">টাকা</th><th>নোট</th><th>সময়</th><ExtraHeads settings={settings} sec="notes" /><th className="no-print" /></tr></thead>
       <tbody>{list.map(n => <tr key={n.id}>
         <td data-l="নং">{num(n.no)}</td>
         <td data-l="কার"><b>{n.from_name ?? '—'}</b>{n.from_code ? <span className="sec">ID {n.from_code}</span> : null}</td>
@@ -720,6 +740,7 @@ function NotesPanel({ s, settings, reload }: { s: Sheet; settings: DaSettings; r
         <td data-l="টাকা" className="r">{taka(n.amount)}</td>
         <td data-l="নোট">{n.note ?? ''}</td>
         <td data-l="সময়">{timeBn(n.created_at)}</td>
+        <ExtraCells s={s} settings={settings} sec="notes" row={n.id} reload={reload} />
         <td className="no-print">{s.can_edit && <span className="row">
           <button className="secondary sm" onClick={() => setD({ id: n.id, amount: String(n.amount), method: n.method,
             code: n.from_code ?? '', name: n.from_name ?? '', note: n.note ?? '' })}>এডিট</button>
