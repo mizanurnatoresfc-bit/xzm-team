@@ -215,7 +215,7 @@ function Files({ onToast }: { onToast: (m: string) => void }) {
           { key: 'date', label: 'তারিখ', value: r => r.event_date ?? '' },
           { key: 'kind', label: 'ধরন', value: r => REG_KIND[r.kind] ?? r.kind, render: r => <Badge tone={r.source === 'request' ? 'info' : 'neutral'}>{REG_KIND[r.kind] ?? r.kind}</Badge> },
           { key: 'code', label: 'আইডি', value: r => r.employee_code ?? '' },
-          { key: 'name', label: 'নাম', value: r => r.full_name ?? '' },
+          { key: 'name', label: 'নাম', primary: true, value: r => r.full_name ?? '' },
           { key: 'mobile', label: 'মোবাইল', value: r => r.mobile ?? '' },
           { key: 'pos', label: 'পদবি', value: r => r.position_name ?? '' },
           { key: 'from', label: 'হাব (আগে)', value: r => r.from_hub ?? '' },

@@ -68,7 +68,7 @@ export function Employees() {
       <DataTable title="কর্মী তালিকা" file="employees" rows={rows} rowKey={e => e.id} onRowClick={e => nav(`/app/hr/employees/${e.id}`)}
         empty={<p className="muted">কোনো কর্মী পাওয়া যায়নি।</p>} cols={[
           { key: 'employee_code', label: 'আইডি', render: e => <strong>{e.employee_code ?? '—'}</strong> },
-          { key: 'full_name', label: 'নাম', render: e => <span className="emp-tname"><span className={`ec-av sm t-${toneOf(e.full_name)}`}>{initials(e.full_name)}</span><span>{e.full_name}{e.full_name_bn && <span className="sec">{e.full_name_bn}</span>}</span></span> },
+          { key: 'full_name', label: 'নাম', primary: true, render: e => <span className="emp-tname"><span className={`ec-av sm t-${toneOf(e.full_name)}`}>{initials(e.full_name)}</span><span>{e.full_name}{e.full_name_bn && <span className="sec">{e.full_name_bn}</span>}</span></span> },
           { key: 'mobile', label: 'মোবাইল' },
           { key: 'hub', label: 'হাব', value: hubName },
           { key: 'pos', label: 'পদবি', value: posName },
