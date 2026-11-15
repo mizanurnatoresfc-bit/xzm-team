@@ -24,6 +24,7 @@ export function EmployeeProfile() {
   const app = useLoad(() => e?.status === 'applicant' ? hr.applicationOf(id) : Promise.resolve(null), [id, e?.status])
   const isDraftOwner = !!e && e.status === 'applicant' && !!app.data && ['draft', 'returned'].includes(app.data.status) && app.data.created_by === session?.user.id
   const [tab, setTab] = useState<'overview' | 'personal' | 'docs' | 'history'>('overview')
+  const [askEdit, setAskEdit] = useState(0)
   // Profile photo: the newest "photo" document, opened with a short-lived link.
   const photo = useLoad(async () => {
     const list = await docs.list(id).catch(() => [])
@@ -47,19 +48,18 @@ export function EmployeeProfile() {
         <div className="emp-id">
           <h2>{e.full_name}</h2>
           <div className="emp-badges"><EmpBadge status={e.status} />{post && <span className={`role-pill${isRider ? ' rider' : ''}`}><Icon name={isRider ? 'truck' : 'user'} size={14} />{post}</span>}<FocusPill f={focus} /></div>
-          {e.mobile && <div className="emp-contact">
-            <a className="ct call" href={`tel:${e.mobile}`}><Icon name="phone" size={16} />{e.mobile}</a>
-            <a className="ct wa" href={`https://wa.me/88${e.mobile.replace(/\D/g, '').replace(/^88/, '')}`} target="_blank" rel="noreferrer">WhatsApp</a>
-            <a className="ct sms" href={`sms:${e.mobile}`}>SMS</a></div>}
           <div className="emp-hub"><Icon name="hub" size={16} />{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : 'হাব দেওয়া হয়নি'}
             {e.employee_code ? <b>#{e.employee_code}</b> : <span className="muted">আইডি বাকি</span>}</div>
         </div>
       </div>
-      <div className="emp-acts">
-        {can('hr.employee.edit') && <button onClick={() => setTab('overview')}><Icon name="edit" size={16} />প্রোফাইল এডিট</button>}
-        <Link to="/app/hub/attendance" className="btn-ghost"><Icon name="cal" size={16} />হাজিরা</Link>
-        <Link to="/app/accounts/daily" className="btn-ghost"><Icon name="ledger" size={16} />হিসাব খাতা</Link>
-        <button className="secondary" onClick={() => setTab('docs')}><Icon name="file" size={16} />ডকুমেন্ট</button>
+      <div className="nv-qas">
+        {e.mobile && <a className="nv-qa call" href={`tel:${e.mobile}`}><i><Icon name="phone" size={22} /></i>কল</a>}
+        {e.mobile && <a className="nv-qa wa" href={`https://wa.me/88${e.mobile.replace(/\D/g, '').replace(/^88/, '')}`} target="_blank" rel="noreferrer"><i><Icon name="note" size={22} /></i>WhatsApp</a>}
+        {e.mobile && <a className="nv-qa" href={`sms:${e.mobile}`}><i><Icon name="form" size={22} /></i>SMS</a>}
+        {can('hr.employee.edit') && e.status !== 'applicant' && !e.archived_at && <button type="button" className="nv-qa" onClick={() => { setTab('overview'); setAskEdit(n => n + 1) }}><i><Icon name="edit" size={22} /></i>এডিট</button>}
+        <Link to="/app/hub/attendance" className="nv-qa"><i><Icon name="cal" size={22} /></i>হাজিরা</Link>
+        <Link to="/app/accounts/daily" className="nv-qa"><i><Icon name="ledger" size={22} /></i>হিসাব খাতা</Link>
+        <button type="button" className="nv-qa" onClick={() => setTab('docs')}><i><Icon name="file" size={22} /></i>ডকুমেন্ট</button>
       </div>
     </section>
     <nav className="emp-tabs" role="tablist">
@@ -75,7 +75,7 @@ export function EmployeeProfile() {
         {app.data.status === 'submitted' && !can('hr.application.approve') && <p className="muted">HR যাচাই করছে।</p>}
       </section>}
       <WorkPanel e={e} canEdit={can('hr.employee.edit') || can('hr.duty.edit')} onChanged={async m => { toast(m); await reload() }} />
-      {isDraftOwner ? <DraftForm e={e} onSaved={async m => { toast(m); await reload() }} /> : <Details e={e} onChanged={async m => { toast(m); await reload() }} />}
+      {isDraftOwner ? <DraftForm e={e} onSaved={async m => { toast(m); await reload() }} /> : <Details e={e} askEdit={askEdit} onChanged={async m => { toast(m); await reload() }} />}
     </>}
     {tab === 'personal' && <>
       <ExtraFields employee={e.id} zoneId={e.zone_id} onSaved={m => toast(m)} />
@@ -244,7 +244,7 @@ function DraftForm({ e, onSaved }: { e: Employee; onSaved: (m: string) => Promis
   </section>
 }
 
-function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Promise<void> }) {
+function Details({ e, askEdit = 0, onChanged }: { e: Employee; askEdit?: number; onChanged: (m: string) => Promise<void> }) {
   const { can } = useAuth()
   const o = useOrg()
   const nid = useLoad(() => hr.maskedNid(e.id), [e.id])
@@ -283,12 +283,15 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
     if (new URLSearchParams(location.search).get('edit') === '1' && can('hr.employee.edit') && !e.archived_at && e.status !== 'applicant') open('edit')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [e.id])
+  // the round "edit" button in the header asks for the form
+  useEffect(() => { if (askEdit > 0) open('edit') // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askEdit])
   const year = Number(todayDhaka().slice(0, 4))
   const bal = useLoad(() => e.status === 'applicant' ? Promise.resolve([]) : hr.leaveBalance(e.id, year), [e.id, year])
   return <>
     <section className="panel">
       <div className="da-bar"><h2 style={{ margin: 0 }}>তথ্য</h2>
-        {!e.archived_at && <div className="row">
+        {!e.archived_at && <div className="row nv-actrow">
           {e.status !== 'applicant' && <>
             {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('edit')}>সম্পাদনা</button>}
             {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
@@ -296,7 +299,7 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
             {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('archive')}>আর্কাইভ</button>}</>}
           {e.employee_code && can('hr.employee.edit') && can('hr.application.approve') && <button className="secondary sm" onClick={() => open('code')}>আইডি সংশোধন</button>}
           {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('wrong')}>ভুল এন্ট্রি — মুছুন</button>}</div>}</div>
-      <div className="info-grid">
+      <div className="info-grid nv-info">
         <Info icon="key" label="এমপ্লয়ি আইডি"><strong>{e.employee_code ?? '—'}</strong></Info>
         <Info icon="user" label="নাম">{e.full_name}{e.full_name_bn ? <span className="sec">{e.full_name_bn}</span> : null}</Info>
         <Info icon="phone" label="মোবাইল">{e.mobile ? <a href={`tel:${e.mobile}`}>{e.mobile}</a> : '—'}</Info>

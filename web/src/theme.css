@@ -1455,3 +1455,27 @@ a.nv-row:hover{background:var(--canvas)}a.nv-row:active{background:var(--primary
   .emp-board .dv-acts .row-acts button{min-height:36px;border-radius:99px;padding:0 12px;background:var(--primary-50)!important;color:var(--primary)!important;border:0!important;box-shadow:none}
   .emp-board .dv-bulk{position:sticky;top:64px;z-index:6;box-shadow:var(--shadow)}
 }
+
+/* ---- staff profile, native style: round quick actions, info as a list ---- */
+.nv-qas{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:14px 12px 16px}
+.nv-qas::-webkit-scrollbar{display:none}
+.nv-qa{flex:1 0 68px;max-width:96px;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:0;padding:2px 0;font-size:12.5px;font-weight:600;text-align:center;text-decoration:none;white-space:nowrap;background:transparent!important;color:var(--text)!important;border:0!important;box-shadow:none!important}
+.nv-qa i{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;background:var(--primary-50);color:var(--primary);transition:transform .12s}
+.nv-qa:active i{transform:scale(.94)}
+.nv-qa.call i{background:var(--primary);color:#fff}.nv-qa.wa i{background:#E7F8EE;color:#128C4A}
+.nv-actrow{flex-wrap:wrap;gap:6px}
+.nv-info .ii-ic{border-radius:50%;background:var(--primary-50)}
+@media (max-width:899px){
+  .emp-head .emp-top{align-items:center!important;text-align:center}
+  .emp-head .emp-id{width:100%}
+  .emp-head .emp-badges,.emp-head .emp-hub{justify-content:center}
+  .emp-head .emp-hub{box-shadow:none;background:transparent;min-height:0}
+  .nv-info{gap:0!important;margin:8px -4px 0}
+  .nv-info .info-item{background:transparent;border-radius:0;padding:12px 4px;align-items:center;border-top:1px solid var(--border)}
+  .nv-info .ii-ic{width:40px;height:40px}
+  .nv-info .ii-val{font-size:15.5px}
+  .nv-actrow{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none;width:100%;margin:8px -12px 0;padding:0 12px 2px}
+  .nv-actrow::-webkit-scrollbar{display:none}
+  .nv-actrow button{flex:none;white-space:nowrap;border-radius:10px;min-height:36px}
+}
+@media (min-width:900px){.nv-qas{padding:16px 18px 18px;gap:10px}.nv-qa{flex:0 0 84px}}
