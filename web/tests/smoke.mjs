@@ -40,7 +40,8 @@ try {
     // --- signed in as the Super Admin
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
-    await ctx.route(/fonts\.(googleapis|gstatic)/, r => r.abort())
+    await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
+    const created = []
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
@@ -52,6 +53,9 @@ try {
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
       if (u.includes('rpc/dashboard_home')) return j({ panels: ['my_work', 'quick_links'], today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
+      if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 0, unseen: 0 }])
+      if (u.includes('rpc/issue_create')) { created.push(r.request().postDataJSON()); return j('i1') }
+      if (u.includes('/storage/v1/object/')) return j({ Key: 'issue-photos/h1/label.png', Id: '1' })
       if (u.includes('/rpc/')) return j(null)
       return j([])
     })
@@ -98,6 +102,20 @@ try {
     check(await page.locator('.dv-list li').count() === 50, `${size}: the chosen view is remembered after reload`)
     await page.locator('.list-tools [aria-pressed]').nth(0).click()
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-list.png` })
+
+    // new issue from a label picture: choose the picture, the form keeps working when the ID cannot be read, the issue is created with the picture
+    await page.goto(`${BASE}/app/issues?new=1`); await page.waitForSelector('.is-drop')
+    check(await page.locator('.is-drop').count() === 1, `${size}: the issue shortcut opens the label form`)
+    await page.locator('.is-drop .is-file').setInputFiles({ name: 'label.png', mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') })
+    await page.waitForSelector('.is-drop img')
+    await page.waitForFunction(() => /পড়া যায়নি|মিলিয়ে নিন/.test(document.querySelector('.is-drop-acts [role=status]')?.textContent ?? ''), null, { timeout: 40000 }).catch(() => {})
+    check(/পড়া যায়নি|মিলিয়ে নিন/.test(await page.locator('.is-drop-acts [role=status]').innerText()), `${size}: the form says whether an ID was read from the picture`)
+    await page.locator('.da-modal .da-form input').first().fill('TEST123456'); await fits('new issue form')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-issue.png` })
+    await page.locator('.da-modal-acts button').first().click()
+    await page.waitForFunction(() => !document.querySelector('.is-drop'), null, { timeout: 8000 }).catch(() => {})
+    check(created.length === 1 && created[0].p_parcel_ref === 'TEST123456' && !!created[0].p_photo && created[0].p_hub === 'h1', `${size}: the issue is created with the picture and the parcel ID`)
 
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
     await ctx.close()

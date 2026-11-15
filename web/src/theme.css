@@ -1137,3 +1137,15 @@ input[readonly],textarea[readonly],select:disabled,input:disabled{background:var
 .dv-pager .grow{flex:1}
 .dv-pager select{width:auto;margin:0;min-height:32px;padding:2px 8px}
 @media (max-width:700px){.list-tools .dv-search{max-width:none;flex-basis:100%;order:5}.list-tools .grow{display:none}.list-tools .cnt{flex:1}.dv-cards{grid-template-columns:1fr}.dv-filters label{flex:1 1 140px}}
+
+/* ---- New issue: label screenshot drop zone ---- */
+.is-file{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.is-drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;min-height:132px;padding:16px;margin:0 0 8px;border:2px dashed var(--border);border-radius:14px;background:var(--th);color:var(--muted);cursor:pointer}
+.is-drop:hover,.is-drop:focus-within{border-color:var(--primary);color:var(--primary)}
+.is-drop b{color:var(--text);font-size:15px}
+.is-drop small{font-size:12.5px;max-width:420px}
+.is-drop.has{padding:8px;border-style:solid;background:var(--surface)}
+.is-drop img{max-width:100%;max-height:240px;border-radius:10px;display:block}
+.is-drop-acts{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+.is-drop-acts label{position:relative;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.is-drop-acts button.on{border-color:var(--primary);color:var(--primary);background:var(--primary-50)}
