@@ -311,3 +311,37 @@ Built from the owner's own nine-point list.
 - **A bill taken in shows the sheet's date** (`da.claim_date_source = 'sheet'`); the bill's own date is kept in the remarks as "বিলের তারিখ DD/MM/YYYY".
 - **Fixed riders and fixed expenses** (`da.fixed_riders`, `da.fixed_expenses`) go onto every new sheet as it is started (`da_apply_fixed`, called by `da_start_session`); asking twice adds nothing twice, and both lists are edited in Accounts settings along with the payment prefix, the double-line switch, the claim-date rule and the close rule.
 - Tests: **826 SQL assertions** (new `99j_sheet_made_easy.sql`; `90`, `99g` updated where the old rules changed). Browser flow (`harness/easy_flow.py`): the six tabs → a payment typed as `101001` comes out SFC-101001 → an expense in the four front boxes → a second hisab for the same rider → the collectors strip → a cash note → the day closed with its totals.
+
+## 2026-11-15 — ইস্যু / ফলো-আপ ও হাব গ্রুপ (Nodi AI ধাপ ১)
+- Migration `20261115001200_hub_issues.sql`: `issues` (IS-00001; open → in_progress → solved → approved / cancelled), `issue_events` (log), `hub_posts`
+  (hub group; `author_profile` null = নদী AI), `hub_post_reactions` (👍 ❤️ 😮 😢 ✅ 🙏, one per person per emoji), `hub_post_seen`. Private bucket `issue-photos` (`<hub_id>/<file>`).
+  Perms `issue.issue.view/create/approve`, `issue.group.view`. A hub group is readable by people posted at the hub and by anyone whose permission reaches it (`private.in_hub_group`).
+- **Rule:** an issue leaves the assignee's panel when solved, but stays on the GIVER's panel ("চেক বাকি") until the giver approves; "ফেরত" (reopen, reason required) sends it back.
+  Assignee cannot approve their own work. All writes are RPCs: `issue_create` (parcel ID → the parcel's rider is chosen and marked "নদী AI বেছেছে"), `issue_assign`,
+  `issue_act(start|solve|approve|reopen|cancel)`, `hub_post_create/react`, `hub_posts_seen`, `hub_feed`, `hub_post_seen_by/reacted_by`, `issue_panels`, `issue_detail`.
+- `issue_nudge_due(hours)` — নদী AI follow-up: posts a reminder in the hub group and notifies the assignee (or the giver, for a solved-but-unchecked issue). Service role only;
+  **not scheduled yet** (needs an Edge Function / cron call).
+- Page `/app/issues` (pages/issues/Issues.tsx, lib/issues.ts): tabs আমার কাজ · চেক বাকি · আমি দিয়েছি · হাব গ্রুপ · হাবের সব ইস্যু; new issue (parcel ID / photo / person), detail with history.
+- Tests: 42 new assertions (`99l_hub_issues.sql`). The local shim now has a minimal `storage` schema (older migrations needed it). `99f_role_dashboards` already fails
+  ("nine panels exist") since the dashboard-views migration — not touched here.
+- **Not built yet (next):** নদী AI avatar + voice/multi-command (Claude API through an Edge Function), training centre, reading a parcel ID from a photo, scheduling the follow-up.
+
+## 2026-11-15 — নদী AI: API ব্যবস্থাপনা
+- Migration `20261115001300_nodi_ai.sql`: perms `nodi.assistant.view` / `nodi.settings.configure`; settings `nodi.enabled/model/daily_limit/max_tokens`; `nodi_usage` log;
+  `nodi_gate()` (permission in any scope + on/off + daily limit, as the caller), `nodi_log()` (service role only), `nodi_settings/configure/usage_summary` (admin).
+- Edge Function `supabase/functions/nodi-ai` (verify_jwt off, token checked inside): actions `status` and `chat`. The Anthropic key exists ONLY as the function secret `ANTHROPIC_API_KEY`.
+- Page `/app/nodi` (pages/users/NodiSettings.tsx): key present or not, on/off, model, daily limit, answer length, test box, usage table.
+- Tests: 12 new assertions (`99m_nodi_ai.sql`). **Not applied to the live project and the function is not deployed yet.**
+
+## 2026-11-15 — নদী AI চ্যাট, কণ্ঠ ও একাধিক কমান্ড (লাইভ ডেভ প্রজেক্টে)
+- Edge Function `nodi-ai` v2: Claude tool-use loop (max 6 steps). Tools: `list_hubs`, `my_issues`, `create_issue`, `issue_action`, `post_to_hub`.
+  Every tool runs AS THE CALLER (same RPCs and permission checks as the app), so নদী can never do more than the person could. One chat request = one count against the daily limit.
+- Page `/app/nodi/chat` (pages/nodi/NodiChat.tsx): avatar (components/NodiAvatar.tsx, talking/listening animation), voice input (browser SpeechRecognition, bn-BD — the text is shown before sending),
+  optional spoken answers (speechSynthesis), action chips for what was done, floating avatar button on every page for people with `nodi.assistant.view`.
+- Follow-up: `pg_cron` job `nodi-issue-followup` runs `issue_nudge_due(6)` at minute 7 of every hour.
+- Applied live on `xzm-team-erp-dev`: nodi_ai, hub_issues (a–e), nodi_followup_schedule. The Anthropic key must be added as the function secret `ANTHROPIC_API_KEY`.
+
+## 2026-11-15 — হিসাব খাতা: এক্সেলের মতো সরাসরি এন্ট্রি (QuickGrid)
+- `pages/accounts/QuickGrid.tsx`: ঘরে সরাসরি লেখা। নিচে সবসময় একটা ফাঁকা লাইন; Enter/↓/↑ লাইন বদলায়, Tab পাশের ঘরে; লাইন ছাড়লে বা Enter দিলে নিজে সেভ; বাংলা অঙ্ক ইংরেজি হয়; ভুল হলে লাইন লাল + কারণ; Employee ID দিলে নাম নিজে আসে।
+- রাইডার ট্যাব: পুরোনো টেবিলের জায়গায় গ্রিড (বদলানো যায়, ✕ দিয়ে কারণসহ বাদ)। পুরোনো টেবিল শুধু প্রিন্টে। পেমেন্ট ও খরচ ট্যাবে: উপরে দ্রুত-এন্ট্রি গ্রিড (Payment ID+টাকা; খরচের নাম+টাকা+ID+খাত), বিল/স্ক্রিনশটসহ বিস্তারিতের জন্য আগের বাটন আছে।
+- সীমা: "কলাম সাজান" (লুকানো/নাম বদল/নিজের কলাম) এখনো পুরোনো টেবিলে প্রযোজ্য; গ্রিড ডিফল্ট কলাম দেখায়।

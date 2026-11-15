@@ -31,6 +31,8 @@ const FieldSettings = lazy(() => import('./pages/hr/FieldSettings').then(m => ({
 const Referrals = lazy(() => import('./pages/hr/Referrals').then(m => ({ default: m.Referrals })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
+const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
+const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
 const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
 const MyProfile = lazy(() => import('./pages/MyProfile').then(m => ({ default: m.MyProfile })))
 const HubManagement = lazy(() => import('./pages/hub/HubManagement').then(m => ({ default: m.HubManagement })))
@@ -40,6 +42,7 @@ const Sorting = lazy(() => import('./pages/sorting/Sorting').then(m => ({ defaul
 const Requests = lazy(() => import('./pages/hr/Requests').then(m => ({ default: m.Requests })))
 const Duties = lazy(() => import('./pages/hr/Duties').then(m => ({ default: m.Duties })))
 const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
+const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
 const Vehicles = lazy(() => import('./pages/vehicles/Vehicles').then(m => ({ default: m.Vehicles })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
 const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ default: m.UserDetail })))
@@ -83,6 +86,7 @@ export default function App() {
       <Route path="/app/hr/duties" element={<Duties />} />
       <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
       <Route path="/app/office/:section" element={<Office />} />
+      <Route path="/app/issues" element={<Issues />} />
       <Route path="/app/vehicles" element={<Navigate to="/app/vehicles/overview" replace />} />
       <Route path="/app/vehicles/:section" element={<Vehicles />} />
       <Route path="/app/hr" element={<HrDashboard />} />
@@ -111,6 +115,8 @@ export default function App() {
       <Route path="/app/roles" element={<Roles />} />
       <Route path="/app/roles/:id" element={<RoleEditor />} />
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
+      <Route path="/app/nodi/chat" element={<NodiChat />} />
+      <Route path="/app/nodi" element={<NodiSettings />} />
       <Route path="/app/branding" element={<BrandingSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>
