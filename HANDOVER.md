@@ -140,3 +140,21 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Page `/app/hr/requests` (pages/hr/Requests.tsx): new (hub→staff→format, prefilled locked fields, reference picker or manual), approval list + detail
   (log, apply transfer/status in system, "নিয়োগ দিন" opens NewApplication prefilled), report matrix, format settings (field builder).
 - Dashboard `HrReqPanel`; bell shows notifications + pending HR requests. Real phone push (FCM) is not set up yet — in-app only.
+
+## 2026-11-15 — Vehicle Management (গাড়ি ম্যানেজমেন্ট)
+- Migration `20261115000900_vehicle_management.sql`: `vehicles` gains model/engine/chassis/owner/odometer/fuel/service fields and statuses
+  `workshop`, `off_road`; new `vehicle_documents` (registration, fitness, tax token, insurance, route permit … with expiry, private bucket `vehicle-docs`)
+  and `vehicle_logs` (fuel with litres + odometer, service, repair, parts, tyre, oil, wash, toll, parking, fine, rent, paper, other; optional link to a
+  `da_expenses` line). Perms `vehicle.vehicle.view/create/edit/archive`, `vehicle.holder.edit`, `vehicle.log.view/create/edit`, `vehicle.document.edit`,
+  `vehicle.settings.configure` with role defaults (admin/head office/operations: all; zonal manager: all but settings; hub manager: own hub add/edit,
+  hand over, logs, papers; pickup/delivery managers & accounts: logs; auditor: view). Settings `vehicle.doc_alert_days` (30), `vehicle.service_interval_km` (3000), `vehicle.fuel_price`.
+- **Hand over = Employee ID only.** `vehicle_assign(p_vehicle, p_employee_code, p_reason, p_from, p_keep_hub)`: the vehicle's hub and zone follow the
+  person's current `employee_assignments.hub_id` automatically (`moved_hub` is recorded); `p_keep_hub` keeps it where it is. Needs the right at the
+  destination hub too. The holder may write fuel/costs for their own vehicle without `vehicle.log.create`; a line's author may edit/remove it for 24 h.
+- RPCs: `vehicle_hubs`, `vehicle_overview(hub)`, `vehicle_alerts(hub)` (papers expiring/expired, service due by km, no holder, workshop),
+  `vehicle_report(from, to, hub)`, `vehicle_log_list`, `vehicle_history`, `vehicle_save(... p_more jsonb)`, `vehicle_archive`, `vehicle_release`,
+  `vehicle_document_save/archive`, `vehicle_log_save/remove`, `vehicle_settings/configure`. Old `vehicle_list` (Accounts settings card) still works.
+- Page `/app/vehicles/:section` (pages/vehicles/Vehicles.tsx, lib/vehicles.ts): overview (stats, alerts, per-hub, cards), list (add/edit with all
+  fields, hand over by ID showing the person's hub and whether the vehicle will move, take back, history, remove), logs (fuel/service/repair entry with
+  litres→amount hint from fuel price, km/L, service due), docs (cards with days left, photo/PDF upload with camera, "not recorded" hint), reports
+  (per vehicle × kind, ৳/km, quick ranges), settings. Menu group "গাড়ি ম্যানেজমেন্ট"; quick action "গাড়ির তেল / খরচ".

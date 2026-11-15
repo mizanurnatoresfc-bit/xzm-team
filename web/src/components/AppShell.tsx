@@ -43,6 +43,14 @@ const GROUPS: Group[] = [
     { to: '/app/office/desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
     { to: '/app/office/assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
   ] },
+  { key: 'vehicles', icon: 'truck', bn: 'গাড়ি ম্যানেজমেন্ট', en: 'Vehicle Management', items: [
+    { to: '/app/vehicles/overview', icon: 'dash', bn: 'গাড়ির অবস্থা', en: 'Fleet overview', perms: ['vehicle.vehicle.view', 'da.sheet.view'] },
+    { to: '/app/vehicles/list', icon: 'truck', bn: 'গাড়ির তালিকা ও কার নামে', en: 'Vehicles & holders', perms: ['vehicle.vehicle.view', 'vehicle.vehicle.create', 'da.sheet.view'] },
+    { to: '/app/vehicles/logs', icon: 'cash', bn: 'তেল / সার্ভিস / মেরামত', en: 'Fuel, service & repairs', perms: ['vehicle.log.view', 'vehicle.log.create', 'da.sheet.view'] },
+    { to: '/app/vehicles/docs', icon: 'doc', bn: 'কাগজপত্র ও মেয়াদ', en: 'Papers & expiry', perms: ['vehicle.vehicle.view', 'vehicle.document.edit', 'da.sheet.view'] },
+    { to: '/app/vehicles/reports', icon: 'chart', bn: 'গাড়ির খরচের রিপোর্ট', en: 'Vehicle cost report', perms: ['vehicle.log.view', 'vehicle.vehicle.view', 'da.sheet.view'] },
+    { to: '/app/vehicles/settings', icon: 'gear', bn: 'গাড়ি সেটিংস', en: 'Vehicle settings', perms: ['vehicle.settings.configure'] },
+  ] },
   { key: 'org', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal Management', items: [
     { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
     { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
@@ -174,6 +182,7 @@ const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: st
   { to: '/app/accounts/mine', icon: 'receipt', bn: 'আমার বিল', en: 'My bill', perms: null, tone: 'o' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },
   { to: '/app/sorting/fuel', icon: 'cash', bn: 'তেলের রিকুয়েস্ট', en: 'Fuel request', perms: ['sorting.fuel.create'], tone: 'r' },
+  { to: '/app/vehicles/logs', icon: 'truck', bn: 'গাড়ির তেল / খরচ', en: 'Vehicle fuel / cost', perms: ['vehicle.log.create'], tone: 'o' },
   { to: '/app/zonal/staff', icon: 'user', bn: 'নতুন কর্মী', en: 'New staff', perms: ['hr.application.create'], tone: 'p' },
   { to: '/app/office/assets', icon: 'grid', bn: 'অফিস রিসোর্স', en: 'Office item', perms: ['office.asset.edit'], tone: 'b' },
 ]
