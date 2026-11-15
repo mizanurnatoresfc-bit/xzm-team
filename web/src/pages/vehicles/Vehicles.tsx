@@ -10,8 +10,8 @@ import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import { supabase } from '../../lib/supabase'
 import {
-  DOC_KIND, FUEL_TYPE, LOG_KIND, LOG_STATUS, OWNER_TYPE, REQ_STATUS, VEHICLE_KIND, VEHICLE_STATUS, daysUntil, monthStart, today, vehicles,
-  type DayLog, type FormField, type PendingLog, type Requisition, type VehicleAlert, type VehicleDoc, type VehicleFull, type VehicleHub, type VehicleLog, type VehicleRow, type VehicleSettings,
+  DOC_KIND, DREQ_KIND, DREQ_STATUS, FUEL_TYPE, LOG_KIND, LOG_STATUS, OWNER_TYPE, REQ_STATUS, VEHICLE_KIND, VEHICLE_STATUS, daysUntil, monthStart, today, vehicles,
+  type DayLog, type DriverRequest, type FormField, type PendingLog, type Requisition, type VehicleAlert, type VehicleDoc, type VehicleFull, type VehicleHub, type VehicleLog, type VehicleRow, type VehicleSettings,
 } from '../../lib/vehicles'
 
 type Sec = 'overview' | 'mine' | 'list' | 'logs' | 'requests' | 'daily' | 'docs' | 'reports' | 'settings'
@@ -132,6 +132,7 @@ function Overview({ ctx }: { ctx: Ctx }) {
       <Stat icon="alert" label={L('কাগজের মেয়াদ', 'Papers expiring')} tone={expiring ? 'bad' : 'ok'} value={n(expiring)} sub={L(`সার্ভিস বাকি ${n(rows.filter(r => r.service_due && r.status === 'active').length)}টা`, `${rows.filter(r => r.service_due && r.status === 'active').length} need service`)} />
     </div>
     <PendingPanel ctx={ctx} />
+    <DriverRequests ctx={ctx} openOnly />
     <section className="panel">
       <h2>{L('যা এখনই দেখা দরকার', 'Needs attention')} <span className="count-pill">{n(alerts.data?.length ?? 0)}</span></h2>
       <p className="muted small">{L('মেয়াদ শেষ হওয়া কাগজ, সার্ভিসিং বাকি, কারও নামে নেই, গ্যারেজে — ডাটা থেকে নিজে বের করা।', 'Expiring papers, service due, no holder, in workshop — worked out from the data.')}</p>
@@ -572,6 +573,9 @@ function Settings() {
     <div className="row" style={{ marginTop: 12 }}><button onClick={() => void save()}>{L('সেভ', 'Save')}</button>{ok && <span className="muted">{ok}</span>}</div>
     <FormatEditor title={L('রিকুইজিশন ফরম্যাট — বাড়তি ঘর', 'Requisition format — extra fields')} hint={L('তারিখ, সময়, হাব, গাড়ি ও কাজ সব সময় থাকে; এখানে বাড়তি ঘর যোগ করুন (যেমন পার্সেল সংখ্যা, মালের বিবরণ)।', 'Date, time, hub, vehicle and job are always there; add extra fields here.')}
       fields={q.data?.requisition_format ?? []} onSave={async f => { await vehicles.configure('requisition_format', f); await q.reload() }} />
+    {(['parts', 'service', 'problem'] as const).map(k => <FormatEditor key={k} title={L(`ড্রাইভারের "${DREQ_KIND[k][0]}" ফরম্যাট`, `Driver "${DREQ_KIND[k][1]}" format`)}
+      hint={L('ড্রাইভার এই ঘরগুলো পূরণ করে পাঠাবে; ম্যানেজার নোটিফিকেশন পাবে।', 'The driver fills these and sends; managers are notified.')}
+      fields={q.data?.request_formats?.[k] ?? []} onSave={async f => { await vehicles.configure('request_formats', { ...(q.data?.request_formats ?? {}), [k]: f }); await q.reload() }} />)}
     <FormatEditor title={L('দিনের খাতা (অটো) ফরম্যাট — বাড়তি ঘর', 'Day log format — extra fields')} hint={L('চার্জ দিয়েছে কি না, বের হওয়া / ফেরার সময়, কিমি ও ট্রিপ সব সময় থাকে; বাড়তি ঘর এখানে।', 'Charged?, out / in time, km and trips are always there; extra fields here.')}
       fields={q.data?.day_format ?? []} onSave={async f => { await vehicles.configure('day_format', f); await q.reload() }} />
     <p className="muted small" style={{ marginTop: 14 }}>{L('কে কী করতে পারবে — সিস্টেম → রোল ও অনুমতি → "vehicle" মডিউল থেকে ঠিক করুন। হাব ম্যানেজার নিজের হাবের গাড়ি যোগ, কাউকে দেওয়া, তেল/খরচ ও কাগজ লিখতে পারেন; রাইডার নিজের নামে থাকা গাড়ির তেল লিখতে পারেন।',
@@ -705,6 +709,7 @@ function Requests({ ctx }: { ctx: Ctx }) {
     <section className="panel"><h2>{L('চলমান', 'Open')} <span className="count-pill">{n(openReqs.length)}</span></h2>
       {q.data && !openReqs.length ? <p className="muted">{L('কোনো চলমান রিকুইজিশন নেই।', 'Nothing open.')}</p> : <div className="team-cards">{openReqs.map(r => <Card key={r.id} r={r} />)}</div>}</section>
     {closed.length > 0 && <section className="panel"><h2>{L('শেষ হওয়া', 'Closed')} <span className="count-pill">{n(closed.length)}</span></h2><div className="team-cards">{closed.map(r => <Card key={r.id} r={r} />)}</div></section>}
+    <DriverRequests ctx={ctx} />
     {open && <NewRequisition ctx={ctx} fields={fields} onClose={() => setOpen(false)} onDone={async () => { setOpen(false); ctx.toast(L('পাঠানো হলো — ড্রাইভার ও ম্যানেজাররা নোটিফিকেশন পাবেন', 'Sent — crew and managers are notified')); await q.reload() }} />}
   </>
 }
@@ -807,6 +812,9 @@ function Mine({ ctx }: { ctx: Ctx }) {
   const { L, n } = usePrefs(); const tk = useTk()
   const mine = ctx.rows.filter(r => r.is_crew)
   const [fuelFor, setFuelFor] = useState<VehicleRow | null>(null)
+  const [askFor, setAskFor] = useState<{ v: VehicleRow; kind: DriverRequest['kind'] } | null>(null)
+  const dreqs = useLoad(() => vehicles.driverRequests(null, null, false).catch(() => [] as DriverRequest[]), [ctx.rows])
+  const myDreqs = (dreqs.data ?? []).filter(r => r.is_mine).slice(0, 10)
   const reqs = useLoad(() => vehicles.requisitions(null, today(), null).catch(() => [] as Requisition[]), [ctx.rows])
   const myReqs = (reqs.data ?? []).filter(r => r.is_crew && ['open', 'accepted', 'started'].includes(r.status))
   const first = mine[0]
@@ -822,11 +830,17 @@ function Mine({ ctx }: { ctx: Ctx }) {
       <span className="small">{r.holder_id && r.is_crew && r.holder_name ? `${L('ড্রাইভার', 'Driver')}: ${r.holder_name}` : ''}{r.helper_name ? ` · ${L('হেল্পার', 'Helper')}: ${r.helper_name}` : ''}</span>
       <span className="small">{n(r.odometer)} km · {L('এ মাসে খরচ', 'month')} {tk(r.spent_month)}{r.pending_logs ? <> · <span className="bad">{n(r.pending_logs)} {L('অপেক্ষায়', 'pending')}</span></> : null}</span>
       <span className="chips"><StatusB s={r.status} />{r.docs_expired || r.docs_expiring ? <Badge tone={r.docs_expired ? 'bad' : 'warn'}>{L('কাগজের মেয়াদ দেখুন', 'check papers')}</Badge> : null}{r.service_due ? <Badge tone="warn">{L('সার্ভিস বাকি', 'service due')}</Badge> : null}</span>
-      <span className="row">
-        <button className="sm" onClick={() => setFuelFor(r)}><Icon name="cash" size={13} /> {L('তেল তুলেছি', 'Fuel filled')}</button>
-        <Link to="/app/vehicles/daily" onClick={() => { try { sessionStorage.setItem(VKEY, r.id) } catch { /* ignore */ } }} className="secondary sm" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)' }}>{L('দিনের খাতা', 'Day log')}</Link>
-      </span>
+      <div className="quick-grid" style={{ width: '100%', marginTop: 6 }}>
+        <button className="quick-tile t-g" onClick={() => setFuelFor(r)}><Icon name="cash" size={22} /><span>{L('তেল তুলেছি', 'Fuel filled')}</span></button>
+        <button className="quick-tile t-b" onClick={() => setAskFor({ v: r, kind: 'parts' })}><Icon name="box" size={22} /><span>{L('পার্টস লাগবে', 'Need parts')}</span></button>
+        <button className="quick-tile t-p" onClick={() => setAskFor({ v: r, kind: 'service' })}><Icon name="gear" size={22} /><span>{L('সার্ভিসিং লাগবে', 'Need service')}</span></button>
+        <button className="quick-tile t-r" onClick={() => setAskFor({ v: r, kind: 'problem' })}><Icon name="alert" size={22} /><span>{L('সমস্যা জানান', 'Report problem')}</span></button>
+        <Link to="/app/vehicles/daily" onClick={() => { try { sessionStorage.setItem(VKEY, r.id) } catch { /* ignore */ } }} className="quick-tile t-o"><Icon name="cal" size={22} /><span>{L('দিনের খাতা', 'Day log')}</span></Link>
+      </div>
     </div>)}</div>
+    <section className="panel"><h2>{L('আমার অনুরোধ (পার্টস / সার্ভিস / সমস্যা)', 'My requests')} <span className="count-pill">{n(myDreqs.length)}</span></h2>
+      {dreqs.data && !myDreqs.length ? <p className="muted">{L('কিছু চাওয়া হয়নি।', 'Nothing asked yet.')}</p> : <ul className="duty-list">{myDreqs.map(r => <li key={r.id} className="duty"><Badge tone={DREQ_STATUS[r.status][2]}>{L(DREQ_STATUS[r.status][0], DREQ_STATUS[r.status][1])}</Badge>
+        <span><b>{r.no}</b> · {L(DREQ_KIND[r.kind][0], DREQ_KIND[r.kind][1])} · {r.title}{r.priority === 'urgent' ? ' 🔴' : ''}{r.decision_note ? <span className="muted small"> — {r.decision_note}</span> : null}</span></li>)}</ul>}</section>
     <section className="panel"><h2>{L('আমার কাজ (রিকুইজিশন)', 'My jobs (requisitions)')} <span className="count-pill">{n(myReqs.length)}</span></h2>
       {reqs.data && !myReqs.length ? <p className="muted">{L('এখন কোনো কাজ নেই।', 'No job right now.')}</p> : <ul className="duty-list">{myReqs.map(r => <li key={r.id} className="duty"><Badge tone={REQ_STATUS[r.status][2]}>{L(REQ_STATUS[r.status][0], REQ_STATUS[r.status][1])}</Badge>
         <span><b>{r.work_date}{r.work_time ? ` ${r.work_time}` : ''}</b> · {r.hub_name} · {r.job}{r.from_text || r.to_text ? ` · ${r.from_text ?? ''} → ${r.to_text ?? ''}` : ''} <Link to={`/app/vehicles/requests?id=${r.id}`}>{L('খুলুন →', 'Open →')}</Link></span></li>)}</ul>}</section>
@@ -837,6 +851,79 @@ function Mine({ ctx }: { ctx: Ctx }) {
           <td><Badge tone={LOG_STATUS[x.status][2]}>{L(LOG_STATUS[x.status][0], LOG_STATUS[x.status][1])}</Badge>{x.da_expense_id ? <span className="sec">{L('খাতায় উঠেছে', 'on sheet')}</span> : null}{x.decision_note ? <span className="sec">{x.decision_note}</span> : null}</td>
           <td>{x.slip_path && <button className="secondary sm" onClick={() => void openSlip(x.slip_path!)}>{L('স্লিপ', 'Slip')}</button>}</td></tr>)}
           {logs.data && !logs.data.length && <tr><td colSpan={5} className="muted">{L('এখনো কিছু লেখা হয়নি।', 'Nothing yet.')}</td></tr>}</tbody></table></div></section>}
+    {askFor && <DriverRequestModal v={askFor.v} kind={askFor.kind} onClose={() => setAskFor(null)} onDone={async () => { setAskFor(null); ctx.toast(L('পাঠানো হলো — ম্যানেজাররা নোটিফিকেশন পাবেন', 'Sent — managers are notified')); await dreqs.reload() }} />}
     {fuelFor && <EditLog v={fuelFor} x={{ kind: 'fuel', log_date: today(), odometer: fuelFor.odometer || null }} onClose={() => setFuelFor(null)} onDone={async () => { setFuelFor(null); ctx.toast(fuelFor.home_manager ? L('লেখা হলো', 'Saved') : L('জমা হলো — ম্যানেজার দেখে অনুমোদন দেবেন', 'Submitted — a manager will approve')); await Promise.all([logs.reload(), ctx.reload()]) }} />}
   </>
+}
+
+// ---------------------------------------------------------------- driver requests: parts / service / problem
+function DriverRequestModal({ v, kind, onClose, onDone }: { v: VehicleRow; kind: DriverRequest['kind']; onClose: () => void; onDone: () => Promise<void> }) {
+  const { L } = usePrefs()
+  const settings = useLoad(() => vehicles.settings().catch(() => ({} as VehicleSettings)), [])
+  const fields = settings.data?.request_formats?.[kind] ?? []
+  const [data, setData] = useState<Record<string, string>>({})
+  const [title, setTitle] = useState(''); const [urgent, setUrgent] = useState(kind === 'problem')
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState<unknown>(null)
+  const auto = fields.length ? Object.values(data).find(x => x?.trim()) ?? '' : ''
+  async function save() {
+    const miss = missingRequired(fields, data); if (miss.length) { setErr(new Error(L(`পূরণ করুন: ${miss.join(', ')}`, `Fill in: ${miss.join(', ')}`))); return }
+    const t = title.trim() || auto; if (!t) { setErr(new Error(L('কী লাগবে / কী সমস্যা লিখুন', 'Write what you need'))); return }
+    setBusy(true); setErr(null)
+    try { const path = photo ? await vehicles.uploadDoc(v.id, photo) : null
+      await vehicles.submitDriverRequest({ vehicle: v.id, kind, title: t, data, priority: urgent ? 'urgent' : 'normal', photo: path }); await onDone() }
+    catch (e) { setErr(e) } finally { setBusy(false) }
+  }
+  return <Modal title={`${vLabel(v)} — ${L(DREQ_KIND[kind][0], DREQ_KIND[kind][1])}`} onClose={onClose}
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy || settings.loading} onClick={() => void save()}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('পাঠান', 'Send')}</button></>}>
+    <div className="da-grid2">
+      <DynFields fields={fields} data={data} onChange={setData} />
+      {!fields.length && <Field label={L('কী লাগবে / কী সমস্যা *', 'What do you need *')} wide><textarea rows={3} autoFocus value={title} onChange={e => setTitle(e.target.value)} /></Field>}
+      {fields.length > 0 && <Field label={L('এক লাইনে (ঐচ্ছিক)', 'One line (optional)')} wide hint={L('খালি রাখলে উপরের প্রথম ঘর থেকে নেওয়া হবে', 'Blank = taken from the first field')}><input value={title} onChange={e => setTitle(e.target.value)} /></Field>}
+      <Field label={L('ছবি (ঐচ্ছিক)', 'Photo (optional)')}><input type="file" accept="image/*" capture="environment" onChange={e => setPhoto(e.target.files?.[0] ?? null)} /></Field>
+      <Field label={L('জরুরি?', 'Urgent?')}><label className="row" style={{ alignItems: 'center', gap: 8 }}><input type="checkbox" style={{ width: 'auto' }} checked={urgent} onChange={e => setUrgent(e.target.checked)} /> {L('হ্যাঁ, এখনই দেখা দরকার', 'Yes, needs attention now')}</label></Field>
+    </div>
+    <ErrorNote error={err} />
+  </Modal>
+}
+
+function DriverRequests({ ctx, openOnly }: { ctx: Ctx; openOnly?: boolean }) {
+  const { L, n } = usePrefs(); const tk = useTk()
+  const [sp] = useSearchParams(); const hl = sp.get('q')
+  const q = useLoad(() => vehicles.driverRequests(ctx.hub || null, null, !!openOnly).catch(() => [] as DriverRequest[]), [ctx.hub, ctx.rows, openOnly])
+  const settings = useLoad(() => vehicles.settings().catch(() => ({} as VehicleSettings)), [])
+  const [err, setErr] = useState<unknown>(null)
+  const [askFor, setAskFor] = useState<{ v: VehicleRow; kind: DriverRequest['kind'] } | null>(null)
+  const list = q.data ?? []
+  async function act(r: DriverRequest, status: string) {
+    let note: string | null = null; let cost: number | null = null
+    if (status === 'rejected' || status === 'cancelled') { note = ask(L('কারণ লিখুন:', 'Write why:')); if (!note) return }
+    if (status === 'done') { const c = ask(L('কত টাকা খরচ হলো? (না হলে ০) — গাড়ির খরচে উঠবে', 'Cost in ৳ (0 if none) — goes to vehicle costs')); if (c === '' && c !== '0') return; cost = Number(c) || 0; note = ask(L('কী করা হলো (ঐচ্ছিক):', 'What was done (optional):')) || null }
+    if (status === 'accepted') note = ask(L('ড্রাইভারকে কী বলবেন? (ঐচ্ছিক)', 'Message to the driver (optional)')) || null
+    try { await vehicles.updateDriverRequest(r.id, status, note, cost); ctx.toast(L('আপডেট হলো', 'Updated')); await Promise.all([q.reload(), ctx.reload()]) } catch (e) { setErr(e) }
+  }
+  async function openPhoto(path: string) { try { window.open(await vehicles.docUrl(path), '_blank') } catch (e) { setErr(e) } }
+  if (openOnly && !list.length && !err) return null
+  const canAsk = ctx.rows.some(r => r.home_manager || r.is_crew)
+  return <section className="panel">
+    <h2>{openOnly ? L('ড্রাইভারদের অনুরোধ — অপেক্ষায়', 'Driver requests — open') : L('ড্রাইভারদের অনুরোধ (পার্টস / সার্ভিস / সমস্যা)', 'Driver requests (parts / service / problems)')} <span className="count-pill">{n(list.length)}</span></h2>
+    {!openOnly && canAsk && <div className="da-seg" style={{ marginBottom: 8, flexWrap: 'wrap' }}>{(['parts', 'service', 'problem'] as const).map(k => <button key={k} className="secondary sm" onClick={() => { const v = ctx.rows.find(r => r.is_crew) ?? ctx.rows[0]; if (v) setAskFor({ v, kind: k }) }}><Icon name={DREQ_KIND[k][2]} size={13} /> {L(DREQ_KIND[k][0], DREQ_KIND[k][1])}</button>)}</div>}
+    <ErrorNote error={err ?? q.error} />
+    {q.data && !list.length ? <p className="muted">{L('কিছু নেই।', 'Nothing here.')}</p> : <ul className="duty-list">{list.map(r => { const fields = settings.data?.request_formats?.[r.kind] ?? []
+      return <li key={r.id} className="duty" style={{ alignItems: 'flex-start', ...(r.id === hl ? { outline: '2px solid var(--primary)', borderRadius: 10 } : {}) }}>
+        <Badge tone={DREQ_STATUS[r.status][2]}>{r.priority === 'urgent' ? '!' : '•'}</Badge>
+        <span style={{ flex: 1 }}><b>{r.no} · {L(DREQ_KIND[r.kind][0], DREQ_KIND[r.kind][1])}</b> — {r.title}{r.priority === 'urgent' ? <Badge tone="bad">{L('জরুরি', 'urgent')}</Badge> : null}<br />
+          <span className="muted small">{r.vehicle}{r.hub_name ? ` · ${r.hub_name}` : ''} · {r.by_name ?? '—'}{r.by_code ? ` (ID ${r.by_code})` : ''} · {new Date(r.created_at).toLocaleDateString('en-GB')}</span><br />
+          <DataLine fields={fields} data={r.data} />
+          <span className="chips" style={{ marginTop: 4 }}><Badge tone={DREQ_STATUS[r.status][2]}>{L(DREQ_STATUS[r.status][0], DREQ_STATUS[r.status][1])}</Badge>{r.cost ? <span className="muted small">{L('খরচ', 'cost')} {tk(r.cost)}</span> : null}{r.decision_note ? <span className="muted small">{r.decision_note}</span> : null}</span>
+          <span className="row" style={{ marginTop: 6 }}>
+            {r.photo_path && <button className="secondary sm" onClick={() => void openPhoto(r.photo_path!)}><Icon name="eye" size={13} /> {L('ছবি', 'Photo')}</button>}
+            {r.status === 'open' && r.can_decide && <button className="sm" onClick={() => void act(r, 'accepted')}>{L('গ্রহণ', 'Accept')}</button>}
+            {['open', 'accepted'].includes(r.status) && r.can_decide && <button className="sm" onClick={() => void act(r, 'done')}>{L('কাজ শেষ', 'Done')}</button>}
+            {r.status === 'open' && r.can_decide && <button className="danger sm" onClick={() => void act(r, 'rejected')}>{L('না', 'Reject')}</button>}
+            {['open', 'accepted'].includes(r.status) && r.is_mine && !r.can_decide && <button className="secondary sm" onClick={() => void act(r, 'cancelled')}>{L('বাতিল', 'Cancel')}</button>}
+          </span></span>
+      </li> })}</ul>}
+    {askFor && <DriverRequestModal v={askFor.v} kind={askFor.kind} onClose={() => setAskFor(null)} onDone={async () => { setAskFor(null); ctx.toast(L('পাঠানো হলো', 'Sent')); await q.reload() }} />}
+  </section>
 }

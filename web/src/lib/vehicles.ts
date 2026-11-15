@@ -43,11 +43,21 @@ export type Requisition = { id: string; no: string; hub_id: string; hub_name: st
 export type DayLog = { id: string; vehicle_id: string; vehicle: string; hub_name: string | null; log_date: string; driver_id: string | null; driver_name: string | null; charged: boolean | null
   charge_place: string | null; charge_cost: number | null; out_at: string | null; in_at: string | null; start_km: number | null; end_km: number | null; trips: number | null
   data: Record<string, string>; note: string | null; created_by: string | null; updated_at: string }
+export type DriverRequest = { id: string; no: string; vehicle_id: string; vehicle: string; hub_name: string | null; kind: 'parts' | 'service' | 'problem' | 'other'; title: string
+  data: Record<string, string>; photo_path: string | null; priority: 'low' | 'normal' | 'urgent'; status: 'open' | 'accepted' | 'done' | 'rejected' | 'cancelled'
+  by_name: string | null; by_code: string | null; decision_note: string | null; cost: number | null; created_at: string; done_at: string | null; can_decide: boolean; is_mine: boolean }
 export type FormField = { key: string; label: string; type: 'text' | 'number' | 'date' | 'phone' | 'textarea' | 'select'; required?: boolean; options?: string[] }
 export type VehicleAlert = { vehicle_id: string; vehicle: string; hub_name: string | null; kind: 'doc' | 'service' | 'no_holder' | 'status'; severity: 'bad' | 'warn' | 'info'; due: string | null; detail: string | null }
 export type VehicleReport = { vehicle_id: string; vehicle: string; reg_no: string | null; hub_name: string | null; kind: string; lines: number; amount: number; litres: number | null; km_start: number | null; km_end: number | null }
 export type VehicleHistory = { id: string; employee_id: string; employee_code: string; full_name: string; hub_name: string | null; effective_from: string; effective_to: string | null; reason: string; end_reason: string | null; moved_hub: boolean; role: 'driver' | 'helper' }
-export type VehicleSettings = { doc_alert_days?: number; service_interval_km?: number; fuel_price?: Record<string, number>; requisition_format?: FormField[]; day_format?: FormField[] }
+export type VehicleSettings = { doc_alert_days?: number; service_interval_km?: number; fuel_price?: Record<string, number>; requisition_format?: FormField[]; day_format?: FormField[]
+  request_formats?: Partial<Record<DriverRequest['kind'], FormField[]>> }
+export const DREQ_KIND: Record<string, [string, string, string]> = {
+  parts: ['পার্টস লাগবে', 'Need parts', 'box'], service: ['সার্ভিসিং লাগবে', 'Need service', 'gear'], problem: ['সমস্যা জানান', 'Report a problem', 'alert'], other: ['অন্য অনুরোধ', 'Other', 'form'],
+}
+export const DREQ_STATUS: Record<string, [string, string, 'ok' | 'warn' | 'bad' | 'info' | 'neutral']> = {
+  open: ['অপেক্ষায়', 'Open', 'warn'], accepted: ['গ্রহণ — কাজ হবে', 'Accepted', 'info'], done: ['কাজ শেষ', 'Done', 'ok'], rejected: ['না', 'Rejected', 'bad'], cancelled: ['বাতিল', 'Cancelled', 'neutral'],
+}
 export const REQ_STATUS: Record<string, [string, string, 'ok' | 'warn' | 'bad' | 'info' | 'neutral']> = {
   open: ['নতুন — অপেক্ষায়', 'Open', 'warn'], accepted: ['গ্রহণ হয়েছে', 'Accepted', 'info'], started: ['গাড়ি রওনা দিয়েছে', 'On the way', 'info'],
   done: ['কাজ শেষ', 'Done', 'ok'], rejected: ['না বলা হয়েছে', 'Rejected', 'bad'], cancelled: ['বাতিল', 'Cancelled', 'neutral'],
@@ -103,6 +113,10 @@ export const vehicles = {
       p_parcels: r.parcels ?? null, p_weight: r.weight ?? null, p_data: r.data ?? {}, p_note: r.note ?? null }),
   updateRequisition: (id: string, status: string, note?: string | null, vehicle?: string | null, driverCode?: string | null) =>
     rpc<void>('vehicle_requisition_update', { p_id: id, p_status: status, p_note: note ?? null, p_vehicle: vehicle ?? null, p_driver_code: driverCode ?? null }),
+  driverRequests: (hub?: string | null, vehicle?: string | null, openOnly = false) => rpc<DriverRequest[]>('vehicle_request_list', { p_hub: hub ?? null, p_vehicle: vehicle ?? null, p_open_only: openOnly }),
+  submitDriverRequest: (r: { vehicle: string; kind: string; title: string; data?: Record<string, string>; priority?: string; photo?: string | null }) =>
+    rpc<string>('vehicle_request_submit', { p_vehicle: r.vehicle, p_kind: r.kind, p_title: r.title, p_data: r.data ?? {}, p_priority: r.priority ?? 'normal', p_photo: r.photo ?? null }),
+  updateDriverRequest: (id: string, status: string, note?: string | null, cost?: number | null) => rpc<void>('vehicle_request_update', { p_id: id, p_status: status, p_note: note ?? null, p_cost: cost ?? null }),
   dayLogs: (vehicle?: string | null, from?: string | null, to?: string | null, hub?: string | null) => rpc<DayLog[]>('vehicle_day_list', { p_vehicle: vehicle ?? null, p_from: from ?? null, p_to: to ?? null, p_hub: hub ?? null }),
   saveDay: (d: { vehicle: string; date?: string | null; charged?: boolean | null; charge_place?: string | null; charge_cost?: number | null; out?: string | null; in?: string | null
     start_km?: number | null; end_km?: number | null; trips?: number | null; data?: Record<string, string>; note?: string | null; driver_code?: string | null }) =>

@@ -174,3 +174,11 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   served hubs (checkbox chips in the edit form). Logs tab: status badge, slip, অনুমোদন / না / খাতায় তুলুন. Overview: pending-approval panel.
 - Decisions (owner, 15 Nov): fuel goes on the sheet only after manager approval; the day log is the driver's job but a manager may write it; served-hub
   managers see fuel/charge costs only, no cost split between hubs.
+
+## 2026-11-15 — Driver requests (parts / service / problem)
+- Migration `20261115001100_vehicle_requests.sql`: `vehicle_requests` (VQ-00001…; kind parts/service/problem/other; `data` from the per-kind format in
+  `vehicle.request_formats`; photo; priority; open → accepted → done (cost → an approved `vehicle_logs` line: parts/service/repair; service updates
+  last-service) / rejected / cancelled). Crew or a manager submits (`vehicle_request_submit`); managers with `vehicle.log.approve` are notified;
+  `vehicle_request_update` notifies the driver. `vehicle_request_list(hub, vehicle, open_only)`.
+- UI: "আমার গাড়ি" shows big tiles per vehicle — তেল তুলেছি · পার্টস লাগবে · সার্ভিসিং লাগবে · সমস্যা জানান · দিনের খাতা — plus "আমার অনুরোধ".
+  Requisitions tab has a "ড্রাইভারদের অনুরোধ" section (accept / done with cost / reject); overview shows the open ones. Settings: a format editor per kind.
