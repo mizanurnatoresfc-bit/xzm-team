@@ -62,7 +62,7 @@ export function Employees() {
             <div className="ec-meta">{posName(e) && <span><Icon name="user" size={13} />{posName(e)}</span>}{hubName(e) && <span><Icon name="hub" size={13} />{hubName(e)}</span>}</div>
             <div className="ec-foot"><EmpBadge status={e.status} />{e.joining_date && <span className="muted small">যোগদান {dmy(e.joining_date)}</span>}</div>
           </div>
-          {e.mobile && <a className="ec-call" href={`tel:${e.mobile}`} onClick={ev => ev.stopPropagation()} aria-label={`কল ${e.mobile}`}><Icon name="cc" size={18} /></a>}
+          {e.mobile && <a className="ec-call" href={`tel:${e.mobile}`} onClick={ev => ev.stopPropagation()} aria-label={`কল ${e.mobile}`}><Icon name="phone" size={18} /></a>}
         </article>)}</div>}
     </> : <section className="panel">
       <DataTable title="কর্মী তালিকা" file="employees" rows={rows} rowKey={e => e.id} onRowClick={e => nav(`/app/hr/employees/${e.id}`)}

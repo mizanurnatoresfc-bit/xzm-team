@@ -46,7 +46,7 @@ export function EmployeeProfile() {
           <h2>{e.full_name}</h2>
           <div className="emp-badges"><EmpBadge status={e.status} />{post && <span className={`role-pill${isRider ? ' rider' : ''}`}><Icon name={isRider ? 'truck' : 'user'} size={14} />{post}</span>}</div>
           {e.mobile && <div className="emp-contact">
-            <a className="ct call" href={`tel:${e.mobile}`}><Icon name="cc" size={16} />{e.mobile}</a>
+            <a className="ct call" href={`tel:${e.mobile}`}><Icon name="phone" size={16} />{e.mobile}</a>
             <a className="ct wa" href={`https://wa.me/88${e.mobile.replace(/\D/g, '').replace(/^88/, '')}`} target="_blank" rel="noreferrer">WhatsApp</a>
             <a className="ct sms" href={`sms:${e.mobile}`}>SMS</a></div>}
           <div className="emp-hub"><Icon name="hub" size={16} />{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : 'হাব দেওয়া হয়নি'}
@@ -254,7 +254,7 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
       <div className="info-grid">
         <Info icon="key" label="এমপ্লয়ি আইডি"><strong>{e.employee_code ?? '—'}</strong></Info>
         <Info icon="user" label="নাম">{e.full_name}{e.full_name_bn ? <span className="sec">{e.full_name_bn}</span> : null}</Info>
-        <Info icon="cc" label="মোবাইল">{e.mobile ? <a href={`tel:${e.mobile}`}>{e.mobile}</a> : '—'}</Info>
+        <Info icon="phone" label="মোবাইল">{e.mobile ? <a href={`tel:${e.mobile}`}>{e.mobile}</a> : '—'}</Info>
         <Info icon="form" label="ইমেইল">{e.email ?? '—'}</Info>
         <Info icon="hub" label="হাব">{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : '—'}</Info>
         <Info icon="map" label="এরিয়া">{e.zone_id ? o.names.zone[e.zone_id] ?? '—' : '—'}</Info>
