@@ -34,6 +34,9 @@ type AuthContextValue = {
   refreshGrants: () => Promise<void>
   /** Set when an admin created the account or reset its password: only the change-password page opens. */
   mustChangePassword: boolean
+  /** True after arriving through a "forgot password" email link, until a new password is saved. */
+  recovering: boolean
+  endRecovery: () => void
   /** True for a real Super Admin, also while previewing another role. */
   isSuperAdmin: boolean
   /** The role being previewed, or null. */
@@ -50,7 +53,18 @@ export class LoginError extends Error {
   constructor(code: string, lockedUntil?: string) { super(code); this.code = code; this.lockedUntil = lockedUntil }
 }
 
+const RECOVER_KEY = 'xzm_recover'
+// The email link lands with "type=recovery" in the address; note it before the sign-in library tidies the address.
+const cameByRecoveryLink = typeof location !== 'undefined' && /type=recovery/.test(location.hash + location.search)
+function readRecover(): boolean { try { return cameByRecoveryLink || sessionStorage.getItem(RECOVER_KEY) === '1' } catch { return cameByRecoveryLink } }
+
 export function AuthProvider({ children }: PropsWithChildren) {
+  const [recovering, setRecovering] = useState(readRecover)
+  const markRecovery = useCallback((on: boolean) => {
+    setRecovering(on)
+    try { if (on) sessionStorage.setItem(RECOVER_KEY, '1'); else sessionStorage.removeItem(RECOVER_KEY) } catch { /* private window */ }
+  }, [])
+  const endRecovery = useCallback(() => markRecovery(false), [markRecovery])
   const [session, setSession] = useState<Session | null>(null)
   const [grants, setGrants] = useState<PermissionGrant[]>([])
   const [loading, setLoading] = useState(true)
@@ -87,7 +101,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
       if (alive) setLoading(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, next) => {
+      if (event === 'PASSWORD_RECOVERY') markRecovery(true)
+      if (event === 'SIGNED_OUT') markRecovery(false)
       setSession(next)
       if (!next) setGrants([])
       else queueMicrotask(() => { void refreshGrants().catch(() => setGrants([])) })
@@ -96,7 +112,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       alive = false
       subscription.unsubscribe()
     }
-  }, [refreshGrants])
+  }, [refreshGrants, markRecovery])
 
   // Sign-in goes through the auth-login Edge Function, which counts failed passwords
   // and locks the account (5 failures -> 30 minutes). See supabase/functions/auth-login.
@@ -131,8 +147,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     shown.some(g => g.is_super || g.permission_code === permission), [shown])
 
   const value = useMemo(() => ({
-    session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, isSuperAdmin, viewAs, setViewAs,
-  }), [session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, isSuperAdmin, viewAs, setViewAs])
+    session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword: mustChangePassword || (recovering && !!session), recovering: recovering && !!session, endRecovery, isSuperAdmin, viewAs, setViewAs,
+  }), [session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, viewAs, setViewAs])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

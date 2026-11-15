@@ -4,7 +4,7 @@ import { LoginError, useAuth } from '../auth/AuthProvider'
 import { Icon } from '../components/Icon'
 import { BrandMark, useBrandText } from '../components/Brand'
 import { PublicTop } from '../components/PublicTop'
-import { supabaseConfigured } from '../lib/supabase'
+import { supabase, supabaseConfigured } from '../lib/supabase'
 import { usePrefs } from '../lib/prefs'
 
 export function Login() {
@@ -16,6 +16,8 @@ export function Login() {
   const [show, setShow] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [forgot, setForgot] = useState(false)
+  const [sent, setSent] = useState('')
 
   if (session) return <Navigate to="/app" replace />
 
@@ -39,6 +41,45 @@ export function Login() {
     finally { setBusy(false) }
   }
 
+  // "Forgot password": a link goes to the email on the account. The answer is the same whether or not the email exists.
+  async function sendLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(''); setSent('')
+    const to = email.trim().toLowerCase()
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+      setError(L('এখানে অ্যাকাউন্টের ইমেইল ঠিকানা লিখুন। এমপ্লয়ি আইডি বা মোবাইল দিয়ে যাঁরা লগইন করেন, তাঁদের পাসওয়ার্ড ম্যানেজার বা সিস্টেম অ্যাডমিন নতুন করে দেবেন।',
+        'Type the email address of the account. If you sign in with an Employee ID or mobile, ask your manager or system administrator to reset the password.'))
+      return
+    }
+    setBusy(true)
+    try {
+      const { error: e } = await supabase.auth.resetPasswordForEmail(to, { redirectTo: `${location.origin}/staff/login` })
+      if (e && /rate|limit|seconds/i.test(e.message)) setError(L('একটু আগে লিংক পাঠানো হয়েছে। কয়েক মিনিট পর আবার চেষ্টা করুন।', 'A link was sent a moment ago. Try again in a few minutes.'))
+      else setSent(L('এই ইমেইলে অ্যাকাউন্ট থাকলে পাসওয়ার্ড বদলানোর লিংক পাঠানো হয়েছে। ইনবক্স ও স্প্যাম ফোল্ডার দেখুন, লিংকে চাপলে নতুন পাসওয়ার্ড বসানোর পাতা খুলবে।',
+        'If an account uses this email, a link to change the password has been sent. Check the inbox and spam folder; the link opens the page to set a new password.'))
+    } catch { setError(L('সার্ভারে পৌঁছানো যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করুন।', 'Could not reach the server. Check the internet connection and try again.')) }
+    finally { setBusy(false) }
+  }
+
+  if (forgot) return <div style={{ minHeight: '100vh', background: 'var(--canvas)' }}>
+    <PublicTop showLogin={false} />
+    <main className="login-wrap">
+      <form className="login-card" onSubmit={sendLink}>
+        <BrandMark size="large" />
+        <h1>{L('পাসওয়ার্ড ভুলে গেছেন?', 'Forgot your password?')}</h1>
+        <p className="muted">{L('অ্যাকাউন্টের ইমেইল ঠিকানা লিখুন। সেই ইমেইলে একটি লিংক যাবে — লিংকে চাপলে নতুন পাসওয়ার্ড বসাতে পারবেন।',
+          'Type the email address of the account. A link goes to that email — it lets you set a new password.')}</p>
+        <label>{L('ইমেইল', 'Email')}<input type="text" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" /></label>
+        {error && <p className="da-error" role="alert">{error}</p>}
+        {sent && <p className="notice" role="status">{sent}</p>}
+        <button disabled={busy || !supabaseConfigured} style={{ width: '100%', marginTop: 6 }}><Icon name="key" size={16} />{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('লিংক পাঠান', 'Send the link')}</button>
+        <button type="button" className="secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => { setForgot(false); setError(''); setSent('') }}>{L('লগইনে ফিরে যান', 'Back to sign in')}</button>
+        <p className="muted small" style={{ marginTop: 12 }}>{L('এমপ্লয়ি আইডি বা মোবাইল দিয়ে লগইন করলে ইমেইলে লিংক যায় না — ম্যানেজার বা সিস্টেম অ্যাডমিনকে পাসওয়ার্ড নতুন করে দিতে বলুন।',
+          'If you sign in with an Employee ID or mobile, no email can be sent — ask your manager or system administrator to reset the password.')}</p>
+      </form>
+    </main>
+  </div>
+
   return <div style={{ minHeight: '100vh', background: 'var(--canvas)' }}>
     <PublicTop showLogin={false} />
     <main className="login-wrap">
@@ -56,6 +97,7 @@ export function Login() {
             <Icon name="eye" size={14} />{show ? L('লুকান', 'Hide') : L('দেখুন', 'Show')}</button></span></label>
         {error && <p className="da-error" role="alert">{error}</p>}
         <button disabled={busy || !supabaseConfigured} style={{ width: '100%', marginTop: 6 }}><Icon name="key" size={16} />{busy ? L('প্রবেশ করা হচ্ছে…', 'Signing in…') : L('লগইন করুন', 'Sign in')}</button>
+        <button type="button" className="link" style={{ display: 'block', margin: '10px auto 0' }} onClick={() => { setForgot(true); setError(''); setSent(''); if (!email.includes('@')) setEmail('') }}>{L('পাসওয়ার্ড ভুলে গেছি', 'Forgot password')}</button>
         <p className="muted small" style={{ marginTop: 12 }}>{L('অ্যাকাউন্ট বা অনুমতি প্রয়োজন হলে সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন। ৫ বার ভুল পাসওয়ার্ড দিলে অ্যাকাউন্ট ৩০ মিনিট লক থাকে।',
           'Need an account or access? Contact your system administrator. 5 wrong passwords lock the account for 30 minutes.')}</p>
         <p className="muted small" style={{ marginTop: 4 }}>{L('লগইন করলে আপনি ', 'By signing in you accept the ')}

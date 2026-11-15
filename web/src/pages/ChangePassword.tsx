@@ -9,7 +9,7 @@ import { strongEnough, userFriendly, users } from '../lib/users'
 
 /** Own password change. Forced (standalone screen) while the account still has a temporary password. */
 export function ChangePassword() {
-  const { mustChangePassword, refreshGrants, signOut, session } = useAuth()
+  const { mustChangePassword, recovering, endRecovery, refreshGrants, signOut, session } = useAuth()
   const { L } = usePrefs()
   const nav = useNavigate()
   const [pw, setPw] = useState(''); const [pw2, setPw2] = useState(''); const [show, setShow] = useState(false)
@@ -20,13 +20,13 @@ export function ChangePassword() {
     if (!strongEnough(pw)) return setErr(L('কমপক্ষে ৮ অক্ষর দিন, এতে অক্ষর ও সংখ্যা দুটোই থাকবে।', 'Use at least 8 characters with both letters and digits.'))
     if (pw !== pw2) return setErr(L('দুটি পাসওয়ার্ড মিলছে না।', 'The two passwords do not match.'))
     setBusy(true)
-    try { await users.changeMyPassword(pw); await refreshGrants(); setOk(true); setPw(''); setPw2(''); if (mustChangePassword) nav('/app', { replace: true }) }
+    try { await users.changeMyPassword(pw); endRecovery(); await refreshGrants(); setOk(true); setPw(''); setPw2(''); if (mustChangePassword) nav('/app', { replace: true }) }
     catch (x) { setErr(userFriendly(x)) } finally { setBusy(false) }
   }
 
   const form = <form className="login-card" onSubmit={submit} style={mustChangePassword ? undefined : { margin: 0, maxWidth: 460 }}>
-    {mustChangePassword && <><div className="brand-mark">X</div><h1>{L('নিজের পাসওয়ার্ড দিন', 'Set your own password')}</h1>
-      <p className="muted">{L('আপনি অস্থায়ী পাসওয়ার্ড দিয়ে ঢুকেছেন। কাজ শুরুর আগে নতুন পাসওয়ার্ড বসান — এটা শুধু আপনি জানবেন।',
+    {mustChangePassword && <><div className="brand-mark">X</div><h1>{recovering ? L('নতুন পাসওয়ার্ড দিন', 'Set a new password') : L('নিজের পাসওয়ার্ড দিন', 'Set your own password')}</h1>
+      <p className="muted">{recovering ? L('ইমেইলের লিংক দিয়ে ঢুকেছেন। এখন নতুন পাসওয়ার্ড বসান — এরপর থেকে এটা দিয়েই লগইন করবেন।', 'You came in through the email link. Set a new password now — you will sign in with it from here on.') : L('আপনি অস্থায়ী পাসওয়ার্ড দিয়ে ঢুকেছেন। কাজ শুরুর আগে নতুন পাসওয়ার্ড বসান — এটা শুধু আপনি জানবেন।',
         'You signed in with a temporary password. Set a new one before you start — only you should know it.')}</p>
       <p className="muted small">{session?.user.email}</p></>}
     <label>{L('নতুন পাসওয়ার্ড', 'New password')}<input type={show ? 'text' : 'password'} autoComplete="new-password" required value={pw} onChange={e => setPw(e.target.value)} /></label>

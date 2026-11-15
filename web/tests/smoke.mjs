@@ -41,13 +41,30 @@ try {
     const lp = await anon.newPage()
     await lp.goto(`${BASE}/app/hr/employees`); await lp.waitForURL(/\/staff\/login/, { timeout: 8000 }).catch(() => {})
     check(/\/staff\/login/.test(lp.url()), `${size}: signed-out visitor is sent to the login page`)
+    // forgot password: an Employee ID gets told whom to ask; an email gets a link (the same answer whether or not it exists)
+    const recover = []
+    await anon.unroute(/supabase\.co|fonts\.(googleapis|gstatic)/)
+    await anon.route(/fonts\.(googleapis|gstatic)/, r => r.abort())
+    await anon.route(/supabase\.co/, r => {
+      const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
+      if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
+      if (r.request().url().includes('/auth/v1/recover')) { recover.push({ url: r.request().url(), body: r.request().postDataJSON() }); return r.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: '{}' }) }
+      return r.abort()
+    })
+    await lp.getByRole('button', { name: 'পাসওয়ার্ড ভুলে গেছি' }).click()
+    await lp.locator('.login-card input').fill('1001'); await lp.getByRole('button', { name: 'লিংক পাঠান' }).click()
+    check((await lp.locator('.login-card .da-error').innerText().catch(() => '')).includes('ম্যানেজার') && recover.length === 0, `${size}: forgot password with an Employee ID says whom to ask, and sends nothing`)
+    await lp.locator('.login-card input').fill('Owner@Example.com'); await lp.getByRole('button', { name: 'লিংক পাঠান' }).click()
+    await lp.waitForSelector('.login-card .notice', { timeout: 8000 }).catch(() => {})
+    check(recover.at(-1)?.body?.email === 'owner@example.com' && decodeURIComponent(recover.at(-1)?.url ?? '').includes('/staff/login') && await lp.locator('.login-card .notice').count() === 1, `${size}: forgot password sends a link to the email on the account`)
+    if (process.env.SHOTS) await lp.screenshot({ path: `${process.env.SHOTS}/${size}-forgot.png` })
     await anon.close()
 
     // --- signed in as the Super Admin
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
-    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = []
+    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = []
     let asEmployee = false, withGaps = false
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -56,6 +73,7 @@ try {
       const j = d => r.fulfill({ status: 200, contentType: 'application/json', headers: { ...cors, 'content-range': '0-0/0' }, body: JSON.stringify(d) })
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (u.includes('/auth/v1/user')) return j(session.user)
+      if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
       if (u.includes('rpc/my_permissions')) return j([{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])
       if (u.includes('rpc/role_admin_list')) return j(roles)
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
@@ -226,6 +244,13 @@ try {
     await page.locator('.mg-desk').click(); await page.waitForSelector('.od-desk')
     check(await page.locator('.od-kind').count() === 2, `${size}: who receives Store and IT orders is one tap away`)
     await page.locator('.da-modal button', { hasText: 'বন্ধ' }).last().click()
+    // arriving through the email link: only the new-password screen opens until a password is saved
+    await page.goto(`${BASE}/app#type=recovery`); await page.waitForURL(/\/app\/password/, { timeout: 8000 }).catch(() => {})
+    check(/\/app\/password/.test(page.url()) && (await page.locator('.login-card h1').innerText().catch(() => '')).includes('নতুন পাসওয়ার্ড দিন'), `${size}: the email link opens the "set a new password" screen`)
+    await page.locator('.login-card input[autocomplete=new-password]').nth(0).fill('Nodi12345'); await page.locator('.login-card input[autocomplete=new-password]').nth(1).fill('Nodi12345')
+    await page.locator('.login-card button', { hasText: 'পাসওয়ার্ড সেভ করুন' }).click()
+    await page.waitForURL(u => !/\/app\/password/.test(u.pathname), { timeout: 8000 }).catch(() => {})
+    check(!/\/app\/password/.test(page.url()) && pwChanged.at(-1)?.action === 'change_password', `${size}: after saving the new password the app opens`)
     // accounts: today's sheets in the native-style list
     await page.goto(`${BASE}/app/accounts/daily`); await page.waitForSelector('.nv-row, .da-table tbody tr')
     check((await page.locator('.nv-hero .big').innerText()).includes('২ / ৪') && await page.locator('.nv-row').count() + await page.locator('.da-table tbody tr').count() >= 3, `${size}: the accounts page says how many hubs have given today's sheet`)
