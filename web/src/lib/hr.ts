@@ -168,6 +168,16 @@ export const hr = {
     rpc<void>('hr_transfer_employee', { p_employee: id, p_hub: a.hub, p_department: a.department, p_position: a.position, p_manager: a.manager,
       p_effective: a.effective, p_reason: a.reason, p_change_type: a.type }),
   archive: (id: string, reason: string) => rpc<void>('hr_archive_employee', { p_employee: id, p_reason: reason }),
+  /** A record entered by mistake: leaves every list, frees its ID and mobile. Nothing is destroyed. */
+  removeWrongEntry: (id: string, reason: string) => rpc<void>('hr_remove_wrong_entry', { p_employee: id, p_reason: reason }),
+  /** The right person with the wrong Employee ID. */
+  correctCode: (id: string, code: string, reason: string) => rpc<string>('hr_correct_employee_code', { p_employee: id, p_code: code, p_reason: reason }),
+  /** IDs of the people on approved leave today. */
+  onLeaveToday: async (): Promise<string[]> => {
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
+    const { data, error } = await supabase.from('leave_requests').select('employee_id').eq('status', 'approved').lte('from_date', today).gte('to_date', today); fail(error)
+    return [...new Set(((data ?? []) as Array<{ employee_id: string }>).map(r => r.employee_id))]
+  },
   leaveBalance: (id: string, year: number) =>
     rpc<Array<{ leave_type: string; quota: number; used: number; pending: number; remaining: number }>>('hr_leave_balance', { p_employee: id, p_year: year }),
 

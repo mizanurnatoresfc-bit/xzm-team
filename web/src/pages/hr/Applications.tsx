@@ -13,6 +13,8 @@ export function Applications() {
   const apps = useLoad(() => hr.applications(status || undefined), [status])
   const emps = useLoad(() => hr.employees({ status: undefined, limit: 1000 }), [])
   const byId = useMemo(() => Object.fromEntries((emps.data ?? []).map(e => [e.id, e])), [emps.data])
+  // An application whose person was removed from the list (archived) is not shown either.
+  const rows = useMemo(() => apps.data && emps.data ? apps.data.filter(a => byId[a.employee_id]) : apps.data, [apps.data, emps.data, byId])
   return <AppShell title="এমপ্লয়ি আইডি আবেদন" subtitle="হাব থেকে আসা আবেদন যাচাই করে আইডি দিন, সংশোধনে ফেরত পাঠান বা বাতিল করুন।">
     <section className="da-filters panel no-print">
       <Field label="অবস্থা"><select value={status} onChange={e => setStatus(e.target.value)}><option value="">সব</option>
@@ -20,7 +22,7 @@ export function Applications() {
     </section>
     {apps.error ? <p className="da-error">{hrFriendly(apps.error)}</p> : null}
     <section className="panel">
-      <DataTable title="এমপ্লয়ি আইডি আবেদন" file="id-applications" rows={apps.data} rowKey={a => a.id} onRowClick={a => nav(`/app/hr/employees/${a.employee_id}`)}
+      <DataTable title="এমপ্লয়ি আইডি আবেদন" file="id-applications" rows={rows} rowKey={a => a.id} onRowClick={a => nav(`/app/hr/employees/${a.employee_id}`)}
         empty={<p className="muted">এই অবস্থায় কোনো আবেদন নেই।</p>} cols={[
           { key: 'name', label: 'নাম', value: a => byId[a.employee_id]?.full_name ?? '', render: a => <><strong>{byId[a.employee_id]?.full_name ?? '…'}</strong>{byId[a.employee_id]?.employee_code && <span className="sec">আইডি {byId[a.employee_id]?.employee_code}</span>}</> },
           { key: 'mobile', label: 'মোবাইল', value: a => byId[a.employee_id]?.mobile ?? '' },

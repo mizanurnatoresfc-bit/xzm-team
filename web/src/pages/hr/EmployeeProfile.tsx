@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
@@ -249,14 +249,15 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
   const o = useOrg()
   const nid = useLoad(() => hr.maskedNid(e.id), [e.id])
   const [revealed, setRevealed] = useState<Record<string, string | null> | null>(null)
-  const [modal, setModal] = useState<'status' | 'transfer' | 'archive' | 'reveal' | 'edit' | null>(null)
+  const nav = useNavigate()
+  const [modal, setModal] = useState<'status' | 'transfer' | 'archive' | 'reveal' | 'edit' | 'code' | 'wrong' | null>(null)
   const [f, setF] = useState<Record<string, string>>({})
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const set = (k: string) => (ev: { target: { value: string } }) => setF(p => ({ ...p, [k]: ev.target.value }))
   const open = (m: typeof modal) => {
     setErr(''); setModal(m)
     setF({ status: e.status === 'active' ? 'inactive' : 'active', effective: todayDhaka(), reason: '', hub: e.hub_id ?? '', department: e.department_id ?? '',
-      position: e.position_id ?? '', type: 'transfer', full_name: e.full_name, full_name_bn: e.full_name_bn ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
+      position: e.position_id ?? '', type: 'transfer', code: '', full_name: e.full_name, full_name_bn: e.full_name_bn ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       emergency_contact_name: e.emergency_contact_name ?? '', emergency_contact_phone: e.emergency_contact_phone ?? '' })
   }
   async function go() {
@@ -266,6 +267,8 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
       if (modal === 'status') { await hr.changeStatus(e.id, f.status, f.effective, f.reason.trim()); await onChanged('অবস্থা পরিবর্তন হয়েছে') }
       if (modal === 'transfer') { await hr.transfer(e.id, { hub: f.hub, department: f.department || null, position: f.position || null, manager: e.reporting_manager_id, effective: f.effective, reason: f.reason.trim(), type: f.type }); await onChanged('বদলি/পরিবর্তন সেভ হয়েছে') }
       if (modal === 'archive') { await hr.archive(e.id, f.reason.trim()); await onChanged('আর্কাইভ করা হয়েছে — তথ্য মুছে যায়নি') }
+      if (modal === 'code') { const c = await hr.correctCode(e.id, f.code.trim(), f.reason.trim()); await onChanged(`এমপ্লয়ি আইডি এখন ${c}`) }
+      if (modal === 'wrong') { await hr.removeWrongEntry(e.id, f.reason.trim()); setModal(null); nav('/app/hr/employees', { replace: true }); return }
       if (modal === 'reveal') { const r = await hr.reveal(e.id, f.reason.trim()); setRevealed(r?.[0] ?? null) }
       if (modal === 'edit') {
         if (!BD_MOBILE.test(f.mobile.trim())) throw new Error('সঠিক মোবাইল নম্বর দিন')
@@ -276,16 +279,23 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
       setModal(null)
     } catch (x) { setErr(x instanceof Error && !(x as { code?: string }).code && /[ঀ-৿]/.test(x.message) ? x.message : hrFriendly(x)) } finally { setBusy(false) }
   }
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('edit') === '1' && can('hr.employee.edit') && !e.archived_at && e.status !== 'applicant') open('edit')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [e.id])
   const year = Number(todayDhaka().slice(0, 4))
   const bal = useLoad(() => e.status === 'applicant' ? Promise.resolve([]) : hr.leaveBalance(e.id, year), [e.id, year])
   return <>
     <section className="panel">
       <div className="da-bar"><h2 style={{ margin: 0 }}>তথ্য</h2>
-        {!e.archived_at && e.status !== 'applicant' && <div className="row">
-          {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('edit')}>সম্পাদনা</button>}
-          {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
-          {(can('hr.employee.edit') || can('hr.employee.approve')) && <button className="secondary sm" onClick={() => open('status')}>অবস্থা পরিবর্তন</button>}
-          {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('archive')}>আর্কাইভ</button>}</div>}</div>
+        {!e.archived_at && <div className="row">
+          {e.status !== 'applicant' && <>
+            {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('edit')}>সম্পাদনা</button>}
+            {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
+            {(can('hr.employee.edit') || can('hr.employee.approve')) && <button className="secondary sm" onClick={() => open('status')}>অবস্থা পরিবর্তন</button>}
+            {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('archive')}>আর্কাইভ</button>}</>}
+          {e.employee_code && can('hr.employee.edit') && can('hr.application.approve') && <button className="secondary sm" onClick={() => open('code')}>আইডি সংশোধন</button>}
+          {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('wrong')}>ভুল এন্ট্রি — মুছুন</button>}</div>}</div>
       <div className="info-grid">
         <Info icon="key" label="এমপ্লয়ি আইডি"><strong>{e.employee_code ?? '—'}</strong></Info>
         <Info icon="user" label="নাম">{e.full_name}{e.full_name_bn ? <span className="sec">{e.full_name_bn}</span> : null}</Info>
@@ -303,8 +313,8 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
       {bal.data && bal.data.length > 0 && <><h3>ছুটির হিসাব {bn(year)}</h3><div className="da-mini">{bal.data.map(b =>
         <span key={b.leave_type}>{b.leave_type}: বাকি <strong>{bn(b.remaining)}</strong> / {bn(b.quota)}{b.pending ? ` (অপেক্ষমাণ ${bn(b.pending)})` : ''}</span>)}</div></>}
     </section>
-    {modal && <Modal title={{ status: 'অবস্থা পরিবর্তন', transfer: 'বদলি / পদোন্নতি', archive: 'কর্মী আর্কাইভ', reveal: 'গোপন তথ্য দেখুন', edit: 'তথ্য সম্পাদনা' }[modal]}
-      onClose={() => setModal(null)} actions={<><button className="secondary" onClick={() => setModal(null)}>বাতিল</button><button className={modal === 'archive' ? 'danger' : ''} disabled={busy} onClick={() => void go()}>নিশ্চিত</button></>}>
+    {modal && <Modal title={{ code: 'এমপ্লয়ি আইডি সংশোধন', wrong: 'ভুল এন্ট্রি — মুছুন', status: 'অবস্থা পরিবর্তন', transfer: 'বদলি / পদোন্নতি', archive: 'কর্মী আর্কাইভ', reveal: 'গোপন তথ্য দেখুন', edit: 'তথ্য সম্পাদনা' }[modal]}
+      onClose={() => setModal(null)} actions={<><button className="secondary" onClick={() => setModal(null)}>বাতিল</button><button className={modal === 'archive' || modal === 'wrong' ? 'danger' : ''} disabled={busy} onClick={() => void go()}>নিশ্চিত</button></>}>
       {modal === 'status' && <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Field label="নতুন অবস্থা"><select value={f.status} onChange={set('status')}>{(['active', 'inactive', 'resigned', 'terminated'] as EmployeeStatus[]).filter(s => s !== e.status).map(s => <option key={s} value={s}>{EMP_STATUS[s][0]}</option>)}</select></Field>
         <Field label="কার্যকর তারিখ"><input type="date" value={f.effective} onChange={set('effective')} /></Field></div>}
@@ -320,6 +330,10 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
         <Field label="জরুরি যোগাযোগ (নাম)"><input value={f.emergency_contact_name} onChange={set('emergency_contact_name')} /></Field>
         <Field label="জরুরি যোগাযোগ (মোবাইল)"><input inputMode="tel" value={f.emergency_contact_phone} onChange={set('emergency_contact_phone')} /></Field></div>}
       {modal === 'archive' && <p>কর্মীর সব তথ্য ও ইতিহাস থাকবে, শুধু তালিকা থেকে সরে যাবে।</p>}
+      {modal === 'code' && <><p className="muted small">ঠিক মানুষ, কিন্তু আইডি ভুল বসেছে — এখানে ঠিক করুন। লগইন থাকলে নতুন আইডি দিয়েই ঢুকতে হবে।</p>
+        <Field label={`নতুন এমপ্লয়ি আইডি (এখন ${e.employee_code ?? '—'})`} required><input inputMode="numeric" value={f.code} onChange={set('code')} /></Field></>}
+      {modal === 'wrong' && <><p>ভুল করে ওঠা রেকর্ডের জন্য (ভুল লোক, একই লোক দুবার, পরীক্ষার এন্ট্রি)। রেকর্ডটি সব তালিকা থেকে সরে যাবে, আর তার আইডি ও মোবাইল নম্বর আবার ব্যবহার করা যাবে। লগইন থাকলে সেটা বন্ধ হবে।</p>
+        <p className="muted small">হাজিরা, হিসাব, বেতন বা ছুটির রেকর্ড থাকলে এভাবে মোছা যাবে না। কিছুই চিরতরে মুছে যায় না; অডিট লগে থাকে।</p></>}
       {modal === 'reveal' && <p className="muted small">কেন দেখছেন তা অডিট লগে থাকবে।</p>}
       {modal !== 'edit' && <Field label="কারণ (আবশ্যক, অডিট লগে থাকবে)"><textarea rows={3} value={f.reason} onChange={set('reason')} /></Field>}
       {err && <p className="da-error">{err}</p>}

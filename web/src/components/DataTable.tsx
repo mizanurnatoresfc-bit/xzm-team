@@ -6,7 +6,9 @@ import { MultiCombo } from './inputs'
 
 export type Col<T> = { key: string; label: string; render?: (r: T) => ReactNode; value?: (r: T) => string | number | null; className?: string; noExport?: boolean
   /** The column that names the row — the heading of a card or list line. Default: the first data column. */
-  primary?: boolean }
+  primary?: boolean
+  /** Not drawn on screen, but searched, filtered, printed and exported (e.g. an ID that is shown under the name). */
+  hidden?: boolean }
 export type ViewKind = 'table' | 'card' | 'list'
 
 // What the person chose for each list (view, rows per page, sorting, filters), kept on this device.
@@ -30,10 +32,15 @@ const VIEW_ICON: Record<ViewKind, string> = { table: 'table', card: 'grid', list
 
 /** One list, several views: table, cards or compact lines of the same rows — with search, sorting, quick filters,
  *  pages, mark / unmark, print, Excel and PDF. Search, filters and sorting also decide what is printed or exported. */
-export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, file, prefKey, views = ['table', 'card', 'list'] }: {
+export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, empty, file, prefKey, views = ['table', 'card', 'list'], search = true, bulk, phoneView }: {
   title: string; rows: T[] | null | undefined; cols: Array<Col<T>>; rowKey: (r: T) => string; onRowClick?: (r: T) => void; empty?: ReactNode; file?: string
   /** Name under which this list's view choices are remembered (default: `file`). */
   prefKey?: string; views?: ViewKind[]
+  /** false = the page has its own search box. */ search?: boolean
+  /** Actions for the marked rows; shown in a bar while anything is marked. `clear` unmarks everything. */
+  bulk?: (marked: T[], clear: () => void) => ReactNode
+  /** The view a phone starts in, until the person picks one (a wide table is a long scroll on a phone). */
+  phoneView?: ViewKind
 }) {
   const { L, n } = usePrefs()
   const id = prefKey ?? file
@@ -44,9 +51,11 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
   const [showFilters, setShowFilters] = useState(false)
   const [page, setPage] = useState(0)
   const source = useMemo(() => rows ?? [], [rows])
-  const exp = cols.filter(c => !c.noExport)
+  const exp = allCols.filter(c => !c.noExport)
+  const cols = useMemo(() => allCols.filter(c => !c.hidden), [allCols])
   const cell = (c: Col<T>, r: T) => { const v = c.value ? c.value(r) : (r as Record<string, unknown>)[c.key]; return v === null || v === undefined || typeof v === 'object' ? '' : (v as string | number) }
-  const view: ViewKind = saved.view && views.includes(saved.view) ? saved.view : views[0]
+  const onPhone = typeof matchMedia === 'function' && matchMedia('(max-width:700px)').matches
+  const view: ViewKind = saved.view && views.includes(saved.view) ? saved.view : onPhone && phoneView && views.includes(phoneView) ? phoneView : views[0]
   const size = SIZES.includes(saved.size ?? 0) ? saved.size! : 50
   const big = source.length > 8
   // Columns with a handful of repeating values (status, hub, post…) become one-tap filters.
@@ -65,7 +74,7 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
   const list = useMemo(() => {
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
     let out = source.filter(r => {
-      for (const [k, v] of Object.entries(filters)) { const c = cols.find(x => x.key === k); if (c && !v.includes(String(cell(c, r)))) return false }
+      for (const [k, v] of Object.entries(filters)) { const c = allCols.find(x => x.key === k); if (c && !v.includes(String(cell(c, r)))) return false }
       if (!words.length) return true
       const text = exp.map(c => String(cell(c, r))).join(' ').toLowerCase()
       return words.every(w => text.includes(w))
@@ -97,7 +106,7 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
   const activeFilters = Object.keys(filters).length
   const toggleMark = (k: string, on: boolean) => { const s = new Set(mk); if (on) s.add(k); else s.delete(k); setMarked(s) }
   const show = (c: Col<T>, r: T): ReactNode => c.render ? c.render(r) : String(cell(c, r) || '—')
-  const titleCol = cols.find(c => c.primary) ?? exp[0] ?? cols[0]
+  const titleCol = cols.find(c => c.primary) ?? cols.find(c => !c.noExport) ?? cols[0]
   function excel() {
     const data = pick().map((r, i) => [i + 1, ...exp.map(c => cell(c, r))])
     download(xlsxBlob(`XZM-TEAM — ${title}`, `${scope()} · ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}`, ['S/L', ...exp.map(c => c.label)], data),
@@ -121,7 +130,7 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
   return <>
     <div className="list-tools no-print">
       <span className="cnt">{L('মোট ', '')}<b>{n(list.length)}</b>{L('টি', ' rows')}{narrowed ? <em>{L(` / ${n(source.length)}`, ` of ${source.length}`)}</em> : null}{mk.size ? <em>{L(` · ${n(mk.size)} চিহ্নিত`, ` · ${mk.size} marked`)}</em> : null}</span>
-      {big && <input type="search" className="dv-search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('এই তালিকায় খুঁজুন…', 'Search this list…')} aria-label={L('এই তালিকায় খুঁজুন', 'Search this list')} />}
+      {big && search && <input type="search" className="dv-search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('এই তালিকায় খুঁজুন…', 'Search this list…')} aria-label={L('এই তালিকায় খুঁজুন', 'Search this list')} />}
       <span className="grow" />
       {filterable.length > 0 && <button type="button" className={`secondary sm dv-fbtn${showFilters || activeFilters ? ' on' : ''}`} aria-expanded={showFilters} onClick={() => setShowFilters(v => !v)}>
         <Icon name="search" size={14} />{L('ফিল্টার', 'Filter')}{activeFilters ? ` (${n(activeFilters)})` : ''}</button>}
@@ -138,6 +147,8 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
         <button type="button" className="tb pdf" onClick={() => print(true)} disabled={!list.length} title="PDF" aria-label="PDF"><Icon name="pdf" size={16} /><span className="tl">PDF</span></button>
       </div>
     </div>
+    {bulk && mk.size > 0 && <div className="dv-bulk no-print" role="region" aria-label={L('চিহ্নিত সারির কাজ', 'Actions for marked rows')}>
+      <strong>{L(`${n(mk.size)}টি চিহ্নিত`, `${mk.size} marked`)}</strong>{bulk(list.filter(r => mk.has(rowKey(r))), () => setMarked(new Set()))}</div>}
     {(showFilters || activeFilters > 0) && filterable.length > 0 && <div className="dv-filters no-print">
       {filterable.map(({ c, vals }) => <div key={c.key} className="dv-f"><span>{c.label}</span>
         <MultiCombo label={c.label} values={filters[c.key] ?? []} onChange={v => setFilter(c.key, v)} options={vals.map(v => ({ value: v, label: v }))} placeholder={L('সব', 'All')} /></div>)}
@@ -160,7 +171,7 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
     {view === 'list' && <ul className="dv-list">{shown.map((r, j) => { const i = pg * size + j; const k = rowKey(r); return <li key={k} className={`${onRowClick ? 'click' : ''}${mk.has(k) ? ' marked' : ''}`} onClick={() => onRowClick?.(r)}>
       <span className="no-print">{mark(r, i)}</span>
       <div className="dv-line"><b>{show(titleCol, r)}</b>
-        <span className="dv-sub">{exp.filter(c => c !== titleCol).map(c => { const v = cell(c, r); return v === '' ? null : <span key={c.key}><i>{c.label}</i> {c.render ? c.render(r) : String(v)}</span> })}</span></div>
+        <span className="dv-sub">{exp.filter(c => c !== titleCol && !c.hidden).map(c => { const v = cell(c, r); return v === '' ? null : <span key={c.key}><i>{c.label}</i> {c.render ? c.render(r) : String(v)}</span> })}</span></div>
       <span className="dv-acts">{cols.filter(c => c.noExport && c !== titleCol).map(c => <span key={c.key}>{show(c, r)}</span>)}</span>
     </li> })}</ul>}
     {list.length > SIZES[0] && <div className="dv-pager no-print">
