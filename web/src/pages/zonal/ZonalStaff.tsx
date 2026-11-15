@@ -117,13 +117,13 @@ function HubStaff({ hub, onToast, onClose, onOpen }: {
     </div>}
 
     {list.error ? <p className="da-error">{hrFriendly(list.error)}</p> : null}
-    <DataTable<Employee> title={`${hub.hub_name} — ${L('কর্মী', 'staff')}`} file={`hub-${hub.hub_name}`} rows={staff} rowKey={e => e.id}
+    <DataTable<Employee> title={`${hub.hub_name} — ${L('কর্মী', 'staff')}`} file={`hub-${hub.hub_name}`} prefKey="hub-staff-list" rows={staff} rowKey={e => e.id}
       empty={<p className="muted">{list.loading ? L('লোড হচ্ছে…', 'Loading…') : L('এই হাবে কোনো কর্মী নেই।', 'No staff in this hub.')}</p>}
       cols={[
         { key: 'pick', label: '✓', noExport: true, render: e => <input type="checkbox" style={{ width: 'auto' }} aria-label={e.full_name}
             checked={picked.has(e.id)} onChange={() => toggle(e.id)} onClick={ev => ev.stopPropagation()} /> },
         { key: 'code', label: L('আইডি', 'ID'), value: e => e.employee_code ?? '', render: e => e.employee_code ? <strong>{e.employee_code}</strong> : <Badge tone="warn">{L('আইডি নেই', 'No ID')}</Badge> },
-        { key: 'name', label: L('নাম', 'Name'), value: e => e.full_name },
+        { key: 'name', label: L('নাম', 'Name'), primary: true, value: e => e.full_name },
         { key: 'mobile', label: L('মোবাইল', 'Mobile'), value: e => e.mobile ?? '' },
         { key: 'pos', label: L('পদবি', 'Position'), value: e => e.position_id ? o.names.pos[e.position_id] ?? '' : '' },
         { key: 'join', label: L('যোগদান', 'Joined'), value: e => dmy(e.joining_date) },

@@ -57,10 +57,17 @@ jobs:
           if grep -qE 'sb_secret|service_role' .env.production* 2>/dev/null; then echo "::error::A SECRET key was found. Use the publishable key only."; exit 1; fi
 
       - name: Install packages
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Build the app pages
         run: npm run build
+
+      # Opens the built pages in a real browser (PC and phone size, database answers faked).
+      # If a screen is broken the run stops here and the live website is left as it was.
+      - name: Smoke test
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:smoke
 
       - uses: actions/upload-artifact@v4
         with:

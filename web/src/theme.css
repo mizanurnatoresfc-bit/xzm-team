@@ -1098,3 +1098,42 @@ input[readonly],textarea[readonly],select:disabled,input:disabled{background:var
 .font-pick button span{font-size:15px;color:var(--muted);font-weight:400}
 .font-pick button.on{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-50)}
 .hub-link.as-btn{background:var(--surface);font:inherit;font-weight:600;text-align:left;cursor:pointer;min-height:0;width:100%}
+
+/* ============ DataView: one list in table / card / list view, with search, filters, sorting and pages ============ */
+.list-tools{flex-wrap:wrap}
+.list-tools .dv-search{flex:1 1 180px;min-width:0;width:auto;max-width:280px;height:36px;min-height:0;padding:6px 10px;margin:0}
+.list-tools .dv-fbtn{min-height:34px;gap:5px}
+.list-tools .dv-fbtn.on{border-color:var(--primary);color:var(--primary)}
+.dv-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 10px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--th)}
+.dv-filters label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);font-weight:600;min-width:130px;flex:0 1 180px}
+.dv-filters select{margin:0;min-height:34px;padding:4px 8px}
+.da-table th.dv-sort{padding:0}
+.da-table th.dv-sort button{all:unset;display:flex;align-items:center;gap:4px;width:100%;box-sizing:border-box;padding:10px;cursor:pointer;font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit}
+.da-table th.dv-sort button:hover{color:var(--primary)}
+.da-table th.dv-sort button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.dv-arrow{font-size:9px;min-width:9px;color:var(--primary)}
+.dv-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.dv-card{border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:12px 14px;min-width:0}
+.dv-card.click,.dv-list li.click{cursor:pointer}
+.dv-card.click:hover,.dv-list li.click:hover{border-color:var(--primary);background:var(--row-hover)}
+.dv-card.marked,.dv-list li.marked{background:var(--primary-50);border-color:var(--primary)}
+.dv-card header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.dv-card header b{flex:1;min-width:0;overflow-wrap:anywhere;font-size:15px}
+.dv-card dl{margin:0;display:grid;gap:4px}
+.dv-card dl div{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;min-width:0}
+.dv-card dl div.act{justify-content:flex-end;margin-top:4px}
+.dv-card dt{color:var(--muted);font-size:12px;font-weight:600;flex:none}
+.dv-card dd{margin:0;text-align:right;min-width:0;overflow-wrap:anywhere}
+.dv-list{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)}
+.dv-list li{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);border-left:0;border-right:0;border-top:0}
+.dv-list li:last-child{border-bottom:0}
+.dv-line{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dv-line b{overflow-wrap:anywhere}
+.dv-sub{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12.5px;color:var(--muted)}
+.dv-sub i{font-style:normal;font-weight:600;font-size:11.5px;opacity:.85}
+.dv-acts{display:flex;gap:6px;align-items:center;flex:none}
+.dv-card input[type=checkbox],.dv-list input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--primary)}
+.dv-pager{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--muted)}
+.dv-pager .grow{flex:1}
+.dv-pager select{width:auto;margin:0;min-height:32px;padding:2px 8px}
+@media (max-width:700px){.list-tools .dv-search{max-width:none;flex-basis:100%;order:5}.list-tools .grow{display:none}.list-tools .cnt{flex:1}.dv-cards{grid-template-columns:1fr}.dv-filters label{flex:1 1 140px}}
