@@ -72,7 +72,12 @@ export const MISSING: Record<string, string> = {
   full_name: 'পূর্ণ নাম', mobile: 'মোবাইল', hub: 'হাব', hub_id: 'হাব', department: 'বিভাগ', department_id: 'বিভাগ', position: 'পদবি', position_id: 'পদবি',
   joining_date: 'যোগদানের তারিখ', nid: 'NID', nid_number: 'NID', date_of_birth: 'জন্মতারিখ', photo: 'ছবি', emergency_contact: 'জরুরি যোগাযোগ',
   emergency_contact_name: 'জরুরি যোগাযোগের নাম', emergency_contact_phone: 'জরুরি যোগাযোগের নম্বর', present_address: 'বর্তমান ঠিকানা',
+  permanent_address: 'স্থায়ী ঠিকানা', email: 'Gmail (অ্যাডমিন পদ)', reference: 'রেফারেন্স (নাম ও আইডি)', basic_salary: 'বেতন (Basic)',
+  'field:alt_mobile': 'বিকল্প মোবাইল', 'field:blood_group': 'রক্তের গ্রুপ',
+  'document:photo': 'কর্মীর ছবি', 'document:nid_front': 'NID সামনের ছবি', 'document:nid_back': 'NID পেছনের ছবি',
 }
+export type ProfileGap = { employee_id: string; employee_code: string | null; full_name: string; status: string; hub_id: string | null
+  hub_name: string | null; position_name: string | null; position_name_bn: string | null; missing: string[]; total_checks: number }
 
 const BN: Array<[RegExp, string]> = [
   [/not authori[sz]ed|permission denied|42501|row-level security/i, 'এই কাজের অনুমতি আপনার নেই'],
@@ -106,7 +111,7 @@ export const org = {
   zones: (archived = false) => list<Zone>('zones', 'name', archived),
   hubs: (archived = false) => list<Hub>('hubs', 'name', archived),
   departments: (archived = false) => list<Department>('departments', 'name', archived),
-  positions: (archived = false) => list<Position>('positions', 'name', archived),
+  positions: (archived = false) => list<Position>('positions', 'sort_order', archived),
   insert: async (table: 'organizations' | 'regions' | 'zones' | 'hubs' | 'departments' | 'positions', row: Record<string, unknown>) => {
     const { error } = await supabase.from(table).insert(row); fail(error)
   },
@@ -176,6 +181,8 @@ export const hr = {
     fail(error); return ((data ?? [])[0] ?? null) as Application | null
   },
   missingFields: (id: string) => rpc<string[]>('hr_application_missing_fields', { p_employee: id }),
+  /** Everyone the caller may see, with what their profile still lacks for an ID (the ID-create format). */
+  profileGaps: (zone: string | null = null, hub: string | null = null) => rpc<ProfileGap[]>('hr_profile_gaps', { p_zone: zone, p_hub: hub }),
   submitApplication: (id: string) => rpc<void>('hr_submit_application', { p_employee: id }),
   approveApplication: (id: string, code: string, note: string | null) =>
     rpc<void>('hr_approve_application', { p_employee: id, p_employee_code: code, p_note: note }),

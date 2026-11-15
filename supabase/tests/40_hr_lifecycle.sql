@@ -21,8 +21,8 @@ update public.employees set joining_date = current_date, emergency_contact_phone
        reporting_manager_id = tests.id('mgr_emp') where id = tests.id('app1');
 select tests.throws(format($$insert into public.employee_sensitive (employee_id, nid_number, date_of_birth) values (%L, '4512889022', current_date - interval '15 years')$$, tests.id('app1')),
                     'under-age date of birth rejected', '23514');
-insert into public.employee_sensitive (employee_id, nid_number, date_of_birth, father_name)
-  values (tests.id('app1'), '4512889022', '1998-02-14', 'Abdul Karim');
+insert into public.employee_sensitive (employee_id, nid_number, date_of_birth, father_name, permanent_address)
+  values (tests.id('app1'), '4512889022', '1998-02-14', 'Abdul Karim', 'Natore Sadar, Natore');
 select tests.ok((select nid_number from public.employee_sensitive where employee_id = tests.id('app1')) = '4512889022',
                 'preparer can read NID of own open draft');
 
@@ -36,7 +36,7 @@ select tests.throws(format('select public.hr_submit_application(%L)', tests.id('
 select tests.login(tests.id('hr'));
 insert into public.employee_field_sections (code, name) values ('extra', 'Extra information');
 insert into public.employee_custom_fields (section_id, code, label, field_type, is_required, options)
-  select id, 'blood_group', 'Blood group', 'dropdown', true,
+  select id, 'blood_test', 'Blood group', 'dropdown', true,
          '[{"value":"a_pos","label":"A+"},{"value":"o_pos","label":"O+"}]' from public.employee_field_sections where code = 'extra';
 insert into public.employee_custom_fields (section_id, code, label, field_type, validation)
   select id, 'bike_cc', 'Motorbike engine (cc)', 'number', '{"min":50,"max":500}' from public.employee_field_sections where code = 'extra';
@@ -44,14 +44,14 @@ select tests.login(tests.id('hub_mgr'));
 select tests.throws($$insert into public.employee_custom_fields (section_id, code, label, field_type)
                       select id, 'hack', 'Hack', 'text' from public.employee_field_sections limit 1$$,
                     'hub manager cannot configure profile fields', '42501');
-select tests.ok('field:blood_group' = any(public.hr_application_missing_fields(tests.id('app1'))),
+select tests.ok('field:blood_test' = any(public.hr_application_missing_fields(tests.id('app1'))),
                 'new required custom field appears automatically in missing fields');
 
 select tests.throws(format($$insert into public.employee_custom_field_values (employee_id, field_id, value)
-                            select %L, id, '"b_neg"' from public.employee_custom_fields where code = 'blood_group'$$, tests.id('app1')),
+                            select %L, id, '"b_neg"' from public.employee_custom_fields where code = 'blood_test'$$, tests.id('app1')),
                     'dropdown value outside options rejected', '23514');
 insert into public.employee_custom_field_values (employee_id, field_id, value)
-  select tests.id('app1'), id, '"o_pos"' from public.employee_custom_fields where code = 'blood_group';
+  select tests.id('app1'), id, '"o_pos"' from public.employee_custom_fields where code = 'blood_test';
 select tests.throws(format($$insert into public.employee_custom_field_values (employee_id, field_id, value)
                             select %L, id, '900' from public.employee_custom_fields where code = 'bike_cc'$$, tests.id('app1')),
                     'number outside validation range rejected', '23514');
@@ -67,6 +67,11 @@ select tests.throws(format($$insert into public.employee_documents (employee_id,
                             values (%L, 'cv', 'employee/%s/cv.exe', 'cv.exe', 'application/x-msdownload', 1000)$$, tests.id('app1'), tests.id('app1')),
                     'disallowed file type rejected', '23514');
 select public.hr_propose_compensation(tests.id('app1'), current_date, 16000, 2000, 0, '[{"code":"meal","amount":1500}]', 'Joining salary');
+-- the ID-create format also needs a reference, an alternative mobile and the blood group
+update public.employees set reference_info = 'Rahim, ID 12' where id = tests.id('app1');
+insert into public.employee_custom_field_values (employee_id, field_id, value)
+  select tests.id('app1'), id, case code when 'alt_mobile' then '"01911000000"'::jsonb else '"o_pos"'::jsonb end
+  from public.employee_custom_fields where code in ('alt_mobile', 'blood_group');
 select tests.ok(cardinality(public.hr_application_missing_fields(tests.id('app1'))) = 0, 'application complete after all fields');
 select public.hr_submit_application(tests.id('app1'));
 select tests.ok((select status from public.employee_applications where employee_id = tests.id('app1')) = 'submitted', 'application submitted to HR');
@@ -173,15 +178,15 @@ select tests.throws(format('delete from public.employees where id = %L', tests.i
 
 -- ---------- profile builder history ----------
 select tests.login(tests.id('hr'));
-update public.employee_custom_fields set archived_at = now(), archive_reason = 'No longer collected' where code = 'blood_group';
+update public.employee_custom_fields set archived_at = now(), archive_reason = 'No longer collected' where code = 'blood_test';
 select tests.ok((select count(*) = 1 from public.employee_custom_field_values v join public.employee_custom_fields f on f.id = v.field_id
-                 where f.code = 'blood_group'), 'archived field keeps its historical values');
+                 where f.code = 'blood_test'), 'archived field keeps its historical values');
 select tests.logout();
 select tests.throws(format($$update public.employee_custom_field_values set value = '"a_pos"' where employee_id = %L$$, tests.id('app1')),
                     'archived field values cannot be changed', 'P0001');
-select tests.throws($$update public.employee_custom_fields set field_type = 'text' where code = 'blood_group'$$,
+select tests.throws($$update public.employee_custom_fields set field_type = 'text' where code = 'blood_test'$$,
                     'field type cannot change after values exist', 'P0001');
-select tests.ok(not ('field:blood_group' = any(coalesce((select missing from public.hr_missing_information() where employee_id = tests.id('mgr_emp')), '{}'))),
+select tests.ok(not ('field:blood_test' = any(coalesce((select missing from public.hr_missing_information() where employee_id = tests.id('mgr_emp')), '{}'))),
                 'archived required field no longer counts as missing');
 
 -- ---------- return / reject path ----------

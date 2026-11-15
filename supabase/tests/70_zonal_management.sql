@@ -103,7 +103,7 @@ select tests.ok((select not ('nid_front' = any(missing)) and 'nid_back' = any(mi
                         and 'signature' = any(missing) and 'cv' = any(missing)
                  from public.zm_data_completion(tests.id('zone_a')) where employee_id = tests.id('emp_a1')),
                 'completion report knows an NID image is on file without exposing it');
-select tests.ok((select total_checks = 9 and completion_pct = 55.6
+select tests.ok((select total_checks = 11 and completion_pct = 45.5  -- + alternative mobile and blood group (ID-ready format)
                  from public.zm_data_completion(tests.id('zone_a')) where employee_id = tests.id('emp_a1')),
                 'completion percentage is calculated from the required items');
 select tests.ok(tests.row_count(format('select * from public.zm_data_completion(%L)', tests.id('zone_b'))) = 0,
@@ -112,10 +112,10 @@ select tests.ok(tests.row_count(format('select * from public.zm_data_completion(
 select tests.logout();
 insert into public.employee_field_sections (code, name) values ('extra', 'Extra information');
 insert into public.employee_custom_fields (section_id, code, label, field_type, is_required, options)
-  select id, 'blood_group', 'Blood group', 'dropdown', true, '[{"value":"o_pos","label":"O+"}]'
+  select id, 'blood_test', 'Blood group', 'dropdown', true, '[{"value":"o_pos","label":"O+"}]'
   from public.employee_field_sections where code = 'extra';
 select tests.login(tests.id('zonal_a'));
-select tests.ok((select total_checks = 10 and 'field:blood_group' = any(missing)
+select tests.ok((select total_checks = 12 and 'field:blood_test' = any(missing)
                  from public.zm_data_completion(tests.id('zone_a')) where employee_id = tests.id('emp_a1')),
                 'a newly required profile field is counted automatically');
 select tests.ok((public.zm_dashboard(tests.id('zone_a'), current_date - 7, current_date) -> 'data_completion' ->> 'incomplete')::int = 2,

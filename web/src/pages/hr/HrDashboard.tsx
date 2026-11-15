@@ -29,7 +29,7 @@ export function HrDashboard() {
       <Stat label="আইডি আবেদন অপেক্ষমাণ" value={bn(n('pending_applications'))} tone={n('pending_applications') ? 'warn' : undefined} sub={<Link to="/app/hr/applications">দেখুন</Link>} />
       <Stat label="ছুটির অনুরোধ অপেক্ষমাণ" value={bn(n('pending_leave'))} tone={n('pending_leave') ? 'warn' : undefined} sub={<Link to="/app/hr/leave">দেখুন</Link>} />
       <Stat label="বেতন পরিবর্তন অপেক্ষমাণ" value={bn(n('pending_salary_changes'))} />
-      <Stat label="তথ্য অসম্পূর্ণ" value={bn(n('employees_with_missing_info'))} tone={n('employees_with_missing_info') ? 'bad' : undefined} sub="কর্মী" />
+      <Stat label="তথ্য অসম্পূর্ণ" value={bn(n('employees_with_missing_info'))} tone={n('employees_with_missing_info') ? 'bad' : undefined} sub={<Link to="/app/hr/profile-gaps">কার কী বাকি দেখুন</Link>} />
     </div>
   </AppShell>
 }

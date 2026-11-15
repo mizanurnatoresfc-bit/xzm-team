@@ -41,6 +41,7 @@ const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.S
 const Sorting = lazy(() => import('./pages/sorting/Sorting').then(m => ({ default: m.Sorting })))
 const Requests = lazy(() => import('./pages/hr/Requests').then(m => ({ default: m.Requests })))
 const Duties = lazy(() => import('./pages/hr/Duties').then(m => ({ default: m.Duties })))
+const ProfileGaps = lazy(() => import('./pages/hr/ProfileGaps').then(m => ({ default: m.ProfileGaps })))
 const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
 const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
 const Vehicles = lazy(() => import('./pages/vehicles/Vehicles').then(m => ({ default: m.Vehicles })))
@@ -84,6 +85,7 @@ export default function App() {
       <Route path="/app/sorting/:section" element={<Sorting />} />
       <Route path="/app/hr/requests" element={<Requests />} />
       <Route path="/app/hr/duties" element={<Duties />} />
+      <Route path="/app/hr/profile-gaps" element={<ProfileGaps />} />
       <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
       <Route path="/app/office/:section" element={<Office />} />
       <Route path="/app/issues" element={<Issues />} />

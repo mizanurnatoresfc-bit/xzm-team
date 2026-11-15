@@ -6,7 +6,7 @@ select tests.hr_fixture();
 -- a custom profile field to import into
 insert into public.employee_field_sections (code, name) values ('extra', 'Extra') on conflict do nothing;
 insert into public.employee_custom_fields (section_id, code, label, field_type, options)
-select id, 'blood_group', 'Blood group', 'dropdown', '[{"value":"o_pos","label":"O+"},{"value":"a_pos","label":"A+"}]' from public.employee_field_sections where code = 'extra';
+select id, 'blood_test', 'Blood group', 'dropdown', '[{"value":"o_pos","label":"O+"},{"value":"a_pos","label":"A+"}]' from public.employee_field_sections where code = 'extra';
 update public.hubs set name_bn = 'হাব এ১' where id = tests.id('hub_a1');
 
 select tests.login(tests.id('super'));
@@ -22,12 +22,12 @@ select tests.id('b2'), n, r::jsonb from (values
 ) v(n, r);
 
 select public.hr_validate_import(tests.id('b2'),
-  '{"ID":"employee_code","Name":"full_name","Post":"position_name","Hub":"hub_name","Basic":"basic_salary","Transport":"transport_allowance","Commission":"commission","Blood":"cf:blood_group","Ref":"reference_code"}');
+  '{"ID":"employee_code","Name":"full_name","Post":"position_name","Hub":"hub_name","Basic":"basic_salary","Transport":"transport_allowance","Commission":"commission","Blood":"cf:blood_test","Ref":"reference_code"}');
 select tests.ok((select status from public.employee_import_rows where batch_id = tests.id('b2') and row_number = 1) = 'valid',
   'row with only ID, name, position name, hub name and salary is valid');
 select tests.ok((select data ->> 'basic_salary' from public.employee_import_rows where batch_id = tests.id('b2') and row_number = 1) = '12000',
   'thousand separators removed from money');
-select tests.ok((select data -> 'cf:blood_group' from public.employee_import_rows where batch_id = tests.id('b2') and row_number = 1) = '"o_pos"',
+select tests.ok((select data -> 'cf:blood_test' from public.employee_import_rows where batch_id = tests.id('b2') and row_number = 1) = '"o_pos"',
   'dropdown label converted to its value');
 select tests.ok((select 'Unknown position: Team Lead' = any(errors) from public.employee_import_rows where batch_id = tests.id('b2') and row_number = 2),
   'unknown position named');
@@ -47,7 +47,7 @@ select tests.ok(exists (select 1 from public.hubs where name = 'Gurudaspur' and 
 select tests.ok(exists (select 1 from public.positions where name = 'Team Lead'), 'missing position created');
 
 select public.hr_validate_import(tests.id('b2'),
-  '{"ID":"employee_code","Name":"full_name","Post":"position_name","Hub":"hub_name","Basic":"basic_salary","Transport":"transport_allowance","Commission":"commission","Blood":"cf:blood_group","Ref":"reference_code"}');
+  '{"ID":"employee_code","Name":"full_name","Post":"position_name","Hub":"hub_name","Basic":"basic_salary","Transport":"transport_allowance","Commission":"commission","Blood":"cf:blood_test","Ref":"reference_code"}');
 select tests.ok((select valid_rows = 3 and error_rows = 2 from public.employee_import_batches where id = tests.id('b2')), 'after creating: 3 valid, 2 errors');
 
 -- Super Admin may verify own batch (company with one admin)
