@@ -222,7 +222,7 @@ function FirstSteps({ photo }: { photo: string | null | undefined }) {
     [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — HR-কে ছবি দিন', 'No profile photo — give one to HR'), '/app/me'],
   ]
   return <section className="panel first-steps">
-    <h2>{L('শুরুর ধাপ', 'First steps')}</h2>
+    <h2>{L('শুরুর ধাপ', 'First steps')} <Link to="/app/training" className="link small">{L('ট্রেনিং সেন্টার →', 'Training centre →')}</Link></h2>
     <ul>{steps.map(([ok, text, to], i) => <li key={i} className={ok ? 'ok' : ''}><span className="fs-tick" aria-hidden="true">{ok ? '✓' : i + 1}</span>
       {ok || !to ? <span>{text}</span> : <Link to={to}>{text}</Link>}</li>)}</ul>
   </section>

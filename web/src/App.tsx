@@ -50,6 +50,7 @@ const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: 
 const Vehicles = lazy(() => import('./pages/vehicles/Vehicles').then(m => ({ default: m.Vehicles })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
 const ZonalAssistant = lazy(() => import('./pages/zonal/ZonalAssistant').then(m => ({ default: m.ZonalAssistant })))
+const Training = lazy(() => import('./pages/Training').then(m => ({ default: m.Training })))
 const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default: m.Rollout })))
 const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ default: m.UserDetail })))
 const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.RoleEditor })))
@@ -110,6 +111,7 @@ export default function App() {
       <Route path="/app/me/permissions" element={<MyPermissions />} />
       <Route path="/app/settings" element={<Settings />} />
       <Route path="/app/rollout" element={<Rollout />} />
+      <Route path="/app/training" element={<Training />} />
       <Route path="/app/zonal/assistant" element={<ZonalAssistant />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
     </Route>
