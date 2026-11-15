@@ -49,7 +49,9 @@ export function Sorting() {
   if (!sec) return <Navigate to="/app/sorting/dashboard" replace />
   const tabs = SORTING_SECTIONS.filter(s => s.perms.some(p => can(p)))
   const center = list.find(c => c.id === cid) ?? null
-  const hubs = (o.data?.hubs ?? []).filter(h => !h.archived_at && (!center || h.zone_id === center.zone_id))
+  const zoneHubs = (o.data?.hubs ?? []).filter(h => !h.archived_at && (!center || h.zone_id === center.zone_id))
+  const assigned = center ? zoneHubs.filter(h => h.sorting_center_id === center.id) : []
+  const hubs = assigned.length ? assigned : zoneHubs
   const hubName = o.names.hub
   const dated = ['dashboard', 'fuel', 'parcels', 'drivers', 'reports'].includes(sec.key)
 
@@ -171,6 +173,14 @@ function Centers({ onChange }: { onChange: () => void }) {
   const list = useLoad(() => sorting.centers(), [])
   const [f, setF] = useState<(Partial<Center> & { id?: string }) | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const [asg, setAsg] = useState<{ c: Center; hubs: string[]; home: string } | null>(null)
+  const hubsOf = (center: string) => (o.data?.hubs ?? []).filter(h => !h.archived_at && h.sorting_center_id === center)
+  async function assign() {
+    if (!asg) return
+    setBusy(true); setErr('')
+    try { const n = await sorting.assignHubs(asg.c.id, asg.hubs, asg.home || null); setAsg(null); await o.reload(); await list.reload(); onChange(); toast(L(`${n.toLocaleString('bn-BD')}টি হাব এসাইন হয়েছে`, `${n} hubs assigned`)) }
+    catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
   async function save() {
     if (!f) return
     if (!f.name?.trim() || !f.zone_id) return setErr(L('নাম ও এরিয়া দিন', 'Give name and area'))
@@ -193,10 +203,31 @@ function Centers({ onChange }: { onChange: () => void }) {
         { key: 'name', label: L('নাম', 'Name'), value: r => r.name, render: r => <strong>{r.name}</strong> },
         { key: 'zone', label: L('এরিয়া', 'Area'), value: r => o.names.zone[r.zone_id] ?? '' },
         { key: 'phone', label: L('ফোন', 'Phone'), value: r => r.phone ?? '' },
+        { key: 'hubs', label: L('এসাইন করা হাব', 'Assigned hubs'), value: r => hubsOf(r.id).map(h => h.name).join(', '),
+          render: r => hubsOf(r.id).length ? <div className="focus-pick">{hubsOf(r.id).map(h => <span key={h.id} className={`focus-pill ${h.id === r.home_hub_id ? 'fc-blue' : 'fc-gray'}`}>{h.name}</span>)}</div>
+            : <span className="muted small">{L('কোনো হাব এসাইন নেই', 'No hubs assigned')}</span> },
         { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
+          {can('sorting.center.edit') && <button className="sm" onClick={() => { setErr(''); setAsg({ c: r, hubs: hubsOf(r.id).map(h => h.id), home: r.home_hub_id ?? '' }) }}><Icon name="hub" size={14} />{L('হাব এসাইন', 'Assign hubs')}</button>}
           {can('sorting.center.edit') && <button className="secondary sm" onClick={() => { setErr(''); setF({ ...r }) }}><Icon name="edit" size={14} />{L('এডিট', 'Edit')}</button>}
           {can('sorting.center.archive') && <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} />{L('ডিলিট', 'Delete')}</button>}</span> },
       ]} />
+    {asg && <Modal title={L(`হাব এসাইন — ${asg.c.name}`, `Assign hubs — ${asg.c.name}`)} onClose={() => setAsg(null)}
+      actions={<><button className="secondary" onClick={() => setAsg(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void assign()}>{L('সেভ', 'Save')}</button></>}>
+      <p className="muted small">{L('এই শটিং সেন্টার যে হাবগুলোর পার্সেল আনা-নেওয়া করে সেগুলো বাছুন। একটা হাব একটাই সেন্টারে থাকে — অন্য সেন্টারে থাকলে এখানে বাছলে এখানে চলে আসবে।',
+        'Choose the hubs this sorting center serves. A hub belongs to one center only.')}</p>
+      <Field label={L('সেন্টারের নিজের হাব (যদি থাকে)', 'The center’s own hub (if any)')} hint={L('যেমন “Natore Shorting Centre” — সেই হাবের স্টাফরাই সেন্টারের স্টাফ', 'e.g. “Natore Shorting Centre”')}>
+        <select value={asg.home} onChange={e => setAsg({ ...asg, home: e.target.value })}><option value="">—</option>
+          {(o.data?.hubs ?? []).filter(h => !h.archived_at && h.zone_id === asg.c.zone_id).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+      <div className="da-bar" style={{ marginTop: 8 }}><b>{L('কোন হাবগুলো এই সেন্টারের', 'Hubs served')} ({asg.hubs.length.toLocaleString('bn-BD')})</b>
+        <span className="row-acts"><button className="secondary sm" onClick={() => setAsg({ ...asg, hubs: (o.data?.hubs ?? []).filter(h => !h.archived_at && h.zone_id === asg.c.zone_id).map(h => h.id) })}>{L('সব', 'All')}</button>
+          <button className="secondary sm" onClick={() => setAsg({ ...asg, hubs: [] })}>{L('কোনোটা না', 'None')}</button></span></div>
+      <div className="pick-list">{(o.data?.hubs ?? []).filter(h => !h.archived_at && h.zone_id === asg.c.zone_id).map(h => {
+        const on = asg.hubs.includes(h.id); const other = h.sorting_center_id && h.sorting_center_id !== asg.c.id ? (list.data ?? []).find(c => c.id === h.sorting_center_id)?.name : null
+        return <label key={h.id} className={`pick-row${on ? ' on' : ''}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, cursor: 'pointer' }}><input type="checkbox" style={{ width: 'auto' }} checked={on}
+          onChange={() => setAsg({ ...asg, hubs: on ? asg.hubs.filter(x => x !== h.id) : [...asg.hubs, h.id] })} /> {h.name}
+          {other && <span className="muted small"> ({L(`এখন ${other}-এ`, `now in ${other}`)})</span>}</label> })}</div>
+      {err && <p className="da-error">{err}</p>}
+    </Modal>}
     {f && <Modal title={f.id ? L('সেন্টার এডিট', 'Edit center') : L('নতুন শটিং সেন্টার', 'New sorting center')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>

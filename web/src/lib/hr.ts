@@ -17,7 +17,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 // ---------- types ----------
 export type Org = { id: string; code: string; name: string; name_bn: string | null; phone: string | null; head_office_address: string | null }
 export type Zone = { id: string; organization_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null; region_id?: string | null }
-export type Hub = { id: string; zone_id: string; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null
+export type Hub = { id: string; zone_id: string; sorting_center_id?: string | null; code: string; name: string; name_bn: string | null; phone: string | null; address: string | null; status: string; archived_at: string | null
   latitude?: number | string | null; longitude?: number | string | null; hub_type?: string | null; ops_zone?: string | null }
 /** A hub as people know it: name + its number code ("Natore #80"). Text codes are not shown. */
 /** Codes are only typed for hubs; everywhere else the system makes one from the name (unique, never shown). */

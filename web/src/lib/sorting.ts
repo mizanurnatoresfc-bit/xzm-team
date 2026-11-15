@@ -9,7 +9,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
   const { data, error } = await supabase.rpc(fn, args); fail(error); return data as T
 }
 
-export type Center = { id: string; code: string; name: string; name_bn: string | null; zone_id: string; address: string | null; phone: string | null; status: string; archived_at: string | null }
+export type Center = { id: string; code: string; name: string; name_bn: string | null; zone_id: string; address: string | null; phone: string | null; status: string; archived_at: string | null; home_hub_id?: string | null }
 export type Route = { id: string; center_id: string; zone_id: string; code: string; name: string; vehicle_id: string | null; driver_id: string | null
   depart_time: string | null; note: string | null; status: string; archived_at: string | null }
 export type RouteHub = { id: string; route_id: string; hub_id: string; zone_id: string; seq: number; can_charge: boolean }
@@ -54,6 +54,7 @@ export const sorting = {
   centers: async () => {
     const { data, error } = await supabase.from('sorting_centers').select('*').is('archived_at', null).order('name'); fail(error); return (data ?? []) as Center[]
   },
+  assignHubs: (center: string, hubs: string[], home: string | null) => rpc<number>('sorting_assign_hubs', { p_center: center, p_hubs: hubs, p_home_hub: home }),
   saveCenter: async (c: Partial<Center>, id?: string) => {
     const row = { code: c.code, name: c.name, name_bn: c.name_bn || null, zone_id: c.zone_id, address: c.address || null, phone: c.phone || null, status: c.status ?? 'active' }
     const { error } = id ? await supabase.from('sorting_centers').update(row).eq('id', id) : await supabase.from('sorting_centers').insert(row); fail(error)
