@@ -46,8 +46,13 @@ export type DayLog = { id: string; vehicle_id: string; vehicle: string; hub_name
 export type FormField = { key: string; label: string; type: 'text' | 'number' | 'date' | 'phone' | 'textarea' | 'select'; required?: boolean; options?: string[] }
 export type VehicleAlert = { vehicle_id: string; vehicle: string; hub_name: string | null; kind: 'doc' | 'service' | 'no_holder' | 'status'; severity: 'bad' | 'warn' | 'info'; due: string | null; detail: string | null }
 export type VehicleReport = { vehicle_id: string; vehicle: string; reg_no: string | null; hub_name: string | null; kind: string; lines: number; amount: number; litres: number | null; km_start: number | null; km_end: number | null }
-export type VehicleHistory = { id: string; employee_id: string; employee_code: string; full_name: string; hub_name: string | null; effective_from: string; effective_to: string | null; reason: string; end_reason: string | null; moved_hub: boolean }
-export type VehicleSettings = { doc_alert_days?: number; service_interval_km?: number; fuel_price?: Record<string, number> }
+export type VehicleHistory = { id: string; employee_id: string; employee_code: string; full_name: string; hub_name: string | null; effective_from: string; effective_to: string | null; reason: string; end_reason: string | null; moved_hub: boolean; role: 'driver' | 'helper' }
+export type VehicleSettings = { doc_alert_days?: number; service_interval_km?: number; fuel_price?: Record<string, number>; requisition_format?: FormField[]; day_format?: FormField[] }
+export const REQ_STATUS: Record<string, [string, string, 'ok' | 'warn' | 'bad' | 'info' | 'neutral']> = {
+  open: ['নতুন — অপেক্ষায়', 'Open', 'warn'], accepted: ['গ্রহণ হয়েছে', 'Accepted', 'info'], started: ['গাড়ি রওনা দিয়েছে', 'On the way', 'info'],
+  done: ['কাজ শেষ', 'Done', 'ok'], rejected: ['না বলা হয়েছে', 'Rejected', 'bad'], cancelled: ['বাতিল', 'Cancelled', 'neutral'],
+}
+export const LOG_STATUS: Record<string, [string, string, 'ok' | 'warn' | 'bad']> = { submitted: ['অপেক্ষায়', 'Pending', 'warn'], approved: ['অনুমোদিত', 'Approved', 'ok'], rejected: ['বাতিল', 'Rejected', 'bad'] }
 
 export const VEHICLE_KIND: Record<string, [string, string, string]> = {
   bike: ['বাইক', 'Bike', 'truck'], cng: ['সিএনজি', 'CNG', 'truck'], van: ['ভ্যান', 'Van', 'truck'], truck: ['ট্রাক', 'Truck', 'truck'],
