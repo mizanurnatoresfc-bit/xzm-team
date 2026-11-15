@@ -47,7 +47,7 @@ try {
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
-    const created = [], accounts = [], mobiles = [], removed = [], recoded = []
+    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = []
     let asEmployee = false, withGaps = false
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -88,6 +88,9 @@ try {
         { employee_id: 'e00', employee_code: '1000', full_name: 'Staff 00', position_name: 'Rider', hub_id: 'h1', hub_name: 'Natore Sadar', has_login: true, work_date: '2026-11-09', answer_id: 'a1', kind: 'leave', note: 'জ্বর', status: 'answered', leave_status: 'pending', check_note: null },
         { employee_id: 'e01', employee_code: '1001', full_name: 'Staff 01', position_name: 'Rider', hub_id: 'h2', hub_name: 'Lalpur', has_login: false, work_date: '2026-11-09', answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
         { employee_id: 'e02', employee_code: '1002', full_name: 'Staff 02', position_name: 'Rider', hub_id: 'h2', hub_name: 'Lalpur', has_login: true, work_date: '2026-11-10', answer_id: 'a2', kind: 'other', note: 'হাব বন্ধ', status: 'verified', leave_status: null, check_note: null }])
+      if (u.includes('rpc/hr_export_rows')) { exported.push(r.request().postDataJSON()); return j([
+        { _id: 'e02', employee_code: '1002', full_name: 'Rahim Uddin', mobile: '01711000002', hub_name: 'Natore Sadar', position_name: 'Rider', basic_salary: 9000, transport_allowance: 1500, commission: 12, 'cf:blood_group': 'B+', date_of_birth: '1998-03-05' },
+        { _id: 'e01', employee_code: '1001', full_name: 'Abdul Karim', mobile: null, hub_name: 'Bagatipara', position_name: 'Manager', basic_salary: 18000 }]) }
       if (u.includes('rpc/hr_remove_wrong_entry')) { removed.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('rpc/hr_correct_employee_code')) { recoded.push(r.request().postDataJSON()); return j('5555') }
       if (u.includes('rpc/my_mobile_set')) { mobiles.push(r.request().postDataJSON()); return j('01711000000') }
@@ -247,6 +250,10 @@ try {
     const staffRowsShown = () => page.locator(staffSel).count()
     check(await staffRowsShown() === 12 && (await page.locator('.eb-chips').innerText()).includes('Rider'), `${size}: the staff list shows everyone with a chip per post`)
     check(await page.locator(staffSel).first().locator('.row-acts button').count() === 2, `${size}: every row has Edit and View`)
+    { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), page.getByRole('button', { name: /ID Create/ }).click()])
+      const sent = exported.at(-1)
+      check(!!dl && /^New-Admin-Rider-ID-Creat-Information-.*\.xlsx$/.test(dl.suggestedFilename()) && sent?.p_status === 'active' && sent.p_fields.includes('nid_number'), `${size}: the staff page makes the company's ID Create sheet`)
+      if (dl && process.env.KEEP_ID_FILE) await dl.saveAs(process.env.KEEP_ID_FILE) }
     await page.locator('.eb-chips .chip-toggle').last().click()
     check(await staffRowsShown() === 1, `${size}: the leave chip shows who is on leave today`)
     await page.locator('.eb-chips .chip-toggle').first().click()
