@@ -9,6 +9,7 @@ import { FIELD_TYPES, KINDS, PREFILL, STATUS, hrReq, slugKey, type EmpRow, type 
   type ReqFormat, type ReqKind, type ReqStatus } from '../../lib/hrreq'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { NewApplication, useOrg } from './common'
+import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 
 type Tab = 'new' | 'list' | 'report' | 'settings'
 const errText = (e: unknown) => (e instanceof Error && !('code' in e) ? e.message : hrFriendly(e))
@@ -45,7 +46,7 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
   const [fmtId, setFmtId] = useState('')
   const [data, setData] = useState<Record<string, string>>({})
   const [note, setNote] = useState('')
-  const [ref, setRef] = useState<{ employee: EmpRow | null; name: string; code: string; hub: string; position: string; manual: boolean }>({ employee: null, name: '', code: '', hub: '', position: '', manual: false })
+  const [ref, setRef] = useState<RefPerson | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const me = base.data?.me ?? null
@@ -86,8 +87,8 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
     setBusy(true)
     try {
       const id = await hrReq.submit({ format: fmt.id, employee: fmt.needs_employee ? emp!.id : null, hub: fmt.needs_employee ? emp!.hub_id : hub, data, note,
-        ref: ref.employee ? { employee: ref.employee.id, hub: hubName(ref.employee.hub_id), position: posName(ref.employee.position_id) }
-          : { name: ref.name, code: ref.code, hub: ref.hub, position: ref.position } })
+        ref: ref?.kind === 'employee' ? { employee: ref.id, hub: ref.hub, position: ref.position }
+          : ref ? { name: ref.name, code: ref.code, hub: ref.hub, position: ref.position } : undefined })
       refreshShellCounts(); onDone(id)
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
@@ -131,7 +132,7 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
 
     {fmt && <section className="panel">
       <h2 className="rq-h"><span className="rq-step">৪</span>রেফারেন্স <span className="muted small">(ঐচ্ছিক — তাকে নোটিফিকেশন যাবে)</span></h2>
-      <RefPicker value={ref} onChange={setRef} hubName={hubName} posName={posName} />
+      <PersonPicker value={ref} onChange={setRef} exclude={emp?.id} />
     </section>}
 
     {fmt && <div className="rq-submit">
@@ -161,34 +162,6 @@ function FieldInput({ f, value, locked, onChange, hubs, positions }: { f: ReqFie
     default: input = <input value={value} readOnly={locked} onChange={e => onChange(e.target.value)} />
   }
   return <Field label={label} hint={hint} wide={wide}>{input}</Field>
-}
-
-type RefVal = { employee: EmpRow | null; name: string; code: string; hub: string; position: string; manual: boolean }
-function RefPicker({ value, onChange, hubName, posName }: { value: RefVal; onChange: (v: RefVal) => void; hubName: (id: string | null) => string; posName: (id: string | null) => string }) {
-  const [q, setQ] = useState('')
-  const [hits, setHits] = useState<EmpRow[]>([])
-  useEffect(() => {
-    if (value.manual || q.trim().length < 2) { setHits([]); return }
-    const t = window.setTimeout(() => { void hrReq.findPeople(q).then(setHits).catch(() => setHits([])) }, 250)
-    return () => window.clearTimeout(t)
-  }, [q, value.manual])
-  return <div>
-    <div className="seg"><button type="button" className={!value.manual ? 'on' : ''} onClick={() => onChange({ ...value, manual: false })}>এরিয়ার লোক</button>
-      <button type="button" className={value.manual ? 'on' : ''} onClick={() => onChange({ ...value, manual: true, employee: null })}>অন্য জায়গার (নিজে লিখুন)</button></div>
-    {!value.manual ? <>
-      {value.employee ? <div className="rq-refcard"><span className="rq-av">{value.employee.full_name.slice(0, 1)}</span><div style={{ flex: 1, minWidth: 0 }}>
-        <b>{value.employee.full_name}</b><div className="muted small">{value.employee.employee_code ? `আইডি ${value.employee.employee_code} · ` : ''}{hubName(value.employee.hub_id)} · {posName(value.employee.position_id)}</div></div>
-        <button type="button" className="soft sm" onClick={() => onChange({ ...value, employee: null })}>বদলান</button></div>
-        : <><input placeholder="নাম, আইডি বা মোবাইল লিখে খুঁজুন…" value={q} onChange={e => setQ(e.target.value)} />
-          {hits.length > 0 && <div className="rq-hits">{hits.map(h => <button type="button" key={h.id} className="rq-hit" onClick={() => { onChange({ ...value, employee: h }); setQ(''); setHits([]) }}>
-            <b>{h.full_name}</b><span className="muted small">{h.employee_code ?? '—'} · {hubName(h.hub_id)} · {posName(h.position_id)}</span></button>)}</div>}</>}
-    </> : <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 8 }}>
-      <Field label="আইডি"><input value={value.code} onChange={e => onChange({ ...value, code: e.target.value })} /></Field>
-      <Field label="নাম"><input value={value.name} onChange={e => onChange({ ...value, name: e.target.value })} /></Field>
-      <Field label="হাবের নাম"><input value={value.hub} onChange={e => onChange({ ...value, hub: e.target.value })} /></Field>
-      <Field label="পদবি"><input value={value.position} onChange={e => onChange({ ...value, position: e.target.value })} /></Field>
-    </div>}
-  </div>
 }
 
 // ------------------------------------------------------------------ list + approval
