@@ -47,7 +47,7 @@ try {
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
-    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = []
+    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = []
     let asEmployee = false, withGaps = false
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -71,6 +71,10 @@ try {
           created_at: '2026-11-15T05:00:00Z', solved_at: null, reopen_count: 0, assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: true }, { id: 'o1', issue_no: 'IS-00009', title: 'স্টোর অর্ডার: টেপ', kind: 'store',
         priority: 'normal', status: 'open', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null, created_at: '2026-11-15T04:00:00Z', solved_at: null, reopen_count: 0,
         assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: false }] })
+      if (u.includes('rpc/da_my_hubs')) return j([['h1', 'Natore Sadar'], ['h2', 'Bagatipara'], ['h3', 'Singra'], ['h4', 'Lalpur']].map(([hub_id, name]) => ({ hub_id, code: hub_id, name, name_bn: null, zone_id: 'z1', zone_name: 'Natore Area', can_view: true, can_submit: true, can_verify: true })))
+      if (u.includes('rpc/da_dashboard')) return j({ today: '2026-11-15', sheets: 3, open: 1, submitted: 1, pending_verification: 1, correction: 0, approved: 1, riders: 9, delivery: 360, pickup: 42, amount: 285300, due: 1200, mobile_banking: 5000, merchant_cash: 0, expense: 1350 })
+      if (u.includes('rpc/da_list_sessions')) return j([{ id: 's1', no: 10, hub_id: 'h1', hub_name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore Area', account_date: '2026-11-15', status: 'submitted', started_by_name: 'Owner', started_at: '2026-11-15T03:00:00Z', submitted_by_name: 'Abdul Karim', submitted_at: '2026-11-15T12:00:00Z', verified_by_name: null, verified_at: null, riders: 3, delivery: 120, pickup: 14, amount: 100700, due: 1200, mobile_banking: 0, merchant_cash: 0, expense: 450 }, { id: 's2', no: 11, hub_id: 'h2', hub_name: 'Bagatipara', zone_id: 'z1', zone_name: 'Natore Area', account_date: '2026-11-15', status: 'open', started_by_name: 'Owner', started_at: '2026-11-15T03:00:00Z', submitted_by_name: null, submitted_at: null, verified_by_name: null, verified_at: null, riders: 3, delivery: 120, pickup: 14, amount: 68300, due: 0, mobile_banking: 0, merchant_cash: 0, expense: 450 }, { id: 's3', no: 12, hub_id: 'h3', hub_name: 'Singra', zone_id: 'z1', zone_name: 'Natore Area', account_date: '2026-11-15', status: 'approved', started_by_name: 'Owner', started_at: '2026-11-15T03:00:00Z', submitted_by_name: 'Abdul Karim', submitted_at: '2026-11-15T12:00:00Z', verified_by_name: null, verified_at: null, riders: 3, delivery: 120, pickup: 14, amount: 116300, due: 0, mobile_banking: 0, merchant_cash: 0, expense: 450 }])
+      if (u.includes('rpc/da_start_session')) { started.push(r.request().postDataJSON()); return j('s9') }
       if (u.includes('rpc/issue_detail')) return j({ parcel: null, issue: { id: 'i2', issue_no: 'IS-00010', title: 'কাস্টমার ফোন ধরছে না', kind: 'parcel', priority: 'normal', status: 'in_progress', status_bn: 'কাজ চলছে',
           hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, assignee: 'Owner', assignee_code: '1', assigned_by_name: 'Hub Manager', body: 'তিনবার ফোন দেওয়া হয়েছে', photo_path: null, solve_photo: null, solved_note: null, approve_note: null },
         events: [{ id: 'v1', action: 'created', note: 'তিনবার ফোন দেওয়া হয়েছে', by_name: 'Hub Manager', at: '2026-11-15T05:00:00Z' }, { id: 'v2', action: 'assigned', note: 'Owner (1)', by_name: 'Hub Manager', at: '2026-11-15T05:00:01Z' },
@@ -222,6 +226,16 @@ try {
     await page.locator('.mg-desk').click(); await page.waitForSelector('.od-desk')
     check(await page.locator('.od-kind').count() === 2, `${size}: who receives Store and IT orders is one tap away`)
     await page.locator('.da-modal button', { hasText: 'বন্ধ' }).last().click()
+    // accounts: today's sheets in the native-style list
+    await page.goto(`${BASE}/app/accounts/daily`); await page.waitForSelector('.nv-row, .da-table tbody tr')
+    check((await page.locator('.nv-hero .big').innerText()).includes('২ / ৪') && await page.locator('.nv-row').count() + await page.locator('.da-table tbody tr').count() >= 3, `${size}: the accounts page says how many hubs have given today's sheet`)
+    await fits('daily accounts')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-accounts.png`, fullPage: true })
+    await page.locator('.nv-chip', { hasText: 'শুরু হয়নি' }).click()
+    check(await page.locator('.nv-row.none').count() === 1 && (await page.locator('.nv-row.none').innerText()).includes('Lalpur'), `${size}: hubs that have not started are listed with a start button`)
+    await page.locator('.nv-row.none button').click(); await page.locator('.da-modal button', { hasText: 'হ্যাঁ, শুরু করুন' }).click()
+    await page.waitForURL(/accounts\/daily\/s9/, { timeout: 8000 }).catch(() => {})
+    check(started.at(-1)?.p_hub === 'h4' || Object.values(started.at(-1) ?? {}).includes('h4'), `${size}: a sheet is started for the chosen hub`)
     // the chat view: list on the left, the conversation on the right (on a phone: one at a time)
     await page.goto(`${BASE}/app/issues`); await page.waitForSelector('.mg-row')
     check(await page.locator('.mg-row').count() === 4 && await page.locator('.mg-row.grp .mg-n').innerText() === '2', `${size}: issues, orders and the hub group sit in one chat-like list`)

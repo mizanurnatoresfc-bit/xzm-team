@@ -1,18 +1,27 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { da, num, taka, dateBn, timeBn, todayDhaka, addDays, STATUS_LABEL, type SheetStatus, type SessionRow } from '../../lib/dailyAccounts'
-import { AccountsShell, Stat, StatusBadge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
+import { Icon } from '../../components/Icon'
+import { Combo } from '../../components/inputs'
+import { matches } from '../../lib/validate'
+import { AccountsShell, StatusBadge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
 
-// Accounts Management → Daily Accounts dashboard (আজকের হিসাব খাতা)
+type Range = 'today' | 'yesterday' | 'week' | 'month' | 'custom'
+const wide = () => typeof matchMedia === 'function' && matchMedia('(min-width:900px)').matches
+
+// Accounts Management → Daily Accounts (আজকের হিসাব খাতা): which hubs have given today's sheet, and the way into each one.
 export function DailyDashboard() {
   const nav = useNavigate()
   const today = todayDhaka()
+  const [range, setRange] = useState<Range>('today')
   const [from, setFrom] = useState(today)
   const [to, setTo] = useState(today)
   const [hub, setHub] = useState('')
-  const [status, setStatus] = useState<SheetStatus | ''>('')
+  const [status, setStatus] = useState<SheetStatus | 'none' | ''>('')
   const [q, setQ] = useState('')
-  const [view, setView] = useState<'table' | 'cards'>('table')
+  const [view, setView] = useState<'list' | 'table'>(() => (wide() ? 'table' : 'list'))
+  const [more, setMore] = useState(false)
+  const [pick, setPick] = useState(false)
   const [start, setStart] = useState<{ hub: string; date: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
@@ -20,13 +29,30 @@ export function DailyDashboard() {
 
   const hubs = useLoad(() => da.myHubs(), [])
   const dash = useLoad(() => da.dashboard(from, to, hub || null), [from, to, hub])
-  const list = useLoad(() => da.list(from, to, hub || null, null, status || null), [from, to, hub, status])
+  const list = useLoad(() => da.list(from, to, hub || null, null, null), [from, to, hub])
   const startable = (hubs.data ?? []).filter(h => h.can_submit)
-
-  const rows = useMemo(() => (list.data ?? []).filter(r => !q.trim() || [r.no, r.hub_name, r.zone_name, r.started_by_name, r.submitted_by_name]
-    .join(' ').toLowerCase().includes(q.trim().toLowerCase())), [list.data, q])
+  const all = useMemo(() => list.data ?? [], [list.data])
+  const oneDay = from === to
+  // Hubs with no sheet for the day on screen (only meaningful when one day is shown).
+  const missing = useMemo(() => !oneDay ? [] : (hubs.data ?? []).filter(h => (!hub || h.hub_id === hub) && !all.some(r => r.hub_id === h.hub_id)), [oneDay, hubs.data, all, hub])
+  const hit = (...t: Array<string | number | null>) => matches(t.join(' '), q)
+  const rows = useMemo(() => all.filter(r => (!status || r.status === status) && hit(r.no, r.hub_name, r.zone_name, r.started_by_name, r.submitted_by_name)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [all, status, q])
+  const gaps = !status || status === 'none' ? missing.filter(h => hit(h.name, h.zone_name, h.code)) : []
   const d = dash.data
+  const count = (s: SheetStatus) => all.filter(r => r.status === s).length
+  const given = all.filter(r => r.status !== 'open').length
+  const total = all.length + missing.length
 
+  function show(r: Range) {
+    setRange(r)
+    if (r === 'today') { setFrom(today); setTo(today) }
+    else if (r === 'yesterday') { setFrom(addDays(today, -1)); setTo(addDays(today, -1)) }
+    else if (r === 'week') { setFrom(addDays(today, -6)); setTo(today) }
+    else if (r === 'month') { setFrom(today.slice(0, 8) + '01'); setTo(today) }
+    else setPick(true)
+  }
   async function doStart() {
     if (!start) return
     setBusy(true); setErr(null)
@@ -36,67 +62,86 @@ export function DailyDashboard() {
       nav(`/app/accounts/daily/${id}`)
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }
-  const existingFor = (h: string, date: string) => (list.data ?? []).find(r => r.hub_id === h && r.account_date === date)
+  const existingFor = (h: string, date: string) => all.find(r => r.hub_id === h && r.account_date === date)
+  const begin = (h?: string) => { setErr(null); setStart({ hub: h ?? startable[0].hub_id, date: oneDay ? from : today }) }
+  const canStart = (h: string) => startable.some(x => x.hub_id === h)
+  const RANGES: Array<[Range, string]> = [['today', 'আজ'], ['yesterday', 'গতকাল'], ['week', '৭ দিন'], ['month', 'এ মাস'], ['custom', range === 'custom' ? `${dateBn(from)} – ${dateBn(to)}` : 'তারিখ বাছুন']]
+  const STATUSES: Array<[SheetStatus | 'none' | '', string, number, string]> = [['', 'সব', total, ''], ['open', STATUS_LABEL.open, count('open'), ''], ['submitted', 'যাচাই বাকি', count('submitted'), count('submitted') ? 'warn' : ''],
+    ['correction', 'সংশোধন', count('correction'), count('correction') ? 'bad' : ''], ['approved', STATUS_LABEL.approved, count('approved'), ''], ...(oneDay ? [['none', 'শুরু হয়নি', missing.length, ''] as [SheetStatus | 'none' | '', string, number, string]] : [])]
+  const loading = list.loading && !list.data
 
-  return <AccountsShell title="আজকের হিসাব খাতা" subtitle={`Accounts Management → Daily Accounts · আজ ${dateBn(today)}`}
-    actions={startable.length > 0 && <button onClick={() => { setErr(null); setStart({ hub: startable[0].hub_id, date: today }) }}>＋ আজকের হিসাব শুরু করুন</button>}>
+  return <AccountsShell title="আজকের হিসাব খাতা" subtitle={`আজ ${dateBn(today)}`}
+    actions={startable.length > 0 && <button className="nv-wide-only" onClick={() => begin()}>＋ হিসাব শুরু করুন</button>}>
     {node}
-    <section className="da-filters panel no-print">
-      <Field label="শুরুর তারিখ"><input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></Field>
-      <Field label="শেষ তারিখ"><input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} /></Field>
-      <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>
-        <option value="">সব হাব</option>{(hubs.data ?? []).map(h => <option key={h.hub_id} value={h.hub_id}>{h.name} · {h.zone_name}</option>)}</select></Field>
-      <Field label="অবস্থা"><select value={status} onChange={e => setStatus(e.target.value as SheetStatus | '')}>
-        <option value="">সব</option>{(Object.keys(STATUS_LABEL) as SheetStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</select></Field>
-      <div className="da-quick">
-        <button className="secondary sm" onClick={() => { setFrom(today); setTo(today) }}>আজ</button>
-        <button className="secondary sm" onClick={() => { setFrom(addDays(today, -6)); setTo(today) }}>৭ দিন</button>
-        <button className="secondary sm" onClick={() => { setFrom(today.slice(0, 8) + '01'); setTo(today) }}>এ মাস</button>
-      </div>
-    </section>
-    <ErrorNote error={dash.error || list.error || hubs.error} />
+    <div className="nv">
+      <div className="nv-chips no-print" role="group" aria-label="কোন সময়ের হিসাব">{RANGES.map(([k, l]) => <button key={k} type="button" className={`nv-chip${range === k ? ' on' : ''}`} aria-pressed={range === k} onClick={() => show(k)}>{l}</button>)}
+        <span className="nv-hub"><Combo value={hub} onChange={setHub} placeholder="সব হাব" label="হাব" options={(hubs.data ?? []).map(h => ({ value: h.hub_id, label: h.name, sub: h.zone_name }))} /></span></div>
+      <ErrorNote error={dash.error || list.error || hubs.error} />
 
-    <section className="da-stats">
-      <Stat label="মোট রাইডার" value={num(d?.riders)} />
-      <Stat label="মোট ডেলিভারি" value={num(d?.delivery)} />
-      <Stat label="মোট পিকআপ" value={num(d?.pickup)} />
-      <Stat label="মোট টাকা" value={taka(d?.amount)} />
-      <Stat label="মোট বকেয়া" value={taka(d?.due)} tone={Number(d?.due) > 0 ? 'warn' : undefined} />
-      <Stat label="মোবাইল ব্যাংকিং" value={taka(d?.mobile_banking)} sub="বকেয়ার সাথে আলাদা" />
-      <Stat label="মোট খরচ" value={taka(d?.expense)} sub={`মার্চেন্ট পেমেন্ট ${taka(d?.merchant_cash)}`} />
-      <Stat label="Submit হয়েছে" value={num(d?.submitted)} />
-      <Stat label="যাচাইয়ের অপেক্ষায়" value={num(d?.pending_verification)} tone={Number(d?.pending_verification) > 0 ? 'warn' : undefined} />
-      <Stat label="অনুমোদিত" value={num(d?.approved)} tone="ok" sub={Number(d?.correction) ? `সংশোধনে ${num(d?.correction)}` : undefined} />
-    </section>
+      <section className="nv-hero">
+        <div className="nv-hero-main">
+          <span className="lbl">{oneDay ? (from === today ? 'আজকের হিসাব' : dateBn(from)) : `${dateBn(from)} – ${dateBn(to)}`}</span>
+          {oneDay ? <><b className="big">{num(given)} / {num(total)} হাব জমা দিয়েছে</b>
+            <div className="nv-prog" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={given}><i style={{ width: `${total ? (given / total) * 100 : 0}%` }} /></div></>
+            : <b className="big">{num(all.length)}টি খাতা · {taka(d?.amount)}</b>}
+          <span className="sub">{count('submitted') > 0 ? `${num(count('submitted'))}টি যাচাইয়ের অপেক্ষায়` : 'যাচাইয়ের অপেক্ষায় কিছু নেই'}{count('correction') > 0 ? ` · ${num(count('correction'))}টি সংশোধনে` : ''}{oneDay && missing.length > 0 ? ` · ${num(missing.length)}টি হাব শুরু করেনি` : ''}</span>
+        </div>
+        <div className="nv-nums">
+          <div><b>{taka(d?.amount)}</b><span>মোট টাকা</span></div>
+          <div className={Number(d?.due) > 0 ? 'warn' : ''}><b>{taka(d?.due)}</b><span>বকেয়া</span></div>
+          <div><b>{num(d?.delivery)}</b><span>ডেলিভারি</span></div>
+          <div><b>{num(d?.pickup)}</b><span>পিকআপ</span></div>
+          {more && <><div><b>{num(d?.riders)}</b><span>রাইডার</span></div><div><b>{taka(d?.mobile_banking)}</b><span>মোবাইল ব্যাংকিং</span></div>
+            <div><b>{taka(d?.expense)}</b><span>খরচ</span></div><div><b>{taka(d?.merchant_cash)}</b><span>মার্চেন্ট পেমেন্ট</span></div></>}
+          <button type="button" className="nv-more" aria-expanded={more} onClick={() => setMore(m => !m)}>{more ? 'কম দেখান' : 'আরও হিসাব'}</button>
+        </div>
+      </section>
 
-    <section className="panel">
-      <div className="da-bar no-print">
-        <input type="search" className="da-search" placeholder="খুঁজুন: নং, হাব, এরিয়া, নাম…" value={q} onChange={e => setQ(e.target.value)} aria-label="খুঁজুন" />
-        <div className="da-seg" role="group" aria-label="View">
-          <button className={view === 'table' ? '' : 'secondary'} onClick={() => setView('table')}>টেবিল</button>
-          <button className={view === 'cards' ? '' : 'secondary'} onClick={() => setView('cards')}>কার্ড</button>
+      <div className="nv-tools no-print">
+        <label className="nv-search"><Icon name="search" size={18} /><input type="search" placeholder="খুঁজুন: নং, হাব, এরিয়া, নাম…" value={q} onChange={e => setQ(e.target.value)} aria-label="খুঁজুন" /></label>
+        <div className="da-seg nv-wide-only" role="group" aria-label="চেহারা">
+          <button type="button" className={view === 'list' ? '' : 'secondary'} aria-pressed={view === 'list'} onClick={() => setView('list')}>তালিকা</button>
+          <button type="button" className={view === 'table' ? '' : 'secondary'} aria-pressed={view === 'table'} onClick={() => setView('table')}>টেবিল</button>
         </div>
       </div>
-      {list.loading ? <p className="muted">লোড হচ্ছে…</p> : rows.length === 0 ? <p className="muted">এই সময়ে কোনো হিসাব নেই।</p> :
-        view === 'table' ? <div className="da-table-wrap"><table className="da-table">
+      <div className="nv-chips no-print" role="group" aria-label="অবস্থা">{STATUSES.map(([k, l, c, tone]) => <button key={k} type="button" className={`nv-chip ${tone}${status === k ? ' on' : ''}`} aria-pressed={status === k} onClick={() => setStatus(k)}>{l}{c > 0 && <b>{num(c)}</b>}</button>)}</div>
+
+      {loading ? <p className="muted">লোড হচ্ছে…</p> : rows.length + gaps.length === 0 ? <div className="nv-empty"><Icon name="ledger" size={34} /><p>{q ? 'কিছু মেলেনি' : 'এই সময়ে কোনো হিসাব নেই।'}</p>
+          {startable.length > 0 && !q && <button type="button" onClick={() => begin()}>＋ হিসাব শুরু করুন</button>}</div>
+        : view === 'table' && rows.length > 0 ? <section className="panel"><div className="da-table-wrap"><table className="da-table">
           <thead><tr><th>নং</th><th>তারিখ</th><th>হাব</th><th className="r">রাইডার</th><th className="r">ডেলিভারি</th><th className="r">পিকআপ</th>
             <th className="r">টাকা</th><th className="r">বকেয়া</th><th className="r">মোবাইল ব্যাংকিং</th><th className="r">খরচ</th><th>অবস্থা</th><th>Submit করেছেন</th><th /></tr></thead>
           <tbody>{rows.map(r => <SessionTr key={r.id} r={r} />)}</tbody></table></div>
-        : <div className="da-cards">{rows.map(r => <Link key={r.id} className="da-card" to={`/app/accounts/daily/${r.id}`}>
-            <div className="row"><b>{r.hub_name}</b><StatusBadge status={r.status} /></div>
-            <span className="muted">নং {num(r.no)} · {dateBn(r.account_date)} · {r.zone_name}</span>
-            <div className="da-mini"><span>রাইডার <b>{num(r.riders)}</b></span><span>ডেলিভারি <b>{num(r.delivery)}</b></span><span>পিকআপ <b>{num(r.pickup)}</b></span></div>
-            <div className="da-mini"><span>টাকা <b>{taka(r.amount)}</b></span><span>বকেয়া <b>{taka(r.due)}</b></span></div>
-            <span className="muted small">{r.submitted_by_name ? `Submit: ${r.submitted_by_name} · ${timeBn(r.submitted_at)}` : `শুরু: ${r.started_by_name ?? '—'}`}</span>
-          </Link>)}</div>}
-    </section>
+          {gaps.length > 0 && <p className="muted small" style={{ margin: '10px 0 0' }}>শুরু হয়নি: {gaps.map(h => h.name).join(', ')}</p>}</section>
+        : <div className="nv-rows">
+          {rows.map(r => <Link key={r.id} className={`nv-row nv-s-${r.status}`} to={`/app/accounts/daily/${r.id}`}>
+            <span className="nv-av">{r.hub_name.slice(0, 1)}</span>
+            <span className="tx"><b>{r.hub_name}</b>
+              <span>{oneDay ? '' : `${dateBn(r.account_date)} · `}{num(r.riders)} জন রাইডার · {num(r.delivery)} ডেলিভারি · {num(r.pickup)} পিকআপ</span>
+              <span className="who">{r.submitted_by_name ? `জমা: ${r.submitted_by_name} · ${timeBn(r.submitted_at)}` : `শুরু: ${r.started_by_name ?? '—'}`}{Number(r.due) > 0 ? <em> · বকেয়া {taka(r.due)}</em> : null}</span></span>
+            <span className="end"><b>{taka(r.amount)}</b><StatusBadge status={r.status} /></span>
+          </Link>)}
+          {gaps.map(h => <div key={h.hub_id} className="nv-row none">
+            <span className="nv-av">{h.name.slice(0, 1)}</span>
+            <span className="tx"><b>{h.name}</b><span>{h.zone_name} · এখনো হিসাব শুরু হয়নি</span></span>
+            <span className="end">{canStart(h.hub_id) ? <button type="button" className="sm" onClick={() => begin(h.hub_id)}>শুরু করুন</button> : <span className="da-badge">শুরু হয়নি</span>}</span>
+          </div>)}
+        </div>}
+    </div>
+    {startable.length > 0 && <button type="button" className="nv-fab no-print" onClick={() => begin()}><Icon name="plus" size={22} /> হিসাব শুরু</button>}
 
-    {start && <Modal title="আজকের হিসাব শুরু করবেন?" onClose={() => setStart(null)}
-      actions={<><button className="secondary" onClick={() => setStart(null)}>না (No)</button>
+    {pick && <Modal title="তারিখ বাছুন" onClose={() => setPick(false)} actions={<button onClick={() => setPick(false)}>দেখান</button>}>
+      <div className="da-grid2">
+        <Field label="শুরুর তারিখ"><input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></Field>
+        <Field label="শেষ তারিখ"><input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} /></Field>
+      </div>
+    </Modal>}
+    {start && <Modal title="হিসাব শুরু করবেন?" onClose={() => setStart(null)}
+      actions={<><button className="secondary" onClick={() => setStart(null)}>না</button>
         {existingFor(start.hub, start.date)
           ? <button onClick={() => nav(`/app/accounts/daily/${existingFor(start.hub, start.date)!.id}`)}>খোলা হিসাবে যান</button>
-          : <button disabled={busy} onClick={() => void doStart()}>{busy ? 'শুরু হচ্ছে…' : 'হ্যাঁ, শুরু করুন (Yes)'}</button>}</>}>
-      <p className="muted">হিসাব শুরু করলে আজকের তারিখে নতুন সেশন তৈরি হবে, আর আপনার আইডি, নাম ও সময় সংরক্ষিত হবে।</p>
+          : <button disabled={busy} onClick={() => void doStart()}>{busy ? 'শুরু হচ্ছে…' : 'হ্যাঁ, শুরু করুন'}</button>}</>}>
+      <p className="muted">হিসাব শুরু করলে এই তারিখে নতুন খাতা তৈরি হবে, আর আপনার আইডি, নাম ও সময় সংরক্ষিত হবে।</p>
       <div className="da-grid2">
         <Field label="হাব"><select value={start.hub} onChange={e => setStart({ ...start, hub: e.target.value })}>
           {startable.map(h => <option key={h.hub_id} value={h.hub_id}>{h.name} · {h.zone_name}</option>)}</select></Field>
