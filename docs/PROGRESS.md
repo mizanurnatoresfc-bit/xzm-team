@@ -311,3 +311,17 @@ Built from the owner's own nine-point list.
 - **A bill taken in shows the sheet's date** (`da.claim_date_source = 'sheet'`); the bill's own date is kept in the remarks as "বিলের তারিখ DD/MM/YYYY".
 - **Fixed riders and fixed expenses** (`da.fixed_riders`, `da.fixed_expenses`) go onto every new sheet as it is started (`da_apply_fixed`, called by `da_start_session`); asking twice adds nothing twice, and both lists are edited in Accounts settings along with the payment prefix, the double-line switch, the claim-date rule and the close rule.
 - Tests: **826 SQL assertions** (new `99j_sheet_made_easy.sql`; `90`, `99g` updated where the old rules changed). Browser flow (`harness/easy_flow.py`): the six tabs → a payment typed as `101001` comes out SFC-101001 → an expense in the four front boxes → a second hisab for the same rider → the collectors strip → a cash note → the day closed with its totals.
+
+## 2026-11-15 — ইস্যু / ফলো-আপ ও হাব গ্রুপ (Nodi AI ধাপ ১)
+- Migration `20261115001000_hub_issues.sql`: `issues` (IS-00001; open → in_progress → solved → approved / cancelled), `issue_events` (log), `hub_posts`
+  (hub group; `author_profile` null = নদী AI), `hub_post_reactions` (👍 ❤️ 😮 😢 ✅ 🙏, one per person per emoji), `hub_post_seen`. Private bucket `issue-photos` (`<hub_id>/<file>`).
+  Perms `issue.issue.view/create/approve`, `issue.group.view`. A hub group is readable by people posted at the hub and by anyone whose permission reaches it (`private.in_hub_group`).
+- **Rule:** an issue leaves the assignee's panel when solved, but stays on the GIVER's panel ("চেক বাকি") until the giver approves; "ফেরত" (reopen, reason required) sends it back.
+  Assignee cannot approve their own work. All writes are RPCs: `issue_create` (parcel ID → the parcel's rider is chosen and marked "নদী AI বেছেছে"), `issue_assign`,
+  `issue_act(start|solve|approve|reopen|cancel)`, `hub_post_create/react`, `hub_posts_seen`, `hub_feed`, `hub_post_seen_by/reacted_by`, `issue_panels`, `issue_detail`.
+- `issue_nudge_due(hours)` — নদী AI follow-up: posts a reminder in the hub group and notifies the assignee (or the giver, for a solved-but-unchecked issue). Service role only;
+  **not scheduled yet** (needs an Edge Function / cron call).
+- Page `/app/issues` (pages/issues/Issues.tsx, lib/issues.ts): tabs আমার কাজ · চেক বাকি · আমি দিয়েছি · হাব গ্রুপ · হাবের সব ইস্যু; new issue (parcel ID / photo / person), detail with history.
+- Tests: 42 new assertions (`99l_hub_issues.sql`). The local shim now has a minimal `storage` schema (older migrations needed it). `99f_role_dashboards` already fails
+  ("nine panels exist") since the dashboard-views migration — not touched here.
+- **Not built yet (next):** নদী AI avatar + voice/multi-command (Claude API through an Edge Function), training centre, reading a parcel ID from a photo, scheduling the follow-up.

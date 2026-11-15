@@ -43,6 +43,9 @@ const GROUPS: Group[] = [
     { to: '/app/office/desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
     { to: '/app/office/assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
   ] },
+  { key: 'issues', icon: 'tasks', bn: 'ইস্যু ও ফলো-আপ', en: 'Issues & follow-up', items: [
+    { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু ও হাব গ্রুপ', en: 'Issues & hub group', perms: null },
+  ] },
   { key: 'vehicles', icon: 'truck', bn: 'গাড়ি ম্যানেজমেন্ট', en: 'Vehicle Management', items: [
     { to: '/app/vehicles/overview', icon: 'dash', bn: 'গাড়ির অবস্থা', en: 'Fleet overview', perms: ['vehicle.vehicle.view', 'da.sheet.view'] },
     { to: '/app/vehicles/list', icon: 'truck', bn: 'গাড়ির তালিকা ও কার নামে', en: 'Vehicles & holders', perms: ['vehicle.vehicle.view', 'vehicle.vehicle.create', 'da.sheet.view'] },
