@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Icon } from '../../components/Icon'
 import { STATUS_LABEL, friendly, type SheetStatus } from '../../lib/dailyAccounts'
@@ -26,11 +27,12 @@ export function Modal({ title, children, onClose, actions, wide }: { title: stri
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   }, [onClose])
-  return <div className="da-modal-bg" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
+  // Rendered at the end of <body> so no card, sticky bar or animation can sit on top of it.
+  return createPortal(<div className="da-modal-bg" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
     <div className={`da-modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
       <h2>{title}</h2>{children}<div className="da-modal-acts">{actions}</div>
     </div>
-  </div>
+  </div>, document.body)
 }
 
 export function Field({ label, children, hint, wide }: { label: string; children: ReactNode; hint?: ReactNode; wide?: boolean }) {
