@@ -188,3 +188,7 @@ section.panel[id^="da-"]{scroll-margin-top:110px}
 .zd-fill{display:block;height:100%;background:var(--primary);border-radius:0 4px 4px 0;min-width:2px}
 .zd-bv{font-variant-numeric:tabular-nums;font-weight:700}
 @media (max-width:600px){.zd-bar{grid-template-columns:90px 1fr auto}}
+.hpm th,.hpm td{white-space:nowrap}
+.hpm td.num,.hpm th.num{text-align:center;font-variant-numeric:tabular-nums}
+.hpm-need{color:#B91C1C;font-weight:700;font-size:12px}
+.da-table tr.sel td{background:color-mix(in srgb,var(--primary) 8%,transparent)}

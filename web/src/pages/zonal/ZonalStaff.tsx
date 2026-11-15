@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
@@ -9,6 +9,7 @@ import { usePrefs } from '../../lib/prefs'
 import { dmy, EMP_STATUS, hr, hrFriendly, type Employee, type EmployeeStatus } from '../../lib/hr'
 import { formatFriendly, staffAdmin, type HubSummary } from '../../lib/staffAdmin'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
+import { HubPostMatrix } from './HubPostMatrix'
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
@@ -31,6 +32,7 @@ export function ZonalStaff() {
     subtitle={L('হাব অনুযায়ী কর্মীর হিসাব। একটা হাবে চাপলে সেই হাবের কর্মীদের তালিকা আর কাজগুলো নিচে আসবে।',
       'Staff hub by hub. Tap a hub to see its staff and the actions below.')}
     actions={<><ExportByFormat zone={zone || null} hub={hub?.hub_id ?? null} title={L('কর্মী তালিকা', 'Staff list')} />
+      <Link to="/app/zonal/files" className="btn-ghost">জোনাল ফাইল (বদলি/চালু/বন্ধ Excel)</Link>
       {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary" onClick={() => setMove(true)}>⇄ {L('হাব বদলি', 'Hub transfer')}</button>}
       {can('hr.application.create') && <button onClick={() => setNewApp(true)}>+ {L('নতুন কর্মী', 'New employee')}</button>}</>}>
     {node}
@@ -65,6 +67,8 @@ export function ZonalStaff() {
           { key: 'pos', label: L('কোন পদে কতজন', 'Positions'), value: r => Object.entries(r.by_position).map(([p, c]) => `${p}: ${c}`).join(', ') },
         ]} />
     </section>
+
+    <HubPostMatrix zone={zone || null} onHub={id => { const r = rows.find(x => x.hub_id === id); if (r) setHub(r) }} />
 
     {hub && <HubStaff hub={hub} onToast={m => { toast(m); void hubs.reload() }} onClose={() => setHub(null)} onOpen={id => nav(`/app/hr/employees/${id}`)} />}
     {move && <QuickTransfer onClose={() => setMove(false)} onDone={m => { setMove(false); toast(m); void hubs.reload() }} />}
