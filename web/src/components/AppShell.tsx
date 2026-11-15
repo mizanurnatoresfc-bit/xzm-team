@@ -16,6 +16,7 @@ type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 
 const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
+  { to: '/app/training', icon: 'book', bn: 'ট্রেনিং সেন্টার', en: 'Training centre', perms: null },
 ]
 const GROUPS: Group[] = [
   { key: 'hub', icon: 'hub', bn: 'হাব ম্যানেজমেন্ট', en: 'Hub Management', items: [

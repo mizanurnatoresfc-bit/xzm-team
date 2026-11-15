@@ -231,6 +231,16 @@ try {
     await fits('assistant panel')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-assistant.png`, fullPage: true })
 
+    // training centre: lessons for this role, Nodi finds the right one, a lesson can be ticked as learned
+    await page.goto(`${BASE}/app/training`); await page.waitForSelector('.tr-card')
+    check(await page.locator('.tr-card').count() >= 12, `${size}: the training centre lists the lessons`)
+    await page.locator('.tr-ask input').fill('ছুটির আবেদন কীভাবে দেব')
+    check((await page.locator('.tr-answer').first().innerText().catch(() => '')).includes('ছুটি'), `${size}: asking Nodi finds the leave lesson`)
+    await page.locator('.tr-answer').first().click(); await page.waitForSelector('.tr-card.open .tr-body')
+    await page.locator('.tr-card.open .row-acts button').click()
+    check(await page.locator('.tr-card.done').count() === 1, `${size}: a lesson can be ticked as learned`); await fits('training centre')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-training.png` })
+
     // staff list: post chips, leave chip, search, View / Edit on every row, and an action on several marked rows
     await page.goto(`${BASE}/app/hr/employees`); const staffSel = '.emp-board .da-table tbody tr, .emp-board .dv-list > li'   // table on a PC, compact list on a phone
     await page.waitForSelector(staffSel)
