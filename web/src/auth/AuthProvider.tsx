@@ -13,6 +13,17 @@ export type PermissionGrant = {
   is_super: boolean
 }
 
+/** A Super Admin looking at the app the way one role sees it. Only menus, buttons and pages change on this
+ *  device — the database still answers as the Super Admin, so this is a preview, not a login. */
+export type ViewAs = { id: string; name: string; permissions: string[]; is_super: boolean; panels: string[] | null; view: 'self' | 'hub' | 'zone' | null }
+const VIEW_AS_KEY = 'xzm_viewas'
+function readViewAs(): ViewAs | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(VIEW_AS_KEY) || 'null') as ViewAs | null
+    return v && typeof v.id === 'string' && Array.isArray(v.permissions) ? v : null
+  } catch { return null }
+}
+
 type AuthContextValue = {
   session: Session | null
   grants: PermissionGrant[]
@@ -23,6 +34,11 @@ type AuthContextValue = {
   refreshGrants: () => Promise<void>
   /** Set when an admin created the account or reset its password: only the change-password page opens. */
   mustChangePassword: boolean
+  /** True for a real Super Admin, also while previewing another role. */
+  isSuperAdmin: boolean
+  /** The role being previewed, or null. */
+  viewAs: ViewAs | null
+  setViewAs: (role: ViewAs | null) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -39,6 +55,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [grants, setGrants] = useState<PermissionGrant[]>([])
   const [loading, setLoading] = useState(true)
   const [mustChangePassword, setMustChange] = useState(false)
+  const [viewAsPick, setViewAsPick] = useState<ViewAs | null>(readViewAs)
+  const setViewAs = useCallback((role: ViewAs | null) => {
+    setViewAsPick(role)
+    try { if (role) sessionStorage.setItem(VIEW_AS_KEY, JSON.stringify(role)); else sessionStorage.removeItem(VIEW_AS_KEY) } catch { /* private mode */ }
+  }, [])
 
   const refreshGrants = useCallback(async () => {
     const { data: { session: current } } = await supabase.auth.getSession()
@@ -95,16 +116,23 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [refreshGrants])
 
   const signOut = useCallback(async () => {
+    setViewAs(null)
     const { error } = await supabase.auth.signOut()
     if (error) throw error
-  }, [])
+  }, [setViewAs])
 
+  const isSuperAdmin = useMemo(() => grants.some(g => g.is_super), [grants])
+  // The preview only ever narrows what a real Super Admin sees; nobody else can turn it on.
+  const viewAs = isSuperAdmin ? viewAsPick : null
+  const shown = useMemo<PermissionGrant[]>(() => !viewAs ? grants
+    : viewAs.is_super ? [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }]
+    : viewAs.permissions.map(code => ({ permission_code: code, scope_type: 'global' as const, zone_id: null, hub_id: null, is_super: false })), [grants, viewAs])
   const can = useCallback((permission: string) =>
-    grants.some(g => g.is_super || g.permission_code === permission), [grants])
+    shown.some(g => g.is_super || g.permission_code === permission), [shown])
 
   const value = useMemo(() => ({
-    session, grants, loading, signIn, signOut, can, refreshGrants, mustChangePassword,
-  }), [session, grants, loading, signIn, signOut, can, refreshGrants, mustChangePassword])
+    session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, isSuperAdmin, viewAs, setViewAs,
+  }), [session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, isSuperAdmin, viewAs, setViewAs])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -24,17 +24,19 @@ const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: strin
 ]
 
 export function Dashboard() {
-  const { session, grants, can } = useAuth()
+  const { session, grants, can, viewAs } = useAuth()
   const { L, n, lang } = usePrefs()
   const home = useLoad(() => dashboard.home(), [])
   const d = home.data
   const name = d?.me?.name || session?.user.user_metadata?.full_name || session?.user.email || L('ব্যবহারকারী', 'User')
-  const has = (p: PanelCode) => !!d?.panels.includes(p)
+  // Previewing a role: show that role's panels (numbers stay the Super Admin's own).
+  const panels: PanelCode[] = (viewAs?.panels as PanelCode[] | null | undefined) ?? d?.panels ?? []
+  const has = (p: PanelCode) => panels.includes(p)
   // Views (আমি / হাব / জোন): only those with at least one panel this person may see.
-  const views = VIEWS.filter(([v]) => (d?.panels ?? []).some(p => VIEW_OF[p]?.includes(v)))
+  const views = VIEWS.filter(([v]) => panels.some(p => VIEW_OF[p]?.includes(v)))
   const [view, setV] = useState<DashView | null>(pickedView())
   const [defView, setDefView] = useState<DashView | null>(null)
-  useEffect(() => { void dashboard.defaultView().then(setDefView) }, [])
+  useEffect(() => { if (viewAs) { setDefView(viewAs.view); setV(null) } else void dashboard.defaultView().then(setDefView) }, [viewAs])
   const cur: DashView | null = views.find(x => x[0] === view)?.[0] ?? views.find(x => x[0] === defView)?.[0] ?? views[views.length - 1]?.[0] ?? null
   const vis = (p: PanelCode) => has(p) && !!cur && !!VIEW_OF[p]?.includes(cur)
   const pickView = (v: DashView) => { setV(v); setView(v) }

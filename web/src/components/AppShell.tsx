@@ -8,6 +8,7 @@ import { Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq, type Notice } from '../lib/hrreq'
 import { getView, type DashView } from '../lib/dashboard'
+import { ViewAsBar, ViewAsPicker } from './ViewAs'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
 type Group = { key: string; icon: string; bn: string; en: string; items: Item[] }
@@ -212,8 +213,9 @@ function roleClass(code: string) {
 
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  const { can, signOut, session } = useAuth()
+  const { can, signOut, session, isSuperAdmin } = useAuth()
   const { L, n, lang, setLang, theme, setTheme } = usePrefs()
+  const [asRole, setAsRole] = useState(false)
   const nav = useNavigate()
   const user = session?.user.id ?? ''
   const name = (session?.user.user_metadata?.full_name as string | undefined) || session?.user.email || ''
@@ -322,6 +324,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     </aside>
     <div className={`side-backdrop${open ? ' open' : ''}`} onClick={() => setOpen(false)} />
     <div className="app-main">
+      <ViewAsBar onChange={() => setAsRole(true)} />
       <header className="top no-print">
         <button className="icon menu-btn" aria-label={L('মেনু', 'Menu')} aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name="menu" /></button>
         {here !== '/app' && <button className="icon back-btn" aria-label={L('পেছনে', 'Back')} onClick={() => history.length > 1 ? nav(-1) : nav('/app')}><Icon name="back" /></button>}
@@ -355,6 +358,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
             <Link to="/app/me" role="menuitem" onClick={() => setPop(null)}><Icon name="user" size={20} />{L('প্রোফাইল', 'Profile')}</Link>
             <Link to="/app/me/permissions" role="menuitem" onClick={() => setPop(null)}><Icon name="key" size={20} />{L('আমার অনুমতি', 'My Permissions')}</Link>
             <Link to="/app/settings" role="menuitem" onClick={() => setPop(null)}><Icon name="gear" size={20} />{L('সেটিং', 'Setting')}</Link>
+            {isSuperAdmin && <button className="mi" role="menuitem" onClick={() => { setPop(null); setAsRole(true) }}><Icon name="shield" size={20} />{L('রোল হিসেবে দেখুন', 'View as a role')}</button>}
             <hr />
             <button className="mi" role="menuitem" onClick={() => void signOut()}><Icon name="out" size={20} />{L('লগআউট', 'Logout')}</button>
           </div>}
@@ -373,6 +377,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}
       <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => setOpen(true)}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
     </nav>
+    {asRole && <ViewAsPicker onClose={() => setAsRole(false)} />}
     {quick && <div className="sheet-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={L('দ্রুত যোগ করুন', 'Quick add')}>
         <div className="sheet-grab" /><div className="sheet-hd"><b>{L('দ্রুত কাজ', 'Quick actions')}</b><button className="icon" aria-label={L('বন্ধ', 'Close')} onClick={() => setQuick(false)}><Icon name="x" /></button></div>
