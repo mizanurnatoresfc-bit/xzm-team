@@ -325,3 +325,10 @@ Built from the owner's own nine-point list.
 - Tests: 42 new assertions (`99l_hub_issues.sql`). The local shim now has a minimal `storage` schema (older migrations needed it). `99f_role_dashboards` already fails
   ("nine panels exist") since the dashboard-views migration — not touched here.
 - **Not built yet (next):** নদী AI avatar + voice/multi-command (Claude API through an Edge Function), training centre, reading a parcel ID from a photo, scheduling the follow-up.
+
+## 2026-11-15 — নদী AI: API ব্যবস্থাপনা
+- Migration `20261115001100_nodi_ai.sql`: perms `nodi.assistant.view` / `nodi.settings.configure`; settings `nodi.enabled/model/daily_limit/max_tokens`; `nodi_usage` log;
+  `nodi_gate()` (permission in any scope + on/off + daily limit, as the caller), `nodi_log()` (service role only), `nodi_settings/configure/usage_summary` (admin).
+- Edge Function `supabase/functions/nodi-ai` (verify_jwt off, token checked inside): actions `status` and `chat`. The Anthropic key exists ONLY as the function secret `ANTHROPIC_API_KEY`.
+- Page `/app/nodi` (pages/users/NodiSettings.tsx): key present or not, on/off, model, daily limit, answer length, test box, usage table.
+- Tests: 12 new assertions (`99m_nodi_ai.sql`). **Not applied to the live project and the function is not deployed yet.**
