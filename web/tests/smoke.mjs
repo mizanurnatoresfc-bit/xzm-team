@@ -47,7 +47,7 @@ try {
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
-    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = []
+    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = []
     let asEmployee = false, withGaps = false
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -61,12 +61,25 @@ try {
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
       if (u.includes('rpc/dashboard_home')) return j({ panels: ['my_work', 'quick_links'], today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
-      if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 0, unseen: 0 }])
+      if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 3, unseen: 2 }])
       if (u.includes('rpc/issue_order_incharge_set')) return j(null)
       if (u.includes('rpc/issue_order_incharge')) return j({ store: { id: 'e05', name: 'Store Keeper', code: '1005', hub: 'Natore Sadar', has_login: true }, it: null })
-      if (u.includes('rpc/issue_panels')) return j({ to_check: [], given: [], waiting_for_check_of_mine: [], hub: [], mine: [{ id: 'o1', issue_no: 'IS-00009', title: 'স্টোর অর্ডার: টেপ', kind: 'store',
+      if (u.includes('rpc/issue_panels')) return j({ given: [], waiting_for_check_of_mine: [], hub: [],
+        to_check: [{ id: 'i3', issue_no: 'IS-00011', title: 'পার্সেল ভেজা এসেছে', kind: 'parcel', priority: 'high', status: 'solved', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: 'XZ123456', due_at: null,
+          created_at: '2026-11-14T09:00:00Z', solved_at: '2026-11-15T03:00:00Z', reopen_count: 0, assigned_by_name: 'Owner', assigned_by_nodi: false, assignee: 'Rahim Uddin', assignee_code: '1002', is_mine: false, is_giver: true, overdue: false }],
+        mine: [{ id: 'i2', issue_no: 'IS-00010', title: 'কাস্টমার ফোন ধরছে না', kind: 'parcel', priority: 'normal', status: 'in_progress', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null,
+          created_at: '2026-11-15T05:00:00Z', solved_at: null, reopen_count: 0, assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: true }, { id: 'o1', issue_no: 'IS-00009', title: 'স্টোর অর্ডার: টেপ', kind: 'store',
         priority: 'normal', status: 'open', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null, created_at: '2026-11-15T04:00:00Z', solved_at: null, reopen_count: 0,
         assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: false }] })
+      if (u.includes('rpc/issue_detail')) return j({ parcel: null, issue: { id: 'i2', issue_no: 'IS-00010', title: 'কাস্টমার ফোন ধরছে না', kind: 'parcel', priority: 'normal', status: 'in_progress', status_bn: 'কাজ চলছে',
+          hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, assignee: 'Owner', assignee_code: '1', assigned_by_name: 'Hub Manager', body: 'তিনবার ফোন দেওয়া হয়েছে', photo_path: null, solve_photo: null, solved_note: null, approve_note: null },
+        events: [{ id: 'v1', action: 'created', note: 'তিনবার ফোন দেওয়া হয়েছে', by_name: 'Hub Manager', at: '2026-11-15T05:00:00Z' }, { id: 'v2', action: 'assigned', note: 'Owner (1)', by_name: 'Hub Manager', at: '2026-11-15T05:00:01Z' },
+          { id: 'v3', action: 'started', note: null, by_name: 'Owner', at: '2026-11-15T05:30:00Z' }] })
+      if (u.includes('rpc/issue_act')) { acted.push(r.request().postDataJSON()); return j(null) }
+      if (u.includes('rpc/hub_post_create')) { posted.push(r.request().postDataJSON()); return j('p9') }
+      if (u.includes('rpc/hub_feed')) return j([
+        { id: 'p2', author_name: 'Owner', is_nodi: false, mine: true, kind: 'text', body: 'আজ সব ডেলিভারি শেষ করুন', photo_path: null, created_at: '2026-11-15T06:00:00Z', issue: null, reactions: { '👍': { n: 2, mine: false } }, seen_count: 5, seen_by_me: true },
+        { id: 'p1', author_name: 'Rahim Uddin', is_nodi: false, mine: false, kind: 'text', body: 'ভাই টেপ শেষ', photo_path: null, created_at: '2026-11-15T05:00:00Z', issue: null, reactions: {}, seen_count: 3, seen_by_me: false }])
       if (u.includes('rpc/issue_create')) { created.push(r.request().postDataJSON()); return j('i1') }
       if (u.includes('/storage/v1/object/')) return j({ Key: 'issue-photos/h1/label.png', Id: '1' })
       if (u.includes('/functions/v1/admin-users')) { accounts.push(r.request().postDataJSON()); return j({ ok: true, user_id: `u${accounts.length}` }) }
@@ -203,9 +216,49 @@ try {
     const order = created[created.length - 1] ?? {}
     check(order.p_kind === 'store' && order.p_assignee === null && String(order.p_title).startsWith('স্টোর অর্ডার: পলি ব্যাগ') && String(order.p_body).includes('টেপ ১০টা'),
       `${size}: the Store order is saved in the person's own words and left for the in-charge`)
-    await page.goto(`${BASE}/app/issues?tab=orders`); await page.waitForSelector('.od-desk')
-    check(await page.locator('.od-kind').count() === 2 && await page.locator('.is-card').count() === 1, `${size}: the orders tab shows Store, IT and the open order`)
-    check((await page.locator('.is-card').innerText()).includes('প্রস্তুত করছি'), `${size}: an order is worked in order words (prepare, sent, received)`)
+    const phone = viewport.width < 820
+    await page.goto(`${BASE}/app/issues?tab=orders`); await page.waitForSelector('.mg-row')
+    check(await page.locator('.mg-row').count() === 1 && (await page.locator('.mg-row').innerText()).includes('নতুন অর্ডার'), `${size}: the orders list shows the open order in order words`)
+    await page.locator('.mg-desk').click(); await page.waitForSelector('.od-desk')
+    check(await page.locator('.od-kind').count() === 2, `${size}: who receives Store and IT orders is one tap away`)
+    await page.locator('.da-modal button', { hasText: 'বন্ধ' }).last().click()
+    // the chat view: list on the left, the conversation on the right (on a phone: one at a time)
+    await page.goto(`${BASE}/app/issues`); await page.waitForSelector('.mg-row')
+    check(await page.locator('.mg-row').count() === 4 && await page.locator('.mg-row.grp .mg-n').innerText() === '2', `${size}: issues, orders and the hub group sit in one chat-like list`)
+    await fits('issue chat list')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-chat-list.png` })
+    await page.locator('.mg-row', { hasText: 'কাস্টমার ফোন ধরছে না' }).click(); await page.waitForSelector('.mg-msg')
+    check(await page.locator('.mg-msg').count() === 2 && await page.locator('.mg-sys').count() === 1 && await page.locator('.mg-side').isVisible() === !phone, `${size}: an issue opens as a conversation (${phone ? 'full screen' : 'beside the list'})`)
+    await page.locator('.mg-foot textarea').fill('কাস্টমারকে পাওয়া গেছে'); await page.locator('.mg-acts button', { hasText: 'সমাধান হয়েছে' }).click()
+    await page.waitForFunction(() => !document.querySelector('.mg-foot textarea')?.value, null, { timeout: 8000 }).catch(() => {})
+    check(acted.at(-1)?.p_action === 'solve' && acted.at(-1)?.p_note === 'কাস্টমারকে পাওয়া গেছে' && acted.at(-1)?.p_id === 'i2', `${size}: the job is finished from the box under the conversation`)
+    await fits('issue conversation')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-chat-open.png` })
+    if (phone) { await page.locator('.mg-head .back').click(); await page.waitForSelector('.mg-side', { state: 'visible' }) }
+    await page.locator('.mg-row.grp').click(); await page.waitForSelector('.mg-msg .mg-col')
+    check(await page.locator('.mg-msg').count() === 2 && (await page.locator('.mg-msg').last().innerText()).includes('আজ সব ডেলিভারি'), `${size}: the hub group reads like a chat, newest at the bottom`)
+    await page.locator('.mg-foot textarea').fill('ঠিক আছে'); await page.locator('.mg-foot textarea').press('Enter')
+    await page.waitForFunction(() => !document.querySelector('.mg-foot textarea')?.value, null, { timeout: 8000 }).catch(() => {})
+    check(posted.at(-1)?.p_body === 'ঠিক আছে' && posted.at(-1)?.p_hub === 'h1', `${size}: Enter sends a message to the group`)
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-chat-group.png` })
+    if (phone) await page.locator('.mg-head .back').click()
+    // the board view, and each person's own settings
+    await page.locator('.mg-view button', { hasText: 'বোর্ড' }).click(); await page.waitForSelector('.bd-col')
+    if (!phone) { check(await page.locator('.mg-drawer .mg-chat').count() === 1, `${size}: an open conversation stays open when the view changes`); await page.locator('.mg-drawer .back').click() }
+    check(await page.locator('.bd-col').count() === 3 && await page.locator('.bd-card').count() === 3 && await page.locator('.bd-col.s-solved .bd-card').count() === 1, `${size}: the board puts every issue under its step`)
+    await fits('issue board')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-board.png` })
+    await page.locator('.bd-card .bd-open').first().click(); await page.waitForSelector('.mg-drawer .mg-msg')
+    check(await page.locator('.mg-drawer .mg-chat').count() === 1, `${size}: a board card opens the same conversation in a side sheet`)
+    await page.locator('.mg-drawer .back').click()
+    await page.reload(); await page.waitForSelector('.bd-col')
+    check(await page.locator('.bd-col').count() === 3, `${size}: the chosen view is remembered`)
+    await page.locator('.mg-ic[aria-label="আমার সেটিং"]').click(); await page.waitForSelector('.mg-set')
+    await page.locator('.mg-set button', { hasText: 'চ্যাট' }).click(); await page.locator('.mg-set button', { hasText: 'ছোট' }).click()
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-settings.png` })
+    await page.locator('.da-modal button', { hasText: 'ঠিক আছে' }).click()
+    check(await page.locator('.mg.dense').count() === 1, `${size}: "my settings" changes the view and the size of the list`)
+    await page.evaluate(() => localStorage.removeItem('xzm_issues_ui'))
     await fits('orders tab')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-orders.png`, fullPage: true })
 
