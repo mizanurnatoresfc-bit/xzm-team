@@ -340,3 +340,8 @@ Built from the owner's own nine-point list.
   optional spoken answers (speechSynthesis), action chips for what was done, floating avatar button on every page for people with `nodi.assistant.view`.
 - Follow-up: `pg_cron` job `nodi-issue-followup` runs `issue_nudge_due(6)` at minute 7 of every hour.
 - Applied live on `xzm-team-erp-dev`: nodi_ai, hub_issues (a–e), nodi_followup_schedule. The Anthropic key must be added as the function secret `ANTHROPIC_API_KEY`.
+
+## 2026-11-15 — হিসাব খাতা: এক্সেলের মতো সরাসরি এন্ট্রি (QuickGrid)
+- `pages/accounts/QuickGrid.tsx`: ঘরে সরাসরি লেখা। নিচে সবসময় একটা ফাঁকা লাইন; Enter/↓/↑ লাইন বদলায়, Tab পাশের ঘরে; লাইন ছাড়লে বা Enter দিলে নিজে সেভ; বাংলা অঙ্ক ইংরেজি হয়; ভুল হলে লাইন লাল + কারণ; Employee ID দিলে নাম নিজে আসে।
+- রাইডার ট্যাব: পুরোনো টেবিলের জায়গায় গ্রিড (বদলানো যায়, ✕ দিয়ে কারণসহ বাদ)। পুরোনো টেবিল শুধু প্রিন্টে। পেমেন্ট ও খরচ ট্যাবে: উপরে দ্রুত-এন্ট্রি গ্রিড (Payment ID+টাকা; খরচের নাম+টাকা+ID+খাত), বিল/স্ক্রিনশটসহ বিস্তারিতের জন্য আগের বাটন আছে।
+- সীমা: "কলাম সাজান" (লুকানো/নাম বদল/নিজের কলাম) এখনো পুরোনো টেবিলে প্রযোজ্য; গ্রিড ডিফল্ট কলাম দেখায়।

@@ -140,3 +140,24 @@ section.panel[id^="da-"]{scroll-margin-top:110px}
   body.printing-solo .print-area>:not(.print-solo){display:none!important}
   body.printing-solo .da-stats,body.printing-solo .da-collectors{display:none!important}
 }
+
+/* ---------- QuickGrid: type straight into the sheet, like Excel ---------- */
+.qg-wrap{overflow:auto;max-width:100%;border:1px solid var(--border,#e2e8f0);border-radius:12px;background:var(--surface,#fff);-webkit-overflow-scrolling:touch}
+.qg{border-collapse:separate;border-spacing:0;width:100%;min-width:640px;font-size:14px}
+.qg th{position:sticky;top:0;z-index:2;background:var(--primary-50,#f1f5f9);color:var(--muted,#475569);font-size:12px;text-align:left;padding:8px 6px;border-bottom:1px solid var(--border,#e2e8f0);border-right:1px solid var(--border,#e2e8f0);white-space:nowrap}
+.qg th.r,.qg td.r input{text-align:right;font-variant-numeric:tabular-nums}
+.qg td{padding:0;border-bottom:1px solid var(--border,#e2e8f0);border-right:1px solid var(--border,#e2e8f0);vertical-align:middle}
+.qg td input,.qg td select{width:100%;min-height:44px;border:0!important;border-radius:0!important;background:transparent;color:inherit;font:inherit;padding:6px 8px;box-sizing:border-box}
+.qg td input:focus,.qg td select:focus{outline:2px solid var(--primary,#0F7A3D);outline-offset:-2px;background:var(--primary-50,#E8F5EE)}
+.qg td input[readonly]{color:var(--muted,#64748b);background:rgba(100,116,139,.06)}
+.qg .qn{width:34px;min-width:34px;text-align:center;color:var(--muted,#64748b);font-size:12px;position:sticky;left:0;z-index:1;background:var(--surface,#fff)}
+.qg th.qn{z-index:3;background:var(--primary-50,#f1f5f9)}
+.qg .qs{width:56px;min-width:56px;text-align:center;white-space:nowrap}
+.qg tr.new td{background:rgba(15,122,61,.04)}.qg tr.dirty td{background:rgba(250,204,21,.12)}.qg tr.err td{background:var(--bad-bg,#fee2e2)}
+.qg .qx{background:none!important;border:0!important;color:var(--muted,#64748b)!important;min-height:30px!important;padding:0 6px!important;box-shadow:none!important}
+.qg .qerr{padding:6px 10px;color:var(--bad-fg,#b91c1c);font-size:12px}
+.qg tfoot td{background:var(--primary-50,#f1f5f9);padding:8px 8px;font-weight:700}
+.qg-tip{margin:0 0 8px;font-size:12px;color:var(--muted,#64748b)}
+.only-print{display:none}
+@media print{.only-print{display:block!important}.screen-only{display:none!important}}
+@media (max-width:700px){.qg td input,.qg td select{font-size:16px}.qg{min-width:760px}}

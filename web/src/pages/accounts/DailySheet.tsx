@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   da, num, taka, dateBn, timeBn, duration, todayDhaka, EVENT_LABEL,
@@ -9,6 +9,7 @@ import { readImage, parsePayment, parseBill } from '../../lib/ocr'
 import { printVoucher } from '../../lib/voucher'
 import { printArea } from '../../lib/xlsx'
 import { AccountsShell, Stat, StatusBadge, Badge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
+import { QuickGrid, type GCol, type Vals } from './QuickGrid'
 import { SectionMenu, ExtraHeads, ExtraCells, ExtraBlanks, BankPanel, useApplyLayout, isOff } from './sheetTools'
 
 const EMPTY_LAYOUT = {}
@@ -128,6 +129,30 @@ function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings
 
   const sum = (f: (r: RiderLine) => number) => s.riders.reduce((a, r) => a + f(r), 0)
 
+  // ---- Excel-like entry: type straight into the cells
+  const rcols: GCol[] = [
+    { key: 'code', label: 'Employee ID', width: 96, req: true, placeholder: 'ID', list: 'da-staff-q' },
+    { key: 'name', label: 'রাইডারের নাম', width: 150, ro: true },
+    ...(fields.includes('delivery_qty') ? [{ key: 'delivery', label: 'ডেলিভারি', type: 'number' as const, width: 84, total: true }] : []),
+    ...(fields.includes('pickup_qty') ? [{ key: 'pickup', label: 'পিকআপ', type: 'number' as const, width: 78, total: true }] : []),
+    ...(fields.includes('amount') ? [{ key: 'amount', label: 'টাকা', type: 'number' as const, width: 96, total: true }] : []),
+    ...(fields.includes('paid_amount') ? [{ key: 'paid', label: 'জমা', type: 'number' as const, width: 96, total: true }] : []),
+    ...(fields.includes('due') ? [manualDue ? { key: 'due', label: 'বকেয়া', type: 'number' as const, width: 90, total: true }
+      : { key: 'due', label: 'বকেয়া', type: 'number' as const, width: 90, total: true, calc: (v: Vals) => String((+v.amount || 0) - (+v.paid || 0)) }] : []),
+    ...(fields.includes('mobile_banking') ? [{ key: 'mb', label: 'মোবাইল ব্যাংকিং', type: 'number' as const, width: 100, total: true }] : []),
+    ...(fields.includes('remarks') ? [{ key: 'remarks', label: 'মন্তব্য', width: 140 }] : []),
+  ]
+  const rrows = useMemo(() => s.riders.map(r => ({ id: r.id, v: { code: r.employee_code, name: r.rider_name, delivery: String(r.delivery_qty), pickup: String(r.pickup_qty),
+    amount: String(r.amount), paid: String(r.paid_amount), due: String(manualDue ? r.due_input : r.due), mb: String(r.mobile_banking), remarks: r.remarks ?? '' } })), [s.riders, manualDue])
+  const rblank = useCallback((): Vals => ({ code: '', name: '', delivery: '', pickup: '', amount: '', paid: '', due: '', mb: '', remarks: '' }), [])
+  const rsave = useCallback(async (v: Vals, line?: string) => {
+    await da.saveRider({ session: s.session.id, code: v.code, delivery: +v.delivery || 0, pickup: +v.pickup || 0, amount: +v.amount || 0, paid: +v.paid || 0,
+      due: manualDue ? +v.due || 0 : 0, mb: +v.mb || 0, remarks: v.remarks, line })
+  }, [s.session.id, manualDue])
+  const rlookup = useMemo(() => ({ key: 'code', run: async (code: string): Promise<Vals> => {
+    const r = (await da.lookupEmployee(s.hub.id, code))[0]
+    return { name: r ? (r.allowed ? r.full_name : `${r.full_name} — এই হাবের নন`) : 'এই আইডি পাওয়া যায়নি' } } }), [s.hub.id])
+
   return <section className="panel" id="da-riders">
     <div className="da-bar"><h2>রাইডার-ভিত্তিক হিসাব</h2>
       {s.can_edit && <div className="row no-print">
@@ -136,7 +161,13 @@ function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings
       <SectionMenu sec="riders" title="রাইডার-ভিত্তিক হিসাব" s={s} settings={settings} onAdd={() => { setErr(null); setD({ ...emptyRider }) }} addLabel="＋ রাইডার যোগ" onLayoutSaved={ls} /></div>
     {missing.length > 0 && <p className="muted small no-print">যাঁদের লাইন এখনো ওঠেনি: {missing.map(m => `${m.employee_code} ${m.full_name}`).join(' · ')}</p>}
     <p className="muted small">বকেয়া নিয়ম: {manualDue ? 'নিজে লিখবেন' : 'টাকা − জমা'} · মোবাইল ব্যাংকিং: {settings['da.mobile_banking_rule'] === 'separate' ? 'আলাদা হিসাব (বকেয়ার সাথে যোগ-বিয়োগ হয় না)' : settings['da.mobile_banking_rule'] === 'reduces_due' ? 'বকেয়া থেকে বাদ যায়' : 'বকেয়ার সাথে যোগ হয়'}</p>
-    <div className="da-table-wrap"><table className="da-table" data-sec="riders">
+    {s.can_edit && <div className="screen-only no-print-keep">
+      <p className="qg-tip no-print">এক্সেলের মতো ঘরে সরাসরি লিখুন — <b>Employee ID</b> দিলে নাম নিজে আসবে। <b>Enter / ↓</b> নিচের ঘরে যায়, <b>Tab</b> পাশের ঘরে। লাইন ছাড়লেই নিজে সেভ হয়; নিচের ফাঁকা লাইনে নতুন রাইডার।</p>
+      <datalist id="da-staff-q">{(staff.data ?? []).map(e => <option key={e.employee_id} value={e.employee_code}>{e.full_name}</option>)}</datalist>
+      <QuickGrid cols={rcols} rows={rrows} blank={rblank} editable
+        ready={v => (v.code.trim() ? null : 'ID লিখুন')} save={rsave} onSaved={() => reload()} lookup={rlookup}
+        onRemove={id => setRemove(s.riders.find(r => r.id === id) ?? null)} /></div>}
+    <div className={`da-table-wrap${s.can_edit ? ' only-print' : ''}`}><table className="da-table" data-sec="riders">
       <thead><tr><th>নং</th><th>Employee ID</th><th>রাইডারের নাম</th><th>মোবাইল</th>
         {fields.filter(f => f !== 'remarks').map(f => <th key={f} className="r">{F_LABEL[f]}</th>)}{fields.includes('remarks') && <th>মন্তব্য</th>}<ExtraHeads settings={settings} sec="riders" /><th className="no-print" /></tr></thead>
       <tbody>{s.riders.map(r => <tr key={r.id}>
@@ -212,6 +243,7 @@ function useOcrUpload(sessionId: string, settings: DaSettings) {
 const OcrNote = ({ ocr, min }: { ocr: OcrResult | null; min: number }) => !ocr ? null : <p className={Number(ocr.confidence) < min ? 'notice' : 'muted small'}>
   OCR থেকে পূরণ করা হয়েছে · নির্ভরযোগ্যতা {num(ocr.confidence ?? 0)}%{Number(ocr.confidence) < min ? ' — কম, প্রতিটি ঘর ভালো করে মিলিয়ে নিন' : ''}। সেভ করার আগে মিলিয়ে নিন ও টিক দিন।</p>
 
+const NO_ROWS: Array<{ id: string; v: Vals }> = []
 // ---------------------------------------------------------------------------- merchant cash payments
 type MDraft = { line?: string; merchantQ: string; merchant?: string; merchantName?: string; ref: string; txn: string; amount: string; date: string
   path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string
@@ -264,9 +296,16 @@ function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettin
 
   const total = s.merchant_payments.reduce((a, m) => a + m.amount, 0)
 
+  // ---- Excel-like quick entry: Payment ID + amount, nothing else
+  const pcols: GCol[] = [{ key: 'ref', label: 'Payment ID', width: 150, placeholder: '101001 বা SFC-101001' }, { key: 'amount', label: 'টাকা', type: 'number', width: 110 }, { key: 'remarks', label: 'মন্তব্য', width: 180 }]
+  const pblank = useCallback((): Vals => ({ ref: '', amount: '', remarks: '' }), [])
+  const psave = useCallback(async (v: Vals) => { await da.saveMerchant({ session: s.session.id, ref: v.ref, amount: +v.amount, date: s.session.account_date, remarks: v.remarks }) }, [s.session.id, s.session.account_date])
   return <section className="panel" id="da-merchant">
     <div className="da-bar"><h2>মার্চেন্ট ক্যাশ পেমেন্ট</h2><div className="row no-print">{s.can_edit && <button onClick={() => { setErr(null); setD({ ...blank }) }}>＋ পেমেন্ট যোগ</button>}
       <SectionMenu sec="payment" title="মার্চেন্ট ক্যাশ পেমেন্ট" s={s} settings={settings} onAdd={() => { setErr(null); setD({ ...blank }) }} addLabel="＋ পেমেন্ট যোগ" onLayoutSaved={ls} /></div></div>
+    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে শুধু <b>Payment ID</b> আর <b>টাকা</b> লিখুন — লাইন ছাড়লেই সেভ। স্ক্রিনশট বা বিস্তারিত লাগলে উপরের "＋ পেমেন্ট" বাটন।</p>
+      <QuickGrid cols={pcols} rows={NO_ROWS} blank={pblank} editable ready={v => (!v.ref.trim() ? 'Payment ID লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
+        save={psave} onSaved={() => reload()} /></div>}
     <div className="da-table-wrap"><table className="da-table" data-sec="payment"><thead><tr><th>নং</th><th>কে নিয়েছে</th><th>Payment ID</th><th>Transaction ID</th><th className="r">টাকা</th><th>তারিখ</th><th>মিল</th><th>OCR</th><th>স্ক্রিনশট</th><th>মন্তব্য</th><ExtraHeads settings={settings} sec="payment" /><th className="no-print" /></tr></thead>
       <tbody>{s.merchant_payments.map(m => <tr key={m.id}><td data-l="নং">{num(m.no)}</td><td data-l="কে নিয়েছে">{m.merchant_id || m.payee_name ? <b>{m.merchant_name}</b> : <span className="muted">—</span>}</td><td data-l="Payment ID">{m.payment_ref ?? '—'}</td>
         <td data-l="Transaction ID">{m.transaction_id ?? '—'}</td><td data-l="টাকা" className="r">{taka(m.amount)}</td><td data-l="তারিখ">{dateBn(m.payment_date)}</td>
@@ -401,6 +440,19 @@ function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; settings
   const tSum = list.filter(x => x.kind === 'transport').reduce((a, x) => a + x.amount, 0)
   const eSum = list.filter(x => x.kind === 'employee').reduce((a, x) => a + x.amount, 0)
 
+  // ---- Excel-like quick entry: name, amount, whose (Employee ID), category
+  const ecols: GCol[] = [{ key: 'name', label: 'খরচের নাম', width: 170, placeholder: 'যেমন: তেল' }, { key: 'amount', label: 'টাকা', type: 'number', width: 100 },
+    { key: 'employee', label: 'কার খরচ (ID)', width: 110, placeholder: 'ফাঁকা = যাতায়াত', list: 'da-staff-x' }, { key: 'empName', label: 'কার', width: 130, ro: true },
+    { key: 'category', label: 'খাত', type: 'select', width: 150, options: cats.map(c => [c.code, c.bn] as [string, string]) }]
+  const eblank = useCallback((): Vals => ({ name: '', amount: '', employee: '', empName: '', category: cats[0]?.code ?? 'other' }), [cats])
+  const esave = useCallback(async (v: Vals) => {
+    await da.saveExpense({ session: s.session.id, kind: v.employee.trim() ? 'employee' : 'transport', employee: v.employee.trim() || null, name: v.name,
+      category: v.category, amount: +v.amount, date: s.session.account_date })
+  }, [s.session.id, s.session.account_date])
+  const elookup = useMemo(() => ({ key: 'employee', run: async (code: string): Promise<Vals> => {
+    const r = (await da.lookupEmployee(s.hub.id, code))[0]
+    return { empName: r ? (r.allowed ? r.full_name : `${r.full_name} — এই হাবের নন`) : 'পাওয়া যায়নি' } } }), [s.hub.id])
+  const staffX = useLoad(() => s.can_edit ? da.hubEmployees(s.hub.id) : Promise.resolve([]), [s.hub.id, s.can_edit])
   return <section className="panel" id="da-expense">
     <div className="da-bar"><h2>যাতায়াত ও হাব কর্মীর খরচ</h2>
       <div className="row no-print"><select value={kindF} onChange={e => setKindF(e.target.value as typeof kindF)} aria-label="ধরন">
@@ -408,6 +460,10 @@ function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; settings
         {s.can_edit && <><button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ যাতায়াত খরচ</button><button className="secondary" onClick={() => { setErr(null); setD(blank('employee')) }}>＋ কর্মীর খরচ</button></>}
         <SectionMenu sec="expense" title="যাতায়াত ও হাব কর্মীর খরচ" s={s} settings={settings} onAdd={() => { setErr(null); setD(blank('transport')) }} addLabel="＋ খরচ যোগ" onLayoutSaved={ls} /></div></div>
     <ErrorNote error={err && !d ? err : null} />
+    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে <b>খরচের নাম, টাকা, কার খরচ (Employee ID), খাত</b> লিখুন — লাইন ছাড়লেই সেভ। বিল ফাইল/ভাউচার/গাড়ির তথ্য লাগলে উপরের বাটন।</p>
+      <datalist id="da-staff-x">{(staffX.data ?? []).map(e => <option key={e.employee_id} value={e.employee_code}>{e.full_name}</option>)}</datalist>
+      <QuickGrid cols={ecols} rows={NO_ROWS} blank={eblank} editable ready={v => (!v.name.trim() ? 'খরচের নাম লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
+        save={esave} onSaved={() => reload()} lookup={elookup} /></div>}
     <div className="da-table-wrap"><table className="da-table" data-sec="expense"><thead><tr><th>নং</th><th>ধরন</th><th>কর্মী</th><th>খরচের নাম</th><th>খাত</th><th className="r">বিল</th><th>তারিখ</th><th>বিল / রেফ.</th><th>দিয়েছেন</th><th>বিল ফাইল</th><th>ভাউচার</th><th>OCR</th><ExtraHeads settings={settings} sec="expense" /><th className="no-print" /></tr></thead>
       <tbody>{list.map(x => <tr key={x.id}><td data-l="নং">{num(x.no)}</td><td data-l="ধরন">{x.kind === 'transport' ? 'যাতায়াত' : 'কর্মী'}</td>
         <td data-l="কর্মী">{x.employee_name ? <>{x.employee_name}<span className="sec">ID {x.employee_code}</span></> : '—'}</td><td data-l="নাম"><b>{x.expense_name}</b></td>
