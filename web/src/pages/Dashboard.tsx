@@ -38,6 +38,7 @@ export function Dashboard() {
   const cur: DashView | null = views.find(x => x[0] === view)?.[0] ?? views.find(x => x[0] === defView)?.[0] ?? views[views.length - 1]?.[0] ?? null
   const vis = (p: PanelCode) => has(p) && !!cur && !!VIEW_OF[p]?.includes(cur)
   const pickView = (v: DashView) => { setV(v); setView(v) }
+  const [allTiles, setAllTiles] = useState(false)
   // Let the tab bar follow the view on show, without saving it as the person's choice.
   useEffect(() => { if (cur) setView(cur, false) }, [cur])
   const where = [d?.me?.position, d?.me?.hub, d?.me?.zone].filter(Boolean).join(' · ')
@@ -62,6 +63,7 @@ export function Dashboard() {
     ['/app/me', 'user', 'প্রোফাইল', 'Profile', 'p', null],
   ]
 
+  const tiles = TILES.filter(t => !t[5] || t[5].some(p => can(p)))
   return <AppShell title={`${L('স্বাগতম', 'Welcome')}, ${name}`}
     subtitle={d?.me?.employee_code ? `${L('আইডি', 'ID')} ${d.me.employee_code}${where ? ` — ${where}` : ''}` : L('আপনার রোল অনুযায়ী আজকের চিত্র', 'Today at a glance, for your role')}>
     {grants.length === 0 && <p className="notice">{L('আপনার অ্যাকাউন্টে এখনো কোনো রোল দেওয়া হয়নি। সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।', 'No role has been given to your account yet. Contact your system administrator.')}</p>}
@@ -82,8 +84,10 @@ export function Dashboard() {
       <span>{L(`${n(d.my_work.tasks_due)}টা কাজের সময় পেরিয়ে গেছে`, `${d.my_work.tasks_due} tasks are overdue`)}</span></Link>}
     {d?.me && photo === null && <Link to="/app/me" className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span>
       <span>{L('আপনার প্রোফাইলে ছবি নেই — HR-কে ছবি দিন', 'Your profile has no photo — give one to HR')}</span></Link>}
-    <div className="home-tiles">{TILES.filter(t => !t[5] || t[5].some(p => can(p))).map(([to, ic, bn, en, tone]) =>
-      <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}</div>
+    <div className="home-tiles">{tiles.slice(0, allTiles || tiles.length <= 8 ? tiles.length : 7).map(([to, ic, bn, en, tone]) =>
+      <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}
+      {tiles.length > 8 && <button type="button" className="quick-tile t-b more-tile" onClick={() => setAllTiles(v => !v)}>
+        <span className="qi"><Icon name={allTiles ? 'x' : 'grid'} size={24} /></span><span>{allTiles ? L('কম দেখুন', 'Less') : L(`আরও ${n(tiles.length - 7)}`, `${tiles.length - 7} more`)}</span></button>}</div>
 
     {vis('my_day') && <MyDayPanel />}
     {vis('hub_today') && <HubTodayPanel />}
