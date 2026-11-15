@@ -35,8 +35,9 @@ export function Modal({ title, children, onClose, actions, wide }: { title: stri
   </div>, document.body)
 }
 
-export function Field({ label, children, hint, wide }: { label: string; children: ReactNode; hint?: ReactNode; wide?: boolean }) {
-  return <label className={`da-field${wide ? ' wide' : ''}`}><span>{label}</span>{children}{hint && <small className="muted">{hint}</small>}</label>
+/** Form field: label above, input, helper text below. `required` adds a red *, `note` a small grey tag such as "(Restricted)". */
+export function Field({ label, children, hint, wide, required, note }: { label: string; children: ReactNode; hint?: ReactNode; wide?: boolean; required?: boolean; note?: string }) {
+  return <label className={`da-field${wide ? ' wide' : ''}`}><span>{label}{required && <b className="req" aria-hidden="true"> *</b>}{note && <em className="fnote"> {note}</em>}</span>{children}{hint && <small className="muted">{hint}</small>}</label>
 }
 
 export function ErrorNote({ error }: { error: unknown }) {

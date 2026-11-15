@@ -203,25 +203,25 @@ function DraftForm({ e, onSaved }: { e: Employee; onSaved: (m: string) => Promis
     <h2>আবেদনের তথ্য</h2>
     <h3>চাকরির তথ্য</h3>
     <div className="hr-form">
-      <Field label="পূর্ণ নাম"><input value={f.full_name ?? ''} onChange={set('full_name')} /></Field>
-      <Field label="নাম (বাংলা)"><input value={f.full_name_bn ?? ''} onChange={set('full_name_bn')} /></Field>
-      <Field label="মোবাইল"><input inputMode="tel" value={f.mobile ?? ''} onChange={set('mobile')} /></Field>
-      <Field label="ইমেইল (ঐচ্ছিক)"><input type="email" value={f.email ?? ''} onChange={set('email')} /></Field>
-      <Field label="হাব"><select value={f.hub_id ?? ''} onChange={set('hub_id')}><option value="">—</option>{o.data?.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+      <Field label="পূর্ণ নাম" required><input placeholder="Enter Full Name" value={f.full_name ?? ''} onChange={set('full_name')} /></Field>
+      <Field label="নাম (বাংলা)"><input placeholder="বাংলায় পুরো নাম" value={f.full_name_bn ?? ''} onChange={set('full_name_bn')} /></Field>
+      <Field label="মোবাইল" required><input inputMode="tel" placeholder="01XXXXXXXXX" value={f.mobile ?? ''} onChange={set('mobile')} /></Field>
+      <Field label="ইমেইল" note="(শুধু এডমিনের জন্য)"><input type="email" placeholder="Enter Email" value={f.email ?? ''} onChange={set('email')} /></Field>
+      <Field label="হাব" required><select value={f.hub_id ?? ''} onChange={set('hub_id')}><option value="">—</option>{o.data?.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
       <Field label="যোগদানের তারিখ"><input type="date" value={f.joining_date ?? ''} onChange={set('joining_date')} /></Field>
       <Field label="বিভাগ"><select value={f.department_id ?? ''} onChange={set('department_id')}><option value="">—</option>{o.data?.departments.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
-      <Field label="পদবি"><select value={f.position_id ?? ''} onChange={set('position_id')}><option value="">—</option>{positions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+      <Field label="পদবি" required><select value={f.position_id ?? ''} onChange={set('position_id')}><option value="">—</option>{positions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
       <Field label="রিপোর্টিং ম্যানেজার" hint="এরিয়াে প্রথম কর্মী হলে খালি রাখা যায়"><select value={f.reporting_manager_id ?? ''} onChange={set('reporting_manager_id')}><option value="">—</option>
         {mgrs.data?.filter(m => m.id !== e.id).map(m => <option key={m.id} value={m.id}>{m.employee_code} · {m.full_name}</option>)}</select></Field>
     </div>
     <h3>ব্যক্তিগত তথ্য (গোপন — শুধু অনুমতিপ্রাপ্তরা দেখবেন)</h3>
     <div className="hr-form">
-      <Field label="NID নম্বর"><input inputMode="numeric" value={f.nid_number ?? ''} onChange={set('nid_number')} /></Field>
-      <Field label="জন্মতারিখ"><input type="date" value={f.date_of_birth ?? ''} onChange={set('date_of_birth')} /></Field>
+      <Field label="NID নম্বর" required note="(সংরক্ষিত)"><input inputMode="numeric" placeholder="Enter NID no" value={f.nid_number ?? ''} onChange={set('nid_number')} /></Field>
+      <Field label="জন্মতারিখ" required><input type="date" value={f.date_of_birth ?? ''} onChange={set('date_of_birth')} /></Field>
       <Field label="বাবার নাম"><input value={f.father_name ?? ''} onChange={set('father_name')} /></Field>
       <Field label="মায়ের নাম"><input value={f.mother_name ?? ''} onChange={set('mother_name')} /></Field>
-      <Field label="বর্তমান ঠিকানা"><input value={f.present_address ?? ''} onChange={set('present_address')} /></Field>
-      <Field label="স্থায়ী ঠিকানা"><input value={f.permanent_address ?? ''} onChange={set('permanent_address')} /></Field>
+      <Field label="বর্তমান ঠিকানা"><input placeholder="Enter your address" value={f.present_address ?? ''} onChange={set('present_address')} /></Field>
+      <Field label="স্থায়ী ঠিকানা" required><input placeholder="গ্রাম, ডাকঘর, উপজেলা, জেলা" value={f.permanent_address ?? ''} onChange={set('permanent_address')} /></Field>
     </div>
     <h3>জরুরি যোগাযোগ ও রেফারেন্স</h3>
     <div className="hr-form">
@@ -233,7 +233,7 @@ function DraftForm({ e, onSaved }: { e: Employee; onSaved: (m: string) => Promis
     <h3>প্রস্তাবিত বেতন</h3>
     {pending ? <p className="muted">মূল বেতন {bn(pending.basic_salary)} ৳ · যাতায়াত {bn(pending.transport_allowance)} ৳ · কমিশন {bn(pending.commission)} ৳ — অনুমোদনের অপেক্ষায়।</p> :
       <div className="hr-form">
-        <Field label="মূল বেতন (৳)"><input inputMode="decimal" value={f.basic ?? ''} onChange={set('basic')} /></Field>
+        <Field label="মূল বেতন (৳)" required><input placeholder="0" inputMode="decimal" value={f.basic ?? ''} onChange={set('basic')} /></Field>
         <Field label="যাতায়াত ভাতা (৳)"><input inputMode="decimal" value={f.transport ?? ''} onChange={set('transport')} /></Field>
         <Field label="কমিশন (৳)"><input inputMode="decimal" value={f.commission ?? ''} onChange={set('commission')} /></Field>
       </div>}

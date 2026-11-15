@@ -56,13 +56,13 @@ export function NewApplication({ onClose, onDone, prefill }: { onClose: () => vo
   return <Modal title="নতুন এমপ্লয়ি আইডি আবেদন" onClose={onClose} actions={<><button className="secondary" onClick={onClose}>বাতিল</button><button disabled={busy} onClick={() => void go()}>আবেদন খুলুন</button></>}>
     <p className="muted small">প্রথম ধাপ: মূল তথ্য। পরের পাতায় NID, জরুরি যোগাযোগ ইত্যাদি দিয়ে সাবমিট করবেন। অনুমোদনের সময় এমপ্লয়ি আইডি দেওয়া হবে।</p>
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-      <Field label="পূর্ণ নাম"><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
-      <Field label="মোবাইল"><input inputMode="tel" value={f.mobile} onChange={e => setF({ ...f, mobile: e.target.value })} placeholder="01711000000" /></Field>
-      <Field label="হাব"><select value={f.hub} onChange={e => setF({ ...f, hub: e.target.value })}><option value="">বেছে নিন…</option>
+      <Field label="পূর্ণ নাম" required><input placeholder="যেমন: Md. Rahim Uddin" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
+      <Field label="মোবাইল" required><input inputMode="tel" value={f.mobile} onChange={e => setF({ ...f, mobile: e.target.value })} placeholder="01XXXXXXXXX" /></Field>
+      <Field label="হাব" required><select value={f.hub} onChange={e => setF({ ...f, hub: e.target.value })}><option value="">বেছে নিন…</option>
         {o.data?.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
       <Field label="বিভাগ"><select value={f.department} onChange={e => setF({ ...f, department: e.target.value, position: '' })}><option value="">—</option>
         {o.data?.departments.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
-      <Field label="পদবি"><select value={f.position} onChange={e => setF({ ...f, position: e.target.value })}><option value="">—</option>
+      <Field label="পদবি" required><select value={f.position} onChange={e => setF({ ...f, position: e.target.value })}><option value="">—</option>
         {positions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
     </div>
     {o.data && !o.data.hubs.length && <p className="notice">আগে “প্রতিষ্ঠান” পাতায় অন্তত একটি হাব যোগ করুন।</p>}

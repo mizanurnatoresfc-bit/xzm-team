@@ -1058,3 +1058,26 @@ button.sm{min-height:32px;border-radius:8px}
 .nodi-in{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,.15)}
 .nodi-in textarea{width:100%;border:0;outline:0;resize:none;background:transparent;color:var(--text);font:inherit;font-size:16px}
 .nodi-in .row{display:flex;gap:8px;align-items:center}.nodi-in .row button{min-height:44px}
+
+/* ------------------------------------------------------------------
+   Clean form style (labels above, white boxed inputs, thin border,
+   red * for required, grey helper text) — same on every page and size.
+   ------------------------------------------------------------------ */
+:root{--in-border:#D5DBE3;--in-ph:#98A2B3;--in-ro:#F5F7FA}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--in-border:var(--border);--in-ph:#7C8C84;--in-ro:color-mix(in srgb,var(--canvas) 70%,var(--surface))}}
+:root[data-theme=dark]{--in-border:var(--border);--in-ph:#7C8C84;--in-ro:color-mix(in srgb,var(--canvas) 70%,var(--surface))}
+.da-field{gap:6px!important}
+.da-field>span{font-size:14px!important;font-weight:600!important;color:var(--text)!important;letter-spacing:0}
+.da-field>span .req{color:#DC2626;font-weight:700}
+.da-field>span .fnote{font-style:normal;font-weight:400;font-size:12px;color:var(--muted)}
+.da-field small{font-size:12.5px;line-height:1.45;margin-top:2px}
+input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),select,textarea{
+  min-height:44px;margin-top:0!important;padding:10px 14px!important;border-radius:8px!important;
+  background:var(--surface)!important;border:1px solid var(--in-border)!important;box-shadow:none!important;font-size:15px;color:var(--text)}
+textarea{min-height:88px;line-height:1.5}
+input::placeholder,textarea::placeholder{color:var(--in-ph);opacity:1}
+input:focus,select:focus,textarea:focus{outline:0!important;border-color:var(--primary)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 16%,transparent)!important}
+input[readonly],textarea[readonly],select:disabled,input:disabled{background:var(--in-ro)!important;border-style:solid!important;color:var(--muted)!important}
+.hr-form{gap:16px 20px!important}
+.modal .hr-form,.da-modal .hr-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:640px){.modal .hr-form,.da-modal .hr-form{grid-template-columns:1fr}}
