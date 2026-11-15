@@ -855,3 +855,52 @@ button.sm{min-height:32px;border-radius:8px}
 .rd-view{width:auto!important;min-height:34px!important;font-size:13px!important;padding:4px 8px}
 @media (max-width:700px){.myday-grid{grid-template-columns:1fr}.myday-acts{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.myday-acts .ma{font-size:11.5px;padding:10px 2px}}
 .more-tile{font-family:inherit;cursor:pointer;min-height:0!important;box-shadow:none!important;font-weight:600}
+
+/* =====================================================================
+   RESPONSIVE SIDEBAR — PC full (foldable), tablet icon rail, phone drawer
+   ===================================================================== */
+.side-head{display:flex;align-items:center;gap:6px;position:sticky;top:-14px;z-index:3;background:var(--side);margin:-14px -10px 4px;padding:14px 10px 8px}
+.side-head .logo{flex:1;min-width:0;padding:4px 8px!important;overflow:hidden}
+.side-head .logo span:last-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side-fold,.side-close{width:34px;height:34px;min-height:0!important;padding:0!important;border-radius:10px!important;flex:none;
+  background:transparent!important;border:1px solid var(--border)!important;color:var(--side-muted)!important;box-shadow:none!important;display:grid;place-items:center}
+.side-fold:hover,.side-close:hover{color:var(--primary)!important;border-color:var(--primary)!important}
+.side-fold svg{transform:rotate(180deg);transition:transform .2s}
+.side-close{display:none}
+.app-frame .side{scrollbar-width:thin;scrollbar-color:var(--border) transparent;overscroll-behavior:contain}
+.app-frame .side::-webkit-scrollbar{width:6px}.app-frame .side::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+.side a.nl{transition:background .15s,color .15s;min-height:38px}
+.side a.nl.active{box-shadow:inset 3px 0 0 var(--primary)}
+.side a.nl .t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* tablet & folded PC: icon rail that opens over the page on hover / tap */
+@media (min-width:961px){
+  .app-frame{transition:grid-template-columns .2s}
+  .app-frame.side-mini{grid-template-columns:72px minmax(0,1fr)}
+  .side-mini .side{width:72px;overflow-x:hidden;z-index:30;transition:width .18s ease,box-shadow .18s ease}
+  .side-mini .side-fold svg{transform:none}
+  .side-mini .side:hover,.side-mini .side:focus-within{width:272px;box-shadow:14px 0 34px rgba(15,40,30,.14)}
+  .side-mini .side:not(:hover):not(:focus-within) :is(.t,.side-user>div,.side-search,.side-foot,.chev,.count,.ngi,.side-head .logo span:last-child,.side-fold){display:none!important}
+  .side-mini .side:not(:hover):not(:focus-within) :is(a.nl,.ngh){justify-content:center!important;padding:9px 0!important}
+  .side-mini .side:not(:hover):not(:focus-within) .side-user{justify-content:center;padding:4px 0 10px}
+  .side-mini .side:not(:hover):not(:focus-within) .side-head .logo{justify-content:center;padding:4px 0!important}
+  .side-mini .side:not(:hover):not(:focus-within) .ngrp.has-on>.ngh .gi{box-shadow:0 0 0 2px var(--primary)}
+}
+
+/* phone: slide-in drawer */
+@keyframes fade-in{from{opacity:0}to{opacity:1}}
+@media (max-width:960px){
+  .app-frame .side{width:min(320px,86vw)!important;border-radius:0 24px 24px 0;border-right:0!important;
+    transition:transform .26s cubic-bezier(.2,.8,.2,1)!important;padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom));
+    box-shadow:0 0 0 rgba(0,0,0,0)!important}
+  .app-frame .side.open{box-shadow:18px 0 40px rgba(0,0,0,.22)!important}
+  .side-head{top:calc(-14px - env(safe-area-inset-top));padding-top:calc(14px + env(safe-area-inset-top));margin-top:calc(-14px - env(safe-area-inset-top))}
+  .side-fold{display:none}
+  .side-close{display:grid}
+  .side-backdrop.open{background:rgba(8,20,14,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);animation:fade-in .2s ease both}
+  .side a.nl,.side .ngh{min-height:44px;font-size:14.5px}
+  .side .ngi a.nl{min-height:42px}
+  .side-search{min-height:44px!important;border-radius:12px!important;font-size:15px!important}
+  .side-user{background:var(--canvas);border-radius:16px;padding:10px 12px;margin:0 2px 8px}
+}
+@media (prefers-reduced-motion:reduce){.app-frame .side,.app-frame{transition:none!important}}

@@ -194,6 +194,25 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const user = session?.user.id ?? ''
   const name = (session?.user.user_metadata?.full_name as string | undefined) || session?.user.email || ''
   const [open, setOpen] = useState(false)
+  // Sidebar size: phone = slide-in drawer; tablet = icon rail (opens on hover); PC = full, can be folded to a rail.
+  const [sidePref, setSidePref] = useState<'full' | 'mini' | null>(() => { try { const v = localStorage.getItem('xzm_side'); return v === 'full' || v === 'mini' ? v : null } catch { return null } })
+  const [tablet, setTablet] = useState(() => typeof matchMedia !== 'undefined' && matchMedia('(min-width:961px) and (max-width:1280px)').matches)
+  useEffect(() => {
+    if (typeof matchMedia === 'undefined') return
+    const m = matchMedia('(min-width:961px) and (max-width:1280px)'); const f = () => setTablet(m.matches)
+    m.addEventListener?.('change', f); return () => m.removeEventListener?.('change', f)
+  }, [])
+  const mini = sidePref === 'mini' || (sidePref === null && tablet)
+  const toggleMini = () => { const v = mini ? 'full' : 'mini'; setSidePref(v); try { localStorage.setItem('xzm_side', v) } catch { /* ignore */ } }
+  // Drawer on phones: Esc closes, page behind does not scroll, swipe left closes.
+  useEffect(() => {
+    if (!open) return
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    window.addEventListener('keydown', k)
+    const prev = document.body.style.overflow; document.body.style.overflow = 'hidden'
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
+  }, [open])
+  const swipe = useRef<{ x: number; y: number } | null>(null)
   const [q, setQ] = useState('')
   const [menuQ, setMenuQ] = useState('')
   const [pop, setPop] = useState<'bell' | 'me' | null>(null)
@@ -242,12 +261,21 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     if (x.link) nav(x.link)
   }
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
-  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className="nl"><Icon name={i.icon} size={16} /><span>{L(i.bn, i.en)}</span>
+  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className="nl" title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
     {i.count && cnt[i.count] ? <span className="count">{n(cnt[i.count])}</span> : null}</NavLink>
 
-  return <div className="app-frame">
-    <aside className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}>
-      <Link to="/app" className="logo" onClick={() => setOpen(false)}><BrandName /></Link>
+  return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
+    <aside className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}
+      onTouchStart={e => { swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
+      onTouchEnd={e => { const s0 = swipe.current; swipe.current = null; if (!s0) return
+        const dx = e.changedTouches[0].clientX - s0.x, dy = e.changedTouches[0].clientY - s0.y
+        if (dx < -60 && Math.abs(dx) > Math.abs(dy) * 1.5) setOpen(false) }}>
+      <div className="side-head">
+        <Link to="/app" className="logo" onClick={() => setOpen(false)}><BrandName /></Link>
+        <button type="button" className="side-fold" aria-label={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} title={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} onClick={toggleMini}>
+          <Icon name="chev" size={16} /></button>
+        <button type="button" className="side-close" aria-label={L('মেনু বন্ধ', 'Close menu')} onClick={() => setOpen(false)}><Icon name="x" size={20} /></button>
+      </div>
       <div className="side-user"><span className="avatar" aria-hidden="true">{(name || '?').slice(0, 2)}</span>
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
@@ -260,7 +288,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         const isOpen = groupOpen[g.key] ?? true
         const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
         return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`}>
-          <button type="button" className="ngh" aria-expanded={isOpen} onClick={() => toggleGroup(g.key, !isOpen)}>
+          <button type="button" className="ngh" aria-expanded={isOpen} title={L(g.bn, g.en)} onClick={() => toggleGroup(g.key, !isOpen)}>
             <span className="gi"><Icon name={g.icon} size={16} />{badge > 0 && !isOpen ? <span className="gdot">{n(badge)}</span> : null}</span>
             <span className="t">{L(g.bn, g.en)}</span><span className="chev"><Icon name="chev" size={14} /></span></button>
           <div className="ngi" onClick={() => setOpen(false)}>{vis.map(link)}</div>
