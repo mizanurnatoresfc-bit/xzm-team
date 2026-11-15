@@ -141,12 +141,12 @@ function HubStaff({ hub, onToast, onClose, onOpen }: {
   </section>
 }
 
-function Names({ list }: { list: Employee[] }) {
+export function Names({ list }: { list: Employee[] }) {
   const { L, n } = usePrefs()
   return <p className="muted small">{n(list.length)} {L('জন:', 'people:')} {list.slice(0, 8).map(e => `${e.employee_code ?? '—'} ${e.full_name}`).join(', ')}{list.length > 8 ? ` … +${n(list.length - 8)}` : ''}</p>
 }
 
-function StatusAction({ list, onClose, onDone }: { list: Employee[]; onClose: () => void; onDone: (m: string) => void }) {
+export function StatusAction({ list, onClose, onDone }: { list: Employee[]; onClose: () => void; onDone: (m: string) => void }) {
   const { L, n } = usePrefs()
   const [to, setTo] = useState<EmployeeStatus>('inactive')
   const [date, setDate] = useState(today())
@@ -219,7 +219,7 @@ function QuickTransfer({ onClose, onDone }: { onClose: () => void; onDone: (m: s
   </Modal>
 }
 
-function TransferAction({ list, hubs, onClose, onDone }: { list: Employee[]; hubs: Array<{ id: string; name: string }>; onClose: () => void; onDone: (m: string) => void }) {
+export function TransferAction({ list, hubs, onClose, onDone }: { list: Employee[]; hubs: Array<{ id: string; name: string }>; onClose: () => void; onDone: (m: string) => void }) {
   const { L, n } = usePrefs()
   const o = useOrg()
   const [hub, setHub] = useState('')
