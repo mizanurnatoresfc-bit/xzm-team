@@ -898,7 +898,7 @@ function DriverRequests({ ctx, openOnly }: { ctx: Ctx; openOnly?: boolean }) {
   async function act(r: DriverRequest, status: string) {
     let note: string | null = null; let cost: number | null = null
     if (status === 'rejected' || status === 'cancelled') { note = ask(L('কারণ লিখুন:', 'Write why:')); if (!note) return }
-    if (status === 'done') { const c = ask(L('কত টাকা খরচ হলো? (না হলে ০) — গাড়ির খরচে উঠবে', 'Cost in ৳ (0 if none) — goes to vehicle costs')); if (c === '' && c !== '0') return; cost = Number(c) || 0; note = ask(L('কী করা হলো (ঐচ্ছিক):', 'What was done (optional):')) || null }
+    if (status === 'done') { const c = ask(L('কত টাকা খরচ হলো? (না হলে ০) — গাড়ির খরচে উঠবে', 'Cost in ৳ (0 if none) — goes to vehicle costs')); if (c === '') return; cost = Number(c) || 0; note = ask(L('কী করা হলো (ঐচ্ছিক):', 'What was done (optional):')) || null }
     if (status === 'accepted') note = ask(L('ড্রাইভারকে কী বলবেন? (ঐচ্ছিক)', 'Message to the driver (optional)')) || null
     try { await vehicles.updateDriverRequest(r.id, status, note, cost); ctx.toast(L('আপডেট হলো', 'Updated')); await Promise.all([q.reload(), ctx.reload()]) } catch (e) { setErr(e) }
   }
