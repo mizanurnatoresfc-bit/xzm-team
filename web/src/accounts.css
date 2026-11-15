@@ -173,3 +173,18 @@ section.panel[id^="da-"]{scroll-margin-top:110px}
 .pg-miss{display:flex;flex-wrap:wrap;gap:4px}
 .pg-miss>span{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--bad-bg,#FEE2E2);color:var(--bad-fg,#B91C1C);font-weight:600}
 .pg-go{padding:6px 12px;font-size:13px;white-space:nowrap}
+
+/* Zonal dashboard */
+.zd-h{margin:18px 0 8px;font-size:15px}
+.zd-stat{all:unset;display:block;cursor:pointer;border-radius:14px}
+.zd-stat:hover .da-stat,.zd-stat:focus-visible .da-stat{outline:2px solid var(--primary);outline-offset:-2px}
+.zd-alerts{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.zd-al{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.zd-al.bad{border-left:4px solid #DC2626}.zd-al.warn{border-left:4px solid #D97706}.zd-al.info{border-left:4px solid var(--primary)}
+.zd-bars{display:grid;gap:6px;margin:6px 0 14px}
+.zd-bar{display:grid;grid-template-columns:minmax(90px,170px) 1fr auto;gap:10px;align-items:center;font-size:13px}
+.zd-bl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zd-track{height:14px;background:var(--canvas);border-radius:4px;overflow:hidden}
+.zd-fill{display:block;height:100%;background:var(--primary);border-radius:0 4px 4px 0;min-width:2px}
+.zd-bv{font-variant-numeric:tabular-nums;font-weight:700}
+@media (max-width:600px){.zd-bar{grid-template-columns:90px 1fr auto}}
