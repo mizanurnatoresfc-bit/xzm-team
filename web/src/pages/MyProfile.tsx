@@ -11,6 +11,10 @@ import { ExtraFields, ReferralPanel } from './hr/ProfileExtras'
 import { EmpBadge, useOrg } from './hr/common'
 import { dutiesApi, FREQ, routesApi } from '../lib/hub'
 import { Badge } from './accounts/ui'
+import { useState } from 'react'
+import { TextInput } from '../components/inputs'
+import { rollout } from '../lib/rollout'
+import { BD_MOBILE, cleanMobile, rules } from '../lib/validate'
 
 /** The signed-in staff member's own profile: own data, extra fields, whom they brought, people in hand. */
 export function MyProfile() {
@@ -57,7 +61,7 @@ export function MyProfile() {
           <h2>{L('আমার তথ্য', 'My details')}</h2>
           <dl className="hr-kv">
             <dt>{L('নাম', 'Name')}</dt><dd>{e.full_name}{e.full_name_bn ? ` (${e.full_name_bn})` : ''}</dd>
-            <dt>{L('মোবাইল', 'Mobile')}</dt><dd>{e.mobile ?? '—'}</dd>
+            <dt>{L('মোবাইল', 'Mobile')}</dt><dd><MyMobile current={e.mobile} onSaved={v => { toast(L(`মোবাইল নম্বর সেভ হয়েছে — এখন ${v} দিয়েও লগইন করা যাবে`, `Mobile saved — you can now sign in with ${v} too`)); void me.reload() }} /></dd>
             <dt>{L('হাব', 'Hub')}</dt><dd>{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : '—'}</dd>
             <dt>{L('পদবি', 'Position')}</dt><dd>{e.position_id ? o.names.pos[e.position_id] ?? '—' : '—'}</dd>
             <dt>{L('যোগদান', 'Joined')}</dt><dd>{dmy(e.joining_date)}</dd>
@@ -78,4 +82,27 @@ export function MyProfile() {
         <ReferralPanel employee={e.id} zoneId={e.zone_id} self onSaved={m => toast(m)} />
       </>}
   </AppShell>
+}
+
+/** The person's own mobile number: shown, and changed here by themselves. The number also works as their login. */
+function MyMobile({ current, onSaved }: { current: string | null; onSaved: (v: string) => void }) {
+  const { L } = usePrefs()
+  const [edit, setEdit] = useState(!current)
+  const [v, setV] = useState(current ?? '')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  async function save() {
+    setErr('')
+    if (!BD_MOBILE.test(cleanMobile(v))) return setErr(L('সঠিক মোবাইল নম্বর দিন — ১১ সংখ্যা', 'Enter a valid 11-digit mobile number'))
+    setBusy(true)
+    try { const saved = await rollout.setMyMobile(v); setEdit(false); onSaved(saved) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
+  }
+  if (!edit) return <span id="mobile">{current} <button type="button" className="link small" onClick={() => { setV(current ?? ''); setEdit(true) }}>{L('বদলান', 'Change')}</button></span>
+  return <span id="mobile" className="my-mobile">
+    <TextInput kind="phone" value={v} onChange={setV} rules={[rules.mobile()]} placeholder="01XXXXXXXXX" label={L('মোবাইল নম্বর', 'Mobile number')} />
+    <span className="row-acts"><button type="button" className="sm" disabled={busy || !v.trim()} onClick={() => void save()}>{L('সেভ করুন', 'Save')}</button>
+      {current && <button type="button" className="secondary sm" onClick={() => { setEdit(false); setErr('') }}>{L('বাতিল', 'Cancel')}</button>}</span>
+    <small className="muted">{L('নম্বর দিলে এমপ্লয়ি আইডির পাশাপাশি এই নম্বর দিয়েও লগইন করা যাবে।', 'Once saved you can sign in with this number as well as your Employee ID.')}</small>
+    {err && <small className="field-err" role="alert">{err}</small>}
+  </span>
 }
