@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Badge, Field, Modal, useLoad } from '../accounts/ui'
 import { EMP_STATUS, hr, hrFriendly, hubLabel, nameMap, org, type EmployeeStatus } from '../../lib/hr'
 
@@ -22,9 +22,17 @@ export function EmpBadge({ status }: { status: EmployeeStatus }) {
 export const BD_MOBILE = /^01[3-9][0-9]{8}$/
 
 /** First step of a new Employee ID application: the basics. */
-export function NewApplication({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
+export function NewApplication({ onClose, onDone, prefill }: { onClose: () => void; onDone: (id: string) => void
+  prefill?: { name?: string; mobile?: string; hub?: string; position?: string } }) {
   const o = useOrg()
-  const [f, setF] = useState({ name: '', mobile: '', hub: '', department: '', position: '' })
+  const [f, setF] = useState({ name: prefill?.name ?? '', mobile: prefill?.mobile ?? '', hub: prefill?.hub ?? '', department: '', position: '' })
+  // A position given by name (from an HR request) is matched to the list once it loads.
+  useEffect(() => {
+    const want = (prefill?.position ?? '').trim().toLowerCase()
+    if (!want || f.position || !o.data) return
+    const p = o.data.positions.find(x => x.id === prefill?.position || x.name.toLowerCase() === want || (x.name_bn ?? '').toLowerCase() === want)
+    if (p) setF(v => ({ ...v, position: p.id, department: p.department_id }))
+  }, [o.data, prefill?.position, f.position])
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const positions = (o.data?.positions ?? []).filter(p => !f.department || p.department_id === f.department)
   async function go() {

@@ -37,6 +37,7 @@ const HubManagement = lazy(() => import('./pages/hub/HubManagement').then(m => (
 const MyPermissions = lazy(() => import('./pages/MyPermissions').then(m => ({ default: m.MyPermissions })))
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 const Sorting = lazy(() => import('./pages/sorting/Sorting').then(m => ({ default: m.Sorting })))
+const Requests = lazy(() => import('./pages/hr/Requests').then(m => ({ default: m.Requests })))
 const Duties = lazy(() => import('./pages/hr/Duties').then(m => ({ default: m.Duties })))
 const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
@@ -48,7 +49,7 @@ const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ 
 // After the first screen is shown, quietly fetch the most-used pages so later taps open at once.
 const WARM: Array<() => Promise<unknown>> = [
   () => import('./pages/hub/HubManagement'), () => import('./pages/org/Hubs'), () => import('./pages/hr/Employees'),
-  () => import('./pages/hr/Attendance'), () => import('./pages/accounts/DailyDashboard'), () => import('./pages/accounts/DailySheet'),
+  () => import('./pages/hr/Attendance'), () => import('./pages/hr/Requests'), () => import('./pages/accounts/DailyDashboard'), () => import('./pages/accounts/DailySheet'),
   () => import('./pages/MyProfile'), () => import('./pages/zonal/ZonalStaff'), () => import('./pages/hr/EmployeeProfile'),
   () => import('./pages/org/OrgSetup'), () => import('./pages/sorting/Sorting'), () => import('./pages/office/Office'),
 ]
@@ -77,6 +78,7 @@ export default function App() {
       <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
+      <Route path="/app/hr/requests" element={<Requests />} />
       <Route path="/app/hr/duties" element={<Duties />} />
       <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
       <Route path="/app/office/:section" element={<Office />} />

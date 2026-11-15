@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { AppShell, useMyPhoto } from '../components/AppShell'
 import { Icon } from '../components/Icon'
 import { NetworkPanel } from '../components/NetworkPanel'
+import { HrReqPanel } from '../components/HrReqPanel'
 import { Badge, Stat, useLoad } from './accounts/ui'
 import { usePrefs } from '../lib/prefs'
 import { dashboard, dashboardFriendly, panelLabel, type PanelCode } from '../lib/dashboard'
@@ -46,6 +47,7 @@ export function Dashboard() {
     ['/app/hub/routes', 'map', 'রাইডার রুট', 'Rider routes', 'r', ['ops.route.view']],
     ['/app/accounts/mine', 'wallet', 'আমার হিসাব', 'My accounts', 'g', null],
     ['/app/hr/leave', 'log', 'ছুটি', 'Leave', 'b', ['hr.leave.view', 'hr.leave.create']],
+    ['/app/hr/requests', 'form', 'HR রিকুয়েস্ট', 'HR requests', 'o', null],
     ['/app/me', 'user', 'প্রোফাইল', 'Profile', 'p', null],
   ]
 
@@ -69,6 +71,7 @@ export function Dashboard() {
     <div className="home-tiles">{TILES.filter(t => !t[5] || t[5].some(p => can(p))).map(([to, ic, bn, en, tone]) =>
       <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}</div>
 
+    <HrReqPanel />
     <NetworkPanel />
 
     {has('my_work') && d?.my_work && <Panel code="my_work">

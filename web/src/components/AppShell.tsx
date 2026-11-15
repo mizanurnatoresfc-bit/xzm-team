@@ -5,10 +5,11 @@ import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
 import { Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
+import { hrReq, type Notice } from '../lib/hrreq'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
 type Group = { key: string; icon: string; bn: string; en: string; items: Item[] }
-type CountKey = 'apps' | 'leave' | 'sheets' | 'team'
+type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 
 const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
@@ -47,6 +48,7 @@ const GROUPS: Group[] = [
     { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী', en: 'Staff by hub', perms: ['hr.employee.view'] },
   ] },
   { key: 'staff', icon: 'users', bn: 'স্টাফ ম্যানেজমেন্ট', en: 'Staff Management', items: [
+    { to: '/app/hr/requests', icon: 'form', bn: 'HR রিকুয়েস্ট ও রিপোর্ট', en: 'HR requests & reports', perms: null, count: 'hrreq' },
     { to: '/app/hr', icon: 'chart', bn: 'HR ড্যাশবোর্ড', en: 'HR dashboard', perms: ['hr.employee.view'] },
     { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
     { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
@@ -100,14 +102,15 @@ async function teamCount(hub: string): Promise<number> {
 const selectedHub = () => { try { return sessionStorage.getItem('xzm_hub') || '' } catch { return '' } }
 function counts(user: string, can: (p: string) => boolean): Promise<Record<CountKey, number>> {
   const hub = can('hr.employee.view') ? selectedHub() : ''
-  const key = [user, can('hr.application.approve'), can('hr.leave.approve'), can('da.sheet.approve'), hub].join('|')
+  const key = [user, can('hr.application.approve'), can('hr.leave.approve'), can('da.sheet.approve'), can('hr.request.approve'), hub].join('|')
   if (countCache && countCache.key === key && Date.now() - countCache.at < 60_000) return countCache.p
   const p = Promise.all([
     can('hr.application.approve') ? countOf('employee_applications', 'status', 'submitted') : 0,
     can('hr.leave.approve') ? countOf('leave_requests', 'status', 'pending') : 0,
     can('da.sheet.approve') ? countOf('da_sessions', 'status', 'submitted') : 0,
     teamCount(hub),
-  ]).then(([apps, leave, sheets, team]) => ({ apps, leave, sheets, team })).catch(() => ({ apps: 0, leave: 0, sheets: 0, team: 0 }))
+    can('hr.request.approve') ? hrReq.openCount() : 0,
+  ]).then(([apps, leave, sheets, team, hrreq]) => ({ apps, leave, sheets, team, hrreq })).catch(() => ({ apps: 0, leave: 0, sheets: 0, team: 0, hrreq: 0 }))
   countCache = { key, at: Date.now(), p }; return p
 }
 export function refreshShellCounts() { countCache = null }
@@ -182,11 +185,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [mSearch, setMSearch] = useState(false)
   const [roles, setRoles] = useState<MyRole[]>([])
   const [photo, setPhoto] = useState<string | null>(null)
-  const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0 })
+  const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0, hrreq: 0 })
+  const [notes, setNotes] = useState<Notice[]>([])
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() => { try { return JSON.parse(sessionStorage.getItem('xzm_ng') || '{}') } catch { return {} } })
   const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
   useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user])
+  useEffect(() => { if (user) void hrReq.notices().then(setNotes).catch(() => setNotes([])) }, [user])
   useEffect(() => {
     if (!pop) return
     const f = (e: MouseEvent) => { if (popRef.current && !popRef.current.contains(e.target as Node)) setPop(null) }
@@ -207,8 +212,14 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     ['/app/hr/applications', cnt.apps, L('আইডি আবেদন যাচাইয়ের অপেক্ষায়', 'ID applications waiting for review'), 'form'],
     ['/app/hr/leave', cnt.leave, L('ছুটির অনুরোধ অপেক্ষমাণ', 'Leave requests waiting'), 'log'],
     ['/app/accounts/daily', cnt.sheets, L('হিসাব খাতা যাচাইয়ের অপেক্ষায়', 'Daily sheets waiting for verification'), 'ledger'],
+    ['/app/hr/requests?tab=list', cnt.hrreq, L('HR রিকুয়েস্ট অপেক্ষমাণ', 'HR requests waiting'), 'form'],
   ] as Array<[string, number, string, string]>).filter(a => a[1] > 0)
-  const totalAlerts = alerts.reduce((a, x) => a + x[1], 0)
+  const unread = notes.filter(x => !x.read_at)
+  const totalAlerts = alerts.reduce((a, x) => a + x[1], 0) + unread.length
+  function openNotice(x: Notice) {
+    setPop(null); void hrReq.markRead([x.id]); setNotes(ns => ns.map(y => y.id === x.id ? { ...y, read_at: new Date().toISOString() } : y))
+    if (x.link) nav(x.link)
+  }
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   const link = (i: Item) => <NavLink key={i.to} to={i.to} end className="nl"><Icon name={i.icon} size={16} /><span>{L(i.bn, i.en)}</span>
     {i.count && cnt[i.count] ? <span className="count">{n(cnt[i.count])}</span> : null}</NavLink>
@@ -253,7 +264,12 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
             {totalAlerts > 0 && <span className="dotn">{n(totalAlerts)}</span>}</button>
           {pop === 'bell' && <div className="top-pop" role="menu"><div className="hd">{L('অপেক্ষমাণ কাজ', 'Waiting for you')}</div>
             {alerts.length ? alerts.map(([to, c, t, ic]) => <Link key={to} to={to} onClick={() => setPop(null)}><Icon name={ic} size={16} /><span style={{ flex: 1 }}>{t}</span><span className="count">{n(c)}</span></Link>)
-              : <div className="muted small" style={{ padding: '6px 10px' }}>{L('এখন কিছু অপেক্ষমাণ নেই', 'Nothing waiting right now')}</div>}</div>}
+              : <div className="muted small" style={{ padding: '6px 10px' }}>{L('এখন কিছু অপেক্ষমাণ নেই', 'Nothing waiting right now')}</div>}
+            {notes.length > 0 && <><div className="hd nt-hd">{L('নোটিফিকেশন', 'Notifications')}{unread.length > 0 && <button className="link small" onClick={() => { void hrReq.markRead(unread.map(x => x.id)); setNotes(ns => ns.map(y => ({ ...y, read_at: y.read_at ?? new Date().toISOString() }))) }}>{L('সব পড়া হয়েছে', 'Mark all read')}</button>}</div>
+              <div className="nt-list">{notes.slice(0, 8).map(x => <button key={x.id} className={`nt-item${x.read_at ? '' : ' new'}`} onClick={() => openNotice(x)}>
+                <span className="nt-dot" /><span style={{ flex: 1, minWidth: 0 }}><b>{x.title}</b>{x.body && <small>{x.body}</small>}
+                <small className="muted">{new Date(x.created_at).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</small></span></button>)}</div></>}
+          </div>}
         </div>
         <button className="secondary sm hide-sm" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} aria-label="Language"><Icon name="globe" size={15} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
         <button className="icon hide-sm" aria-label={L('ডার্ক / লাইট মোড', 'Dark / light mode')} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" /></button>
