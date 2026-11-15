@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { download, xlsxBlob } from '../lib/xlsx'
 import { usePrefs } from '../lib/prefs'
 import { Icon } from './Icon'
+import { MultiCombo } from './inputs'
 
 export type Col<T> = { key: string; label: string; render?: (r: T) => ReactNode; value?: (r: T) => string | number | null; className?: string; noExport?: boolean
   /** The column that names the row — the heading of a card or list line. Default: the first data column. */
@@ -9,7 +10,7 @@ export type Col<T> = { key: string; label: string; render?: (r: T) => ReactNode;
 export type ViewKind = 'table' | 'card' | 'list'
 
 // What the person chose for each list (view, rows per page, sorting, filters), kept on this device.
-type Saved = { view?: ViewKind; size?: number; sort?: { key: string; dir: 1 | -1 } | null; filters?: Record<string, string> }
+type Saved = { view?: ViewKind; size?: number; sort?: { key: string; dir: 1 | -1 } | null; filters?: Record<string, string | string[]> }
 const STORE = 'xzm_dataview'
 function readSaved(id: string | undefined): Saved {
   if (!id) return {}
@@ -57,12 +58,14 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [source, cols, big])
   // A remembered filter only counts while its value still exists in the list.
-  const filters = Object.fromEntries(Object.entries(saved.filters ?? {}).filter(([k, v]) => filterable.some(f => f.c.key === k && f.vals.includes(v))))
+  const filters: Record<string, string[]> = Object.fromEntries(Object.entries(saved.filters ?? {})
+    .map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).filter(x => filterable.some(f => f.c.key === k && f.vals.includes(x)))] as [string, string[]])
+    .filter(([, v]) => v.length))
   const sort = saved.sort && cols.some(c => c.key === saved.sort!.key) ? saved.sort : null
   const list = useMemo(() => {
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean)
     let out = source.filter(r => {
-      for (const [k, v] of Object.entries(filters)) { const c = cols.find(x => x.key === k); if (c && String(cell(c, r)) !== v) return false }
+      for (const [k, v] of Object.entries(filters)) { const c = cols.find(x => x.key === k); if (c && !v.includes(String(cell(c, r)))) return false }
       if (!words.length) return true
       const text = exp.map(c => String(cell(c, r))).join(' ').toLowerCase()
       return words.every(w => text.includes(w))
@@ -90,7 +93,7 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
     : narrowed ? L(`${n(list.length)}টি সারি (ফিল্টার করা)`, `${list.length} filtered rows`) : L(`সব ${n(list.length)}টি সারি`, `all ${list.length} rows`)
   const canSort = (c: Col<T>) => !!c.value || (source[0] !== undefined && typeof (source[0] as Record<string, unknown>)[c.key] !== 'object' && (source[0] as Record<string, unknown>)[c.key] !== undefined)
   const toggleSort = (c: Col<T>) => save({ sort: sort?.key !== c.key ? { key: c.key, dir: 1 } : sort.dir === 1 ? { key: c.key, dir: -1 } : null })
-  const setFilter = (k: string, v: string) => { const f = { ...filters }; if (v) f[k] = v; else delete f[k]; save({ filters: f }) }
+  const setFilter = (k: string, v: string[]) => { const f = { ...filters }; if (v.length) f[k] = v; else delete f[k]; save({ filters: f }) }
   const activeFilters = Object.keys(filters).length
   const toggleMark = (k: string, on: boolean) => { const s = new Set(mk); if (on) s.add(k); else s.delete(k); setMarked(s) }
   const show = (c: Col<T>, r: T): ReactNode => c.render ? c.render(r) : String(cell(c, r) || '—')
@@ -136,8 +139,8 @@ export function DataTable<T>({ title, rows, cols, rowKey, onRowClick, empty, fil
       </div>
     </div>
     {(showFilters || activeFilters > 0) && filterable.length > 0 && <div className="dv-filters no-print">
-      {filterable.map(({ c, vals }) => <label key={c.key}><span>{c.label}</span>
-        <select value={filters[c.key] ?? ''} onChange={e => setFilter(c.key, e.target.value)}><option value="">{L('সব', 'All')}</option>{vals.map(v => <option key={v} value={v}>{v}</option>)}</select></label>)}
+      {filterable.map(({ c, vals }) => <div key={c.key} className="dv-f"><span>{c.label}</span>
+        <MultiCombo label={c.label} values={filters[c.key] ?? []} onChange={v => setFilter(c.key, v)} options={vals.map(v => ({ value: v, label: v }))} placeholder={L('সব', 'All')} /></div>)}
       {(activeFilters > 0 || sort) && <button type="button" className="link small" onClick={() => save({ filters: {}, sort: null })}>{L('ফিল্টার ও সাজানো মুছুন', 'Clear filters & sorting')}</button>}
     </div>}
     {source.length > 0 && !list.length && <p className="muted">{L('খোঁজা বা ফিল্টারের সাথে কিছু মিলছে না।', 'Nothing matches the search or filters.')} <button type="button" className="link" onClick={() => { setQ(''); save({ filters: {} }) }}>{L('সব দেখান', 'Show all')}</button></p>}

@@ -6,6 +6,8 @@ import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { hrFriendly } from '../../lib/hr'
 import { ACTION_BN, EMOJIS, KIND_BN, PRIORITY_BN, issues, type GroupHub, type IssueDetail, type IssueKind, type IssueRow, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
 import { readLabel } from '../../lib/ocr'
+import { duplicates } from '../../lib/validate'
+import { DupNote, useDuplicates } from '../../components/inputs'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
 type Tab = 'mine' | 'check' | 'given' | 'group' | 'hub'
@@ -160,6 +162,7 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const latest = useRef<File | null>(null)
+  const same = useDuplicates(f.parcel, duplicates.openIssuesByParcel, v => v.trim().length >= 4)
 
   const take = useCallback((img: File | null) => {
     setErr('')
@@ -213,7 +216,8 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
       {scan.state === 'done' && scan.ids.map(id => <button key={id} type="button" className={`secondary sm${f.parcel === id ? ' on' : ''}`} onClick={() => setF({ ...f, parcel: id })}>{id}</button>)}
     </div>
     <div className="da-form">
-      <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} /></Field>
+      <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} />
+        {same.length > 0 && <DupNote>এই পার্সেলে আগে থেকেই ইস্যু খোলা আছে: {same.map(x => `${x.issue_no} (${STATUS_BN[x.status as keyof typeof STATUS_BN] ?? x.status})`).join(', ')} — আবার দিলে দুটো হবে।</DupNote>}</Field>
       <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
       <Field label="কী সমস্যা" wide hint="না লিখলে পার্সেল আইডি দিয়েই ইস্যুর নাম হবে"><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="যেমন: কাস্টমার ফোন ধরছে না" /></Field>
       <Field label="কাকে দেবেন" wide hint="এখন না বাছলে পরে দেওয়া যাবে"><PersonPicker value={person} onChange={setPerson} /></Field>

@@ -4,6 +4,7 @@ import { useOrg } from '../pages/hr/common'
 import { referrals } from '../lib/extra'
 import { supabase } from '../lib/supabase'
 import { Icon } from './Icon'
+import { Combo } from './inputs'
 
 /** A reference person: someone in the system, or a person written by hand (outside / not in the system). */
 export type RefPerson =
@@ -64,14 +65,14 @@ export function PersonPicker({ value, onChange, exclude }: { value: RefPerson | 
       <button type="button" className={mode === 'manual' ? 'on' : ''} onClick={() => setMode('manual')}>নিজে লিখুন</button>
     </div>
     {mode === 'list' && <div className="hr-form pp-form">
-      <Field label="হাব"><select value={hub} onChange={e => { setHub(e.target.value); setPos('') }}><option value="">বেছে নিন…</option>
-        {o.data?.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+      <Field label="হাব"><Combo value={hub} onChange={v => { setHub(v); setPos('') }} options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
       <Field label="পদ"><select value={pos} disabled={!hub} onChange={e => setPos(e.target.value)}><option value="">সব পদ</option>
         {o.data?.positions.filter(p => !posInHub || p.id === pos || posInHub.has(p.id)).map(p => <option key={p.id} value={p.id}>{p.name} ({people?.filter(x => x.position_id === p.id).length ?? 0})</option>)}</select></Field>
-      <Field label="নাম" wide><select value={value?.kind === 'employee' ? value.id : ''} disabled={!hub || !people}
-        onChange={e => { const p = people?.find(x => x.id === e.target.value); if (p) pick(p) }}>
-        <option value="">{!hub ? 'আগে হাব বাছুন' : !people ? 'লোড হচ্ছে…' : shown.length ? `বেছে নিন… (${shown.length} জন)` : 'কাউকে পাওয়া যায়নি'}</option>
-        {shown.map(p => <option key={p.id} value={p.id}>{p.full_name}{p.employee_code ? ` · #${p.employee_code}` : ''}{!pos && p.position_id ? ` · ${posName(p.position_id)}` : ''}</option>)}</select></Field>
+      <Field label="নাম" wide><Combo value={value?.kind === 'employee' ? value.id : ''} disabled={!hub || !people} clearable={false}
+        onChange={v => { const p = people?.find(x => x.id === v); if (p) pick(p) }}
+        placeholder={!hub ? 'আগে হাব বাছুন' : !people ? 'লোড হচ্ছে…' : shown.length ? `নাম, আইডি বা মোবাইল লিখে খুঁজুন… (${shown.length} জন)` : 'কাউকে পাওয়া যায়নি'}
+        options={shown.map(p => ({ value: p.id, label: p.full_name, keywords: p.mobile ?? '',
+          sub: [p.employee_code && `#${p.employee_code}`, !pos && p.position_id ? posName(p.position_id) : ''].filter(Boolean).join(' · ') }))} /></Field>
     </div>}
     {mode === 'id' && <Field label="এমপ্লয়ি আইডি" hint={found === 'none' ? <span className="bad">এই আইডির কাউকে পাওয়া যায়নি</span> : 'আইডি লিখলে নিজে খুঁজে নেবে'}>
       <input inputMode="numeric" value={code} onChange={e => setCode(e.target.value)} placeholder="যেমন 10086" /></Field>}
