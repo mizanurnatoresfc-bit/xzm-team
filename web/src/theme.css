@@ -1221,3 +1221,14 @@ button.chip-toggle:hover:not(:disabled){background:var(--primary-50);border-colo
 .dv-bulk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border-radius:12px;background:var(--primary-50);border:1px solid color-mix(in srgb,var(--primary) 30%,var(--border))}
 .dv-bulk strong{margin-right:4px}
 @media (max-width:700px){.emp-board .emp-search{flex-basis:100%}.emp-board .eb-filters .da-field{flex:1 1 100%}}
+
+/* ---- নদী: attendance gaps ---- */
+.nodi-gaps .ng-head,.za-intro{display:flex;align-items:center;gap:12px}
+.nodi-gaps .ng-head{margin-bottom:10px}
+.za-intro p{margin:0;color:var(--muted);font-size:14px}
+.nodi-gaps .ng-days{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.nodi-gaps .ng-past{margin-top:10px;font-size:13.5px}
+.nodi-gaps .ng-past ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
+.za-hubs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.za-hub{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);min-height:0;box-shadow:none;font-weight:500}
+.za-hub:hover:not(:disabled),.za-hub.on{background:var(--primary-50);border-color:var(--primary);color:var(--text)}
