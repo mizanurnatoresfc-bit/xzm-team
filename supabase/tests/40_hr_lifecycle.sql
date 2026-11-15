@@ -129,9 +129,9 @@ select tests.throws(format($$select * from public.hr_reveal_sensitive(%L, 'audit
 
 -- ---------- transfer ----------
 select tests.login(tests.id('zonal_a'));
-select tests.throws(format($$select public.hr_transfer_employee(%L, %L, %L, %L, null, current_date, 'Need staff')$$,
+select tests.throws(format($$select public.hr_transfer_employee(%L, %L, %L, %L, null, current_date, 'Need staff', 'promotion')$$,
                            tests.id('app1'), tests.id('hub_a2'), tests.id('dept_ops'), tests.id('pos_rider')),
-                    'zonal manager without HR edit cannot transfer', '42501');
+                    'zonal manager without HR edit cannot promote (plain hub moves are allowed, see 99q)', '42501');
 select tests.login(tests.id('hr'));
 select tests.throws(format($$select public.hr_transfer_employee(%L, %L, %L, %L, null, current_date, '')$$,
                            tests.id('app1'), tests.id('hub_b1'), tests.id('dept_ops'), tests.id('pos_rider')),

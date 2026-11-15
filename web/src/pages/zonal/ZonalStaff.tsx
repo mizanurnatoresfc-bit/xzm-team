@@ -22,6 +22,7 @@ export function ZonalStaff() {
   const [zone, setZone] = useState('')
   const [hub, setHub] = useState<HubSummary | null>(null)
   const [newApp, setNewApp] = useState(false)
+  const [move, setMove] = useState(false)
   const hubs = useLoad(() => staffAdmin.hubSummary(zone || null), [zone])
   const rows = hubs.data ?? []
   const sum = (k: keyof HubSummary) => rows.reduce((a, r) => a + (r[k] as number), 0)
@@ -30,6 +31,7 @@ export function ZonalStaff() {
     subtitle={L('হাব অনুযায়ী কর্মীর হিসাব। একটা হাবে চাপলে সেই হাবের কর্মীদের তালিকা আর কাজগুলো নিচে আসবে।',
       'Staff hub by hub. Tap a hub to see its staff and the actions below.')}
     actions={<><ExportByFormat zone={zone || null} hub={hub?.hub_id ?? null} title={L('কর্মী তালিকা', 'Staff list')} />
+      {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary" onClick={() => setMove(true)}>⇄ {L('হাব বদলি', 'Hub transfer')}</button>}
       {can('hr.application.create') && <button onClick={() => setNewApp(true)}>+ {L('নতুন কর্মী', 'New employee')}</button>}</>}>
     {node}
     <div className="da-stats">
@@ -65,6 +67,7 @@ export function ZonalStaff() {
     </section>
 
     {hub && <HubStaff hub={hub} onToast={m => { toast(m); void hubs.reload() }} onClose={() => setHub(null)} onOpen={id => nav(`/app/hr/employees/${id}`)} />}
+    {move && <QuickTransfer onClose={() => setMove(false)} onDone={m => { setMove(false); toast(m); void hubs.reload() }} />}
     {newApp && <NewApplication onClose={() => setNewApp(false)} onDone={id => { toast(L('আবেদন খোলা হয়েছে — বাকি তথ্য দিয়ে সাবমিট করুন', 'Application opened — fill in the rest and submit')); nav(`/app/hr/employees/${id}`) }} />}
   </AppShell>
 }
@@ -86,6 +89,7 @@ function HubStaff({ hub, onToast, onClose, onOpen }: {
   const chosen = useMemo(() => staff.filter(e => picked.has(e.id)), [staff, picked])
   const toggle = (id: string) => setPicked(p => { const s = new Set(p); s.has(id) ? s.delete(id) : s.add(id); return s })
   const done = (m: string) => { setAct(null); setPicked(new Set()); onToast(m); void list.reload() }
+  const canMove = can('hr.employee.edit') || can('hr.transfer.edit')
 
   return <section className="panel">
     <div className="da-bar"><h2 style={{ margin: 0 }}>{hub.hub_name} <span className="muted small">{hub.zone_name}</span></h2>
@@ -101,7 +105,7 @@ function HubStaff({ hub, onToast, onClose, onOpen }: {
     {picked.size > 0 && <div className="notice" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       <strong>{n(picked.size)} {L('জন বাছাই করা', 'selected')}</strong>
       {can('hr.employee.edit') && <button className="sm" onClick={() => setAct('status')}>{L('সক্রিয় / নিষ্ক্রিয় করুন', 'Active / inactive')}</button>}
-      {can('hr.employee.edit') && <button className="sm" onClick={() => setAct('transfer')}>{L('অন্য হাবে বদলি', 'Transfer to another hub')}</button>}
+      {canMove && <button className="sm" onClick={() => setAct('transfer')}>{L('অন্য হাবে বদলি', 'Transfer to another hub')}</button>}
       {can('hr.application.approve') && <button className="sm" onClick={() => setAct('ids')}>{L('এমপ্লয়ি আইডি দিন', 'Give Employee IDs')}</button>}
       {can('hr.employee.archive') && <button className="sm danger" onClick={() => setAct('archive')}>{L('তালিকা থেকে সরান', 'Remove from the list')}</button>}
       <button className="secondary sm" onClick={() => setPicked(new Set())}>{L('বাছাই মুছুন', 'Clear')}</button>
@@ -119,7 +123,9 @@ function HubStaff({ hub, onToast, onClose, onOpen }: {
         { key: 'pos', label: L('পদবি', 'Position'), value: e => e.position_id ? o.names.pos[e.position_id] ?? '' : '' },
         { key: 'join', label: L('যোগদান', 'Joined'), value: e => dmy(e.joining_date) },
         { key: 'status', label: L('অবস্থা', 'Status'), value: e => EMP_STATUS[e.status]?.[0] ?? e.status, render: e => <EmpBadge status={e.status} /> },
-        { key: 'open', label: '', noExport: true, render: e => <button className="secondary sm" onClick={ev => { ev.stopPropagation(); onOpen(e.id) }}>{L('বিস্তারিত', 'Details')}</button> },
+        { key: 'open', label: '', noExport: true, render: e => <span className="row-acts">
+            {canMove && e.status === 'active' && <button className="sm" onClick={ev => { ev.stopPropagation(); setPicked(new Set([e.id])); setAct('transfer') }}>{L('বদলি', 'Transfer')}</button>}
+            <button className="secondary sm" onClick={ev => { ev.stopPropagation(); onOpen(e.id) }}>{L('বিস্তারিত', 'Details')}</button></span> },
       ]} />
 
     {act === 'status' && <StatusAction list={chosen} onClose={() => setAct(null)} onDone={done} />}
@@ -176,6 +182,34 @@ function StatusAction({ list, onClose, onDone }: { list: Employee[]; onClose: ()
     {targets.length !== list.length && <p className="notice">{L(`বাছাই করা ${n(list.length)} জনের মধ্যে ${n(targets.length)} জনের অবস্থা বদলাবে, বাকিরা আগেই ওই অবস্থায় আছেন বা আবেদনকারী।`,
       `${targets.length} of ${list.length} will change; the rest are already in that state or are applicants.`)}</p>}
     {err && <p className="da-error">{err}</p>}
+  </Modal>
+}
+
+/** Hub transfer from the top of the zonal panel: find people by ID, name or mobile, then move them. */
+function QuickTransfer({ onClose, onDone }: { onClose: () => void; onDone: (m: string) => void }) {
+  const { L } = usePrefs()
+  const o = useOrg()
+  const [q, setQ] = useState('')
+  const [picked, setPicked] = useState<Employee[]>([])
+  const [next, setNext] = useState(false)
+  const found = useLoad(() => q.trim().length >= 2 ? hr.employees({ q: q.trim(), status: 'active', limit: 20 }) : Promise.resolve([] as Employee[]), [q])
+  const has = (e: Employee) => picked.some(x => x.id === e.id)
+  const fromHubs = new Set(picked.map(e => e.hub_id))
+  if (next) return <TransferAction list={picked} hubs={(o.data?.hubs ?? []).filter(h => !(fromHubs.size === 1 && fromHubs.has(h.id)))} onClose={onClose} onDone={onDone} />
+  return <Modal title={L('হাব বদলি — কর্মী বাছুন', 'Hub transfer — choose staff')} onClose={onClose}
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button>
+      <button disabled={!picked.length} onClick={() => setNext(true)}>{L('পরের ধাপ', 'Next')} ({picked.length})</button></>}>
+    <Field label={L('খুঁজুন', 'Search')} hint={L('এমপ্লয়ি আইডি, নাম বা মোবাইল — শুধু সক্রিয় কর্মী', 'Employee ID, name or mobile — active staff only')}>
+      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={L('যেমন 1234 বা রহিম', 'e.g. 1234 or Rahim')} /></Field>
+    {picked.length > 0 && <div className="focus-pick" style={{ margin: '8px 0' }}>{picked.map(e =>
+      <button key={e.id} type="button" className="secondary sm" onClick={() => setPicked(p => p.filter(x => x.id !== e.id))}>{e.full_name} ✕</button>)}</div>}
+    {found.error ? <p className="da-error">{hrFriendly(found.error)}</p> : null}
+    <ul className="duty-list">{(found.data ?? []).map(e => <li key={e.id} className="duty" style={{ cursor: 'pointer' }}
+        onClick={() => setPicked(p => has(e) ? p.filter(x => x.id !== e.id) : [...p, e])}>
+      <input type="checkbox" style={{ width: 'auto' }} readOnly checked={has(e)} />
+      <div style={{ flex: 1, minWidth: 0 }}><b>{e.full_name}</b> {e.employee_code && <span className="muted">#{e.employee_code}</span>}
+        <div className="muted small">{e.hub_id ? o.names.hub[e.hub_id] ?? '' : ''}{e.position_id ? ` · ${o.names.pos[e.position_id] ?? ''}` : ''}</div></div></li>)}
+      {q.trim().length >= 2 && !found.loading && !found.data?.length && <li className="muted">{L('কাউকে পাওয়া যায়নি', 'Nobody found')}</li>}</ul>
   </Modal>
 }
 

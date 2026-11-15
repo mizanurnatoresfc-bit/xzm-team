@@ -283,7 +283,7 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
       <div className="da-bar"><h2 style={{ margin: 0 }}>তথ্য</h2>
         {!e.archived_at && e.status !== 'applicant' && <div className="row">
           {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('edit')}>সম্পাদনা</button>}
-          {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
+          {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
           {(can('hr.employee.edit') || can('hr.employee.approve')) && <button className="secondary sm" onClick={() => open('status')}>অবস্থা পরিবর্তন</button>}
           {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('archive')}>আর্কাইভ</button>}</div>}</div>
       <div className="info-grid">
