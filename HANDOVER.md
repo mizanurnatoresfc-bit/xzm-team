@@ -158,3 +158,19 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   fields, hand over by ID showing the person's hub and whether the vehicle will move, take back, history, remove), logs (fuel/service/repair entry with
   litres→amount hint from fuel price, km/L, service due), docs (cards with days left, photo/PDF upload with camera, "not recorded" hint), reports
   (per vehicle × kind, ৳/km, quick ranges), settings. Menu group "গাড়ি ম্যানেজমেন্ট"; quick action "গাড়ির তেল / খরচ".
+
+## 2026-11-15 — Vehicle operations: crew, served hubs, fuel approval → sheet, requisitions, day log
+- Migration `20261115001000_vehicle_ops.sql` (applied to dev in chunks — the MCP client blocks statements containing `drop`/`delete from`; the file is the source of truth):
+  `vehicle_assignments.role` (driver | helper; one of each at a time; only a DRIVER hand-over moves the vehicle's hub). `vehicle_hubs` = extra hubs a big
+  vehicle works for: their managers see the vehicle, its requisitions and ONLY fuel/charge costs (`vehicle_served_perm`). `vehicle_logs.status`
+  (submitted/approved/rejected), `slip_path`, `day_log_id`, new kind `charge`. Crew writes fuel → `submitted` + managers notified (`vehicle.log.approve`)
+  → `vehicle_log_decide` → `vehicle_log_to_sheet(log, hub?, date?)` creates the `da_expenses` line (kind transport, category fuel/repair/transport)
+  on that day's sheet (starts the sheet if needed) and links the vehicle. `vehicle_requisitions` (VR-00001…; open → accepted → started → done /
+  rejected / cancelled; events table; notifications to crew + managers; `vehicle.requisition.view/create/approve`). `vehicle_day_logs` (one per vehicle
+  per day: charged?, place, cost, out/in, km, trips, `data` from `vehicle.day_format`); a charge cost creates/updates a linked `charge` vehicle_log.
+  Settings `vehicle.requisition_format` / `vehicle.day_format` = field lists (text/number/date/phone/textarea/select) edited in Vehicle settings.
+- Page tabs: আমার গাড়ি (`/app/vehicles/mine`, visible to any crew member: fuel submit with slip photo, day log, my jobs, my lines with status),
+  গাড়ি লাগবে (`/requests`, cards; accept assigns a vehicle if none; crew: আমি যাব / রওনা / শেষ), দিনের খাতা (`/daily`). List shows driver + helper +
+  served hubs (checkbox chips in the edit form). Logs tab: status badge, slip, অনুমোদন / না / খাতায় তুলুন. Overview: pending-approval panel.
+- Decisions (owner, 15 Nov): fuel goes on the sheet only after manager approval; the day log is the driver's job but a manager may write it; served-hub
+  managers see fuel/charge costs only, no cost split between hubs.

@@ -45,8 +45,11 @@ const GROUPS: Group[] = [
   ] },
   { key: 'vehicles', icon: 'truck', bn: 'গাড়ি ম্যানেজমেন্ট', en: 'Vehicle Management', items: [
     { to: '/app/vehicles/overview', icon: 'dash', bn: 'গাড়ির অবস্থা', en: 'Fleet overview', perms: ['vehicle.vehicle.view', 'da.sheet.view'] },
-    { to: '/app/vehicles/list', icon: 'truck', bn: 'গাড়ির তালিকা ও কার নামে', en: 'Vehicles & holders', perms: ['vehicle.vehicle.view', 'vehicle.vehicle.create', 'da.sheet.view'] },
+    { to: '/app/vehicles/mine', icon: 'user', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
+    { to: '/app/vehicles/list', icon: 'truck', bn: 'গাড়ির তালিকা, ড্রাইভার ও হেল্পার', en: 'Vehicles & crew', perms: ['vehicle.vehicle.view', 'vehicle.vehicle.create', 'da.sheet.view'] },
     { to: '/app/vehicles/logs', icon: 'cash', bn: 'তেল / সার্ভিস / মেরামত', en: 'Fuel, service & repairs', perms: ['vehicle.log.view', 'vehicle.log.create', 'da.sheet.view'] },
+    { to: '/app/vehicles/requests', icon: 'form', bn: 'গাড়ি লাগবে (রিকুইজিশন)', en: 'Requisitions', perms: ['vehicle.requisition.view', 'vehicle.requisition.create', 'vehicle.requisition.approve'] },
+    { to: '/app/vehicles/daily', icon: 'cal', bn: 'দিনের খাতা (অটো / চার্জ)', en: 'Day log (autos)', perms: ['vehicle.log.view', 'vehicle.log.create', 'da.sheet.view'] },
     { to: '/app/vehicles/docs', icon: 'doc', bn: 'কাগজপত্র ও মেয়াদ', en: 'Papers & expiry', perms: ['vehicle.vehicle.view', 'vehicle.document.edit', 'da.sheet.view'] },
     { to: '/app/vehicles/reports', icon: 'chart', bn: 'গাড়ির খরচের রিপোর্ট', en: 'Vehicle cost report', perms: ['vehicle.log.view', 'vehicle.vehicle.view', 'da.sheet.view'] },
     { to: '/app/vehicles/settings', icon: 'gear', bn: 'গাড়ি সেটিংস', en: 'Vehicle settings', perms: ['vehicle.settings.configure'] },
@@ -183,6 +186,8 @@ const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: st
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },
   { to: '/app/sorting/fuel', icon: 'cash', bn: 'তেলের রিকুয়েস্ট', en: 'Fuel request', perms: ['sorting.fuel.create'], tone: 'r' },
   { to: '/app/vehicles/logs', icon: 'truck', bn: 'গাড়ির তেল / খরচ', en: 'Vehicle fuel / cost', perms: ['vehicle.log.create'], tone: 'o' },
+  { to: '/app/vehicles/mine', icon: 'cash', bn: 'তেল তুলেছি', en: 'Fuel filled', perms: null, tone: 'g' },
+  { to: '/app/vehicles/requests', icon: 'truck', bn: 'গাড়ি লাগবে', en: 'Need a vehicle', perms: ['vehicle.requisition.create'], tone: 'b' },
   { to: '/app/zonal/staff', icon: 'user', bn: 'নতুন কর্মী', en: 'New staff', perms: ['hr.application.create'], tone: 'p' },
   { to: '/app/office/assets', icon: 'grid', bn: 'অফিস রিসোর্স', en: 'Office item', perms: ['office.asset.edit'], tone: 'b' },
 ]
