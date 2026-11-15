@@ -1,0 +1,25 @@
+# QA only: builds web/ and stores dist on branch qa-dist so the app can be tested offline.
+# Runs only on the qa branch; does not deploy anything.
+name: QA dist
+on:
+  push:
+    branches: [qa]
+permissions:
+  contents: write
+jobs:
+  dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Build
+        working-directory: web
+        run: npm install --no-audit --no-fund && npm run build
+      - name: Store dist on qa-dist
+        run: |
+          cd web/dist
+          git init -q && git checkout -q -b qa-dist
+          git config user.email "qa@local" && git config user.name "qa"
+          git add -A && git commit -qm "dist ${GITHUB_SHA}"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" qa-dist
