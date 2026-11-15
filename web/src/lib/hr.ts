@@ -107,13 +107,13 @@ export const org = {
   hubs: (archived = false) => list<Hub>('hubs', 'name', archived),
   departments: (archived = false) => list<Department>('departments', 'name', archived),
   positions: (archived = false) => list<Position>('positions', 'name', archived),
-  insert: async (table: 'organizations' | 'zones' | 'hubs' | 'departments' | 'positions', row: Record<string, unknown>) => {
+  insert: async (table: 'organizations' | 'regions' | 'zones' | 'hubs' | 'departments' | 'positions', row: Record<string, unknown>) => {
     const { error } = await supabase.from(table).insert(row); fail(error)
   },
-  update: async (table: 'organizations' | 'zones' | 'hubs' | 'departments' | 'positions', id: string, row: Record<string, unknown>) => {
+  update: async (table: 'organizations' | 'regions' | 'zones' | 'hubs' | 'departments' | 'positions', id: string, row: Record<string, unknown>) => {
     const { error } = await supabase.from(table).update(row).eq('id', id); fail(error)
   },
-  archive: (table: 'zones' | 'hubs' | 'departments' | 'positions', id: string, reason: string) =>
+  archive: (table: 'regions' | 'zones' | 'hubs' | 'departments' | 'positions', id: string, reason: string) =>
     rpc<void>('archive_org_unit', { p_table: table, p_id: id, p_reason: reason }),
 }
 

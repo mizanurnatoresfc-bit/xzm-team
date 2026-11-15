@@ -19,7 +19,7 @@ export function Formats({ toast }: { toast: (m: string) => void }) {
   const [edit, setEdit] = useState<Partial<Format> | null>(null)
   const [drop, setDrop] = useState<Format | null>(null)
   const globalRight = grants.some(g => (g.is_super || g.permission_code === 'hr.profile_field.configure') && g.scope_type === 'global')
-  const zoneName = (z: string | null) => z ? o.names.zone[z] ?? L('অন্য জোন', 'Other zone') : L('পুরো কোম্পানি', 'Whole company')
+  const zoneName = (z: string | null) => z ? o.names.zone[z] ?? L('অন্য এরিয়া', 'Other area') : L('পুরো কোম্পানি', 'Whole company')
   const mayEdit = (f: Format) => f.zone_id ? can('hr.profile_field.configure') : globalRight
 
   return <section className="panel">
@@ -111,7 +111,7 @@ function FormatEditor({ f, custom, canGlobal, zones, onClose, onDone }: {
         <option value="import">{L('শুধু ইমপোর্ট', 'Import only')}</option></select></Field>
       <Field label={L('কার জন্য', 'For')}><select value={zone} onChange={e => setZone(e.target.value)}>
         {canGlobal && <option value="">{L('পুরো কোম্পানি', 'Whole company')}</option>}
-        {zones.map(z => <option key={z.id} value={z.id}>{L('শুধু জোন: ', 'Zone only: ')}{z.name}</option>)}</select></Field>
+        {zones.map(z => <option key={z.id} value={z.id}>{L('শুধু এরিয়া: ', 'Area only: ')}{z.name}</option>)}</select></Field>
       <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={isDefault} onChange={e => setIsDefault(e.target.checked)} />
         {L('এটাই ডিফল্ট ফরম্যাট', 'Make this the default')}</label>
     </div>

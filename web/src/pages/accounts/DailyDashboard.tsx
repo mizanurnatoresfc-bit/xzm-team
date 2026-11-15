@@ -71,7 +71,7 @@ export function DailyDashboard() {
 
     <section className="panel">
       <div className="da-bar no-print">
-        <input type="search" className="da-search" placeholder="খুঁজুন: নং, হাব, জোন, নাম…" value={q} onChange={e => setQ(e.target.value)} aria-label="খুঁজুন" />
+        <input type="search" className="da-search" placeholder="খুঁজুন: নং, হাব, এরিয়া, নাম…" value={q} onChange={e => setQ(e.target.value)} aria-label="খুঁজুন" />
         <div className="da-seg" role="group" aria-label="View">
           <button className={view === 'table' ? '' : 'secondary'} onClick={() => setView('table')}>টেবিল</button>
           <button className={view === 'cards' ? '' : 'secondary'} onClick={() => setView('cards')}>কার্ড</button>

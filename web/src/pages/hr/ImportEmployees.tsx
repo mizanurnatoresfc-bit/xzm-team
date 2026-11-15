@@ -212,14 +212,14 @@ function BatchView({ id, onClose, toast }: { id: string; onClose: () => void; to
         <strong>{L('এগুলো সিস্টেমে নেই:', 'Not in the system yet:')}</strong>
         <ul style={{ margin: '6px 0' }}>{missing.map(m => <li key={m.kind + m.name}>{m.kind === 'hub' ? L('হাব', 'Hub') : m.kind === 'position' ? L('পদবি', 'Position') : L('বিভাগ', 'Department')}: <strong>{m.name}</strong> <span className="muted small">({n(m.row_count)} {L('সারি', 'rows')})</span></li>)}</ul>
         <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          {missing.some(m => m.kind === 'hub') && <Field label={L('নতুন হাবগুলো কোন জোনে', 'Zone for new hubs')}><select value={zone} onChange={e => setZone(e.target.value)}>
+          {missing.some(m => m.kind === 'hub') && <Field label={L('নতুন হাবগুলো কোন এরিয়াে', 'Area for new hubs')}><select value={zone} onChange={e => setZone(e.target.value)}>
             <option value="">{L('বেছে নিন…', 'Choose…')}</option>{o.data?.zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
           {missing.some(m => m.kind === 'position') && <Field label={L('নতুন পদবিগুলো কোন বিভাগে (ঐচ্ছিক)', 'Department for new positions (optional)')}><select value={dept} onChange={e => setDept(e.target.value)}>
             <option value="">—</option>{o.data?.departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></Field>}
         </div>
         <button disabled={busy} onClick={() => void act(async () => { await importer.createMissing(id, zone || null, dept || null); await revalidate() }, L('নতুন হাব/পদবি তৈরি হয়ে আবার যাচাই হয়েছে', 'Created and checked again'))}>
           {L('এগুলো তৈরি করে আবার যাচাই করুন', 'Create these and check again')}</button>
-        {o.data && !o.data.zones.length && missing.some(m => m.kind === 'hub') && <p className="small" style={{ marginBottom: 0 }}>{L('আগে “জোন, হাব ও পদ” পাতায় অন্তত একটি জোন বানান।', 'First create at least one zone on “Zones, hubs & posts”.')}</p>}
+        {o.data && !o.data.zones.length && missing.some(m => m.kind === 'hub') && <p className="small" style={{ marginBottom: 0 }}>{L('আগে “এরিয়া, হাব ও পদ” পাতায় অন্তত একটি এরিয়া বানান।', 'First create at least one zone on “Zones, hubs & posts”.')}</p>}
       </div>}
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>

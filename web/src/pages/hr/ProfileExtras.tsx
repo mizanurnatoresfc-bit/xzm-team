@@ -27,7 +27,7 @@ export function ExtraFields({ employee, zoneId, self = false, onSaved }: { emplo
     {sections.map(s => <div key={s.id}>
       <h3>{lang === 'bn' && s.name_bn ? s.name_bn : s.name}</h3>
       <dl className="hr-kv">{visible.filter(f => f.section_id === s.id).map(f => <span key={f.id} style={{ display: 'contents' }}>
-        <dt>{lang === 'bn' && f.label_bn ? f.label_bn : f.label}{f.zone_id ? <span className="muted small"> · {L('জোন', 'zone')}</span> : null}</dt>
+        <dt>{lang === 'bn' && f.label_bn ? f.label_bn : f.label}{f.zone_id ? <span className="muted small"> · {L('এরিয়া', 'area')}</span> : null}</dt>
         <dd>{showValue(f, vals.get(f.id), lang)}</dd></span>)}</dl>
     </div>)}
     {edit && <EditValues employee={employee} list={editable} values={vals} onClose={() => setEdit(false)}

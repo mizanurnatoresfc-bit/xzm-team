@@ -151,7 +151,7 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   async function save() {
     if (!f) return
-    if (!f.name?.trim() || !f.zone_id) return setErr(L('নাম ও জোন দিন', 'Give name and zone'))
+    if (!f.name?.trim() || !f.zone_id) return setErr(L('নাম ও এরিয়া দিন', 'Give name and area'))
     setBusy(true); setErr('')
     try {
       await office.saveProperty({ code: autoCode(f.name, f.code), name: f.name.trim(), kind: f.kind ?? 'office', zone_id: f.zone_id, hub_id: f.hub_id || null,
@@ -188,7 +188,7 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
         <Field label={L('ধরন', 'Kind')}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Property['kind'] })}>
           <option value="office">{L('অফিস', 'Office')}</option><option value="residence">{L('আবাসিক (ফ্ল্যাট / মেস)', 'Residence (flat / mess)')}</option></select></Field>
         <Field label={L('নাম', 'Name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
-        <Field label={L('জোন', 'Zone')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value, hub_id: null })}>
+        <Field label={L('এরিয়া', 'Area')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value, hub_id: null })}>
           {o.data?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
         <Field label={L('হাব (ইচ্ছা হলে)', 'Hub (optional)')}><select value={f.hub_id ?? ''} onChange={e => setF({ ...f, hub_id: e.target.value || null })}><option value="">—</option>
           {o.data?.hubs.filter(h => !h.archived_at && h.zone_id === f.zone_id).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>

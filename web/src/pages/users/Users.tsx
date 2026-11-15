@@ -29,7 +29,7 @@ export function Users() {
   }), [list.data, q, st])
   const all = list.data ?? []
   return <AppShell title={L('ইউজার ও রোল', 'Users & roles')}
-    subtitle={L('কে লগইন করতে পারবে, আর কোন জোন/হাবে কী কাজ করতে পারবে — এখান থেকে ঠিক করুন।', 'Decide who can sign in, and what they may do in which zone or hub.')}
+    subtitle={L('কে লগইন করতে পারবে, আর কোন এরিয়া/হাবে কী কাজ করতে পারবে — এখান থেকে ঠিক করুন।', 'Decide who can sign in, and what they may do in which zone or hub.')}
     actions={can('system.user.create') ? <button onClick={() => setOpen(true)}>+ {L('নতুন লগইন অ্যাকাউন্ট', 'New login account')}</button> : null}>
     <div className="da-stats">
       <Stat icon="users" label={L('মোট অ্যাকাউন্ট', 'Accounts')} value={n(all.length)} />

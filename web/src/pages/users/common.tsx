@@ -26,7 +26,7 @@ export function RoleScopePicker({ value, onChange }: { value: RolePick; onChange
       <select value={value.scope} onChange={e => set({ scope: e.target.value as Scope, zone: '', hub: '', role: '' })}>
         {(Object.keys(SCOPE_LABEL) as Scope[]).map(s => <option key={s} value={s}>{L(...SCOPE_LABEL[s])}</option>)}
       </select></Field>
-    {value.scope === 'zone' && <Field label={L('জোন', 'Zone')}><select value={value.zone} onChange={e => set({ zone: e.target.value, role: '' })}>
+    {value.scope === 'zone' && <Field label={L('এরিয়া', 'Area')}><select value={value.zone} onChange={e => set({ zone: e.target.value, role: '' })}>
       <option value="">{L('বেছে নিন…', 'Choose…')}</option>{o.data?.zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
     {value.scope === 'hub' && <Field label={L('হাব', 'Hub')}><select value={value.hub} onChange={e => set({ hub: e.target.value, role: '' })}>
       <option value="">{L('বেছে নিন…', 'Choose…')}</option>{o.data?.hubs.map(h => <option key={h.id} value={h.id}>{h.name}{o.names.zone[h.zone_id] ? ` · ${o.names.zone[h.zone_id]}` : ''}</option>)}</select></Field>}
@@ -35,7 +35,7 @@ export function RoleScopePicker({ value, onChange }: { value: RolePick; onChange
         <option value="">{!ready ? L('আগে জায়গা বেছে নিন', 'Choose the place first') : !roles ? L('লোড হচ্ছে…', 'Loading…') : L('বেছে নিন…', 'Choose…')}</option>
         {roles?.map(r => <option key={r.id} value={r.id}>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</option>)}
       </select></Field>
-    {o.data && value.scope === 'hub' && !o.data.hubs.length && <p className="notice" style={{ gridColumn: '1 / -1' }}>{L('আগে “জোন, হাব ও পদ” পাতায় হাব যোগ করুন, অথবা “পুরো কোম্পানি” বেছে নিন।', 'Add a hub first on “Zones, hubs & posts”, or choose “Whole company”.')}</p>}
+    {o.data && value.scope === 'hub' && !o.data.hubs.length && <p className="notice" style={{ gridColumn: '1 / -1' }}>{L('আগে “এরিয়া, হাব ও পদ” পাতায় হাব যোগ করুন, অথবা “পুরো কোম্পানি” বেছে নিন।', 'Add a hub first on “Zones, hubs & posts”, or choose “Whole company”.')}</p>}
   </>
 }
 

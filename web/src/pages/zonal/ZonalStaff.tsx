@@ -41,8 +41,8 @@ export function ZonalStaff() {
     </div>
 
     <section className="da-filters panel no-print">
-      <Field label={L('জোন', 'Zone')}><select value={zone} onChange={e => { setZone(e.target.value); setHub(null) }}>
-        <option value="">{L('সব জোন', 'All zones')}</option>
+      <Field label={L('এরিয়া', 'Area')}><select value={zone} onChange={e => { setZone(e.target.value); setHub(null) }}>
+        <option value="">{L('সব এরিয়া', 'All areas')}</option>
         {o.data?.zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
     </section>
     {hubs.error ? <p className="da-error">{formatFriendly(hubs.error)}</p> : null}
@@ -51,7 +51,7 @@ export function ZonalStaff() {
       <div className="da-bar"><h2 style={{ margin: 0 }}>{L('হাব অনুযায়ী', 'Hub by hub')}</h2>
         {hubs.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}</div>
       <DataTable<HubSummary> title={L('হাব অনুযায়ী কর্মী', 'Staff by hub')} file="hub-staff" rows={rows} rowKey={r => r.hub_id}
-        onRowClick={r => setHub(r)} empty={<p className="muted">{L('কোনো হাব নেই। আগে “জোন, হাব ও পদ” পাতায় হাব যোগ করুন।', 'No hubs yet. Add one on “Zones, hubs & posts”.')}</p>}
+        onRowClick={r => setHub(r)} empty={<p className="muted">{L('কোনো হাব নেই। আগে “এরিয়া, হাব ও পদ” পাতায় হাব যোগ করুন।', 'No hubs yet. Add one on “Zones, hubs & posts”.')}</p>}
         cols={[
           { key: 'hub', label: L('হাব', 'Hub'), value: r => r.hub_name, render: r => <><strong>{r.hub_name}</strong><span className="sec">{r.zone_name}</span></> },
           { key: 'total', label: L('মোট', 'Total'), value: r => n(r.total) },

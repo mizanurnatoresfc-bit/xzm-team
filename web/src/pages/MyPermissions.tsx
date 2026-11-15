@@ -8,7 +8,7 @@ import { usePrefs } from '../lib/prefs'
 
 const MODULE: Record<string, [string, string, string]> = {
   hr: ['স্টাফ ম্যানেজমেন্ট', 'Staff management', 'users'], sorting: ['শটিং সেন্টার', 'Sorting center', 'truck'], office: ['অফিস ম্যানেজমেন্ট', 'Office', 'home'], da: ['হিসাব ম্যানেজমেন্ট', 'Accounts', 'book'], ops: ['অপারেশন ও পিকআপ', 'Operations & pickups', 'truck'],
-  zonal: ['জোনাল ও হাব', 'Zonal & hub', 'map'], org: ['জোন, হাব ও পদ', 'Zones, hubs & posts', 'org'], system: ['সিস্টেম', 'System', 'shield'],
+  zonal: ['জোনাল ও হাব', 'Zonal & hub', 'map'], org: ['এরিয়া, হাব ও পদ', 'Zones, hubs & posts', 'org'], system: ['সিস্টেম', 'System', 'shield'],
 }
 const ACTION: Record<string, [string, string]> = {
   view: ['দেখা', 'View'], create: ['যোগ', 'Add'], edit: ['এডিট', 'Edit'], archive: ['ডিলিট/আর্কাইভ', 'Delete/archive'], approve: ['অনুমোদন', 'Approve'],
@@ -43,7 +43,7 @@ export function MyPermissions() {
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [rowsSrc, q])
   const total = new Set(rowsSrc.map(g => g.permission_code).filter(Boolean)).size
-  const scopeLabel = (s: string) => s === 'global' ? L('সব জায়গা', 'Everywhere') : s === 'zone' ? L('নিজের জোন', 'Own zone') : L('নিজের হাব', 'Own hub')
+  const scopeLabel = (s: string) => s === 'global' ? L('সব জায়গা', 'Everywhere') : s === 'zone' ? L('নিজের এরিয়া', 'Own zone') : L('নিজের হাব', 'Own hub')
 
   return <AppShell title={L('আমার অনুমতি', 'My permissions')} subtitle={L('আপনার রোল যা যা করতে পারে। বদলাতে হলে সুপার অ্যাডমিনকে বলুন।', 'What your roles allow. Ask the Super Admin to change it.')}>
     {isSuper && <p className="notice">{L('আপনি সুপার অ্যাডমিন — সব জায়গায় যোগ, এডিট, সরানো ও ডিলিটের সব অনুমতি আপনার আছে। এই রোল কেউ কমাতে পারে না, আর শেষ সুপার অ্যাডমিনকে সরানো যায় না।', 'You are Super Admin — every add, edit, remove and delete permission everywhere. Nobody can reduce this role, and the last Super Admin cannot be removed.')}</p>}

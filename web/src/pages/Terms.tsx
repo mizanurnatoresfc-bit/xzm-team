@@ -33,7 +33,7 @@ const SECTIONS: Array<[string, string, Array<[string, string]>]> = [
      'Personal details such as NID, date of birth and address are kept only for employment purposes, and only people with permission to see them can.'],
   ]],
   ['কে কী দেখতে পাবেন', 'Who sees what', [
-    ['প্রত্যেকে নিজের রোল ও এলাকার (জোন/হাব) তথ্যই দেখতে পান। এই সীমা ডাটাবেসেই বসানো — পাতা বা মেনু লুকিয়ে নয়, তাই লিংক জানা থাকলেও সীমার বাইরের তথ্য আসে না।',
+    ['প্রত্যেকে নিজের রোল ও এলাকার (এরিয়া/হাব) তথ্যই দেখতে পান। এই সীমা ডাটাবেসেই বসানো — পাতা বা মেনু লুকিয়ে নয়, তাই লিংক জানা থাকলেও সীমার বাইরের তথ্য আসে না।',
      'Everyone sees the records of their own role and their own area (zone or hub). These limits sit in the database itself, not in hidden pages or menus, so knowing a link does not bring back anything beyond them.'],
     ['কোন রোল কী দেখবে ও করতে পারবে, তা ঠিক করেন সুপার অ্যাডমিন।',
      'What each role may see and do is decided by the Super Admin.'],

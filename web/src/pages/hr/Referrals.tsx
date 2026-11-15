@@ -22,7 +22,7 @@ export function Referrals() {
       <Stat icon="user" label={L('হাতে থাকা লোক', 'People in hand')} value={n(rows.reduce((a, r) => a + r.in_hand, 0))} />
     </div>
     <section className="da-filters panel no-print">
-      <Field label={L('জোন', 'Zone')}><select value={zone} onChange={e => setZone(e.target.value)}><option value="">{L('সব', 'All')}</option>{o.data?.zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
+      <Field label={L('এরিয়া', 'Area')}><select value={zone} onChange={e => setZone(e.target.value)}><option value="">{L('সব', 'All')}</option>{o.data?.zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
     </section>
     {list.error ? <p className="da-error">{extraFriendly(list.error)}</p> : null}
     <section className="panel">

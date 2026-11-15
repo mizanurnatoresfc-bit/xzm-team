@@ -173,7 +173,7 @@ function Centers({ onChange }: { onChange: () => void }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   async function save() {
     if (!f) return
-    if (!f.name?.trim() || !f.zone_id) return setErr(L('নাম ও জোন দিন', 'Give name and zone'))
+    if (!f.name?.trim() || !f.zone_id) return setErr(L('নাম ও এরিয়া দিন', 'Give name and area'))
     setBusy(true); setErr('')
     try { await sorting.saveCenter({ ...f, code: autoCode(f.name, f.code), name: f.name.trim() }, f.id); setF(null); await list.reload(); onChange(); toast(L('সেভ হয়েছে', 'Saved')) }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
@@ -191,7 +191,7 @@ function Centers({ onChange }: { onChange: () => void }) {
       empty={<p className="muted">{L('এখনো কোনো শটিং সেন্টার নেই।', 'No sorting center yet.')}</p>}
       cols={[
         { key: 'name', label: L('নাম', 'Name'), value: r => r.name, render: r => <strong>{r.name}</strong> },
-        { key: 'zone', label: L('জোন', 'Zone'), value: r => o.names.zone[r.zone_id] ?? '' },
+        { key: 'zone', label: L('এরিয়া', 'Area'), value: r => o.names.zone[r.zone_id] ?? '' },
         { key: 'phone', label: L('ফোন', 'Phone'), value: r => r.phone ?? '' },
         { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
           {can('sorting.center.edit') && <button className="secondary sm" onClick={() => { setErr(''); setF({ ...r }) }}><Icon name="edit" size={14} />{L('এডিট', 'Edit')}</button>}
@@ -201,7 +201,7 @@ function Centers({ onChange }: { onChange: () => void }) {
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Field label={L('নাম', 'Name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
-        <Field label={L('জোন', 'Zone')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value })}>
+        <Field label={L('এরিয়া', 'Area')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value })}>
           <option value="">{L('বেছে নিন…', 'Choose…')}</option>{o.data?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
         <Field label={L('ফোন', 'Phone')}><input inputMode="tel" value={f.phone ?? ''} onChange={e => setF({ ...f, phone: e.target.value })} /></Field>
         <Field label={L('ঠিকানা', 'Address')} wide><input value={f.address ?? ''} onChange={e => setF({ ...f, address: e.target.value })} /></Field>

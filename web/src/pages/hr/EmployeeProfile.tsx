@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
@@ -39,13 +39,16 @@ export function EmployeeProfile() {
   return <AppShell title="কর্মীর প্রোফাইল" subtitle="টিম">
     {node}
     <section className="emp-head">
-      <Link to="/app/hr/employees" className="emp-back"><Icon name="back" size={16} /> সব কর্মী</Link>
+      <div className="emp-cover"><Link to="/app/hr/employees" className="emp-back"><Icon name="back" size={16} /> সব কর্মী</Link></div>
       <div className="emp-top">
         <div className="emp-photo">{photo.data ? <img src={photo.data} alt="" /> : (e.full_name || '?').slice(0, 2).toUpperCase()}</div>
         <div className="emp-id">
           <h2>{e.full_name}</h2>
           <div className="emp-badges"><EmpBadge status={e.status} />{post && <span className={`role-pill${isRider ? ' rider' : ''}`}><Icon name={isRider ? 'truck' : 'user'} size={14} />{post}</span>}</div>
-          {e.mobile && <a className="emp-phone" href={`tel:${e.mobile}`}><Icon name="cc" size={16} />{e.mobile}</a>}
+          {e.mobile && <div className="emp-contact">
+            <a className="ct call" href={`tel:${e.mobile}`}><Icon name="cc" size={16} />{e.mobile}</a>
+            <a className="ct wa" href={`https://wa.me/88${e.mobile.replace(/\D/g, '').replace(/^88/, '')}`} target="_blank" rel="noreferrer">WhatsApp</a>
+            <a className="ct sms" href={`sms:${e.mobile}`}>SMS</a></div>}
           <div className="emp-hub"><Icon name="hub" size={16} />{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : 'হাব দেওয়া হয়নি'}
             {e.employee_code ? <b>#{e.employee_code}</b> : <span className="muted">আইডি বাকি</span>}</div>
         </div>
@@ -58,8 +61,8 @@ export function EmployeeProfile() {
       </div>
     </section>
     <nav className="emp-tabs" role="tablist">
-      {([['overview', 'সারসংক্ষেপ'], ['personal', 'ব্যক্তিগত'], ['docs', 'ডকুমেন্ট'], ['history', 'HR ইতিহাস']] as const).map(([k, t]) =>
-        <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{t}</button>)}
+      {([['overview', 'সারসংক্ষেপ', 'dash'], ['personal', 'ব্যক্তিগত', 'user'], ['docs', 'ডকুমেন্ট', 'file'], ['history', 'HR ইতিহাস', 'log']] as const).map(([k, t, ic]) =>
+        <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={16} />{t}</button>)}
     </nav>
     {tab === 'overview' && <>
       {e.status === 'applicant' && app.data && <section className="panel">
@@ -173,7 +176,7 @@ function DraftForm({ e, onSaved }: { e: Employee; onSaved: (m: string) => Promis
       <Field label="যোগদানের তারিখ"><input type="date" value={f.joining_date ?? ''} onChange={set('joining_date')} /></Field>
       <Field label="বিভাগ"><select value={f.department_id ?? ''} onChange={set('department_id')}><option value="">—</option>{o.data?.departments.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
       <Field label="পদবি"><select value={f.position_id ?? ''} onChange={set('position_id')}><option value="">—</option>{positions.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
-      <Field label="রিপোর্টিং ম্যানেজার" hint="জোনে প্রথম কর্মী হলে খালি রাখা যায়"><select value={f.reporting_manager_id ?? ''} onChange={set('reporting_manager_id')}><option value="">—</option>
+      <Field label="রিপোর্টিং ম্যানেজার" hint="এরিয়াে প্রথম কর্মী হলে খালি রাখা যায়"><select value={f.reporting_manager_id ?? ''} onChange={set('reporting_manager_id')}><option value="">—</option>
         {mgrs.data?.filter(m => m.id !== e.id).map(m => <option key={m.id} value={m.id}>{m.employee_code} · {m.full_name}</option>)}</select></Field>
     </div>
     <h3>ব্যক্তিগত তথ্য (গোপন — শুধু অনুমতিপ্রাপ্তরা দেখবেন)</h3>
@@ -248,17 +251,20 @@ function Details({ e, onChanged }: { e: Employee; onChanged: (m: string) => Prom
           {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
           {(can('hr.employee.edit') || can('hr.employee.approve')) && <button className="secondary sm" onClick={() => open('status')}>অবস্থা পরিবর্তন</button>}
           {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('archive')}>আর্কাইভ</button>}</div>}</div>
-      <dl className="hr-kv">
-        <dt>এমপ্লয়ি আইডি</dt><dd><strong>{e.employee_code ?? '—'}</strong></dd>
-        <dt>নাম</dt><dd>{e.full_name}{e.full_name_bn ? ` (${e.full_name_bn})` : ''}</dd>
-        <dt>মোবাইল</dt><dd>{e.mobile ?? '—'}</dd><dt>ইমেইল</dt><dd>{e.email ?? '—'}</dd>
-        <dt>হাব</dt><dd>{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : '—'}</dd>
-        <dt>বিভাগ / পদবি</dt><dd>{e.department_id ? o.names.dept[e.department_id] ?? '—' : '—'} / {e.position_id ? o.names.pos[e.position_id] ?? '—' : '—'}</dd>
-        <dt>যোগদান</dt><dd>{dmy(e.joining_date)}</dd><dt>অবস্থা</dt><dd><EmpBadge status={e.status} /> {e.status_since ? `· ${dmy(e.status_since)} থেকে` : ''}</dd>
-        <dt>জরুরি যোগাযোগ</dt><dd>{e.emergency_contact_name ?? '—'} {e.emergency_contact_phone ? `· ${e.emergency_contact_phone}` : ''}</dd>
-        <dt>NID</dt><dd>{revealed ? <>{revealed.nid_number ?? '—'} · জন্ম {dmy(revealed.date_of_birth)}<span className="sec">{revealed.present_address ?? ''}</span></> : <>{nid.data ?? '—'}
-          {can('hr.employee_sensitive.view') && <> <button className="link" onClick={() => open('reveal')}>পুরো দেখুন</button></>}</>}</dd>
-      </dl>
+      <div className="info-grid">
+        <Info icon="key" label="এমপ্লয়ি আইডি"><strong>{e.employee_code ?? '—'}</strong></Info>
+        <Info icon="user" label="নাম">{e.full_name}{e.full_name_bn ? <span className="sec">{e.full_name_bn}</span> : null}</Info>
+        <Info icon="cc" label="মোবাইল">{e.mobile ? <a href={`tel:${e.mobile}`}>{e.mobile}</a> : '—'}</Info>
+        <Info icon="form" label="ইমেইল">{e.email ?? '—'}</Info>
+        <Info icon="hub" label="হাব">{e.hub_id ? o.names.hub[e.hub_id] ?? '—' : '—'}</Info>
+        <Info icon="map" label="এরিয়া">{e.zone_id ? o.names.zone[e.zone_id] ?? '—' : '—'}</Info>
+        <Info icon="org" label="বিভাগ / পদবি">{e.department_id ? o.names.dept[e.department_id] ?? '—' : '—'} / {e.position_id ? o.names.pos[e.position_id] ?? '—' : '—'}</Info>
+        <Info icon="cal" label="যোগদান">{dmy(e.joining_date)}</Info>
+        <Info icon="check" label="অবস্থা"><EmpBadge status={e.status} /> {e.status_since ? <span className="muted small">· {dmy(e.status_since)} থেকে</span> : null}</Info>
+        <Info icon="alert" label="জরুরি যোগাযোগ">{e.emergency_contact_name ?? '—'} {e.emergency_contact_phone ? <a href={`tel:${e.emergency_contact_phone}`}>· {e.emergency_contact_phone}</a> : null}</Info>
+        <Info icon="shield" label="NID" wide>{revealed ? <>{revealed.nid_number ?? '—'} · জন্ম {dmy(revealed.date_of_birth)}<span className="sec">{revealed.present_address ?? ''}</span></> : <>{nid.data ?? '—'}
+          {can('hr.employee_sensitive.view') && <> <button className="link" onClick={() => open('reveal')}>পুরো দেখুন</button></>}</>}</Info>
+      </div>
       {bal.data && bal.data.length > 0 && <><h3>ছুটির হিসাব {bn(year)}</h3><div className="da-mini">{bal.data.map(b =>
         <span key={b.leave_type}>{b.leave_type}: বাকি <strong>{bn(b.remaining)}</strong> / {bn(b.quota)}{b.pending ? ` (অপেক্ষমাণ ${bn(b.pending)})` : ''}</span>)}</div></>}
     </section>
@@ -328,4 +334,9 @@ function History({ id }: { id: string }) {
         <Badge tone={x.status === 'approved' ? 'ok' : x.status === 'pending' ? 'warn' : 'neutral'}>{x.status === 'approved' ? 'অনুমোদিত' : x.status === 'pending' ? 'অপেক্ষমাণ' : x.status}</Badge></li>)}</ul></>}
     </section>
   </div>
+}
+
+function Info({ icon, label, children, wide }: { icon: string; label: string; children: ReactNode; wide?: boolean }) {
+  return <div className={`info-item${wide ? ' wide' : ''}`}><span className="ii-ic"><Icon name={icon} size={16} /></span>
+    <div className="ii-body"><small>{label}</small><div className="ii-val">{children}</div></div></div>
 }

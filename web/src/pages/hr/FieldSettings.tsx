@@ -22,11 +22,11 @@ export function FieldSettings() {
   const [addF, setAddF] = useState(false); const [addC, setAddC] = useState(false)
   const [archive, setArchive] = useState<{ kind: 'field' | 'column'; id: string; label: string } | null>(null)
   const global = (perm: string) => grants.some(g => (g.is_super || g.permission_code === perm) && g.scope_type === 'global')
-  const zoneName = (z: string | null) => z ? o.names.zone[z] ?? L('অন্য জোন', 'Other zone') : L('পুরো কোম্পানি', 'Whole company')
+  const zoneName = (z: string | null) => z ? o.names.zone[z] ?? L('অন্য এরিয়া', 'Other area') : L('পুরো কোম্পানি', 'Whole company')
   const lbl = (x: { label: string; label_bn: string | null }) => lang === 'bn' && x.label_bn ? x.label_bn : x.label
 
   return <AppShell title={L('প্রোফাইলের ঘর ও কলাম', 'Profile fields & columns')}
-    subtitle={L('কোম্পানির নিয়ম অনুযায়ী কর্মীর প্রোফাইলে নতুন ঘর আর রেফারেন্সের তালিকায় নতুন কলাম যোগ করুন। হেড অফিস পুরো কোম্পানির জন্য, জোনাল ম্যানেজার নিজের জোনের জন্য।',
+    subtitle={L('কোম্পানির নিয়ম অনুযায়ী কর্মীর প্রোফাইলে নতুন ঘর আর রেফারেন্সের তালিকায় নতুন কলাম যোগ করুন। হেড অফিস পুরো কোম্পানির জন্য, জোনাল ম্যানেজার নিজের এরিয়াের জন্য।',
       'Add profile fields and referral-list columns to match company policy. Head Office for the whole company, Zonal Managers for their own zone.')}>
     {node}
     {!can('hr.profile_field.configure') && !can('hr.referral.configure') && <p className="notice">{L('এই পাতা ব্যবহারের অনুমতি আপনার নেই।', 'You do not have permission to use this page.')}</p>}
@@ -123,14 +123,14 @@ function NewItem({ kind, sections, canGlobal, zones, onClose, onDone }: { kind: 
       <Field label={L('ধরন', 'Type')}><select value={f.type} onChange={e => setF({ ...f, type: e.target.value })}>{types.map(t => <option key={t} value={t}>{L(...TYPE_LABEL[t])}</option>)}</select></Field>
       <Field label={L('কার জন্য', 'For')}><select value={f.zone} onChange={e => setF({ ...f, zone: e.target.value })}>
         {canGlobal && <option value="">{L('পুরো কোম্পানি', 'Whole company')}</option>}
-        {zones.map(z => <option key={z.id} value={z.id}>{L('শুধু জোন: ', 'Zone only: ')}{z.name}</option>)}</select></Field>
+        {zones.map(z => <option key={z.id} value={z.id}>{L('শুধু এরিয়া: ', 'Area only: ')}{z.name}</option>)}</select></Field>
       {['dropdown', 'multi_select'].includes(f.type) && <Field wide label={L('বিকল্পগুলো (কমা দিয়ে)', 'Choices (comma separated)')}><input value={f.options} onChange={e => setF({ ...f, options: e.target.value })} placeholder="A+, A-, B+, B-, O+, O-, AB+, AB-" /></Field>}
       {kind === 'field' && <>
         <Field label={L('কোন অংশে', 'Section')}><select value={f.section} onChange={e => setF({ ...f, section: e.target.value })}>
           {sections.map(s => <option key={s.id} value={s.id}>{lang === 'bn' && s.name_bn ? s.name_bn : s.name}</option>)}<option value="__new">+ {L('নতুন অংশ', 'New section')}</option></select></Field>
         {f.section === '__new' && <Field label={L('নতুন অংশের নাম', 'New section name')}><input value={f.newSection} onChange={e => setF({ ...f, newSection: e.target.value })} /></Field>}
         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} disabled={!!f.zone} checked={!f.zone && f.required} onChange={e => setF({ ...f, required: e.target.checked })} />
-          {L('বাধ্যতামূলক (আইডি আবেদনে লাগবে)', 'Required (needed for ID application)')}{f.zone ? <span className="muted small"> — {L('জোনের ঘর ঐচ্ছিক', 'zone fields are optional')}</span> : null}</label>
+          {L('বাধ্যতামূলক (আইডি আবেদনে লাগবে)', 'Required (needed for ID application)')}{f.zone ? <span className="muted small"> — {L('এরিয়াের ঘর ঐচ্ছিক', 'zone fields are optional')}</span> : null}</label>
         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={f.privateField} onChange={e => setF({ ...f, privateField: e.target.checked })} />
           {L('গোপন — শুধু HR (NID দেখার অনুমতি যাঁদের) দেখবে', 'Private — only HR with sensitive-data access')}</label>
       </>}
