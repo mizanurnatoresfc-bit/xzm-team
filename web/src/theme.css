@@ -1899,3 +1899,23 @@ button.link-btn{background:none!important;border:0!important;padding:0!important
 .rq-tile .qi{width:48px;height:48px;border-radius:16px}
 .rq-tile-t b{font-size:15px}
 .chip-toggle .ic{margin-right:-2px}
+
+/* ---- phone polish (17 Nov): nothing covers a button, every tap target is a thumb's size, no text under 12px ---- */
+@media (max-width:899px){
+  /* নদী AI moves to the left and gets smaller, so it never sits on a page's own "+ new" button on the right */
+  .nodi-fab{right:auto;left:12px;transform:scale(.82);transform-origin:bottom left;opacity:.96}
+  /* lift it when a page has its own floating button too */
+  body:has(.nv-fab) .nodi-fab{bottom:calc(150px + env(safe-area-inset-bottom))}
+}
+@media (max-width:700px){
+  /* attendance: all six choices visible as a 3 × 2 grid, no hidden sideways scroll */
+  .att-table .att-btns,.att-btns{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible!important;gap:6px}
+  .att-table .att-btns button,.att-btns button{justify-content:center;min-height:38px!important;padding:6px 4px!important}
+  .btn-ghost,a.emp-back{min-height:40px}
+  .first-steps li a{display:inline-flex;align-items:center;min-height:36px}
+  .linkish{min-height:36px!important}
+  .icon-btn{min-width:36px;min-height:36px!important;display:inline-grid;place-items:center}
+  .row-acts .sm,.row-acts button.sm{min-height:36px}
+  .sp-soon,.da-stat .sub,.eyebrow,.nv-hero .sub,.osm-pin .tag{font-size:12px!important}
+  .modal-body,.da-modal{overscroll-behavior:contain}
+}

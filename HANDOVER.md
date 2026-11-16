@@ -264,3 +264,10 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   rows and columns by kind, format, hub, status, month, day, sender, reference, decided or not; filters by hub, kind, status; list columns include the formats' own fields.
   "সেভ" keeps a named report on that device (localStorage). Table and list export to Excel / PDF / print. `hrReq.between(from, to)` reads up to 5000 rows.
 - No database change.
+
+## 2026-11-17 — Phone check of every page
+- Owner: "ওয়েব এর সকল কিছু মোবাইল ফ্রেন্ডলি করো". Every route (≈85, including each hub / sorting / office section and the request tabs) was opened at 360 px
+  with sample data and measured: sideways overflow, tap targets under 32 px, text under 11.5 px. No page overflowed sideways.
+- Fixed (`theme.css`, "phone polish" block): the নদী AI bubble moves to the bottom-left and shrinks on phones (it sat on pages' own "+ new" buttons);
+  attendance choices show as a 3 × 2 grid instead of a hidden sideways scroll; small ghost / link / icon buttons get 36–40 px height; 11 px labels become 12 px.
+- Not covered by the check: pages with large real data sets (only sample rows), and dialogs opened one by one beyond the office and request ones.
