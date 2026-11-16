@@ -29,9 +29,8 @@ const ADMIN: Array<[bn: string, en: string, rows: Row[]]> = [
     ['/app/hr/import', 'upload', 'কর্মী ইমপোর্ট (Excel)', 'Import employees', ['hr.import.create']],
     ['/app/hr/requests?tab=settings', 'form', 'HR রিকুয়েস্টের ফরম্যাট', 'HR request formats', ['hr.request.configure']],
   ]],
-  ['হিসাব ও গাড়ি', 'Accounts & vehicles', [
+  ['হিসাব', 'Accounts', [
     ['/app/accounts/settings', 'gear', 'হিসাব সেটিংস (খাত, ব্যাংক চার্জ, ফিক্সড)', 'Accounts settings', ['da.settings.configure']],
-    ['/app/vehicles/settings', 'truck', 'গাড়ি সেটিংস', 'Vehicle settings', ['vehicle.settings.configure']],
   ]],
 ]
 
