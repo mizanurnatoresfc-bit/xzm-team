@@ -17,3 +17,8 @@ pgdata/
 .netlify/
 # Android app build output
 XZM-TEAM.apk
+
+# Android signing keys never go into git
+*.jks
+*.keystore
+android-signing*.txt

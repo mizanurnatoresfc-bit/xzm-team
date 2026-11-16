@@ -24,6 +24,13 @@ and site build" → Run workflow: the APK is numbered with the run number and pu
 `/download/apk.json`; installed apps then show "অ্যাপের নতুন ভার্সন — ডাউনলোড করুন". Ordinary pushes keep the published APK.
 Without internet the app shows `offline.html` with a retry button.
 
+## Signing key (so each APK installs over the last)
+The APK is signed with the app's permanent key, kept as repository secrets: `ANDROID_KEYSTORE_BASE64` (the .jks file, base64),
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`xzmteam`), `ANDROID_KEY_PASSWORD`. Created 16 Nov 2026, SHA-256 fingerprint
+`AF:73:08:29:44:FA:40:86:70:C2:15:75:32:B7:26:F5:0C:43:D1:8D:15:CE:CF:A9:8E:E5:6F:52:45:C2:61:68`. The owner keeps the key file
+and passwords safe outside git: losing them means installed apps cannot be updated (everyone reinstalls). Without the secrets
+the workflow makes a debug build and warns. The first signed APK replaces a debug one only after uninstalling the debug one.
+
 ## What the script does
 `npm install` → `npm run build` → `npx cap add android` (first time only, creates `web/android/`)
 → icons/splash from `web/assets/` (`@capacitor/assets`) → `npx cap sync android` → `gradlew assembleDebug`.

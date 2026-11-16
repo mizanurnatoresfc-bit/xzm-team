@@ -82,13 +82,32 @@ jobs:
           sed -i -E "s/versionCode [0-9]+/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"1.${GITHUB_RUN_NUMBER}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
 
+      # Signed with the app's own permanent key (repository secrets), so every new APK installs over the last one.
+      # Without the secrets it falls back to a debug build, which a phone will not take as an update of a signed one.
       - name: Build APK
         if: github.event_name == 'workflow_dispatch'
         working-directory: web/android
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/XZM-TEAM.apk"
+          if [ -n "$KS_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KEY_ALIAS" ]; then
+            ./gradlew assembleRelease --no-daemon
+            BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+            "$BT/zipalign" -f -p 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
+            "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASS \
+              --out "$GITHUB_WORKSPACE/XZM-TEAM.apk" "$RUNNER_TEMP/aligned.apk"
+            "$BT/apksigner" verify --print-certs "$GITHUB_WORKSPACE/XZM-TEAM.apk" | grep -i "SHA-256" || true
+            rm -f "$RUNNER_TEMP/release.jks"
+          else
+            echo "::warning::No signing secrets (ANDROID_KEYSTORE_BASE64 ...), so this is a debug build. Phones will not take the next signed APK as an update of it."
+            ./gradlew assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/XZM-TEAM.apk"
+          fi
 
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
