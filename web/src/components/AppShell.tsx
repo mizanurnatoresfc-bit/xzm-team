@@ -6,9 +6,10 @@ import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
 import { NodiAvatar } from './NodiAvatar'
+import { clearFresh, kindOf, markAllRead, markRead, startNotices, useNotices, type Notice as LiveNotice } from '../lib/notices'
 import { Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
-import { hrReq, type Notice } from '../lib/hrreq'
+import { hrReq } from '../lib/hrreq'
 import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 
@@ -281,7 +282,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [roles, setRoles] = useState<MyRole[]>([])
   const [photo, setPhoto] = useState<string | null>(null)
   const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0, hrreq: 0 })
-  const [notes, setNotes] = useState<Notice[]>([])
+  const nt = useNotices()
+  const notes = nt.list
   const [dview, setDview] = useState<DashView | null>(getView())
   useEffect(() => {
     const f = (e: Event) => setDview((e as CustomEvent<DashView>).detail)
@@ -291,7 +293,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
   useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user])
-  useEffect(() => { if (user) void hrReq.notices().then(setNotes).catch(() => setNotes([])) }, [user])
+  useEffect(() => { startNotices(user || null) }, [user])
+  // A new notification while the page is open: a short banner the person can tap.
+  useEffect(() => { if (!nt.fresh) return; const t = window.setTimeout(clearFresh, 6000); return () => window.clearTimeout(t) }, [nt.fresh])
   useEffect(() => {
     if (!pop) return
     const f = (e: MouseEvent) => { if (popRef.current && !popRef.current.contains(e.target as Node)) setPop(null) }
@@ -315,10 +319,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     ['/app/accounts/daily', cnt.sheets, L('হিসাব খাতা যাচাইয়ের অপেক্ষায়', 'Daily sheets waiting for verification'), 'ledger'],
     ['/app/hr/requests?tab=list', cnt.hrreq, L('HR রিকুয়েস্ট অপেক্ষমাণ', 'HR requests waiting'), 'form'],
   ] as Array<[string, number, string, string]>).filter(a => a[1] > 0)
-  const unread = notes.filter(x => !x.read_at)
-  const totalAlerts = alerts.reduce((a, x) => a + x[1], 0) + unread.length
-  function openNotice(x: Notice) {
-    setPop(null); void hrReq.markRead([x.id]); setNotes(ns => ns.map(y => y.id === x.id ? { ...y, read_at: new Date().toISOString() } : y))
+  const unreadN = nt.unread
+  const totalAlerts = alerts.reduce((a, x) => a + x[1], 0) + unreadN
+  function openNotice(x: LiveNotice) {
+    setPop(null); clearFresh(); void markRead([x.id])
     if (x.link) nav(x.link)
   }
   // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
@@ -384,10 +388,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           {pop === 'bell' && <div className="top-pop" role="menu"><div className="hd">{L('অপেক্ষমাণ কাজ', 'Waiting for you')}</div>
             {alerts.length ? alerts.map(([to, c, t, ic]) => <Link key={to} to={to} onClick={() => setPop(null)}><Icon name={ic} size={16} /><span style={{ flex: 1 }}>{t}</span><span className="count">{n(c)}</span></Link>)
               : <div className="muted small" style={{ padding: '6px 10px' }}>{L('এখন কিছু অপেক্ষমাণ নেই', 'Nothing waiting right now')}</div>}
-            {notes.length > 0 && <><div className="hd nt-hd">{L('নোটিফিকেশন', 'Notifications')}{unread.length > 0 && <button className="link small" onClick={() => { void hrReq.markRead(unread.map(x => x.id)); setNotes(ns => ns.map(y => ({ ...y, read_at: y.read_at ?? new Date().toISOString() }))) }}>{L('সব পড়া হয়েছে', 'Mark all read')}</button>}</div>
+            <><div className="hd nt-hd">{L('নোটিফিকেশন', 'Notifications')}{nt.live && <span className="nt-live" title={L('লাইভ', 'Live')} />}
+              {unreadN > 0 && <button className="link small" onClick={() => void markAllRead()}>{L('সব পড়া হয়েছে', 'Mark all read')}</button>}</div>
+              {!notes.length && <div className="muted small" style={{ padding: '6px 10px' }}>{L('কোনো নোটিফিকেশন নেই', 'No notifications')}</div>}
               <div className="nt-list">{notes.slice(0, 8).map(x => <button key={x.id} className={`nt-item${x.read_at ? '' : ' new'}`} onClick={() => openNotice(x)}>
-                <span className="nt-dot" /><span style={{ flex: 1, minWidth: 0 }}><b>{x.title}</b>{x.body && <small>{x.body}</small>}
-                <small className="muted">{new Date(x.created_at).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</small></span></button>)}</div></>}
+                <span className="nt-ic"><Icon name={kindOf(x.kind)[2]} size={15} /></span><span style={{ flex: 1, minWidth: 0 }}><b>{x.title}</b>{x.body && <small>{x.body}</small>}
+                <small className="muted">{new Date(x.created_at).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</small></span>{!x.read_at && <span className="nt-dot" />}</button>)}</div>
+              <Link to="/app/notifications" className="nt-all" onClick={() => setPop(null)}>{L('সব নোটিফিকেশন দেখুন', 'See all notifications')} →</Link></>
           </div>}
         </div>
         <button className="secondary sm hide-sm" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} aria-label="Language"><Icon name="globe" size={15} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
@@ -414,6 +421,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         {children}
       </main>
     </div>
+    {nt.fresh && <button type="button" className="nt-toast no-print" onClick={() => openNotice(nt.fresh!)} aria-live="polite">
+      <span className="nt-ic"><Icon name={kindOf(nt.fresh.kind)[2]} size={18} /></span>
+      <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
+      <span className="nt-x" role="button" aria-label={L('বন্ধ', 'Close')} onClick={e => { e.stopPropagation(); clearFresh() }}><Icon name="x" size={14} /></span></button>}
     {can('nodi.assistant.view') && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
       {(dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}

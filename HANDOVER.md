@@ -271,3 +271,13 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Fixed (`theme.css`, "phone polish" block): the নদী AI bubble moves to the bottom-left and shrinks on phones (it sat on pages' own "+ new" buttons);
   attendance choices show as a 3 × 2 grid instead of a hidden sideways scroll; small ghost / link / icon buttons get 36–40 px height; 11 px labels become 12 px.
 - Not covered by the check: pages with large real data sets (only sample rows), and dialogs opened one by one beyond the office and request ones.
+
+## 2026-11-17 — ঘণ্টা লাইভ and the notifications page
+- Migration `20261117000100_live_notifications.sql` (applied live as `live_notifications`): `notifications` joins the `supabase_realtime` publication
+  (Realtime applies the table's RLS, so each person hears only their own rows) and a partial index for unread counts.
+- `web/src/lib/notices.ts`: one shared store per signed-in person — first 30 rows + exact unread count, a Realtime channel for INSERT/UPDATE of their rows,
+  a 90 s poll and a refresh when the app comes back to the screen; stops on sign-out. A short vibration on phones that allow it.
+- Bell (AppShell): live count, an icon per kind, "সব নোটিফিকেশন দেখুন →"; a banner drops in from the top for 6 s when something new arrives (tap opens it).
+- Page `/app/notifications` (always open, like the profile): all / unread, filter by kind, grouped by day (আজ, গতকাল, …), tap opens and marks read,
+  "সব পড়া হয়েছে", "আরও দেখুন" in pages of 40. Kinds known: hr_request, issue, vehicle, office, attendance, manpower, da_reminder, nodi.
+- Not tested end-to-end with a real login (the browser check used sample rows; Realtime needs a signed-in session). Phone push (FCM) is the next step.

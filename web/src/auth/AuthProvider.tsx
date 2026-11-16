@@ -1,3 +1,4 @@
+import { stopNotices } from '../lib/notices'
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useState,
   type PropsWithChildren,
@@ -140,6 +141,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [refreshGrants])
 
   const signOut = useCallback(async () => {
+    stopNotices()
     setViewAs(null)
     const { error } = await supabase.auth.signOut()
     if (error) throw error
