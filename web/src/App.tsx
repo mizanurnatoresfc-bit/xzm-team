@@ -35,6 +35,7 @@ const ZonalDashboard = lazy(() => import('./pages/zonal/ZonalDashboard').then(m 
 const ZonalFiles = lazy(() => import('./pages/zonal/ZonalFiles').then(m => ({ default: m.ZonalFiles })))
 const Manpower = lazy(() => import('./pages/Manpower').then(m => ({ default: m.Manpower })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
+const ApprovalRules = lazy(() => import('./pages/users/ApprovalRules').then(m => ({ default: m.ApprovalRules })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
 const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
@@ -136,6 +137,9 @@ export default function App() {
       <Route path="/app/nodi/chat" element={<NodiChat />} />
       <Route path="/app/nodi" element={<NodiSettings />} />
       <Route path="/app/branding" element={<BrandingSettings />} />
+    </Route>
+    <Route element={<ProtectedRoute permission="system.approval_rule.configure" />}>
+      <Route path="/app/approval-rules" element={<ApprovalRules />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>
       <Route path="/app/accounts/reports" element={<AccountsReports />} />
