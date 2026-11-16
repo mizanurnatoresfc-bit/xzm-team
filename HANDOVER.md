@@ -245,3 +245,9 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `supabase/tests/99zzzzzz_office_ops.sql` (46). Browser smoke check of every new page with sample data (desktop and phone).
 - **To go live:** apply the migration on Supabase, deploy `nodi-ai` again, then merge to `main`. Until the migration is applied the new tabs say so.
 - Not built: bills are not pushed into the daily sheet (the sheet stays the source; a bill is tied to its line), the unit rate default (৳11) is an assumption.
+
+## 2026-11-17 — Public home in the app's look, with the motto
+- Owner: "home ui/ux android native and this text added". `pages/Home.tsx` is now one column of rounded cards (classes `nh-*` in `theme.css`): a gradient hero
+  with "Less Work, More Automation, Better Manage." and its Bangla line, three cards explaining the motto, the work list, the steps, "what it is not".
+  On a phone the login button sits in a fixed bar at the bottom. The dashboard's greeting card carries the motto too. All earlier wording is kept.
+- Fix found on the way: with the phone in dark mode and the theme on "system", the page background stayed light everywhere (a light-only rule was not limited to light).
