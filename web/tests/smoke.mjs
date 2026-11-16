@@ -468,8 +468,8 @@ try {
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
-      await page.waitForSelector('.home-tiles')
-      check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen`)
+      await page.waitForSelector('.sp-hero')
+      check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
       check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
         `${size}: a rider gets one panel only, with everything they may open inside it`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
@@ -506,7 +506,8 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 3 && sideLinks.includes('/app/accounts/khata'), `${size}: a limited role has only its pages in the menu (${sideLinks.length})`)
+    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 6 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine'].every(x => sideLinks.includes(x)),
+      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts and vehicle (${sideLinks.length})`)
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
@@ -701,6 +702,9 @@ try {
     await fits('my profile')
     // staff desk: someone who acts only for themselves gets plain words instead of format names
     plainStaff = true
+    // a staff member's home page is the staff panel
+    await page.goto(`${BASE}/app`); await page.waitForSelector('.sp .nv-row', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.sp-hero').count() === 1 && await page.locator('.bottom-nav a[href="/app/staff"]').count() === 0, `${size}: a staff member's home is the staff panel`)
     // staff panel: one screen with the person's whole day, in the owner's order
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})

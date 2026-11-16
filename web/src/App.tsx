@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from './auth/AuthProvider'
+import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { panelLevel } from './lib/menu'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import './styles.css'
@@ -78,11 +79,17 @@ if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
 
 const Loading = () => <div className="page-loading" role="status"><span className="spin" />লোড হচ্ছে…</div>
 
+/** The home page: a staff member gets the staff panel, everyone else the dashboard. */
+function HomeOrPanel() {
+  const { grants, can } = useAuth()
+  return grants.length > 0 && panelLevel(can) === 0 ? <StaffPanel /> : <Dashboard />
+}
+
 export default function App() {
   return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes>
     <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
-      <Route path="/app" element={<Dashboard />} />
+      <Route path="/app" element={<HomeOrPanel />} />
       <Route path="/app/staff" element={<StaffPanel />} />
       <Route path="/app/accounts/khata" element={<MyKhata />} />
       <Route path="/app/accounts/daily" element={<DailyDashboard />} />

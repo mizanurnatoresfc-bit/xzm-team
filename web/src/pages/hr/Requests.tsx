@@ -27,9 +27,9 @@ export function Requests() {
   const tab = (sp.get('tab') as Tab) || (sp.get('id') ? 'list' : 'new')
   const setTab = (t: Tab) => { const n = new URLSearchParams(sp); n.set('tab', t); n.delete('id'); setSp(n, { replace: true }) }
   // Staff who act only for themselves get a plain desk instead of the format picker.
-  const tabs: Array<[Tab, string, string]> = [['new', canOthers ? 'নতুন রিকুয়েস্ট' : 'স্টাফ প্যানেল', canOthers ? 'plus' : 'grid'], ['list', canDecide ? 'অনুমোদন প্যানেল' : canOthers ? 'আমার রিকুয়েস্ট' : 'আমার আবেদন', 'check'],
+  const tabs: Array<[Tab, string, string]> = [['new', canOthers ? 'নতুন রিকুয়েস্ট' : 'আবেদন করুন', canOthers ? 'plus' : 'grid'], ['list', canDecide ? 'অনুমোদন প্যানেল' : canOthers ? 'আমার রিকুয়েস্ট' : 'আমার আবেদন', 'check'],
     ['report', 'রিপোর্ট', 'chart'], ...(canConfig ? [['settings', 'ফরম্যাট সেটিং', 'gear'] as [Tab, string, string]] : [])]
-  return <AppShell title={canOthers ? 'HR ও অপারেশন রিকুয়েস্ট' : 'স্টাফ প্যানেল'} subtitle={canOthers ? 'হাব → স্টাফ → ফরম্যাট বাছুন; আগের তথ্য নিজে বসে যায়' : 'আমার প্রোফাইল, আমার লোক আর অফিসে আবেদন'}>
+  return <AppShell title={canOthers ? 'HR ও অপারেশন রিকুয়েস্ট' : 'আমার আবেদন ও আমার লোক'} subtitle={canOthers ? 'হাব → স্টাফ → ফরম্যাট বাছুন; আগের তথ্য নিজে বসে যায়' : 'আমার প্রোফাইল, আমার লোক আর অফিসে আবেদন'}>
     <div className="rq-tabs">{tabs.map(([k, l, ic]) => <button key={k} type="button" className={`rq-tab${tab === k ? ' on' : ''}`} onClick={() => setTab(k)}><Icon name={ic} size={16} />{l}</button>)}</div>
     {tab === 'new' && <NewRequest onDone={id => { const n = new URLSearchParams(); n.set('tab', 'list'); n.set('id', id); setSp(n) }} />}
     {tab === 'list' && <RequestList openId={sp.get('id')} onOpen={id => { const n = new URLSearchParams(sp); if (id) n.set('id', id); else n.delete('id'); setSp(n, { replace: true }) }} />}

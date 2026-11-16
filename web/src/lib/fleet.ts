@@ -85,6 +85,7 @@ export const VEHICLE_STATUS: Record<string, [string, 'ok' | 'warn' | 'bad' | 'ne
 }
 
 const BN: Array<[RegExp, string]> = [
+  [/Could not find the function|PGRST202|function public\.(fleet|vehicle)_\w+.*does not exist/i, 'গাড়ির নতুন অংশ ডাটাবেসে এখনো বসানো হয়নি — বসানো হলে এই পাতা চালু হবে'],
   [/has no (driver|helper)/i, 'এই ধরনের গাড়িতে এই দায়িত্ব নেই'],
   [/No active employee with ID/i, 'এই আইডির কোনো সক্রিয় কর্মী নেই'],
   [/already has this vehicle in the other role/i, 'এই কর্মী এই গাড়ির অন্য দায়িত্বে আছেন'],

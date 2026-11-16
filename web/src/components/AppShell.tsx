@@ -199,6 +199,8 @@ const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: str
 // The tab bar follows the home view: a staff member's own app, a hub manager's hub app, or the full zone app.
 type Tab = { to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }
 const HOME_TAB: Tab = { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', perms: null, match: '/app$' }
+/** A staff member's home already is the staff panel, so their tab bar has the profile in its place. */
+const PROFILE_TAB: Tab = { to: '/app/me', icon: 'user', bn: 'প্রোফাইল', en: 'Profile', perms: null, match: '/app/me' }
 const VIEW_TABS: Record<DashView, Tab[]> = {
   self: [HOME_TAB,
     { to: '/app/staff', icon: 'user', bn: 'আমার প্যানেল', en: 'My panel', perms: null, match: '/app/staff' },
@@ -406,7 +408,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     </div>
     {can('nodi.assistant.view') && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
-      {(dview ? VIEW_TABS[dview] : TABS).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
+      {(dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}
       <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => setOpen(true)}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
     </nav>
