@@ -1,4 +1,5 @@
-import { stopNotices } from '../lib/notices'
+import { removePushDevice, stopNotices } from '../lib/notices'
+import { pushToken } from '../lib/native'
 import {
   createContext, useCallback, useContext, useEffect, useMemo, useState,
   type PropsWithChildren,
@@ -142,6 +143,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     stopNotices()
+    await removePushDevice(pushToken()).catch(() => undefined)
     setViewAs(null)
     const { error } = await supabase.auth.signOut()
     if (error) throw error

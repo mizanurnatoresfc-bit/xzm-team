@@ -74,10 +74,26 @@ jobs:
       # numbered with the run number, and published with the site under /download/, where the app finds it.
       - name: Android project
         if: github.event_name == 'workflow_dispatch'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
+          # Without the Firebase file the push plugin is left out, so the app never calls Firebase uninitialised (that would crash it).
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then npm uninstall --no-audit --no-fund @capacitor/push-notifications; fi
           if [ ! -d android ]; then npx cap add android; fi
           npx -y @capacitor/assets generate --android || echo "icons skipped"
           npx cap sync android
+          # Phone push: the Firebase file comes from the repository secret GOOGLE_SERVICES_JSON (set once by the owner).
+          # Without it the app builds as before, just without push.
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            node -e "JSON.parse(require('fs').readFileSync('android/app/google-services.json','utf8'))" || { echo "::error::GOOGLE_SERVICES_JSON is not valid JSON"; exit 1; }
+            echo "push: Firebase file added"
+          else
+            echo "push: no GOOGLE_SERVICES_JSON secret — building without push"
+          fi
+          # Android 13+: the app must declare that it may show notifications.
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q POST_NOTIFICATIONS "$M" || sed -i 's#<application#<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application#' "$M"
           # the app's version: build number = this run, shown as 1.<run>
           sed -i -E "s/versionCode [0-9]+/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"1.${GITHUB_RUN_NUMBER}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle

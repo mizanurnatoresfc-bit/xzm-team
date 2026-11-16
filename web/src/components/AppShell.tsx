@@ -6,7 +6,8 @@ import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
 import { NodiAvatar } from './NodiAvatar'
-import { clearFresh, kindOf, markAllRead, markRead, startNotices, useNotices, type Notice as LiveNotice } from '../lib/notices'
+import { clearFresh, kindOf, markAllRead, markRead, savePushDevice, startNotices, useNotices, type Notice as LiveNotice } from '../lib/notices'
+import { setupPush } from '../lib/native'
 import { Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq } from '../lib/hrreq'
@@ -294,6 +295,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
   useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user])
   useEffect(() => { startNotices(user || null) }, [user])
+  // Inside the app: phone push (needs the Firebase build of the APK; elsewhere nothing happens).
+  useEffect(() => { if (user) void setupPush(savePushDevice, link => nav(link)) }, [user])
   // A new notification while the page is open: a short banner the person can tap.
   useEffect(() => { if (!nt.fresh) return; const t = window.setTimeout(clearFresh, 6000); return () => window.clearTimeout(t) }, [nt.fresh])
   useEffect(() => {
