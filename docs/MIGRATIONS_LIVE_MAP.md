@@ -1,0 +1,80 @@
+# Repository migrations ↔ live database (checked 17 Nov 2026)
+
+Every file below has run on the live Supabase project; after the last one the live schema and a database built from these files are the same
+(every function body, column, rule, trigger, index, permission and setting compared by fingerprint; line endings ignored — the live copies of
+older functions carry Windows line endings). Live versions are the timestamps Supabase gave when they were applied.
+
+**Rule from now on:** write the migration file in `supabase/migrations/` first (Unix line endings), run `scripts/test-db.sh`, then apply that
+same text to live. Never change live with SQL that is not in a file here.
+
+`probe_delete` (live 20261115094801) made a scratch function that no longer exists; it has no file. `probe_alter` is part of `vehicle_ops`.
+
+| Repository file | Live migration(s) |
+|---|---|
+| `20261111000100_foundation.sql` | 20261111000100 foundation |
+| `20261111000200_seed_rbac.sql` | 20261111000200 seed_rbac |
+| `20261111000300_hr_core.sql` | 20261111000300 hr_core |
+| `20261111000400_hr_pay_attendance.sql` | 20261111000400 hr_pay_attendance |
+| `20261111000500_hr_import_dashboard.sql` | 20261111000500 hr_import_dashboard |
+| `20261111000600_zonal_management.sql` | 20261111000600 zonal_management |
+| `20261111000700_courier_operations.sql` | 20261111000700 courier_operations |
+| `20261113000800_daily_accounts.sql` | 20261113000800 daily_accounts |
+| `20261113000900_business_timezone.sql` | 20261113000900 business_timezone |
+| `20261113001000_function_search_path.sql` | 20261113001000 function_search_path |
+| `20261113001100_foreign_key_indexes.sql` | 20261113001100 foreign_key_indexes |
+| `20261113001200_login_lockout_hook.sql` | 20261113001200 login_lockout_hook |
+| `20261113001300_numeric_employee_ids.sql` | 20261113001300 numeric_employee_ids |
+| `20261113001400_first_employee_manager.sql` | 20261113001400 first_employee_manager |
+| `20261113001500_user_admin.sql` | 20261113001500 user_admin |
+| `20261113001600_role_builder.sql` | 20261113001600 role_builder |
+| `20261113001700_flexible_import.sql` | 20261113001700 flexible_import |
+| `20261113001800_fields_and_referrals.sql` | 20261113001800 fields_and_referrals |
+| `20261113001900_formats_and_zonal.sql` | 20261113001900 formats_and_zonal |
+| `20261113002000_role_dashboards.sql` | 20261113002000 role_dashboards |
+| `20261113002100_expense_categories_voucher.sql` | 20261113002100 expense_categories_voucher |
+| `20261113002200_branding.sql` | 20261113002200 branding |
+| `20261113002300_vehicles_and_presets.sql` | 20261113002300 vehicles_and_presets |
+| `20261113002400_expense_claims.sql` | 20261113002400 expense_claims |
+| `20261113002500_sheet_made_easy.sql` | 20261113002500 sheet_made_easy |
+| `20261115000100_login_sorting_routes.sql` | 20261115015547 login_sorting_routes |
+| `20261115000200_sorting_revoke_anon.sql` | 20261115030004 sorting_revoke_anon |
+| `20261115000300_office_management.sql` | 20261115034218 office_management |
+| `20261115000400_regions_hub_gps.sql` | 20261115053312 regions_hub_gps |
+| `20261115000500_hr_requests.sql` | 20261115064647 hr_requests |
+| `20261115000600_sheet_tools.sql` | 20261115072141 sheet_tools |
+| `20261115000700_dashboard_views.sql` | 20261115072512 dashboard_views |
+| `20261115000800_reference_manual.sql` | 20261115080424 reference_manual |
+| `20261115000900_vehicle_management.sql` | 20261115090136 vehicle_management |
+| `20261115001000_vehicle_ops.sql` | vehicle_ops_index, vehicle_ops_a, probe_alter, vehicle_ops_b1a, vehicle_ops_b2, vehicle_ops_c, vehicle_ops_d, vehicle_ops_fix_log_list (applied in pieces) |
+| `20261115001100_vehicle_requests.sql` | 20261115101409 vehicle_requests |
+| `20261115001200_hub_issues.sql` | hub_issues_a_tables … hub_issues_e_storage (applied in pieces) |
+| `20261115001300_nodi_ai.sql` | 20261115101754 nodi_ai |
+| `20261115001350_nodi_followup_schedule.sql` | 20261115104516 nodi_followup_schedule |
+| `20261115001400_performance_cleanup.sql` | 20261115120814 performance_cleanup |
+| `20261115001500_id_ready_profiles.sql` | 20261115123319 id_ready_profiles |
+| `20261115001600_work_focus.sql` | work_focus_and_zonal_hub_transfer (together) |
+| `20261115001700_zonal_hub_transfer.sql` | work_focus_and_zonal_hub_transfer (together) |
+| `20261115001800_manpower_and_change_register.sql` | 20261115134755 manpower_and_change_register |
+| `20261115001900_sorting_center_hubs.sql` | 20261115140518 sorting_center_hubs |
+| `20261115002000_hub_offices.sql` | 20261115141547 hub_offices |
+| `20261115002100_store_it_orders.sql` | 20261115155608 store_it_orders |
+| `20261115002200_staff_logins_rollout.sql` | 20261115162134 staff_logins_rollout |
+| `20261115002300_employee_corrections.sql` | 20261115170234 employee_corrections |
+| `20261115002400_attendance_gaps.sql` | 20261115174735 attendance_gaps |
+| `20261115002410_manager_ledgers_rider_submit.sql` | 20261115195659 manager_ledgers_rider_submit |
+| `20261115002420_cash_payments_refs_approvals_requests.sql` | 20261115200204 cash_payments_refs_approvals_requests |
+| `20261115002430_fix_collector_trigger_generic.sql` | 20261115200607 fix_collector_trigger_generic |
+| `20261115002440_fix_collector_trigger_generic_2.sql` | 20261115200709 fix_collector_trigger_generic_2 |
+| `20261116000100_sheet_check_flow.sql` | 20261116142942 sheet_check_flow |
+| `20261116000200_khata_accept.sql` | 20261116151311 khata_accept |
+| `20261116000300_role_menu_and_att_days.sql` | 20261116152521 role_menu_and_att_days |
+| `20261116000400_hub_logins_and_profile.sql` | 20261116164606 hub_logins_and_profile |
+| `20261116000500_dashboard_order.sql` | 20261116172752 dashboard_order |
+| `20261116000600_self_attendance.sql` | 20261116192445 self_attendance |
+| `20261116000650_report_import.sql` | 20261116213632 report_import |
+| `20261116000700_fleet.sql` | fleet + fleet_office_kinds (the three kind rules) |
+| `20261116000800_office_operations.sql` | office_operations + fleet_office_kinds |
+| `20261117000100_live_notifications.sql` | 20261117040219 live_notifications |
+| `20261117000200_phone_push.sql` | 20261117042720 phone_push |
+| `20261117000300_sync_live_functions.sql` | 20261117000300 sync_live_functions |
+| `20261117000400_foreign_key_indexes_2.sql` | foreign_key_indexes_2 |

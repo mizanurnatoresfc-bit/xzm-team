@@ -163,6 +163,8 @@ select public.da_save_expense((select v::uuid from t where k = 's1'), 'employee'
        null, 'EXP-2', 'da/' || (select v from t where k = 's1') || '/bill.png', null, null, false, null, null, (select v::uuid from t where k = 'x2'));
 select tests.throws(format($$select public.da_remove_line('rider', %L, ' ')$$, (select v from t where k = 'l2')), 'removing a line needs a reason', '22023');
 select public.da_remove_line('merchant', (select v::uuid from t where k = 'mp2'), 'entered by mistake');
+-- every khata on the sheet is closed before the hub submits (live rule since manager_ledgers_rider_submit)
+select public.da_close_my_part((select v::uuid from t where k = 's1'));
 select public.da_submit((select v::uuid from t where k = 's1'), 'All checked');
 select tests.ok((select status = 'submitted' and submitted_by = tests.id('hub_mgr') and submitted_by_name = 'Hub Boss'
                         and submitted_at is not null and submit_count = 1
@@ -224,6 +226,7 @@ select tests.throws(format($$select public.da_reopen(%L, 'late change')$$, (sele
 select tests.login(tests.id('admin'));
 insert into t values ('s2', public.da_start_session(tests.id('hub_a2'))::text);
 select public.da_save_expense((select v::uuid from t where k = 's2'), 'transport', null, 'Courier van', 'transport', 400, private.da_today());
+select public.da_close_my_part((select v::uuid from t where k = 's2'));
 select public.da_submit((select v::uuid from t where k = 's2'));
 select tests.throws(format($$select public.da_verify(%L, 'approve')$$, (select v from t where k = 's2')),
                     'the person who submitted a sheet cannot verify it', '42501');
@@ -240,10 +243,8 @@ select tests.login(tests.id('noroles'));
 select tests.ok(tests.row_count('select 1 from public.da_sessions') = 0, 'a user without roles sees nothing');
 select tests.login(tests.id('rider_login'));
 select tests.ok(tests.row_count('select 1 from public.da_rider_lines where removed_at is null') = 1, 'a rider sees only own rider lines');
-select tests.ok((select jsonb_array_length(public.da_sheet((select v::uuid from t where k = 's1')) -> 'riders') = 1),
-                'in the sheet a rider sees only own line');
-select tests.ok((select jsonb_array_length(public.da_sheet((select v::uuid from t where k = 's1')) -> 'merchant_payments') = 0),
-                'and not the merchant payments of the hub');
+-- live rule: a rider does not open the hub's sheet at all (their own lines are on "আমার হিসাব")
+select tests.throws(format($$select public.da_sheet(%L)$$, (select v from t where k = 's1')), 'a rider cannot open the hub''s sheet');
 select tests.throws('update public.da_rider_lines set amount = 1', 'direct updates are not allowed', '42501');
 select tests.login(tests.id('hub_mgr'));
 select tests.throws('delete from public.da_sessions', 'direct deletes are not allowed', '42501');
@@ -279,7 +280,7 @@ select tests.ok((select jsonb_array_length(public.da_report('rider', private.da_
 select tests.ok((select jsonb_array_length(public.da_report('transport_expense', private.da_today() - 3, private.da_today())) = 2), 'transport expense report');
 select tests.ok((select jsonb_array_length(public.da_report('employee_expense', private.da_today() - 3, private.da_today())) = 1), 'employee expense report');
 select tests.ok((select jsonb_array_length(public.da_report('merchant_payment', private.da_today() - 3, private.da_today())) = 2), 'merchant payment report (removed rows excluded)');
-select tests.ok((select jsonb_array_length(public.da_report('verification', private.da_today() - 3, private.da_today())) = 3), 'verification report (note, correction, approve)');
+select tests.ok((select jsonb_array_length(public.da_report('verification', private.da_today() - 3, private.da_today())) = 6), 'verification report (note, correction, approve, and the "খাতা বন্ধ" notes each person leaves)');
 select tests.ok((select jsonb_array_length(public.da_report('corrections', private.da_today() - 3, private.da_today())) = 3), 'correction history (sent back, resubmitted, reopened)');
 select tests.ok((select jsonb_array_length(public.da_report('pending', private.da_today() - 3, private.da_today())) = 0), 'pending verification report');
 select tests.ok((select count(*) = 1 from public.da_list_sessions(private.da_today() - 3, private.da_today(), null, null, 'approved')), 'filter by status');
