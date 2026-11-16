@@ -6,7 +6,7 @@ import { AppShell, refreshShellCounts } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { hr, hrFriendly } from '../../lib/hr'
-import { FIELD_TYPES, KIND_HINT, KINDS, PREFILL, STATUS, hrReq, slugKey, type EmpRow, type FieldType, type HrRequest, type ReqField,
+import { FIELD_TYPES, KIND_HINT, KINDS, PREFILL, fmtName, STATUS, hrReq, slugKey, type EmpRow, type FieldType, type HrRequest, type ReqField,
   type ReqFormat, type ReqKind, type ReqStatus } from '../../lib/hrreq'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { NewApplication, useOrg } from './common'
@@ -36,6 +36,12 @@ export function Requests() {
     {tab === 'report' && <Report />}
     {tab === 'settings' && canConfig && <Settings />}
   </AppShell>
+}
+
+/** The kind as a coloured tag with its icon, in Bangla. */
+function KindTag({ kind, label }: { kind: ReqKind; label?: string }) {
+  const k = KINDS[kind] ?? KINDS.custom
+  return <span className={`rq-kind-tag t-${k.tone}`}><Icon name={k.icon} size={12} />{label ?? k.bn}</span>
 }
 
 // ------------------------------------------------------------------ new request
@@ -125,15 +131,15 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
 
   const kindOf = (f: ReqFormat) => KINDS[f.kind] ?? KINDS.custom
   const st = emp ? EMP_ST[emp.status] ?? [emp.status, 'neutral' as const] : null
-  const summary = fmt ? [fmt.name, emp?.full_name, fmt.kind === 'id_transfer' && data.to_hub ? `→ ${hubName(data.to_hub)}` : null, !fmt.needs_employee ? hubName(hub) : null].filter(Boolean).join(' · ') : ''
+  const summary = fmt ? [fmtName(fmt), emp?.full_name, fmt.kind === 'id_transfer' && data.to_hub ? `→ ${hubName(data.to_hub)}` : null, !fmt.needs_employee ? hubName(hub) : null].filter(Boolean).join(' · ') : ''
 
   return <div className="rq-new">
     <section className="panel rq-card">
-      <h2 className="rq-h"><span className="rq-step">১</span>কী করবেন?</h2>
+      <h2 className="rq-h"><span className="rq-step">১</span>কী করবেন? <span className="muted small">— একটা বেছে নিন</span></h2>
       <div className="rq-tiles">{formats.map(f => { const n = openByKind(f.kind)
         return <button key={f.id} type="button" className={`rq-tile t-${kindOf(f).tone}${fmtId === f.id ? ' on' : ''}`} aria-pressed={fmtId === f.id} onClick={() => pick(f)}>
           <span className="qi"><Icon name={kindOf(f).icon} size={20} /></span>
-          <span className="rq-tile-t"><b>{f.name}</b><small>{f.name_bn || KIND_HINT[f.kind] || f.description}</small></span>
+          <span className="rq-tile-t"><b>{fmtName(f)}</b>{(() => { const h = f.description || KIND_HINT[f.kind]; return h && h !== fmtName(f) ? <small>{h}</small> : null })()}<em className="rq-code">{f.name}</em></span>
           {n > 0 && <span className="rq-tile-n" title="অপেক্ষমাণ">{n}</span>}
           {fmtId === f.id && <span className="rq-tile-ok"><Icon name="check" size={14} /></span>}
         </button> })}</div>
@@ -247,7 +253,7 @@ function RequestList({ openId, onOpen }: { openId: string | null; onOpen: (id: s
           empty={<p className="muted">এখানে কোনো রিকুয়েস্ট নেই।</p>}
           cols={[
             { key: 'no', label: 'নং', value: r => r.request_no, render: r => <strong className="mono sm">{r.request_no}</strong> },
-            { key: 'fmt', label: 'ধরন', value: r => fmtById[r.format_id]?.name ?? r.kind, render: r => <span className={`rq-kind-tag t-${KINDS[r.kind]?.tone ?? 'o'}`}>{fmtById[r.format_id]?.name ?? r.kind}</span> },
+            { key: 'fmt', label: 'ধরন', value: r => fmtName(fmtById[r.format_id]) || KINDS[r.kind]?.bn, render: r => <KindTag kind={r.kind} label={fmtName(fmtById[r.format_id]) || undefined} /> },
             { key: 'person', label: 'নাম', value: r => person(r), render: r => <>{person(r)}{d.people[r.employee_id ?? '']?.employee_code && <span className="sec">আইডি {d.people[r.employee_id ?? '']?.employee_code}</span>}</> },
             { key: 'hub', label: 'হাব', value: r => o.names.hub[r.hub_id ?? ''] ?? '' },
             { key: 'by', label: 'পাঠিয়েছেন', value: r => d.people[r.submitter_employee_id ?? '']?.full_name ?? '' },
@@ -283,7 +289,7 @@ function RequestDetail({ r, format, people, hubName, onClose, onChanged }: { r: 
   async function applyInSystem() {
     if (!emp) throw new Error('স্টাফ পাওয়া যায়নি')
     const eff = r.data.effective_date || r.data.last_date || today()
-    const why = `${r.request_no}: ${r.data.reason || r.data.reason_type || format?.name || ''}`.trim()
+    const why = `${r.request_no}: ${r.data.reason || r.data.reason_type || fmtName(format) || ''}`.trim()
     if (r.kind === 'id_active') await hr.changeStatus(emp.id, 'active', eff, why)
     if (r.kind === 'id_inactive') {
       const t = r.data.reason_type ?? ''
@@ -307,7 +313,7 @@ function RequestDetail({ r, format, people, hubName, onClose, onChanged }: { r: 
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
 
-  return <Modal title={`${r.request_no} · ${format?.name ?? ''}`} wide onClose={onClose}
+  return <Modal title={`${r.request_no} · ${fmtName(format)}`} wide onClose={onClose}
     actions={<div className="row hd-acts">
       {isOpen && canDecide && <>
         {r.status === 'submitted' && <button className="soft" onClick={() => { setErr(''); setAct('processing') }}><Icon name="clock" size={16} />কাজ শুরু</button>}
@@ -405,7 +411,7 @@ function Report() {
   const keyOf = (r: HrRequest, dim: Dim): string => {
     switch (dim) {
       case 'kind': return KINDS[r.kind]?.bn ?? r.kind
-      case 'format': return fmtById[r.format_id]?.name ?? r.kind
+      case 'format': return fmtName(fmtById[r.format_id]) || r.kind
       case 'hub': return o.names.hub[r.hub_id ?? ''] || '—'
       case 'status': return STATUS[r.status].bn
       case 'month': return new Date(r.created_at).toLocaleDateString('bn-BD', { timeZone: 'Asia/Dhaka', month: 'long', year: 'numeric' })
@@ -440,7 +446,7 @@ function Report() {
     if (k.startsWith('f:')) { const key = k.slice(2); const v = r.data[key] ?? ''; return /hub$/.test(key) ? o.names.hub[v] || v : v }
     switch (k) {
       case 'no': return r.request_no
-      case 'kind': return fmtById[r.format_id]?.name ?? KINDS[r.kind]?.bn ?? r.kind
+      case 'kind': return fmtName(fmtById[r.format_id]) || KINDS[r.kind]?.bn || r.kind
       case 'person': return person(r)
       case 'code': return d?.people[r.employee_id ?? '']?.employee_code ?? r.data.employee_code ?? ''
       case 'hub': return o.names.hub[r.hub_id ?? ''] ?? ''
@@ -495,7 +501,7 @@ function Report() {
           <Field label="হাব"><Combo value={cfg.hub} onChange={v => set({ hub: v })} placeholder="সব হাব" options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
         </div>
         <div className="rp-row"><span className="muted small">ধরন:</span>{(Object.keys(KINDS) as ReqKind[]).map(k => <label key={k} className={`chip-toggle${cfg.kinds.includes(k) ? ' on' : ''}`}>
-          <input type="checkbox" checked={cfg.kinds.includes(k)} onChange={() => set({ kinds: toggle(cfg.kinds, k) })} />{KINDS[k].bn}</label>)}</div>
+          <input type="checkbox" checked={cfg.kinds.includes(k)} onChange={() => set({ kinds: toggle(cfg.kinds, k) })} /><Icon name={KINDS[k].icon} size={13} />{KINDS[k].bn}</label>)}</div>
         <div className="rp-row"><span className="muted small">অবস্থা:</span>{(Object.keys(STATUS) as ReqStatus[]).map(k => <label key={k} className={`chip-toggle${cfg.statuses.includes(k) ? ' on' : ''}`}>
           <input type="checkbox" checked={cfg.statuses.includes(k)} onChange={() => set({ statuses: toggle(cfg.statuses, k) })} />{STATUS[k].bn}</label>)}</div>
         {cfg.view === 'list' && <div className="rp-row"><span className="muted small">কলাম:</span>{Object.entries(fieldOpts).map(([k, l]) => <label key={k} className={`chip-toggle${cfg.fields.includes(k) ? ' on' : ''}`}>
@@ -567,8 +573,8 @@ function Settings() {
           <Icon name="plus" size={14} />নতুন রিপোর্ট</button></div></div>
     {f.error ? <p className="da-error">{hrFriendly(f.error)}</p> : null}
     <div className="rq-fmt-list">{list.map(x => <div key={x.id} className={`rq-fmt-row${x.archived_at ? ' off' : ''}`}>
-      <span className={`rq-kind-tag t-${KINDS[x.kind]?.tone ?? 'o'}`}>{KINDS[x.kind]?.bn ?? x.kind}</span>
-      <div style={{ flex: 1, minWidth: 0 }}><b>{x.name}</b>{x.name_bn && <span className="muted"> · {x.name_bn}</span>}
+      <KindTag kind={x.kind} />
+      <div style={{ flex: 1, minWidth: 0 }}><b>{fmtName(x)}</b> <span className="muted small">· {x.name}</span>
         <div className="muted small">{x.fields.length}টি ঘর{x.self_service ? ' · স্টাফ নিজে পাঠাতে পারবে' : ''}{x.needs_employee ? ' · স্টাফ বাছাই লাগবে' : ' · নতুন লোক'}{x.archived_at ? ' · আর্কাইভ' : ''}</div></div>
       {!x.archived_at && <><button className="soft sm" onClick={() => { setErr(''); setEdit({ isNew: false, row: JSON.parse(JSON.stringify(x)) }) }}><Icon name="edit" size={14} />এডিট</button>
         <button className="danger sm" onClick={() => { setErr(''); setReason(''); setArch(x) }}>সরান</button></>}
