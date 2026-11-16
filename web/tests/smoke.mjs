@@ -66,7 +66,7 @@ try {
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
-    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = []
+    const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
     let asEmployee = false, withGaps = false
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -92,17 +92,26 @@ try {
         priority: 'normal', status: 'open', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null, created_at: '2026-11-15T04:00:00Z', solved_at: null, reopen_count: 0,
         assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: false }] })
       if (u.includes('rpc/da_settings')) return j(daSettings)
+      if (u.includes('rpc/da_flow_list')) return j([{ session_id: 's1', hub_id: 'h1', needed: 2, people: 2, submitted: 2, checked_at: '2026-11-15T13:00:00Z', report_ok_at: null, report_diff: null },
+        { session_id: 's2', hub_id: 'h2', needed: 1, people: 2, submitted: 1, checked_at: null, report_ok_at: null, report_diff: null }])
+      if (/rpc\/(da_close_part_for|da_check|da_report_ok|da_hub_collectors_set)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j({}) }
       if (u.includes('rpc/da_sheet_claims') || u.includes('rpc/da_my_claims') || u.includes('rpc/da_my_handovers') || u.includes('rpc/da_my_vehicles') || u.includes('rpc/da_collectors')) return j([])
-      if (u.includes('rpc/da_sheet')) return j({ can_edit: true, can_verify: true, can_reopen: false, can_layout: true,
+      if (u.includes('rpc/da_sheet')) { const okd = r.request().postDataJSON()?.p_session === 's3'; return j({ can_edit: true, can_verify: true, can_reopen: false, can_layout: true,
         session: { id: 's2', no: 11, hub_id: 'h2', zone_id: 'z1', account_date: '2026-11-15', status: 'open', started_by: session.user.id, started_by_name: 'Owner', started_by_code: '1', started_at: '2026-11-15T03:00:00Z',
-          submitted_by_name: null, submitted_by_code: null, submitted_at: null, submit_note: null, submit_count: 0, verified_by_name: null, verified_at: null, verify_note: null, last_saved_at: '2026-11-15T05:00:00Z', closed_at: null, closed_by: null, closed_totals: null },
+          submitted_by_name: null, submitted_by_code: null, submitted_at: null, submit_note: null, submit_count: 0, verified_by_name: null, verified_at: null, verify_note: null, last_saved_at: '2026-11-15T05:00:00Z', closed_at: okd ? '2026-11-15T13:00:00Z' : null, closed_by: null,
+          closed_totals: okd ? { riders: 2, rider_amount: 68300, collected: 67800, due: 500, mobile_banking: 2000, payments: 0, payment_amount: 0, expenses: 1, expense_amount: 450, notes_in: 0 } : null,
+          check_note: okd ? 'একজন ছুটিতে' : null, check_done: okd ? 1 : null, check_needed: okd ? 2 : null,
+          report_ok_at: okd ? '2026-11-15T14:00:00Z' : null, report_ok_by_name: okd ? 'Owner' : null, report_total: okd ? 67800 : null, report_diff: okd ? -500 : null, report_note: okd ? 'একটি পার্সেল পরের রিপোর্টে' : null },
         hub: { id: 'h2', code: 'BGT', name: 'Bagatipara', name_bn: null }, zone: { id: 'z1', code: 'NAT', name: 'Natore Area' },
         riders: [{ id: 'r1', no: 1, employee_id: 'e02', employee_code: '1002', rider_name: 'Rahim Uddin', mobile: '01711000002', delivery_qty: 42, pickup_qty: 6, amount: 38500, paid_amount: 38000, due_input: 500, due: 500, mobile_banking: 0, remarks: null },
           { id: 'r2', no: 2, employee_id: 'e03', employee_code: '1003', rider_name: 'Sohel Rana', mobile: null, delivery_qty: 35, pickup_qty: 4, amount: 29800, paid_amount: 29800, due_input: 0, due: 0, mobile_banking: 2000, remarks: 'সব জমা' }],
-        merchant_payments: [], notes_in: [], collectors: [], events: [], visits: [], report_ids: [], deposits: [], cells: [],
+        merchant_payments: [], notes_in: [], events: [], visits: [], deposits: [], cells: [],
+        collectors: [{ user_id: 'u1', name: 'Owner', code: '1', closed_at: '2026-11-15T10:00:00Z', created_at: '2026-11-15T03:00:00Z', note: null, riders: 1, payments: 0, expenses: 1, amount: 38500, closed_by: null, closed_by_name: null },
+          { user_id: 'u7', name: 'Sohel Rana', code: '1003', closed_at: null, created_at: '2026-11-15T04:00:00Z', note: null, riders: 1, payments: 0, expenses: 0, amount: 29800, closed_by: null, closed_by_name: null }],
+        report_ids: [{ id: 'rp1', no: 1, report_no: '#743858', amount: 67800, remarks: null, created_by: 'u1', created_at: '2026-11-15T12:00:00Z' }],
         expenses: [{ id: 'x1', no: 1, kind: 'transport', employee_id: null, employee_code: null, employee_name: null, expense_name: 'অটো ভাড়া', category: 'transport', amount: 450, bill_date: '2026-11-15', bill_no: null, reference_no: 'EXP-1',
-          attachment_path: null, paid_by_name: 'Owner', template_id: null, ocr: null, ocr_verified: false, remarks: null, voucher_no: null, vehicle_id: null, reference_name: null, reference_phone: null, reference_position: null, claim_id: null, claim_file: null }],
-        totals: { riders: 2, delivery: 77, pickup: 10, amount: 68300, paid: 67800, due: 500, mobile_banking: 2000, merchant_cash: 0, transport_expense: 450, employee_expense: 0 } })
+          attachment_path: 'h2/bill-1.jpg', paid_by_name: 'Owner', template_id: null, ocr: null, ocr_verified: false, remarks: null, voucher_no: null, vehicle_id: null, reference_name: null, reference_phone: null, reference_position: null, claim_id: null, claim_file: null }],
+        totals: { riders: 2, delivery: 77, pickup: 10, amount: 68300, paid: 67800, due: 500, mobile_banking: 2000, merchant_cash: 0, transport_expense: 450, employee_expense: 0 } }) }
       if (u.includes('rpc/da_page_enter')) return j('v1')
       if (u.includes('rpc/da_my_accounts')) return j({ notes: [], employee: { id: 'e01', code: '1001', name: 'Owner', hub_id: 'h1' }, my_expenses: [], my_payments: [],
         my_lines: [{ account_date: '2026-11-15', hub: 'Bagatipara', status: 'open', verify_note: null, line: { id: 'r1', no: 1, employee_id: 'e01', employee_code: '1001', rider_name: 'Owner', mobile: null, delivery_qty: 42, pickup_qty: 6, amount: 38500, paid_amount: 38000, due_input: 500, due: 500, mobile_banking: 0, remarks: null } }],
@@ -272,8 +281,28 @@ try {
       check(await page.locator('.da-modal input').first().inputValue() === '1002' && await page.locator('.da-modal-acts button.danger').count() === 1, `${size}: tapping a rider opens their line to change or remove`)
       await page.locator('.da-modal-acts button.secondary').click()
     }
+    // the day's flow: drafts and submitted parts, the check (a reason when someone has not submitted), then the main sheet
+    check(await page.locator('.fl-steps li').count() === 4 && await page.locator('.fl-people .nv-row').count() === 2 && (await page.locator('.fl-steps li').first().innerText()).includes('১ / ১'), `${size}: the sheet shows its four steps and who has a draft`)
+    await page.locator('.fl-people button', { hasText: 'সাবমিট করুন' }).click()
+    await page.waitForFunction(() => true); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.fn === 'da_close_part_for' && flowCalls.at(-1)?.p_user === 'u7' && flowCalls.at(-1)?.p_done === true, `${size}: a manager can submit someone else's draft`)
+    await page.locator('.fl-acts button', { hasText: 'হিসাব চেক করুন' }).click(); await page.waitForSelector('.da-modal')
+    check(await page.locator('.da-modal-acts button').last().isDisabled(), `${size}: checking with a draft still open asks for a reason first`)
+    await page.locator('.da-modal input').fill('একজন ছুটিতে'); await page.locator('.da-modal-acts button').last().click()
+    await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+    check(flowCalls.at(-1)?.fn === 'da_check' && flowCalls.at(-1)?.p_note === 'একজন ছুটিতে', `${size}: the check is sent with its reason`)
     await fits('accounts sheet')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
+    await page.goto(`${BASE}/app/accounts/daily/s2/main`); await page.waitForSelector('.nv-empty', { timeout: 10000 }).catch(() => {})
+    check((await page.locator('.nv-empty').innerText().catch(() => '')).includes('এখনো তৈরি হয়নি'), `${size}: the main sheet waits until the report is confirmed`)
+    await page.goto(`${BASE}/app/accounts/daily/s3/main`); await page.waitForSelector('.ms', { timeout: 10000 }).catch(() => {})
+    const ms = await page.locator('.ms').innerText().catch(() => '')
+    check(ms.includes('একাউন্টস টপ শীট') && ms.includes('#743858') && ms.includes('একটি পার্সেল পরের রিপোর্টে') && ms.includes('অটো ভাড়া') && await page.locator('.ms .nv-row', { hasText: 'খুলুন' }).count() === 1, `${size}: the main sheet has the top sheet, the report with its difference, expenses and documents`)
+    await fits('main sheet')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-main.png`, fullPage: true })
+    await page.goto(`${BASE}/app/accounts/settings`); await page.waitForSelector('#da-set-collectors .nv-row', { timeout: 10000 }).catch(() => {})
+    await page.locator('#da-set-collectors .nv-row input').first().fill('3'); await page.locator('#da-set-collectors > button').click(); await page.waitForTimeout(400)
+    check(await page.locator('#da-set-collectors .nv-row').count() === 4 && flowCalls.some(c => c.fn === 'da_hub_collectors_set' && c.p_hub === 'h1' && c.p_count === 3), `${size}: settings keep how many people take the accounts at each hub`)
     await page.goto(`${BASE}/app/accounts/mine`); await page.waitForSelector('.da-stats, .panel', { timeout: 10000 }).catch(() => {})
     check((await page.locator('.nv-mine').innerText().catch(() => '')).includes('Bagatipara') && await page.locator('.nv-mine .nv-chip').count() >= 3, `${size}: "my accounts" shows the person's own lines and sheets`)
     await fits('my accounts')
@@ -288,6 +317,7 @@ try {
     // accounts: today's sheets in the native-style list
     await page.goto(`${BASE}/app/accounts/daily`); await page.waitForSelector('.nv-row, .da-table tbody tr')
     check((await page.locator('.nv-hero .big').innerText()).includes('২ / ৪') && await page.locator('.nv-row').count() + await page.locator('.da-table tbody tr').count() >= 3, `${size}: the accounts page says how many hubs have given today's sheet`)
+    check(await page.locator('.fl-line').count() >= 2 && (await page.locator('.fl-line').first().innerText()).includes('সাবমিট'), `${size}: the list shows where each sheet stands (submitted, checked, report)`)
     await fits('daily accounts')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-accounts.png`, fullPage: true })
     await page.locator('.nv-chip', { hasText: 'শুরু হয়নি' }).click()
