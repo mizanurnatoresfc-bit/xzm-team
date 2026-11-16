@@ -251,3 +251,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   with "Less Work, More Automation, Better Manage." and its Bangla line, three cards explaining the motto, the work list, the steps, "what it is not".
   On a phone the login button sits in a fixed bar at the bottom. The dashboard's greeting card carries the motto too. All earlier wording is kept.
 - Fix found on the way: with the phone in dark mode and the theme on "system", the page background stayed light everywhere (a light-only rule was not limited to light).
+- **17 Nov — live:** office operations and fleet applied to Supabase (recorded as `office_operations`, `fleet`), `nodi-ai` v4 deployed, PR #33 merged.
+  The three kind-check swaps (vehicles, vehicle_logs, office_properties) need a DROP CONSTRAINT, which the MCP client stops for approval; they were given to the
+  owner as a small SQL to run in the SQL Editor. Until then: no auto / covered van vehicles, no খোরাকি lines, no garage / auto garage places.
