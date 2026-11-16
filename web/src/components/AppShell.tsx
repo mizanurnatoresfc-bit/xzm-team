@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { inMenu } from '../lib/menu'
@@ -12,97 +12,119 @@ import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
-type Group = { key: string; icon: string; bn: string; en: string; items: Item[] }
+type Sec = { bn: string; en: string; items: Item[] }
+type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; items: Item[] }
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
+const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
 
 export const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
   { to: '/app/training', icon: 'book', bn: 'ট্রেনিং সেন্টার', en: 'Training centre', perms: null },
 ]
+/**
+ * The whole menu is three panels, lowest first: the staff member's own work, the hub manager's hub, the zonal manager's zone.
+ * What a person does goes up: staff input -> manager -> zonal manager. A person sees the panels up to their own level;
+ * a page from a higher panel that their role may open is listed in their own top panel (see AppShell).
+ */
 export const GROUPS: Group[] = [
-  { key: 'hub', icon: 'hub', bn: 'হাব ম্যানেজমেন্ট', en: 'Hub Management', items: [
-    { to: '/app/hub/attendance', icon: 'cal', bn: 'আজকের হাজিরা খাতা', en: "Today's attendance", perms: ['hr.attendance.view', 'hr.attendance.create'] },
-    { to: '/app/hub/late', icon: 'clock', bn: 'আজকের দেরিতে হাজিরা', en: 'Late today', perms: ['hr.attendance.view', 'hr.attendance.create'] },
-    { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
-    { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
-    { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
-    { to: '/app/hub/accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
-    { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
-    { to: '/app/hub/days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
-    { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
-    { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
-  ] },
-  { key: 'sorting', icon: 'box', bn: 'শটিং সেন্টার ম্যানেজমেন্ট', en: 'Sorting Center Management', items: [
-    { to: '/app/sorting/dashboard', icon: 'dash', bn: 'শটিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
-    { to: '/app/sorting/routes', icon: 'map', bn: 'শটিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
-    { to: '/app/sorting/staff', icon: 'users', bn: 'শটিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
-    { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
-    { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
-    { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
-    { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও শটিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
-    { to: '/app/sorting/centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
-  ] },
-  { key: 'office', icon: 'home', bn: 'অফিস ম্যানেজমেন্ট', en: 'Office Management', items: [
-    { to: '/app/office/overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
-    { to: '/app/office/places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
-    { to: '/app/office/rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ', en: 'Flat details', perms: ['office.property.view'] },
-    { to: '/app/office/desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
-    { to: '/app/office/assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
-  ] },
-  { key: 'issues', icon: 'tasks', bn: 'ইস্যু ও ফলো-আপ', en: 'Issues & follow-up', items: [
-    { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু ও হাব গ্রুপ', en: 'Issues & hub group', perms: null },
-    { to: '/app/issues?tab=orders', icon: 'box', bn: 'স্টোর / আইটি অর্ডার', en: 'Store / IT orders', perms: null },
-  ] },
-  { key: 'vehicles', icon: 'truck', bn: 'গাড়ি ম্যানেজমেন্ট', en: 'Vehicle Management', items: [
-    { to: '/app/vehicles/overview', icon: 'dash', bn: 'গাড়ির অবস্থা', en: 'Fleet overview', perms: ['vehicle.vehicle.view', 'da.sheet.view'] },
-    { to: '/app/vehicles/mine', icon: 'user', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
-    { to: '/app/vehicles/list', icon: 'truck', bn: 'গাড়ির তালিকা, ড্রাইভার ও হেল্পার', en: 'Vehicles & crew', perms: ['vehicle.vehicle.view', 'vehicle.vehicle.create', 'da.sheet.view'] },
-    { to: '/app/vehicles/logs', icon: 'cash', bn: 'তেল / সার্ভিস / মেরামত', en: 'Fuel, service & repairs', perms: ['vehicle.log.view', 'vehicle.log.create', 'da.sheet.view'] },
-    { to: '/app/vehicles/requests', icon: 'form', bn: 'গাড়ি লাগবে (রিকুইজিশন)', en: 'Requisitions', perms: ['vehicle.requisition.view', 'vehicle.requisition.create', 'vehicle.requisition.approve'] },
-    { to: '/app/vehicles/daily', icon: 'cal', bn: 'দিনের খাতা (অটো / চার্জ)', en: 'Day log (autos)', perms: ['vehicle.log.view', 'vehicle.log.create', 'da.sheet.view'] },
-    { to: '/app/vehicles/docs', icon: 'doc', bn: 'কাগজপত্র ও মেয়াদ', en: 'Papers & expiry', perms: ['vehicle.vehicle.view', 'vehicle.document.edit', 'da.sheet.view'] },
-    { to: '/app/vehicles/reports', icon: 'chart', bn: 'গাড়ির খরচের রিপোর্ট', en: 'Vehicle cost report', perms: ['vehicle.log.view', 'vehicle.vehicle.view', 'da.sheet.view'] },
-    { to: '/app/vehicles/settings', icon: 'gear', bn: 'গাড়ি সেটিংস', en: 'Vehicle settings', perms: ['vehicle.settings.configure'] },
-  ] },
-  { key: 'org', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal Management', items: [
-    { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
-    { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
-    { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
-    { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
-    { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল (বদলি/চালু/বন্ধ)', en: 'Zonal files', perms: ['hr.request.create', 'hr.request.approve'] },
-    { to: '/app/zonal/assistant', icon: 'cal', bn: 'জোনাল অ্যাসিস্ট্যান্ট (হাজিরার ফাঁকা দিন)', en: 'Zonal assistant (attendance gaps)', perms: ['hr.attendance_gap.view'] },
-  ] },
-  { key: 'staff', icon: 'users', bn: 'স্টাফ ম্যানেজমেন্ট', en: 'Staff Management', items: [
-    { to: '/app/hr/requests', icon: 'form', bn: 'HR রিকুয়েস্ট ও রিপোর্ট', en: 'HR requests & reports', perms: null, count: 'hrreq' },
-    { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: null },
-    { to: '/app/hr', icon: 'chart', bn: 'HR ড্যাশবোর্ড', en: 'HR dashboard', perms: ['hr.employee.view'] },
-    { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
-    { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
-    { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
-    { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
-    { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
-    { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
-    { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (Excel)', en: 'Import employees', perms: ['hr.import.create'] },
-    { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
-    { to: '/app/hr/attendance', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
-    { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
-  ] },
-  { key: 'acc', icon: 'book', bn: 'হিসাব ম্যানেজমেন্ট', en: 'Accounts Management', items: [
-    { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা', en: 'My sheet today', perms: ['da.sheet.create'] },
-    { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের হাবের হিসাব খাতা', en: 'Hub accounts today', perms: null, count: 'sheets' },
-    { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
-    { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
-    { to: '/app/accounts/settings', icon: 'gear', bn: 'হিসাব সেটিংস', en: 'Accounts settings', perms: ['da.settings.configure'] },
-  ] },
-  { key: 'sys', icon: 'shield', bn: 'সিস্টেম', en: 'System', items: [
-    { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
-    { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
-    { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
-    { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
-    { to: '/app/nodi', icon: 'gear', bn: 'নদী AI (API ও সীমা)', en: 'Nodi AI (API & limits)', perms: ['nodi.settings.configure'] },
-    { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
-  ] },
+  panel('self', 'user', 'স্টাফ প্যানেল', 'Staff panel', [
+    { bn: '', en: '', items: [
+      { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা', en: 'My sheet today', perms: ['da.sheet.create'] },
+      { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
+      { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
+      { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
+      { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
+      { to: '/app/vehicles/mine', icon: 'user', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
+    ] },
+  ]),
+  panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
+    { bn: 'আজকের কাজ', en: 'Today', items: [
+      { to: '/app/hub/attendance', icon: 'cal', bn: 'আজকের হাজিরা খাতা', en: "Today's attendance", perms: ['hr.attendance.view', 'hr.attendance.create'] },
+      { to: '/app/hub/late', icon: 'clock', bn: 'আজকের দেরিতে হাজিরা', en: 'Late today', perms: ['hr.attendance.view', 'hr.attendance.create'] },
+      { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
+      { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
+      { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
+    ] },
+    { bn: 'হাবের হিসাব', en: 'Hub accounts', items: [
+      { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের হাবের হিসাব খাতা', en: 'Hub accounts today', perms: null, count: 'sheets' },
+    ] },
+    { bn: 'হাবের টিম', en: 'Hub team', items: [
+      { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
+      { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
+      { to: '/app/hub/days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
+      { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
+      { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
+      { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
+    ] },
+  ]),
+  panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
+    { bn: 'জোন ও হাব', en: 'Zone & hubs', items: [
+      { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
+      { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
+      { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
+    ] },
+    { bn: 'কর্মী ও HR', en: 'Staff & HR', items: [
+      { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
+      { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
+      { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
+      { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল (বদলি/চালু/বন্ধ)', en: 'Zonal files', perms: ['hr.request.create', 'hr.request.approve'] },
+      { to: '/app/hr/attendance', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
+      { to: '/app/zonal/assistant', icon: 'cal', bn: 'জোনাল অ্যাসিস্ট্যান্ট (হাজিরার ফাঁকা দিন)', en: 'Zonal assistant (attendance gaps)', perms: ['hr.attendance_gap.view'] },
+      { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
+      { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
+      { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
+    ] },
+    { bn: 'হিসাব', en: 'Accounts', items: [
+      { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
+      { to: '/app/accounts/settings', icon: 'gear', bn: 'হিসাব সেটিংস', en: 'Accounts settings', perms: ['da.settings.configure'] },
+    ] },
+    { bn: 'শটিং সেন্টার', en: 'Sorting centre', items: [
+      { to: '/app/sorting/dashboard', icon: 'dash', bn: 'শটিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
+      { to: '/app/sorting/routes', icon: 'map', bn: 'শটিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
+      { to: '/app/sorting/staff', icon: 'users', bn: 'শটিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
+      { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
+      { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
+      { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
+      { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও শটিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
+      { to: '/app/sorting/centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
+    ] },
+    { bn: 'গাড়ি', en: 'Vehicles', items: [
+      { to: '/app/vehicles/overview', icon: 'dash', bn: 'গাড়ির অবস্থা', en: 'Fleet overview', perms: ['vehicle.vehicle.view', 'da.sheet.view'] },
+      { to: '/app/vehicles/list', icon: 'truck', bn: 'গাড়ির তালিকা, ড্রাইভার ও হেল্পার', en: 'Vehicles & crew', perms: ['vehicle.vehicle.view', 'vehicle.vehicle.create', 'da.sheet.view'] },
+      { to: '/app/vehicles/logs', icon: 'cash', bn: 'তেল / সার্ভিস / মেরামত', en: 'Fuel, service & repairs', perms: ['vehicle.log.view', 'vehicle.log.create', 'da.sheet.view'] },
+      { to: '/app/vehicles/requests', icon: 'form', bn: 'গাড়ি লাগবে (রিকুইজিশন)', en: 'Requisitions', perms: ['vehicle.requisition.view', 'vehicle.requisition.create', 'vehicle.requisition.approve'] },
+      { to: '/app/vehicles/daily', icon: 'cal', bn: 'দিনের খাতা (অটো / চার্জ)', en: 'Day log (autos)', perms: ['vehicle.log.view', 'vehicle.log.create', 'da.sheet.view'] },
+      { to: '/app/vehicles/docs', icon: 'doc', bn: 'কাগজপত্র ও মেয়াদ', en: 'Papers & expiry', perms: ['vehicle.vehicle.view', 'vehicle.document.edit', 'da.sheet.view'] },
+      { to: '/app/vehicles/reports', icon: 'chart', bn: 'গাড়ির খরচের রিপোর্ট', en: 'Vehicle cost report', perms: ['vehicle.log.view', 'vehicle.vehicle.view', 'da.sheet.view'] },
+      { to: '/app/vehicles/settings', icon: 'gear', bn: 'গাড়ি সেটিংস', en: 'Vehicle settings', perms: ['vehicle.settings.configure'] },
+    ] },
+    { bn: 'অফিস', en: 'Office', items: [
+      { to: '/app/office/overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
+      { to: '/app/office/places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
+      { to: '/app/office/rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ', en: 'Flat details', perms: ['office.property.view'] },
+      { to: '/app/office/desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
+      { to: '/app/office/assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
+    ] },
+    { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
+      { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
+      { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
+      { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
+      { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
+      { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (Excel)', en: 'Import employees', perms: ['hr.import.create'] },
+      { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
+      { to: '/app/nodi', icon: 'gear', bn: 'নদী AI (API ও সীমা)', en: 'Nodi AI (API & limits)', perms: ['nodi.settings.configure'] },
+      { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
+    ] },
+  ]),
 ]
+/**
+ * Pages taken off the menu because another page does the same job. The pages still open by their address;
+ * they are to be removed for good once nobody misses them.
+ *   /app/hub/accounts        -> /app/accounts/daily (the hub's sheets for today)
+ *   /app/hr                  -> the home page's staff panels
+ *   /app/issues?tab=orders   -> a tab inside /app/issues
+ */
+export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders']
 
 // ---- small caches so the frame does not refetch on every page ----
 type MyRole = { code: string; name: string; scope_type: string; zone: string | null; hub: string | null }
@@ -296,6 +318,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     setPop(null); void hrReq.markRead([x.id]); setNotes(ns => ns.map(y => y.id === x.id ? { ...y, read_at: new Date().toISOString() } : y))
     if (x.link) nav(x.link)
   }
+  // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
+  // may open are listed in their own top panel, so a rider never gets a "manager" heading for one page.
+  const level = can('zonal.dashboard.view') || can('system.user.view') || can('hr.request.approve') ? 2
+    : can('hr.employee.view') || can('hr.attendance.create') || can('da.sheet.approve') ? 1 : 0
+  const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => allowed(i.perms) && inMenu(menu, i.to)
+    && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) }))
+  for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   const link = (i: Item) => <NavLink key={i.to} to={i.to} end className="nl" title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
     {i.count && cnt[i.count] ? <span className="count">{n(cnt[i.count])}</span> : null}</NavLink>
@@ -317,17 +346,18 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
       {HOME.filter(i => allowed(i.perms) && inMenu(menu, i.to) && hit(i)).map(link)}
-      {GROUPS.map(g => {
-        const vis = g.items.filter(i => allowed(i.perms) && inMenu(menu, i.to) && (hit(i) || `${g.bn} ${g.en}`.toLowerCase().includes(mq)))
+      {shown.map(({ g, secs }) => {
+        const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
         const has = vis.some(i => i.to === here)
         const isOpen = groupOpen[g.key] ?? true
         const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
-        return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`}>
+        return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`} data-panel={g.key}>
           <button type="button" className="ngh" aria-expanded={isOpen} title={L(g.bn, g.en)} onClick={() => toggleGroup(g.key, !isOpen)}>
             <span className="gi"><Icon name={g.icon} size={16} />{badge > 0 && !isOpen ? <span className="gdot">{n(badge)}</span> : null}</span>
             <span className="t">{L(g.bn, g.en)}</span><span className="chev"><Icon name="chev" size={14} /></span></button>
-          <div className="ngi" onClick={() => setOpen(false)}>{vis.map(link)}</div>
+          <div className="ngi" onClick={() => setOpen(false)}>{secs.map((x, i) => <Fragment key={i}>
+            {x.bn && <div className="nsec t">{L(x.bn, x.en)}</div>}{x.items.map(link)}</Fragment>)}</div>
         </div>
       })}
       <div className="side-foot">{L('এই রোল যা খুলতে পারে মেনুতে শুধু সেটাই দেখায়।', 'The menu shows only what your role may open.')}</div>

@@ -67,7 +67,7 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, homePanels = ['my_work', 'quick_links']
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links']
     const prospects = []
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -77,6 +77,7 @@ try {
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (u.includes('/auth/v1/user')) return j(session.user)
       if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
+      if (u.includes('rpc/my_permissions') && permsNow) return j(permsNow.map(c => ({ permission_code: c, scope_type: 'global', zone_id: null, hub_id: null, is_super: false })))
       if (u.includes('rpc/my_permissions')) return j(plainStaff ? [{ permission_code: 'hr.attendance.self', scope_type: 'global', zone_id: null, hub_id: null, is_super: false }]
         : [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])
       if (u.includes('/rest/v1/hr_request_formats') && u.includes('order=sort_order')) return j([
@@ -369,6 +370,28 @@ try {
     await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
     { const c = flowCalls.at(-1) ?? {}
       check(c.fn === 'hr_request_submit' && c.p_format === 'f-inactive' && c.p_employee === 'e01' && c.p_data?.reason === 'নিজে চাকরি ছেড়েছেন' && !!c.p_data?.last_date, `${size}: "has left" goes to the office as a request`) }
+    // the menu is three panels: staff, manager, zonal manager — each person gets the panels up to their own level
+    { const panels = () => page.locator('.side .ngrp').evaluateAll(els => els.map(e => e.dataset.panel).join())
+      const inPanel = (k, t) => page.locator(`.side .ngrp[data-panel=${k}] a.nl`, { hasText: t }).count()
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
+      check(await panels() === 'self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 1,
+        `${size}: the Super Admin's menu is three panels (staff, manager, zonal manager)`)
+      check(!links.includes('/app/hub/accounts') && !links.includes('/app/hr') && !links.includes('/app/issues?tab=orders') && new Set(links).size === links.length,
+        `${size}: pages that repeat another page are off the menu, and no page is listed twice`)
+      check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 7 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel is split into headed parts`)
+      if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-super.png` })
+      permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view']
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      check(await panels() === 'self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1,
+        `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
+      if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
+      permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view']
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
+        `${size}: a rider gets one panel only, with everything they may open inside it`)
+      if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
+      permsNow = null }
     // arranging a role's home page: add, remove, put in order — and the home page follows the saved order
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('[data-arrange=hub_manager]')
     await page.locator('[data-arrange=hub_manager]').click(); await page.waitForSelector('.da-modal [data-list=on] .nv-row')
