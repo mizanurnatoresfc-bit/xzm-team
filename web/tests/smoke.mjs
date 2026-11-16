@@ -67,7 +67,8 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false
+    const prospects = []
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
@@ -76,7 +77,19 @@ try {
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (u.includes('/auth/v1/user')) return j(session.user)
       if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
-      if (u.includes('rpc/my_permissions')) return j([{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])
+      if (u.includes('rpc/my_permissions')) return j(plainStaff ? [{ permission_code: 'hr.attendance.self', scope_type: 'global', zone_id: null, hub_id: null, is_super: false }]
+        : [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])
+      if (u.includes('/rest/v1/hr_request_formats') && u.includes('order=sort_order')) return j([
+        { id: 'f-active', code: 'ID_ACTIVE', kind: 'id_active', name: 'ID ACTIVE', name_bn: 'আইডি চালু', description: null, needs_employee: true, self_service: true, sort_order: 30, archived_at: null, fields: [
+          { key: 'employee_code', label: 'আইডি', type: 'text', prefill: 'employee_code' }, { key: 'full_name', label: 'নাম', type: 'text', prefill: 'full_name' },
+          { key: 'effective_date', label: 'কবে থেকে চালু', type: 'date', required: true }, { key: 'reason', label: 'কারণ', type: 'textarea' }] },
+        { id: 'f-leave', code: 'ID_INACTIVE', kind: 'id_inactive', name: 'ID INACTIVE / REMOVE', name_bn: 'আইডি বন্ধ / চাকরি ছাড়া', description: null, needs_employee: true, self_service: true, sort_order: 40, archived_at: null, fields: [
+          { key: 'employee_code', label: 'আইডি', type: 'text', prefill: 'employee_code' }, { key: 'full_name', label: 'নাম', type: 'text', prefill: 'full_name' },
+          { key: 'last_date', label: 'শেষ কর্মদিবস', type: 'date', required: true },
+          { key: 'reason_type', label: 'ধরন', type: 'select', required: true, options: ['চাকরি ছেড়ে দিচ্ছি', 'আইডি সাময়িক বন্ধ', 'অফিস থেকে বাদ', 'অন্য কারণ'] },
+          { key: 'reason', label: 'বিস্তারিত কারণ', type: 'textarea', required: true }] }])
+      if (u.includes('rpc/hr_referrals')) return j([{ id: 'e07', employee_code: '1007', full_name: 'Karim Mia', position_name: 'Rider', hub_name: 'Lalpur', zone_name: 'Natore', status: 'active', joining_date: '2026-10-01' }])
+      if (u.includes('/rest/v1/referral_prospects') && r.request().method() === 'POST') { prospects.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('rpc/role_admin_list')) return j(roles)
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
       if (u.includes('rpc/dashboard_home')) return j({ panels: ['my_work', 'quick_links'], today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
@@ -560,6 +573,42 @@ try {
     await page.waitForFunction(() => true, null, { timeout: 100 }); await page.waitForTimeout(400)
     check(mobiles.length === 1 && mobiles[0].p_mobile === '01711000000', `${size}: a person saves their own mobile number (Bangla digits accepted)`)
     await fits('my profile')
+    // staff desk: someone who acts only for themselves gets plain words instead of format names
+    plainStaff = true
+    await page.goto(`${BASE}/app/hr/requests`); await page.waitForSelector('.sd .nv-row')
+    await page.waitForFunction(() => document.querySelector('.sd')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
+    { const desk = await page.locator('.sd').innerText()
+      check(['আমার প্রোফাইল দেখুন', 'আমার হাতে লোক আছে', 'আমি যাদের নিয়ে এসেছি', 'আমি চাকরি করবো না', 'আমার প্যানেল বন্ধ হয়ে গিয়েছে', 'আইডি 1001'].every(t => desk.includes(t)) && !desk.includes('ID ACTIVE') && !desk.includes('INACTIVE'),
+        `${size}: a staff member's panel speaks plain Bangla (profile, my people, leaving, panel closed)`) }
+    await fits('staff panel')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-desk.png`, fullPage: true })
+    { const before = flowCalls.length
+      await page.locator('.sd .nv-row', { hasText: 'আমি চাকরি করবো না' }).click(); await page.waitForSelector('.da-modal textarea')
+      check(await page.locator('.da-modal select').count() === 0 && await page.locator('.da-modal input[type=date]').count() === 1, `${size}: leaving asks only the last day and the reason`)
+      if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-leave.png` }) }
+      await page.locator('.da-modal-acts button').last().click(); await page.waitForSelector('.da-modal .da-error')
+      check(flowCalls.length === before, `${size}: leaving is not sent without a reason`)
+      await page.locator('.da-modal textarea').fill('বাড়ি চলে যাচ্ছি'); await page.locator('.da-modal-acts button').last().click()
+      await page.waitForFunction(() => location.search.includes('tab=list'), null, { timeout: 5000 }).catch(() => {})
+      const c = flowCalls.at(-1) ?? {}
+      check(flowCalls.length === before + 1 && c.fn === 'hr_request_submit' && c.p_format === 'f-leave' && c.p_employee === 'e01' && c.p_data?.reason_type === 'চাকরি ছেড়ে দিচ্ছি'
+        && c.p_data?.reason === 'বাড়ি চলে যাচ্ছি' && c.p_data?.employee_code === '1001' && !!c.p_data?.last_date, `${size}: "I will not work any more" goes to the office as a leaving request`) }
+    { const before = flowCalls.length
+      await page.goto(`${BASE}/app/hr/requests?tab=new&do=active`); await page.waitForSelector('.da-modal textarea')
+      await page.locator('.da-modal textarea').fill('প্যানেলে ঢুকতে পারছি না'); await page.locator('.da-modal-acts button').last().click()
+      await page.waitForFunction(() => location.search.includes('tab=list'), null, { timeout: 5000 }).catch(() => {})
+      const c = flowCalls.at(-1) ?? {}
+      check(flowCalls.length === before + 1 && c.p_format === 'f-active' && c.p_employee === 'e01' && c.p_data?.reason === 'প্যানেলে ঢুকতে পারছি না' && !!c.p_data?.effective_date, `${size}: "my panel is closed" goes to the office as a switch-on request`) }
+    await page.goto(`${BASE}/app/hr/requests?tab=new&do=brought`); await page.waitForSelector('.sd .nv-row')
+    check((await page.locator('.sd').innerText()).includes('Karim Mia'), `${size}: the people I brought are listed`); await fits('people I brought')
+    await page.goto(`${BASE}/app/hr/requests?tab=new&do=hand`); await page.waitForSelector('.sd .nv-empty button')
+    await page.locator('.sd .nv-empty button').click(); await page.waitForSelector('.da-modal input')
+    await page.locator('.da-modal input').first().fill('Jamal Hossain'); await page.locator('.da-modal-acts button').last().click()
+    await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
+    check(prospects.at(-1)?.full_name === 'Jamal Hossain' && prospects.at(-1)?.referrer_id === 'e01', `${size}: a person in hand is saved under my name`)
+    await page.locator('.sd-top button').first().click(); await page.waitForSelector('.sd-hero')
+    check(await page.locator('.sd-hero').count() === 1, `${size}: "go back" returns to the staff panel`)
+    plainStaff = false
     asEmployee = false
 
     // new staff form: the mobile box tidies and checks itself, and warns about a number that is already used

@@ -21,7 +21,7 @@ export type ReqRecent = { id: string; request_no: string; kind: ReqKind; status:
 export type ReqSummary = { mine: Record<string, number>; decided: Record<string, number>; all: Record<string, number>; as_ref: number; about_me: number; open: number; recent: ReqRecent[] }
 export type Notice = { id: string; title: string; body: string | null; link: string | null; created_at: string; read_at: string | null }
 export type EmpRow = { id: string; employee_code: string | null; full_name: string; mobile: string | null; hub_id: string | null; position_id: string | null
-  department_id: string | null; reporting_manager_id: string | null; joining_date: string | null; status: string; profile_id: string | null }
+  department_id: string | null; reporting_manager_id: string | null; joining_date: string | null; status: string; profile_id: string | null; zone_id?: string | null }
 
 export const KINDS: Record<ReqKind, { bn: string; icon: string; tone: string }> = {
   id_create: { bn: 'ID CREATE', icon: 'plus', tone: 'g' },
@@ -40,7 +40,7 @@ export const PREFILL: Record<string, string> = {
 export const FIELD_TYPES: Record<FieldType, string> = {
   text: 'লেখা', number: 'সংখ্যা', date: 'তারিখ', phone: 'মোবাইল', textarea: 'বড় লেখা', select: 'বাছাই তালিকা', hub: 'হাব বাছাই', position: 'পদবি বাছাই',
 }
-const EMP_COLS = 'id,employee_code,full_name,mobile,hub_id,position_id,department_id,reporting_manager_id,joining_date,status,profile_id'
+const EMP_COLS = 'id,employee_code,full_name,mobile,hub_id,zone_id,position_id,department_id,reporting_manager_id,joining_date,status,profile_id'
 
 function fail(error: { message: string } | null) { if (error) throw error }
 async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {

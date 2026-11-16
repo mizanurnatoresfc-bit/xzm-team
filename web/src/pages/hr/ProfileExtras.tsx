@@ -157,7 +157,7 @@ function SetReferrer({ employee, current, onClose, onDone }: { employee: string;
   </Modal>
 }
 
-function ProspectForm({ p, cols, positions, onClose, onDone }: { p: Partial<Prospect>; cols: PCol[]; positions: Position[]; onClose: () => void; onDone: (m: string) => void }) {
+export function ProspectForm({ p, cols, positions, onClose, onDone }: { p: Partial<Prospect>; cols: PCol[]; positions: Position[]; onClose: () => void; onDone: (m: string) => void }) {
   const { L, lang } = usePrefs()
   const [f, setF] = useState<Partial<Prospect>>({ ...p, extra: { ...(p.extra ?? {}) } })
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)

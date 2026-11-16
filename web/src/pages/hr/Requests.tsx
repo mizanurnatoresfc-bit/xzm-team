@@ -11,6 +11,7 @@ import { FIELD_TYPES, KINDS, PREFILL, STATUS, hrReq, slugKey, type EmpRow, type 
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { NewApplication, useOrg } from './common'
 import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
+import { StaffDesk } from './StaffDesk'
 
 type Tab = 'new' | 'list' | 'report' | 'settings'
 const errText = (e: unknown) => (e instanceof Error && !('code' in e) ? e.message : hrFriendly(e))
@@ -25,9 +26,10 @@ export function Requests() {
   const canConfig = can('hr.request.configure')
   const tab = (sp.get('tab') as Tab) || (sp.get('id') ? 'list' : 'new')
   const setTab = (t: Tab) => { const n = new URLSearchParams(sp); n.set('tab', t); n.delete('id'); setSp(n, { replace: true }) }
-  const tabs: Array<[Tab, string, string]> = [['new', 'নতুন রিকুয়েস্ট', 'plus'], ['list', canDecide ? 'অনুমোদন প্যানেল' : 'আমার রিকুয়েস্ট', 'check'],
+  // Staff who act only for themselves get a plain desk instead of the format picker.
+  const tabs: Array<[Tab, string, string]> = [['new', canOthers ? 'নতুন রিকুয়েস্ট' : 'স্টাফ প্যানেল', canOthers ? 'plus' : 'grid'], ['list', canDecide ? 'অনুমোদন প্যানেল' : canOthers ? 'আমার রিকুয়েস্ট' : 'আমার আবেদন', 'check'],
     ['report', 'রিপোর্ট', 'chart'], ...(canConfig ? [['settings', 'ফরম্যাট সেটিং', 'gear'] as [Tab, string, string]] : [])]
-  return <AppShell title="HR ও অপারেশন রিকুয়েস্ট" subtitle={canOthers ? 'হাব → স্টাফ → ফরম্যাট বাছুন; আগের তথ্য নিজে বসে যায়' : 'নিজের আইডি চালু বা চাকরি ছাড়ার রিকুয়েস্ট পাঠান'}>
+  return <AppShell title={canOthers ? 'HR ও অপারেশন রিকুয়েস্ট' : 'স্টাফ প্যানেল'} subtitle={canOthers ? 'হাব → স্টাফ → ফরম্যাট বাছুন; আগের তথ্য নিজে বসে যায়' : 'আমার প্রোফাইল, আমার লোক আর অফিসে আবেদন'}>
     <div className="rq-tabs">{tabs.map(([k, l, ic]) => <button key={k} type="button" className={`rq-tab${tab === k ? ' on' : ''}`} onClick={() => setTab(k)}><Icon name={ic} size={16} />{l}</button>)}</div>
     {tab === 'new' && <NewRequest onDone={id => { const n = new URLSearchParams(); n.set('tab', 'list'); n.set('id', id); setSp(n) }} />}
     {tab === 'list' && <RequestList openId={sp.get('id')} onOpen={id => { const n = new URLSearchParams(sp); if (id) n.set('id', id); else n.delete('id'); setSp(n, { replace: true }) }} />}
@@ -97,6 +99,7 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
   if (base.error) return <p className="da-error">{hrFriendly(base.error)}</p>
   if (!base.data) return <p className="muted">লোড হচ্ছে…</p>
   if (!canOthers && !me) return <section className="panel"><p className="notice">আপনার লগইনের সাথে কোনো কর্মী প্রোফাইল যুক্ত নেই। HR-কে বলুন।</p></section>
+  if (!canOthers && me) return <StaffDesk me={me} formats={formats} onSent={onDone} />
 
   return <div className="rq-new">
     <section className="panel">
