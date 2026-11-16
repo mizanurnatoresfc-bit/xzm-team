@@ -67,7 +67,7 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links']
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, khataMode = 'approve', withZones = false, homePanels = ['my_work', 'quick_links']
     const prospects = []
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -93,6 +93,11 @@ try {
       if (u.includes('/rest/v1/referral_prospects') && r.request().method() === 'POST') { prospects.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('rpc/role_admin_list')) return j(roles)
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
+      if (u.includes('rpc/approval_mode_at')) return j(khataMode)
+      if (u.includes('rpc/approval_rule_save')) { flowCalls.push({ fn: 'approval_rule_save', ...r.request().postDataJSON() }); return j(null) }
+      if (u.includes('rpc/approval_rules_list')) { const z = r.request().postDataJSON()?.p_zone; return j(['khata', 'leave', 'hr_request', 'id_application', 'manpower', 'expense', 'profile'].map(k => (
+        { kind: k, wired: k === 'khata', all_mode: 'approve', zone_mode: z && k === 'khata' ? 'auto' : null, mode: z && k === 'khata' ? 'auto' : 'approve', set_by_name: k === 'khata' && z ? 'Owner' : null, set_at: k === 'khata' && z ? '2026-11-16T06:00:00Z' : null }))) }
+      if (withZones && u.includes('/rest/v1/zones')) return j([{ id: 'z1', organization_id: 'o1', code: 'NAT', name: 'Natore', name_bn: null, phone: null, address: null, status: 'active', archived_at: null }])
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
@@ -328,6 +333,12 @@ try {
     check(flowCalls.at(-1)?.fn === 'da_check' && flowCalls.at(-1)?.p_note === 'একজন ছুটিতে', `${size}: the daily sheet is opened with its reason`)
     check(await page.locator('.da-actionbar button').count() === 0 && (await page.locator('.da-actionbar').innerText()).includes('ডেইলি হিসাবের খাতা'), `${size}: the final "send to accounts" button waits until the daily sheet is opened`)
     await fits('accounts sheet')
+    // the zone's rule for khatas shows on the hub page: on "view" nothing can be taken back from above
+    check(await page.locator('.fl-rule').count() === 0, `${size}: with no rule set, the hub page says nothing about automatic acceptance`)
+    khataMode = 'view'
+    await page.reload(); await page.waitForSelector('.fl-people .nv-row'); await page.waitForSelector('.fl-rule', { timeout: 5000 }).catch(() => {})
+    check(await page.locator('.fl-rule[data-rule=view]').count() === 1 && await page.locator('.fl-people button', { hasText: 'ফিরিয়ে নিন' }).count() === 0, `${size}: where khatas are only viewed, the hub page says so and offers no "take back"`)
+    khataMode = 'approve'
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
     // attendance days to compare: two numbers per person, a difference is pointed out, then submit
     await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
@@ -399,6 +410,21 @@ try {
         `${size}: a rider gets one panel only, with everything they may open inside it`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
       permsNow = null; asEmployee = false }
+    // approval rules: the Super Admin sets "all zones" or one zone; kinds not switched on yet cannot be picked
+    withZones = true
+    await page.goto(`${BASE}/app/approval-rules`); await page.waitForSelector('.ar-row[data-kind=khata] .ar-mode')
+    check(await page.locator('.ar-row').count() === 7 && await page.locator('.ar-row.off').count() === 6 && await page.locator('.ar-row[data-kind=leave] .ar-mode:disabled').count() === 3
+      && await page.locator('.ar-row[data-kind=khata] .ar-mode.on').innerText().then(t => t.includes('অনুমোদন লাগবে')), `${size}: the approval rules page lists every kind; only the hisab khata can be set for now`)
+    await page.locator('.ar-row[data-kind=khata] .ar-mode', { hasText: 'অটো গ্রহণ' }).click(); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.fn === 'approval_rule_save' && flowCalls.at(-1)?.p_kind === 'khata' && flowCalls.at(-1)?.p_zone === null && flowCalls.at(-1)?.p_mode === 'auto', `${size}: the Super Admin sets a rule for all zones`)
+    await page.locator('.nv-chip', { hasText: 'Natore' }).click(); await page.waitForSelector('.ar-row[data-kind=khata] .ar-foot button')
+    await fits('approval rules')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-approval.png`, fullPage: true })
+    await page.locator('.ar-row[data-kind=khata] .ar-mode', { hasText: 'শুধু দেখা' }).click(); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.p_zone === 'z1' && flowCalls.at(-1)?.p_mode === 'view', `${size}: a zone can have its own rule`)
+    await page.locator('.ar-row[data-kind=khata] .ar-foot button').click(); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.fn === 'approval_rule_save' && flowCalls.at(-1)?.p_zone === 'z1' && flowCalls.at(-1)?.p_mode === null, `${size}: a zone can go back to the rule for all zones`)
+    withZones = false
     // arranging a role's home page: add, remove, put in order — and the home page follows the saved order
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('[data-arrange=hub_manager]')
     await page.locator('[data-arrange=hub_manager]').click(); await page.waitForSelector('.da-modal [data-list=on] .nv-row')

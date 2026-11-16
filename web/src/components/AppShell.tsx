@@ -106,6 +106,7 @@ export const GROUPS: Group[] = [
       { to: '/app/office/assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
     ] },
     { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
+      { to: '/app/approval-rules', icon: 'check', bn: 'কোন কাজে কার অনুমোদন', en: 'Approval rules', perms: ['system.approval_rule.configure'] },
       { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
       { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
       { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
