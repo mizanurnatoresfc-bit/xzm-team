@@ -16,7 +16,6 @@ const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: strin
   ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
   ['/app/org', 'org', 'এরিয়া, হাব ও পদ', 'Areas, hubs & posts', 'প্রতিষ্ঠান, এরিয়া, হাব, বিভাগ ও পদবি', 'Organisation, areas, hubs, departments, positions', ['org.zone.view', 'org.hub.view']],
   ['/app/zonal/staff', 'users', 'হাব অনুযায়ী কর্মী', 'Staff by hub', 'হাবের হিসাব, বদলি, আইডি, এক্সপোর্ট', 'Hub figures, transfers, IDs, export', ['hr.employee.view']],
-  ['/app/hr', 'chart', 'HR ড্যাশবোর্ড', 'HR dashboard', 'কর্মী, যোগদান, অপেক্ষমাণ কাজ', 'Staff, joining, pending work', ['hr.employee.view']],
   ['/app/hr/employees', 'users', 'কর্মী', 'Employees', 'তালিকা, প্রোফাইল, নতুন আইডি আবেদন', 'List, profiles, new ID application', ['hr.employee.view', 'hr.application.create']],
   ['/app/hr/applications', 'form', 'আইডি আবেদন', 'ID applications', 'যাচাই করে এমপ্লয়ি আইডি দিন', 'Review and give Employee IDs', ['hr.application.view']],
   ['/app/hr/attendance', 'cal', 'হাজিরা', 'Attendance', 'দৈনিক হাজিরা ও মাসিক হিসাব', 'Daily marking and monthly summary', ['hr.attendance.view', 'hr.attendance.create']],
@@ -118,7 +117,7 @@ export function Dashboard() {
       </div>
       <p className="muted small"><Link to="/app/me">{L('আমার প্রোফাইল', 'My profile')}</Link> · <Link to="/app/hr/leave">{L('ছুটি', 'Leave')}</Link> · <Link to="/app/accounts/mine">{L('আমার হিসাব', 'My accounts')}</Link></p>
     </Panel> : null
-      case 'hr_overview': return d?.hr_overview ? <Panel code="hr_overview" to="/app/hr">
+      case 'hr_overview': return d?.hr_overview ? <Panel code="hr_overview" to="/app/hr/employees">
       <div className="da-stats">
         <Stat icon="users" label={L('মোট কর্মী', 'Staff')} value={n(d.hr_overview.total)} />
         <Stat icon="check" tone="ok" label={L('সক্রিয়', 'Active')} value={n(d.hr_overview.active)} />

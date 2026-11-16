@@ -52,7 +52,8 @@ export function HubManagement() {
   if (!sec) return <Navigate to="/app/hub/team" replace />
   const allowed = sec.perms.some(p => can(p))
   const current = hubs.find(h => h.id === hub) ?? null
-  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`))
+  // "আজকের হিসাব" is off the strip: the hub's sheets page does the same job (see HIDDEN_PAGES in AppShell).
+  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`) && (s.key !== 'accounts' || section === 'accounts'))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
     <section className="da-filters panel no-print hub-top">

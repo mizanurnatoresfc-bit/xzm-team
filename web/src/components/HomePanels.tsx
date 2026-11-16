@@ -97,7 +97,7 @@ export function HubTodayPanel() {
         <Link to="/app/hub/attendance" className={`nk${v.notMarked ? ' warn' : ''}`}><span className="nk-i r"><Icon name="alert" size={20} /></span><b>{n(v.notMarked)}</b><small>{L('হাজিরা বাকি', 'Not marked')}</small></Link>
         <Link to="/app/hub/pickup" className="nk"><span className="nk-i p"><Icon name="box" size={20} /></span><b>{n(v.pickups)}</b><small>{L('আজ পিকআপ', 'Pickups')}</small></Link>
       </div>
-      <Link to="/app/hub/accounts" className={`ht-sheet t-${v.sheet ? SHEET[v.sheet]?.[1] ?? 'g' : 'r'}`}><Icon name="ledger" size={18} />
+      <Link to="/app/accounts/daily" className={`ht-sheet t-${v.sheet ? SHEET[v.sheet]?.[1] ?? 'g' : 'r'}`}><Icon name="ledger" size={18} />
         <span>{L('আজকের হিসাব খাতা', "Today's daily sheet")}: <b>{v.sheet ? L(SHEET[v.sheet]?.[0] ?? v.sheet, v.sheet) : L('এখনো খোলা হয়নি', 'Not opened yet')}</b></span><Icon name="chev" size={16} /></Link>
       <div className="myday-acts">
         <Link to="/app/hub/attendance" className="ma t-g"><Icon name="cal" size={18} />{L('হাজিরা দিন', 'Attendance')}</Link>
