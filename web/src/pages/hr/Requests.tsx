@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Contact } from '../../components/Contact'
 import { Combo } from '../../components/inputs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -162,7 +163,7 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
           <span className="rq-av">{emp.full_name.slice(0, 1)}</span>
           <div className="rq-pcard-t"><b>{emp.full_name}</b>
             <span className="muted small">{[emp.employee_code && `আইডি ${emp.employee_code}`, posName(emp.position_id), hubName(emp.hub_id)].filter(Boolean).join(' · ')}</span>
-            {emp.mobile && <a className="small" href={`tel:${emp.mobile}`}>{emp.mobile}</a>}</div>
+            {emp.mobile && <Contact phone={emp.mobile} />}</div>
           <Badge tone={st[1]}>{st[0]}</Badge>
           <button type="button" className="icon-btn" aria-label="বদলান" onClick={() => setEmp(null)}><Icon name="x" size={16} /></button>
         </div>}

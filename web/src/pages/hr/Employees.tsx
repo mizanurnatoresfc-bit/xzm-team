@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Contact } from '../../components/Contact'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
@@ -88,7 +89,7 @@ export function Employees() {
           { key: 'full_name', label: 'নাম', primary: true, value: e => e.full_name, render: e => <span className="emp-tname"><span className={`ec-av sm t-${toneOf(e.full_name)}`}>{initials(e.full_name)}</span>
             <span><b>{e.full_name}</b><span className="sec">{e.employee_code ? `আইডি ${e.employee_code}` : 'আইডি বাকি'}{e.full_name_bn ? ` · ${e.full_name_bn}` : ''}</span></span></span> },
           { key: 'employee_code', label: 'আইডি', hidden: true, value: e => e.employee_code ?? '' },
-          { key: 'mobile', label: 'মোবাইল', value: e => e.mobile ?? '', render: e => e.mobile ? <a href={`tel:${e.mobile}`} onClick={ev => ev.stopPropagation()}>{e.mobile}</a> : <span className="muted">—</span> },
+          { key: 'mobile', label: 'মোবাইল', value: e => e.mobile ?? '', render: e => <Contact phone={e.mobile} /> },
           { key: 'pos', label: 'পদবি', value: posName, render: e => posName(e) ? <Badge tone="ok">{posName(e)}</Badge> : <Badge tone="neutral">পদ দেওয়া নেই</Badge> },
           { key: 'hub', label: 'হাব', value: hubName },
           { key: 'status', label: 'অবস্থা', value: e => EMP_STATUS[e.status as EmployeeStatus]?.[0] ?? e.status, render: e => <EmpBadge status={e.status} /> },

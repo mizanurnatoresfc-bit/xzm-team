@@ -1,6 +1,7 @@
 // অফিস অপারেশন — the parts of the Office pages that deal with running a place: the lease and the month's bills,
 // what the electricity should cost, vehicles / locks / logins, who lives there, reports to the zonal manager, and the zone picture.
 import { useMemo, useState, type ReactNode } from 'react'
+import { Contact } from '../../components/Contact'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { Icon } from '../../components/Icon'
@@ -239,7 +240,7 @@ export function Rent({ ctx }: { ctx: Ctx }) {
       </div>
       <dl className="oo-dl">
         <div><dt>{L('বাসা মালিক', 'Landlord')}</dt><dd>{p.owner_name || '—'}</dd></div>
-        <div><dt>{L('নাম্বার', 'Number')}</dt><dd>{p.owner_phone ? <a href={`tel:${p.owner_phone}`}>{p.owner_phone}</a> : '—'}</dd></div>
+        <div><dt>{L('নাম্বার', 'Number')}</dt><dd><Contact phone={p.owner_phone} /></dd></div>
         <div><dt>{L('ঠিকানা', 'Address')}</dt><dd>{[p.address, p.floor_note].filter(Boolean).join(', ') || '—'}</dd></div>
         <div><dt>{L('চুক্তির ছবি', 'Contract photo')}</dt><dd>{p.contract_file ? <FileBtn path={p.contract_file}>{L('চুক্তি দেখুন', 'Open contract')}</FileBtn> : <span className="bad">{L('দেওয়া হয়নি', 'Not added')}</span>}</dd></div>
       </dl>

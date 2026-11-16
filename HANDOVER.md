@@ -296,3 +296,10 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   that secret the plugin is uninstalled for the build (the app would crash calling Firebase uninitialised), so APKs build exactly as before.
 - **Owner steps left:** create the Firebase project and Android app `com.xzmteam.erp`; put `google-services.json` in the GitHub secret `GOOGLE_SERVICES_JSON`;
   put the service-account JSON in the Supabase secret `FCM_SERVICE_ACCOUNT`; build a new APK (Actions → Run workflow) and install it.
+
+## 2026-11-17 — Call, SMS and WhatsApp from the app
+- `components/Contact.tsx`: a number with three round buttons (কল · SMS · WhatsApp, the last as wa.me/880…). Used in the staff list, hub team, zonal staff,
+  vehicle crew (manager and crew pages), office landlord and the HR request person card; the employee profile already had its own.
+- `lib/native.ts` `handOutsideLinks()`: inside the Android app, a tap on tel: / sms: / mailto: / whatsapp: or on a link to another site or with target=_blank
+  becomes a top-level navigation, which Capacitor hands to the phone (dialer, SMS app, WhatsApp, browser). In the web view such links could do nothing.
+  Not checked on a real phone yet.

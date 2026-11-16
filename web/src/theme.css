@@ -1962,3 +1962,12 @@ button.link-btn{background:none!important;border:0!important;padding:0!important
 .nf-empty{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:36px 16px}
 .nf-big{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:var(--primary-50);color:var(--primary);margin-bottom:6px}
 .nf-more{display:flex;justify-content:center;margin:14px 0}
+
+/* ---- call / SMS / WhatsApp buttons next to a number ---- */
+.ct{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ct-num{font-variant-numeric:tabular-nums;margin-right:2px}
+.ct-b{width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;text-decoration:none;flex:none}
+.ct-b.call{background:#E7F6EC;color:#15803D}.ct-b.sms{background:#E8EEFF;color:#1D4ED8}.ct-b.wa{background:#DCFCE7;color:#128C7E}
+:root[data-theme="dark"] .ct-b{background:color-mix(in srgb,currentColor 18%,transparent)}
+.ct-b:active{transform:scale(.92)}
+@media (max-width:700px){.ct-b{width:36px;height:36px}}

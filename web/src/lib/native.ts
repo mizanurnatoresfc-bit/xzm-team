@@ -26,6 +26,7 @@ export const isNativeApp = (): boolean => Boolean(cap()?.isNativePlatform?.())
 export function setupNativeApp(): void {
   if (!isNativeApp()) return
   document.documentElement.classList.add('native-app')
+  handOutsideLinks()
   fitStatusBar()
   const app = cap()?.Plugins?.App
   if (!app) return
@@ -101,4 +102,21 @@ export async function setupPush(save: (token: string) => Promise<void>, open: (l
   if (st !== 'granted') return 'denied'
   await p.register().catch(() => undefined)
   return 'on'
+}
+
+/** Call, SMS, WhatsApp, e-mail and links that open a new window are handed to the phone (dialer, SMS app, WhatsApp, browser)
+ *  instead of being tried inside the app's web view, where a new window or tel: link can silently do nothing. */
+function handOutsideLinks(): void {
+  document.addEventListener('click', e => {
+    if (e.defaultPrevented || e.button !== 0) return
+    const a = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+    if (!a) return
+    const href = a.getAttribute('href') || ''
+    const outside = /^(tel|sms|mailto|whatsapp|geo|intent):/i.test(href)
+      || (/^https?:/i.test(href) && (a.target === '_blank' || new URL(href, location.href).host !== location.host))
+    if (!outside) return
+    e.preventDefault()
+    // A top-level navigation to another scheme or host is caught by the app and opened outside it.
+    window.location.href = href
+  }, true)
 }
