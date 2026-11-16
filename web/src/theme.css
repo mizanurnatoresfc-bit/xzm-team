@@ -1895,3 +1895,7 @@ button.link-btn{background:none!important;border:0!important;padding:0!important
   .rp-dates{grid-template-columns:1fr}
   .rq-submit-bar{padding:8px 8px 8px 14px}.rq-submit-bar button{min-width:0}
 }
+.rq-code{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.4px;color:var(--muted);opacity:.8;margin-top:2px}
+.rq-tile .qi{width:48px;height:48px;border-radius:16px}
+.rq-tile-t b{font-size:15px}
+.chip-toggle .ic{margin-right:-2px}
