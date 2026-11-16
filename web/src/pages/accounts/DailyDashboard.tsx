@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { da, num, taka, dateBn, timeBn, todayDhaka, addDays, STATUS_LABEL, type SheetStatus, type SessionRow } from '../../lib/dailyAccounts'
+import { collectorsNeeded, da, num, taka, dateBn, timeBn, todayDhaka, addDays, STATUS_LABEL, type SheetStatus, type SessionRow, type FlowRow } from '../../lib/dailyAccounts'
 import { Icon } from '../../components/Icon'
 import { Combo } from '../../components/inputs'
 import { matches } from '../../lib/validate'
@@ -30,6 +30,9 @@ export function DailyDashboard() {
   const hubs = useLoad(() => da.myHubs(), [])
   const dash = useLoad(() => da.dashboard(from, to, hub || null), [from, to, hub])
   const list = useLoad(() => da.list(from, to, hub || null, null, null), [from, to, hub])
+  const flow = useLoad(() => da.flowList(from, to, hub || null).catch(() => []), [from, to, hub])
+  const settings = useLoad(() => da.settings().catch(() => null), [])
+  const flowOf = useMemo(() => new Map((flow.data ?? []).map(f => [f.session_id, f])), [flow.data])
   const startable = (hubs.data ?? []).filter(h => h.can_submit)
   const all = useMemo(() => list.data ?? [], [list.data])
   const oneDay = from === to
@@ -110,20 +113,21 @@ export function DailyDashboard() {
           {startable.length > 0 && !q && <button type="button" onClick={() => begin()}>＋ হিসাব শুরু করুন</button>}</div>
         : view === 'table' && rows.length > 0 ? <section className="panel"><div className="da-table-wrap"><table className="da-table">
           <thead><tr><th>নং</th><th>তারিখ</th><th>হাব</th><th className="r">রাইডার</th><th className="r">ডেলিভারি</th><th className="r">পিকআপ</th>
-            <th className="r">টাকা</th><th className="r">বকেয়া</th><th className="r">মোবাইল ব্যাংকিং</th><th className="r">খরচ</th><th>অবস্থা</th><th>Submit করেছেন</th><th /></tr></thead>
-          <tbody>{rows.map(r => <SessionTr key={r.id} r={r} />)}</tbody></table></div>
+            <th className="r">টাকা</th><th className="r">বকেয়া</th><th className="r">মোবাইল ব্যাংকিং</th><th className="r">খরচ</th><th>অবস্থা</th><th>ধাপ</th><th>Submit করেছেন</th><th /></tr></thead>
+          <tbody>{rows.map(r => <SessionTr key={r.id} r={r} f={flowOf.get(r.id)} />)}</tbody></table></div>
           {gaps.length > 0 && <p className="muted small" style={{ margin: '10px 0 0' }}>শুরু হয়নি: {gaps.map(h => h.name).join(', ')}</p>}</section>
         : <div className="nv-rows">
           {rows.map(r => <Link key={r.id} className={`nv-row nv-s-${r.status}`} to={`/app/accounts/daily/${r.id}`}>
             <span className="nv-av">{r.hub_name.slice(0, 1)}</span>
             <span className="tx"><b>{r.hub_name}</b>
               <span>{oneDay ? '' : `${dateBn(r.account_date)} · `}{num(r.riders)} জন রাইডার · {num(r.delivery)} ডেলিভারি · {num(r.pickup)} পিকআপ</span>
-              <span className="who">{r.submitted_by_name ? `জমা: ${r.submitted_by_name} · ${timeBn(r.submitted_at)}` : `শুরু: ${r.started_by_name ?? '—'}`}{Number(r.due) > 0 ? <em> · বকেয়া {taka(r.due)}</em> : null}</span></span>
+              <span className="who">{r.submitted_by_name ? `জমা: ${r.submitted_by_name} · ${timeBn(r.submitted_at)}` : `শুরু: ${r.started_by_name ?? '—'}`}{Number(r.due) > 0 ? <em> · বকেয়া {taka(r.due)}</em> : null}</span>
+              {flowOf.get(r.id) && <FlowLine f={flowOf.get(r.id)!} />}</span>
             <span className="end"><b>{taka(r.amount)}</b><StatusBadge status={r.status} /></span>
           </Link>)}
           {gaps.map(h => <div key={h.hub_id} className="nv-row none">
             <span className="nv-av">{h.name.slice(0, 1)}</span>
-            <span className="tx"><b>{h.name}</b><span>{h.zone_name} · এখনো হিসাব শুরু হয়নি</span></span>
+            <span className="tx"><b>{h.name}</b><span>{h.zone_name} · এখনো হিসাব শুরু হয়নি · {num(collectorsNeeded(settings.data, h.hub_id))} জনের হিসাব নেওয়ার কথা</span></span>
             <span className="end">{canStart(h.hub_id) ? <button type="button" className="sm" onClick={() => begin(h.hub_id)}>শুরু করুন</button> : <span className="da-badge">শুরু হয়নি</span>}</span>
           </div>)}
         </div>}
@@ -153,7 +157,15 @@ export function DailyDashboard() {
   </AccountsShell>
 }
 
-function SessionTr({ r }: { r: SessionRow }) {
+/** Where the sheet stands: parts submitted, checked, main-site report confirmed. */
+function FlowLine({ f }: { f: FlowRow }) {
+  return <span className="fl-line">
+    <i className={f.submitted >= f.needed && f.submitted === f.people ? 'ok' : 'warn'}>{num(f.submitted)}/{num(f.needed)} সাবমিট{f.people > f.submitted ? ` · ড্রাফট ${num(f.people - f.submitted)}` : ''}</i>
+    <i className={f.checked_at ? 'ok' : ''}>{f.checked_at ? '✓ চেক হয়েছে' : 'চেক বাকি'}</i>
+    <i className={f.report_ok_at ? (Number(f.report_diff) !== 0 ? 'warn' : 'ok') : ''}>{f.report_ok_at ? (Number(f.report_diff) !== 0 ? '✓ রিপোর্ট ওকে (পার্থক্যসহ)' : '✓ রিপোর্ট ওকে') : 'রিপোর্ট বাকি'}</i></span>
+}
+
+function SessionTr({ r, f }: { r: SessionRow; f?: FlowRow }) {
   const nav = useNavigate()
   return <tr className="click" onClick={() => nav(`/app/accounts/daily/${r.id}`)}>
     <td data-l="নং">{num(r.no)}</td><td data-l="তারিখ">{dateBn(r.account_date)}</td>
@@ -161,7 +173,7 @@ function SessionTr({ r }: { r: SessionRow }) {
     <td data-l="রাইডার" className="r">{num(r.riders)}</td><td data-l="ডেলিভারি" className="r">{num(r.delivery)}</td>
     <td data-l="পিকআপ" className="r">{num(r.pickup)}</td><td data-l="টাকা" className="r">{taka(r.amount)}</td>
     <td data-l="বকেয়া" className="r">{taka(r.due)}</td><td data-l="মোবাইল ব্যাংকিং" className="r">{taka(r.mobile_banking)}</td>
-    <td data-l="খরচ" className="r">{taka(r.expense)}</td><td data-l="অবস্থা"><StatusBadge status={r.status} /></td>
+    <td data-l="খরচ" className="r">{taka(r.expense)}</td><td data-l="অবস্থা"><StatusBadge status={r.status} /></td><td data-l="ধাপ">{f ? <FlowLine f={f} /> : '—'}</td>
     <td data-l="Submit করেছেন">{r.submitted_by_name ?? '—'}<span className="sec">{r.submitted_at ? timeBn(r.submitted_at) : ''}</span></td>
     <td><Link to={`/app/accounts/daily/${r.id}`} onClick={e => e.stopPropagation()}>খুলুন →</Link></td>
   </tr>

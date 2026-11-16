@@ -10,6 +10,7 @@ import { printVoucher } from '../../lib/voucher'
 import { printArea } from '../../lib/xlsx'
 import { AccountsShell, Stat, StatusBadge, Badge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
 import { QuickGrid, type GCol, type Vals } from './QuickGrid'
+import { FlowPanel } from './sheetFlow'
 import { SectionMenu, ExtraHeads, ExtraCells, ExtraBlanks, BankPanel, useApplyLayout, isOff } from './sheetTools'
 
 const EMPTY_LAYOUT = {}
@@ -71,8 +72,10 @@ export function DailySheet() {
       <Stat label="মোট খরচ" value={taka(t.transport_expense + t.employee_expense)} />
     </section>}
 
+    <FlowPanel s={s} settings={st} reload={reload} />
+
     <nav className="da-tabs no-print" aria-label="হিসাবের অংশ">
-      {tabs.map(([key, label, count]) => <button key={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}>
+      {tabs.map(([key, label, count]) => <button key={key} data-tab={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}>
         {label}{count !== null ? ` (${num(count)})` : ''}</button>)}
     </nav>
 
@@ -86,7 +89,6 @@ export function DailySheet() {
       {tab === 'close' && <><ClosingBox s={s} settings={st} /><CloseDay s={s} reload={reload} />
         <details className="panel no-print" id="da-history"><summary><b>ইতিহাস — কে কখন কী করেছেন</b></summary><HistoryTab s={s} /></details></>}
     </div>
-    <CollectorStrip s={s} reload={reload} />
     <ActionBar s={s} reload={reload} />
     </div>
   </AccountsShell>
@@ -736,44 +738,6 @@ function ActionBar({ s, reload }: { s: Sheet; reload: (m?: string) => Promise<vo
   </div>
 }
 
-
-// ---------------------------------------------------------------------------- the people keeping this sheet
-/** Who is writing on this sheet today, who has finished, and who is still at it. */
-function CollectorStrip({ s, reload }: { s: Sheet; reload: (m?: string) => Promise<void> }) {
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<unknown>(null)
-  const list = s.collectors ?? []
-  if (!list.length) return null
-  const open = list.filter(c => !c.closed_at)
-  const mine = list.find(c => c.user_id === s.session.started_by)
-  async function close(done: boolean) {
-    setBusy(true); setErr(null)
-    try { await da.closeMyPart(s.session.id, null, done); await reload(done ? 'আপনার অংশ শেষ দেখানো হলো' : 'আবার খোলা হলো') }
-    catch (e) { setErr(e) } finally { setBusy(false) }
-  }
-  return <section className="panel da-collectors">
-    <div className="da-bar"><h2>কারা হিসাব নিচ্ছেন</h2>
-      {open.length > 0
-        ? <Badge tone="warn">বাকি {num(open.length)} জন</Badge>
-        : <Badge tone="ok">সবার শেষ</Badge>}</div>
-    <div className="da-table-wrap"><table className="da-table">
-      <thead><tr><th>কে</th><th className="r">রাইডার</th><th className="r">পেমেন্ট</th><th className="r">খরচ</th><th className="r">টাকা</th><th>অবস্থা</th></tr></thead>
-      <tbody>{list.map(c => <tr key={c.user_id}>
-        <td data-l="কে"><b>{c.name ?? '—'}</b>{c.code ? <span className="sec">ID {c.code}</span> : null}</td>
-        <td data-l="রাইডার" className="r">{num(c.riders)}</td>
-        <td data-l="পেমেন্ট" className="r">{num(c.payments)}</td>
-        <td data-l="খরচ" className="r">{num(c.expenses)}</td>
-        <td data-l="টাকা" className="r">{taka(c.amount)}</td>
-        <td data-l="অবস্থা">{c.closed_at ? <Badge tone="ok">শেষ · {timeBn(c.closed_at)}</Badge> : <Badge tone="warn">চলছে</Badge>}</td>
-      </tr>)}</tbody></table></div>
-    {s.can_edit && <div className="row no-print" style={{ marginTop: 8 }}>
-      <button className="secondary" disabled={busy} onClick={() => void close(true)}>আমার অংশ শেষ</button>
-      {mine?.closed_at && <button className="secondary" disabled={busy} onClick={() => void close(false)}>আবার খুলুন</button>}
-      {open.length > 0 && <span className="muted small">বাকি: {open.map(c => c.name ?? '—').join(' · ')}</span>}
-    </div>}
-    <ErrorNote error={err} />
-  </section>
-}
 
 // ---------------------------------------------------------------------------- cash notes
 type NoteDraft = { id?: string; amount: string; method: string; code: string; name: string; note: string }

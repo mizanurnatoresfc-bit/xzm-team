@@ -72,6 +72,10 @@ export type Sheet = {
     closed_totals: ClosedTotals | null
     /** The day's bank work: done once every deposit has its slip. */
     bank_done_at?: string | null; bank_done_by?: string | null; bank_done_note?: string | null
+    /** "Accounts checked": how many parts were submitted against how many the hub needs, and the reason when fewer. */
+    check_note?: string | null; check_done?: number | null; check_needed?: number | null
+    /** The main site's daily report confirmed against the sheet. */
+    report_ok_at?: string | null; report_ok_by_name?: string | null; report_total?: number | null; report_diff?: number | null; report_note?: string | null
   }
   hub: { id: string; code: string; name: string; name_bn: string | null }
   zone: { id: string; code: string; name: string }
@@ -109,11 +113,20 @@ export type Category = { code: string; en: string; bn: string
   site_name?: string | null; site_sub?: string | null; site_limit?: number | null; site_receipt?: boolean | null
   /** Used when the category does not go to the main site at all. */
   site_note_bn?: string | null }
+/** Where a sheet stands: parts submitted against the hub's number, checked, report confirmed. */
+export type FlowRow = { session_id: string; hub_id: string; needed: number; people: number; submitted: number
+  checked_at: string | null; report_ok_at: string | null; report_diff: number | null }
+/** How many people take the accounts at a hub, from the settings. */
+export const collectorsNeeded = (st: Pick<DaSettings, 'da.hub_collectors' | 'da.collectors_default'> | null | undefined, hub: string) =>
+  Math.max(1, Number(st?.['da.hub_collectors']?.[hub] ?? st?.['da.collectors_default'] ?? 1) || 1)
+
 export type ClosedTotals = { riders: number; rider_amount: number; collected: number; due: number
   mobile_banking: number; payments: number; payment_amount: number; expenses: number; expense_amount: number; notes_in: number }
 
 export type Collector = { user_id: string; name: string | null; code: string | null; closed_at: string | null; created_at: string
-  note: string | null; riders: number; payments: number; expenses: number; amount: number }
+  note: string | null; riders: number; payments: number; expenses: number; amount: number
+  /** Who submitted the part, when it was someone else. */
+  closed_by?: string | null; closed_by_name?: string | null }
 
 export type CashNote = { id: string; no: number; from_employee: string | null; from_name: string | null
   from_code: string | null; amount: number; method: string; note: string | null; created_by: string; created_at: string }
@@ -126,6 +139,8 @@ export const NOTE_METHOD: Record<string, string> = { cash: 'ক্যাশ', bk
 export type DaSettings = {
   'da.payment_id_prefix': string; 'da.double_rider_lines': boolean
   'da.claim_date_source': 'sheet' | 'bill'; 'da.close_needs_all': boolean
+  /** How many people take the accounts: per hub (hub id -> number) and for hubs without their own number. */
+  'da.hub_collectors'?: Record<string, number>; 'da.collectors_default'?: number
   'da.fixed_riders': string[]; 'da.fixed_expenses': FixedExpense[]; 'da.note_methods': string[]
   'da.timezone': string; 'da.start_time': string; 'da.backdate_days': number; 'da.session_tracking': boolean
   'da.rider_fields': string[]; 'da.due_rule': 'manual' | 'amount_minus_paid'
@@ -306,6 +321,13 @@ export const da = {
   collectors: (session: string) => rpc<Collector[]>('da_collectors', { p_session: session }),
   closeDay: (session: string, note?: string | null) => rpc<ClosedTotals>('da_close_day', { p_session: session, p_note: note ?? null }),
   reopenDay: (session: string, reason: string) => rpc<void>('da_reopen_day', { p_session: session, p_reason: reason }),
+  // ---- draft -> submit -> check -> report OK ----
+  closePartFor: (session: string, user: string, done = true) => rpc<void>('da_close_part_for', { p_session: session, p_user: user, p_done: done, p_note: null }),
+  check: (session: string, note?: string | null) => rpc<ClosedTotals & { needed: number; done: number; open: number }>('da_check', { p_session: session, p_note: note || null }),
+  reportOk: (session: string, note?: string | null) => rpc<{ total: number; sheet: number; diff: number }>('da_report_ok', { p_session: session, p_note: note || null }),
+  reportOkUndo: (session: string, reason: string) => rpc<void>('da_report_ok_undo', { p_session: session, p_reason: reason }),
+  flowList: (from: string, to: string, hub?: string | null) => rpc<FlowRow[]>('da_flow_list', { p_from: from, p_to: to, p_hub: hub || null }),
+  setHubCollectors: (hub: string, count: number | null) => rpc<void>('da_hub_collectors_set', { p_hub: hub, p_count: count }),
   applyFixed: (session: string) => rpc<{ riders: number; expenses: number }>('da_apply_fixed', { p_session: session }),
   saveNote: (a: { session: string; amount: number; method?: string; fromCode?: string | null; fromName?: string | null
                   note?: string | null; id?: string | null }) =>

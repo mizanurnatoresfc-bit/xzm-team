@@ -3,6 +3,7 @@ import { da, type DaSettings, type Category, type Template, type RefPerson, type
 import { autoCode, org } from '../../lib/hr'
 import { AccountsShell, Field, ErrorNote, Badge, Modal, useLoad, useToast } from './ui'
 import { BankChargeCard, LayoutCard } from './sheetTools'
+import { HubCollectorsCard } from './sheetFlow'
 
 // Zonal / Accounts settings for Daily Accounts. Every change is validated and audited in the database.
 export function AccountsSettings() {
@@ -23,6 +24,7 @@ export function AccountsSettings() {
 
   return <AccountsShell title="হিসাবের সেটিংস" subtitle="Zonal Management Settings → Daily Accounts">
     {node}<ErrorNote error={err} />
+    <HubCollectorsCard key={JSON.stringify([st.data?.['da.hub_collectors'], st.data?.['da.collectors_default']])} settings={s} onSaved={async m => { toast(m); await st.reload() }} />
     <div className="da-grid2">
       <section className="panel"><h2>হিসাব শুরু ও সেশন</h2>
         <div className="da-grid2">
@@ -46,7 +48,7 @@ export function AccountsSettings() {
         <label className="da-check"><input type="checkbox" checked={s['da.double_rider_lines'] ?? true}
           onChange={e => set('da.double_rider_lines', e.target.checked)} /> একই রাইডারের একাধিক হিসাব দেওয়া যাবে</label>
         <label className="da-check"><input type="checkbox" checked={s['da.close_needs_all'] ?? false}
-          onChange={e => set('da.close_needs_all', e.target.checked)} /> সবাই নিজের অংশ শেষ না করলে দিন ক্লোজ করা যাবে না</label>
+          onChange={e => set('da.close_needs_all', e.target.checked)} /> সবাই নিজের অংশ সাবমিট না করলে “হিসাব চেক” করা যাবে না (কারণ লিখেও নয়)</label>
         <div className="da-grid2">
           <Field label="পেমেন্ট আইডির প্রিফিক্স" hint="101001 লিখলে এটাই সামনে বসবে">
             <input value={s['da.payment_id_prefix'] ?? ''} onChange={e => set('da.payment_id_prefix', e.target.value.toUpperCase())} /></Field>
