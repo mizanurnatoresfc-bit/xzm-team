@@ -73,7 +73,7 @@ export function DailyDashboard() {
     ['correction', 'সংশোধন', count('correction'), count('correction') ? 'bad' : ''], ['approved', STATUS_LABEL.approved, count('approved'), ''], ...(oneDay ? [['none', 'শুরু হয়নি', missing.length, ''] as [SheetStatus | 'none' | '', string, number, string]] : [])]
   const loading = list.loading && !list.data
 
-  return <AccountsShell title="আজকের হিসাব খাতা" subtitle={`আজ ${dateBn(today)}`}
+  return <AccountsShell title="আজকের হাবের হিসাব খাতা" subtitle={`জমা পড়া খাতা Accept করুন, তারপর ডেইলি হিসাবের খাতা খুলুন · আজ ${dateBn(today)}`}
     actions={startable.length > 0 && <button className="nv-wide-only" onClick={() => begin()}>＋ হিসাব শুরু করুন</button>}>
     {node}
     <div className="nv">
@@ -160,9 +160,11 @@ export function DailyDashboard() {
 /** Where the sheet stands: parts submitted, checked, main-site report confirmed. */
 function FlowLine({ f }: { f: FlowRow }) {
   return <span className="fl-line">
-    <i className={f.submitted >= f.needed && f.submitted === f.people ? 'ok' : 'warn'}>{num(f.submitted)}/{num(f.needed)} সাবমিট{f.people > f.submitted ? ` · ড্রাফট ${num(f.people - f.submitted)}` : ''}</i>
-    <i className={f.checked_at ? 'ok' : ''}>{f.checked_at ? '✓ চেক হয়েছে' : 'চেক বাকি'}</i>
-    <i className={f.report_ok_at ? (Number(f.report_diff) !== 0 ? 'warn' : 'ok') : ''}>{f.report_ok_at ? (Number(f.report_diff) !== 0 ? '✓ রিপোর্ট ওকে (পার্থক্যসহ)' : '✓ রিপোর্ট ওকে') : 'রিপোর্ট বাকি'}</i></span>
+    <i className={f.submitted > f.accepted ? 'warn' : f.people > f.submitted ? '' : 'ok'}>জমা {num(f.submitted)}{f.people > f.submitted ? ` · ড্রাফট ${num(f.people - f.submitted)}` : ''}</i>
+    <i className={f.accepted >= f.needed && f.accepted === f.people ? 'ok' : f.submitted > f.accepted ? 'warn' : ''}>Accept {num(f.accepted)}/{num(f.needed)}</i>
+    <i className={f.checked_at ? 'ok' : ''}>{f.checked_at ? '✓ ডেইলি খাতা' : 'ডেইলি খাতা বাকি'}</i>
+    {f.checked_at && <i className={f.report_ok_at ? (Number(f.report_diff) !== 0 ? 'warn' : 'ok') : ''}>{f.report_ok_at ? (Number(f.report_diff) !== 0 ? '✓ রিপোর্ট (পার্থক্যসহ)' : '✓ রিপোর্ট') : 'রিপোর্ট বাকি'}</i>}
+    {f.checked_at && <i className={f.bank_done_at ? 'ok' : ''}>{f.bank_done_at ? '✓ ব্যাংকে জমা — ক্লোজ' : 'ব্যাংক বাকি'}</i>}</span>
 }
 
 function SessionTr({ r, f }: { r: SessionRow; f?: FlowRow }) {

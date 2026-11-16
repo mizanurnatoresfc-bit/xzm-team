@@ -85,7 +85,8 @@ const GROUPS: Group[] = [
     { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
   ] },
   { key: 'acc', icon: 'book', bn: 'হিসাব ম্যানেজমেন্ট', en: 'Accounts Management', items: [
-    { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের হিসাব খাতা', en: 'Daily accounts', perms: null, count: 'sheets' },
+    { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা', en: 'My sheet today', perms: ['da.sheet.create'] },
+    { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের হাবের হিসাব খাতা', en: 'Hub accounts today', perms: null, count: 'sheets' },
     { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
     { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
     { to: '/app/accounts/settings', icon: 'gear', bn: 'হিসাব সেটিংস', en: 'Accounts settings', perms: ['da.settings.configure'] },
@@ -198,7 +199,7 @@ const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: st
   { to: '/app/hub/late', icon: 'clock', bn: 'দেরি লিখুন', en: 'Late', perms: ['hr.attendance.create'], tone: 'o' },
   { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },
   { to: '/app/hub/tasks', icon: 'tasks', bn: 'নতুন কাজ', en: 'New task', perms: ['zonal.task.create'], tone: 'p' },
-  { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের খাতা', en: 'Daily sheet', perms: null, tone: 'g' },
+  { to: '/app/accounts/khata', icon: 'ledger', bn: 'আজকের খাতা', en: 'My sheet today', perms: ['da.sheet.create'], tone: 'g' },
   { to: '/app/accounts/mine', icon: 'receipt', bn: 'আমার বিল', en: 'My bill', perms: null, tone: 'o' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },
   { to: '/app/sorting/fuel', icon: 'cash', bn: 'তেলের রিকুয়েস্ট', en: 'Fuel request', perms: ['sorting.fuel.create'], tone: 'r' },

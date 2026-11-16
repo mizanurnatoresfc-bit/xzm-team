@@ -28,9 +28,10 @@ select tests.ok((select people = 2 and submitted = 0 and needed = 2 and checked_
   from public.da_flow_list(current_date - 1, current_date + 1) where session_id = (select v::uuid from t where k = 's1')),
   'the list shows two drafts, none submitted, two needed');
 
--- checking with drafts open needs a reason
+-- nothing accepted yet: the daily sheet cannot be opened, and a draft cannot be accepted
 select tests.login(tests.id('hub_mgr'));
-select tests.throws(format($$select public.da_check(%L)$$, (select v from t where k = 's1')), 'checking with drafts open needs a reason', '22023');
+select tests.throws(format($$select public.da_check(%L, 'x')$$, (select v from t where k = 's1')), 'the daily sheet needs at least one accepted khata', '22023');
+select tests.throws(format($$select public.da_parts_accept(%L, array[%L]::uuid[])$$, (select v from t where k = 's1'), tests.id('admin')), 'a draft cannot be accepted', '22023');
 
 -- the manager submits their own part, and the other person's part for them
 select public.da_close_my_part((select v::uuid from t where k = 's1'));
@@ -50,7 +51,20 @@ select tests.throws(format($$select public.da_close_part_for(%L, %L, false)$$, (
 select tests.login(tests.id('hub_mgr'));
 select tests.throws(format($$select public.da_report_ok(%L)$$, (select v from t where k = 's1')), 'the report waits for the check', '22023');
 
--- ---------- check: everything submitted, no reason needed ----------
+-- ---------- accept: several at once, one's own too; only accepted khatas are added up ----------
+select tests.ok(public.da_parts_accept((select v::uuid from t where k = 's1'), array[tests.id('hub_mgr')]) = 1, 'a manager may accept their own khata');
+select tests.throws(format($$select public.da_check(%L)$$, (select v from t where k = 's1')), 'a khata left out needs a reason', '22023');
+select tests.ok((public.da_check((select v::uuid from t where k = 's1'), 'অন্যটি কাল মিলবে') ->> 'rider_amount')::numeric = 5000, 'only the accepted khata is added up');
+select tests.ok((select check_left is not null and check_done = 1 from public.da_sessions where id = (select v::uuid from t where k = 's1')), 'the khata left out is named');
+select tests.throws(format($$select public.da_parts_accept(%L, array[%L]::uuid[])$$, (select v from t where k = 's1'), tests.id('admin')), 'nothing is accepted once the daily sheet is open', '22023');
+select public.da_reopen_day((select v::uuid from t where k = 's1'), 'দ্বিতীয় খাতাও নেব');
+select tests.ok(public.da_parts_accept((select v::uuid from t where k = 's1'), array[tests.id('hub_mgr'), tests.id('admin')]) = 1, 'marking two accepts the one not yet accepted');
+select tests.ok((select accepted = 2 and submitted = 2 from public.da_flow_list(current_date - 1, current_date + 1) where session_id = (select v::uuid from t where k = 's1')), 'the list counts the accepted khatas');
+select tests.login(tests.id('auditor'));
+select tests.throws(format($$select public.da_parts_accept(%L, array[%L]::uuid[], false)$$, (select v from t where k = 's1'), tests.id('admin')), 'someone who cannot write on the sheet cannot accept', '42501');
+select tests.login(tests.id('hub_mgr'));
+
+-- ---------- check: everything accepted, no reason needed ----------
 select tests.ok((public.da_check((select v::uuid from t where k = 's1')) ->> 'rider_amount')::numeric = 8000, 'the check keeps the totals of the day');
 select tests.ok((select closed_at is not null and check_done = 2 and check_needed = 2 and check_note is null
   from public.da_sessions where id = (select v::uuid from t where k = 's1')), 'the sheet is checked: 2 of 2');
@@ -81,6 +95,7 @@ select tests.ok((select closed_at is null and report_ok_at is null and check_don
 select tests.login(tests.id('acct_mgr'));
 select public.da_hub_collectors_set(tests.id('hub_a1'), 3);
 select tests.login(tests.id('hub_mgr'));
+select public.da_parts_accept((select v::uuid from t where k = 's1'), array[tests.id('hub_mgr'), tests.id('admin')]);
 select tests.throws(format($$select public.da_check(%L, '  ')$$, (select v from t where k = 's1')), 'two of three needs a reason', '22023');
 select public.da_check((select v::uuid from t where k = 's1'), 'একজন ছুটিতে');
 select tests.ok((select check_done = 2 and check_needed = 3 and check_note = 'একজন ছুটিতে' from public.da_sessions where id = (select v::uuid from t where k = 's1')),
@@ -89,8 +104,17 @@ select tests.login(tests.id('acct_mgr'));
 select public.da_hub_collectors_set(tests.id('hub_a1'), null);
 select tests.ok(private.da_collectors_needed(tests.id('hub_a1')) = 1, 'clearing the number goes back to the default');
 
+-- a khata that goes back to draft is no longer accepted
+select tests.login(tests.id('hub_mgr'));
+select public.da_reopen_day((select v::uuid from t where k = 's1'), 'আরও একটি লাইন');
+select tests.login(tests.id('admin'));
+select public.da_save_rider_line((select v::uuid from t where k = 's1'), '1002', 1, 0, 100, 100, 0);
+select tests.ok((select closed_at is null and accepted_at is null from public.da_sheet_collectors where session_id = (select v::uuid from t where k = 's1') and user_id = tests.id('admin')),
+  'writing again puts the khata back to draft and takes the acceptance away');
+
 -- nobody outside may call these
 select tests.ok(not has_function_privilege('anon', 'public.da_check(uuid, text)', 'execute')
   and not has_function_privilege('anon', 'public.da_report_ok(uuid, text)', 'execute')
-  and not has_function_privilege('anon', 'public.da_close_part_for(uuid, uuid, boolean, text)', 'execute'), 'signed-out visitors cannot call the new functions');
+  and not has_function_privilege('anon', 'public.da_close_part_for(uuid, uuid, boolean, text)', 'execute')
+  and not has_function_privilege('anon', 'public.da_parts_accept(uuid, uuid[], boolean)', 'execute'), 'signed-out visitors cannot call the new functions');
 rollback;

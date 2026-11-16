@@ -1544,3 +1544,10 @@ button.nv-row:disabled{opacity:1}
   .fl-people.nv-rows{margin:0 -6px}
 }
 @media print{.ms .nv-hero{border:1px solid #ccc}.ms .nv-rows{box-shadow:none}}
+.fl-mark{flex:none;width:22px;height:22px;accent-color:var(--primary);margin:0}
+.fl-people .row-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.fl-people .nv-row.viewing{background:var(--primary-50)}
+.fl .da-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kh .da-tabs button{flex:1 1 0}
+/* the fixed Submit bar keeps clear of the floating Nodi button at the bottom right */
+@media (min-width:900px){.da-actionbar{padding-right:96px!important}}
