@@ -35,6 +35,7 @@ export const GROUPS: Group[] = [
       { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
       { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
       { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
+      { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
     ] },
   ]),
   panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
@@ -44,6 +45,9 @@ export const GROUPS: Group[] = [
       { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
       { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
       { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
+    ] },
+    { bn: 'গাড়ি', en: 'Vehicles', items: [
+      { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals', perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view'] },
     ] },
     { bn: 'হাবের হিসাব', en: 'Hub accounts', items: [
       { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের হাবের হিসাব খাতা', en: 'Hub accounts today', perms: null, count: 'sheets' },
@@ -216,6 +220,7 @@ const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: st
   { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },
   { to: '/app/hub/tasks', icon: 'tasks', bn: 'নতুন কাজ', en: 'New task', perms: ['zonal.task.create'], tone: 'p' },
   { to: '/app/accounts/khata', icon: 'ledger', bn: 'আজকের খাতা', en: 'My sheet today', perms: ['da.sheet.create'], tone: 'g' },
+  { to: '/app/fleet?tab=approve', icon: 'truck', bn: 'গাড়ির অনুমোদন', en: 'Vehicle approvals', perms: ['vehicle.log.approve'], tone: 'o' },
   { to: '/app/accounts/mine?bill=1', icon: 'receipt', bn: 'আমার বিল', en: 'My bill', perms: null, tone: 'o' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },
   { to: '/app/sorting/fuel', icon: 'cash', bn: 'তেলের রিকুয়েস্ট', en: 'Fuel request', perms: ['sorting.fuel.create'], tone: 'r' },

@@ -12,6 +12,7 @@ import { hrReq } from '../../lib/hrreq'
 import { issues } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
+import { fleet } from '../../lib/fleet'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
@@ -37,7 +38,7 @@ export function StaffPanel() {
   const today = todayDhaka()
   const d = useLoad(async () => {
     const [home, me] = await Promise.all([quiet(dashboard.home(), null), quiet(hrReq.myEmployee(), null)])
-    const [acc, claims, panels, groups, att, duties, routes, hand, brought] = await Promise.all([
+    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car] = await Promise.all([
       quiet(da.myAccounts(addDays(today, -30), today), null),
       quiet(da.myClaims(30), [] as Claim[]),
       quiet(issues.panels(), null),
@@ -48,8 +49,9 @@ export function StaffPanel() {
         .then(r => ((r.data ?? []) as unknown as Array<{ hub_routes: { name: string; areas: string[] } | null }>).map(x => x.hub_routes).filter(Boolean) as Array<{ name: string; areas: string[] }>), []) : [],
       me ? quiet(referrals.prospects(me.id).then(x => x.length), 0) : 0,
       me ? quiet(referrals.brought(me.id).then(x => x.length), 0) : 0,
+      quiet(fleet.mine(), null),
     ])
-    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought }
+    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car }
   }, [])
   const v = d.data
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
@@ -173,6 +175,9 @@ export function StaffPanel() {
           {duties.length ? <ul>{duties.slice(0, 6).map(x => <li key={x.id}>{x.title}</li>)}</ul>
             : <p className="muted small">{L('কোনো দায়িত্ব লেখা নেই', 'No duties written')}</p>}</div>
       </div>
+
+      {(v?.car?.vehicles.length ?? 0) > 0 && <div className="nv-rows">{row('/app/fleet/mine', 'o', 'truck', `${L('আমার গাড়ি', 'My vehicle')} — ${v!.car!.vehicles[0].name}`,
+        L('হাব রিপোর্ট, তেল/স্লিপ, সার্ভিস রিকুইজিশন, গ্যারেজ বিল ও খরচ', 'Hub report, fuel slip, service request, garage bills and costs'))}</div>}
 
       <h2 className="sd-h">{L('আমার অভিযোগ', 'My complaint')}</h2>
       <div className="nv-rows">

@@ -56,6 +56,8 @@ const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default:
 const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ default: m.UserDetail })))
 const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.RoleEditor })))
 const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.Roles })))
+const Fleet = lazy(() => import('./pages/fleet/Fleet').then(m => ({ default: m.Fleet })))
+const FleetMine = lazy(() => import('./pages/fleet/FleetMine').then(m => ({ default: m.FleetMine })))
 const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ default: m.StaffPanel })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
 
@@ -103,8 +105,11 @@ export default function App() {
       <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
       <Route path="/app/office/:section" element={<Office />} />
       <Route path="/app/issues" element={<Issues />} />
-      {/* the vehicle pages were taken off the website (owner, 16 Nov); old links go home */}
-      <Route path="/app/vehicles/*" element={<Navigate to="/app" replace />} />
+      <Route path="/app/fleet" element={<Fleet />} />
+      <Route path="/app/fleet/mine" element={<FleetMine />} />
+      {/* the old vehicle pages were replaced by /app/fleet (owner, 16 Nov) */}
+      <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
+      <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
       <Route path="/app/hr" element={<HrDashboard />} />
       <Route path="/app/hr/employees" element={<Employees />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
