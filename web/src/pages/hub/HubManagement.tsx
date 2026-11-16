@@ -553,9 +553,11 @@ function HubTeam({ hub }: { hub: Hub }) {
             <option value="active">{L('সক্রিয়', 'Active')}</option><option value="inactive">{L('নিষ্ক্রিয়', 'Inactive')}</option>
             <option value="applicant">{L('আইডির অপেক্ষায়', 'Waiting for ID')}</option><option value="">{L('সব', 'All')}</option></select>
           {can('hr.application.create') && <button onClick={() => setNewApp(true)}><Icon name="plus" size={15} />{L('নতুন কর্মী', 'New staff')}</button>}</span></div>
-      <div className="eb-chips" role="group" aria-label={L('পদ অনুযায়ী', 'By post')}>
-        <button type="button" className={`chip-toggle${post === null ? ' on' : ''}`} aria-pressed={post === null} onClick={() => setPost(null)}>{L('সবাই', 'All')} <b>{n(team.data?.length ?? 0)}</b></button>
-        {groups.map(g => <button key={g.key} type="button" className={`chip-toggle${post === g.key ? ' on' : ''}`} aria-pressed={post === g.key} onClick={() => setPost(post === g.key ? null : g.key)}>{g.name} <b>{n(g.count)}</b></button>)}
+      <div className="post-chips" role="group" aria-label={L('পদ অনুযায়ী', 'By post')}>
+        <button type="button" className={`post-chip${post === null ? ' on' : ''}`} aria-pressed={post === null} onClick={() => setPost(null)}>
+          <i><Icon name="users" size={16} /></i><span>{L('সবাই', 'All')}</span><b>{n(team.data?.length ?? 0)}</b></button>
+        {groups.map(g => <button key={g.key} type="button" className={`post-chip${post === g.key ? ' on' : ''}`} aria-pressed={post === g.key} onClick={() => setPost(post === g.key ? null : g.key)}>
+          <i><Icon name={g.icon} size={16} /></i><span>{g.name}</span><b>{n(g.count)}</b></button>)}
       </div>
     </section>
     <section className="panel emp-board">

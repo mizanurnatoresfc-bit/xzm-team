@@ -324,6 +324,8 @@ try {
     check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_menu?.join() === '/app/hub/team,/app/hub/days', `${size}: the Super Admin picks the pages of a role`)
     menuNow = ['/app/hub/team', '/app/hub/days', '/app/accounts/khata']
     await page.goto(`${BASE}/app/hub/team`); await page.waitForSelector('.hub-tabs a', { timeout: 10000 }).catch(() => {})
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
+    check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
     check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 3 && sideLinks.includes('/app/accounts/khata'), `${size}: a limited role has only its pages in the menu (${sideLinks.length})`)
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
