@@ -60,6 +60,7 @@ const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.R
 const Fleet = lazy(() => import('./pages/fleet/Fleet').then(m => ({ default: m.Fleet })))
 const FleetMine = lazy(() => import('./pages/fleet/FleetMine').then(m => ({ default: m.FleetMine })))
 const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ default: m.StaffPanel })))
+const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
 
 // After the first screen is shown, quietly fetch the most-used pages so later taps open at once.
@@ -124,6 +125,7 @@ export default function App() {
       <Route path="/app/hr/attendance" element={<Attendance />} />
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
+      <Route path="/app/notifications" element={<Notifications />} />
       <Route path="/app/me" element={<MyProfile />} />
       <Route path="/app/me/permissions" element={<MyPermissions />} />
       <Route path="/app/settings" element={<Settings />} />
