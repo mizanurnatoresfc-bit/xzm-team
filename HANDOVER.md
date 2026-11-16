@@ -254,3 +254,13 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **17 Nov — live:** office operations and fleet applied to Supabase (recorded as `office_operations`, `fleet`), `nodi-ai` v4 deployed, PR #33 merged.
   The three kind-check swaps (vehicles, vehicle_logs, office_properties) need a DROP CONSTRAINT, which the MCP client stops for approval; they were given to the
   owner as a small SQL to run in the SQL Editor. Until then: no auto / covered van vehicles, no খোরাকি lines, no garage / auto garage places.
+
+## 2026-11-17 — HR requests: native-style new request and a report builder
+- Owner (with a screenshot of the format cards): ID create / transfer / inactive→active / remove, modern Android look, easy and smart, reports in any format and style.
+- `pages/hr/Requests.tsx`: new request now starts with "কী করবেন?" — 2×2 action tiles with the number waiting per kind; then hub (remembered on the device) and staff.
+  The staff list follows the action (ID ACTIVE shows only closed IDs; transfer / inactive only active ones; "সবাই দেখান" lifts it), a person card shows ID, post, hub and
+  status, and it warns when that person already has a request waiting. Transfer cannot pick the same hub. Reference is folded away; a sticky bar shows what will be sent.
+- Report tab is a builder: ready reports (this month hub × kind, waiting by hub, kind by month, today, who sent how many), date range, table / bar chart / list,
+  rows and columns by kind, format, hub, status, month, day, sender, reference, decided or not; filters by hub, kind, status; list columns include the formats' own fields.
+  "সেভ" keeps a named report on that device (localStorage). Table and list export to Excel / PDF / print. `hrReq.between(from, to)` reads up to 5000 rows.
+- No database change.

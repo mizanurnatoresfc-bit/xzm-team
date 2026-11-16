@@ -30,6 +30,10 @@ export const KINDS: Record<ReqKind, { bn: string; icon: string; tone: string }> 
   id_inactive: { bn: 'ID INACTIVE / REMOVE', icon: 'x', tone: 'r' },
   custom: { bn: 'অন্যান্য রিপোর্ট', icon: 'form', tone: 'o' },
 }
+/** One line under each action, in plain words. */
+export const KIND_HINT: Record<ReqKind, string> = {
+  id_create: 'নতুন লোকের আইডি খোলা', id_transfer: 'অন্য হাবে বদলি', id_active: 'বন্ধ আইডি আবার চালু', id_inactive: 'আইডি বন্ধ / চাকরি ছাড়া', custom: 'নিজের বানানো ফরম্যাট',
+}
 export const STATUS: Record<ReqStatus, { bn: string; tone: 'ok' | 'warn' | 'bad' | 'info' | 'neutral' }> = {
   submitted: { bn: 'জমা হয়েছে', tone: 'info' }, processing: { bn: 'কাজ চলছে', tone: 'warn' }, done: { bn: 'সম্পন্ন', tone: 'ok' },
   rejected: { bn: 'রিজেক্ট', tone: 'bad' }, cancelled: { bn: 'তুলে নেওয়া', tone: 'neutral' },
@@ -62,6 +66,13 @@ export const hrReq = {
   list: async () => {
     const { data, error } = await supabase.from('hr_requests').select('*').order('created_at', { ascending: false }).limit(500); fail(error)
     return (data ?? []) as HrRequest[]
+  },
+  /** Every request the person may see between two dates (Dhaka days), oldest last. */
+  between: async (from: string | null, to: string | null) => {
+    let q = supabase.from('hr_requests').select('*').order('created_at', { ascending: false }).limit(5000)
+    if (from) q = q.gte('created_at', `${from}T00:00:00+06:00`)
+    if (to) q = q.lte('created_at', `${to}T23:59:59.999+06:00`)
+    const { data, error } = await q; fail(error); return (data ?? []) as HrRequest[]
   },
   one: async (id: string) => {
     const { data, error } = await supabase.from('hr_requests').select('*').eq('id', id).maybeSingle(); fail(error); return data as HrRequest | null
