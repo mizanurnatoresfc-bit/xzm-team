@@ -233,7 +233,7 @@ export function TransferAction({ list, hubs, onClose, onDone }: { list: Employee
   function excel(people: Employee[], remark: string) {
     download(xlsxBlob('Employee Transfer', `${hubName(hub)} · ${date}`,
       ['SL', 'Employee ID', 'Name', 'Phone Number', 'Designation', 'Present Hub', 'Transfer Hub', 'Effective Date', 'Reason', 'Reference Name & ID', 'Remarks'],
-      people.map((e, i) => [i + 1, e.employee_code, e.full_name, e.mobile, e.position_id ? o.names.pos[e.position_id] ?? '' : '', hubName(e.hub_id), hubName(hub), date, reason.trim(), e.reference_info, remark])),
+      people.map((e, i) => [i + 1, e.employee_code, e.full_name, e.mobile, e.position_id ? o.names.posEn[e.position_id] ?? '' : '', hubName(e.hub_id), hubName(hub), date, reason.trim(), e.reference_info, remark])),
       `Transfer-${date}.xlsx`)
   }
   function check() {

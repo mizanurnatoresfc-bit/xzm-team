@@ -715,18 +715,20 @@ function ActionBar({ s, reload }: { s: Sheet; reload: (m?: string) => Promise<vo
   const showVerify = s.can_verify && s.session.status === 'submitted'
   if (!s.can_edit && !showVerify && !s.can_reopen) return null
   return <div className="da-actionbar no-print">
-    {s.can_edit && <><span className="muted small">শেষ সেভ {timeBn(s.session.last_saved_at)}{unchecked ? ` · OCR যাচাই বাকি ${num(unchecked)}টি` : ''}</span>
-      <button onClick={() => open('submit')}>যাচাই করে Submit করুন</button></>}
+    {s.can_edit && (s.session.closed_at
+      ? <><span className="muted small">ডেইলি হিসাবের খাতা খোলা হয়েছে{s.session.bank_done_at ? ', ব্যাংকে জমাও শেষ' : ' — ব্যাংকে জমা বাকি থাকলে আগে সেটা শেষ করুন'}। সব ঠিক থাকলে একাউন্টসে পাঠান; পাঠানোর পর আর বদলানো যাবে না।{unchecked ? ` · OCR যাচাই বাকি ${num(unchecked)}টি` : ''}</span>
+        <button className="secondary" onClick={() => open('submit')}>একাউন্টসে চূড়ান্ত জমা দিন</button></>
+      : <span className="muted small">শেষ সেভ {timeBn(s.session.last_saved_at)} · উপরের ধাপগুলো শেষ করুন: খাতা Accept → ডেইলি হিসাবের খাতা → রিপোর্ট ওকে → ব্যাংকে জমা। তারপর এখানে একাউন্টসে পাঠানোর বোতাম আসবে।</span>)}
     {s.can_reopen && <button className="secondary" onClick={() => open('reopen')}>সংশোধনের জন্য খুলুন</button>}
     {showVerify && <><span className="muted small">Submit: {s.session.submitted_by_name} · {timeBn(s.session.submitted_at)}</span>
       <button className="secondary" onClick={() => open('note')}>মন্তব্য দিন</button>
       <button className="danger" onClick={() => open('correction')}>সংশোধন প্রয়োজন</button>
       <button onClick={() => open('approve')}>অনুমোদন — সব ঠিক আছে</button></>}
 
-    {dlg === 'submit' && <Modal title="Submit নিশ্চিত করুন" onClose={() => setDlg(null)}
+    {dlg === 'submit' && <Modal title="একাউন্টসে চূড়ান্ত জমা" onClose={() => setDlg(null)}
       actions={<><button className="secondary" onClick={() => setDlg(null)}>বাতিল (Cancel)</button><button className="secondary" onClick={() => setDlg(null)}>এডিট করুন (Edit)</button>
         <button disabled={busy || unchecked > 0} onClick={() => void go()}>{busy ? 'হচ্ছে…' : 'Submit'}</button></>}>
-      <p><b>আপনি কি নিশ্চিত যে সকল হিসাব যাচাই করে Submit করতে চান?</b></p>
+      <p><b>আপনি কি নিশ্চিত যে আজকের হিসাব একাউন্টসে চূড়ান্তভাবে জমা দিতে চান?</b> জমা দেওয়ার পর এই হাবের আজকের কোনো খাতা আর বদলানো বা Accept করা যাবে না।</p>
       <ul className="muted"><li>রাইডার {num(s.riders.length)} জন · মোট টাকা {taka(s.totals?.amount)} · বকেয়া {taka(s.totals?.due)}</li>
         <li>মার্চেন্ট পেমেন্ট {num(s.merchant_payments.length)}টি · খরচ {num(s.expenses.length)}টি</li>
         <li>Submit-এর পর বদলাতে সংশোধনের অনুমতি লাগবে।</li></ul>

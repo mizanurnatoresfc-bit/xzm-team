@@ -3,7 +3,7 @@
 import { supabase } from './supabase'
 
 /** Always open: the home page and one's own profile, password and device settings. */
-const ALWAYS = ['/app', '/app/profile', '/app/password', '/app/settings', '/app/permissions']
+const ALWAYS = ['/app', '/app/me', '/app/me/permissions', '/app/password', '/app/settings']
 /** Pages that belong to a listed page (opened from it, not from the menu). */
 const WITH: Record<string, string[]> = {
   '/app/hub/team': ['/app/hr/employees'],

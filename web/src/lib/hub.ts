@@ -41,9 +41,9 @@ export const PICKUP_STATUS: Record<Pickup['status'], [string, string, 'ok' | 'wa
 
 /** Icon and order for a post name, so the team cards read the same in every hub. */
 const POST_ICON: Array<[RegExp, string, number]> = [
-  [/zonal/i, 'map', 1], [/asst|assistant/i, 'shield', 3], [/manager|ম্যানেজার/i, 'shield', 2], [/hub\s*cc|cc/i, 'cc', 4],
-  [/data\s*entry|ডাটা/i, 'form', 5], [/account|হিসাব/i, 'cash', 6], [/rider|রাইডার/i, 'truck', 7], [/driver|ড্রাইভার/i, 'truck', 8],
-  [/short|sort|load/i, 'box', 9], [/helper/i, 'users', 10], [/security|guard/i, 'key', 11],
+  [/zonal|জোনাল/i, 'map', 1], [/asst|assistant|সহকারী/i, 'shield', 3], [/manager|ম্যানেজার/i, 'shield', 2], [/hub\s*cc|cc|সিসি/i, 'cc', 4],
+  [/data\s*entry|ডাটা|ডেটা/i, 'form', 5], [/account|হিসাব/i, 'cash', 6], [/rider|রাইডার/i, 'truck', 7], [/driver|ড্রাইভার/i, 'truck', 8],
+  [/short|sort|load|সর্টিং|লোডার/i, 'box', 9], [/helper|হেল্পার/i, 'users', 10], [/security|guard|সিকিউরিটি|গার্ড/i, 'key', 11],
 ]
 export function postIcon(name: string): { icon: string; order: number } {
   const hit = POST_ICON.find(([re]) => re.test(name))

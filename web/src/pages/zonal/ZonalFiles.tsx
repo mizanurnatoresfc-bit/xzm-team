@@ -64,7 +64,7 @@ function Mark({ onDone }: { onDone: (m: string) => void }) {
       setProgress(`${i + 1}/${people.length}`)
       const base: Record<string, string> = {
         employee_code: e.employee_code ?? '', full_name: e.full_name, mobile: e.mobile ?? '', hub: o.names.hub[hub] ?? '', from_hub: o.names.hub[hub] ?? '',
-        position: e.position_id ? o.names.pos[e.position_id] ?? '' : '', reason: common.reason.trim(),
+        position: e.position_id ? o.names.posEn[e.position_id] ?? '' : '', reason: common.reason.trim(),
       }
       if (kind === 'id_transfer') Object.assign(base, { to_hub: picked[e.id] || common.to, effective_date: common.date })
       if (kind === 'id_active') Object.assign(base, { effective_date: common.date })

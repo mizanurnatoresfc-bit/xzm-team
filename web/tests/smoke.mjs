@@ -303,6 +303,7 @@ try {
     await page.locator('.da-modal input').fill('একজন ছুটিতে'); await page.locator('.da-modal-acts button').last().click()
     await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
     check(flowCalls.at(-1)?.fn === 'da_check' && flowCalls.at(-1)?.p_note === 'একজন ছুটিতে', `${size}: the daily sheet is opened with its reason`)
+    check(await page.locator('.da-actionbar button').count() === 0 && (await page.locator('.da-actionbar').innerText()).includes('ডেইলি হিসাবের খাতা'), `${size}: the final "send to accounts" button waits until the daily sheet is opened`)
     await fits('accounts sheet')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
     // attendance days to compare: two numbers per person, a difference is pointed out, then submit
@@ -332,6 +333,10 @@ try {
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
     check(await page.locator('.emp-head').count() === 1, `${size}: a person's profile still opens from the team page`)
+    await page.goto(`${BASE}/app/me/permissions`); await page.waitForTimeout(900)
+    const permsOpen = await page.locator('.center-screen .notice').count() === 0
+    await page.goto(`${BASE}/app/me`); await page.waitForTimeout(900)
+    check(permsOpen && await page.locator('.center-screen .notice').count() === 0, `${size}: a limited role can still open its own profile and "my permissions"`)
     menuNow = null
     // my own khata: three parts only, then Submit
     mineOpen = true

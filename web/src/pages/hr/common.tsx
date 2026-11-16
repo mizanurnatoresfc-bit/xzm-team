@@ -3,16 +3,21 @@ import { Combo, DupNote, TextInput, useDuplicates } from '../../components/input
 import { BD_MOBILE, cleanMobile, duplicates, rules } from '../../lib/validate'
 import { Badge, Field, Modal, useLoad } from '../accounts/ui'
 import { EMP_STATUS, hr, hrFriendly, hubLabel, nameMap, org, type EmployeeStatus, type Position, type WorkFocus } from '../../lib/hr'
+import { usePrefs } from '../../lib/prefs'
 
 /** Hubs, zones, departments and positions the user can see, plus id -> name maps. */
 export function useOrg() {
+  const { lang } = usePrefs()
   const q = useLoad(async () => {
     const [zones, hubsRaw, departments, positions] = await Promise.all([org.zones(), org.hubs(), org.departments(), org.positions()])
     // Hubs are shown with their number code everywhere ("Natore #80"); search by number works in every list.
     const hubs = hubsRaw.map(h => ({ ...h, name: hubLabel(h) }))
     return { zones, hubs, departments, positions }
   }, [])
-  const names = useMemo(() => ({ zone: nameMap(q.data?.zones), hub: nameMap(q.data?.hubs), dept: nameMap(q.data?.departments), pos: nameMap(q.data?.positions) }), [q.data])
+  // Posts are shown in Bangla when the site is in Bangla; `posEn` keeps the English name for the company's own files.
+  const names = useMemo(() => { const posEn = nameMap(q.data?.positions)
+    const pos = lang === 'bn' ? Object.fromEntries((q.data?.positions ?? []).map(p => [p.id, p.name_bn || p.name])) as Record<string, string> : posEn
+    return { zone: nameMap(q.data?.zones), hub: nameMap(q.data?.hubs), dept: nameMap(q.data?.departments), pos, posEn } }, [q.data, lang])
   return { ...q, names }
 }
 
