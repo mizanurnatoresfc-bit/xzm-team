@@ -114,6 +114,8 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 
 ## 7. কাজের নিয়ম / Ground rules (মালিকের নির্দেশ)
 
+- **মূল দর্শন (মালিক, ১৭ নভেম্বর ২০২৬): Less Work, More Automation, Better Manage.** প্রতিটা ফিচার এই তিন প্রশ্নে যাচাই হবে — মানুষের কাজ কমল কি, সিস্টেম নিজে থেকে করল কি, ম্যানেজারের জন্য সহজ হলো কি।
+
 - গোপন key কখনো চ্যাট, কোড, স্ক্রিনশট বা ডকুমেন্টে নয়; শুধু সার্ভার-সাইডে।
 - আগের মডিউল বা ডাটাবেস ভাঙা যাবে না — প্রতিটা বদলের পর পুরো SQL টেস্ট চালাতে হবে।
 - রিমোট টুল দিয়ে `.env` ফাইল লেখা যাবে না (`web/create-env.bat` আছে)।
@@ -220,3 +222,32 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Note: the live database has migrations the repo does not (`manager_ledgers_rider_submit`, `cash_payments_refs_approvals_requests`,
   `fix_collector_trigger_generic`, `_2`), and live `da_save_expense`, `vehicle_assign`, `vehicle_day_save`, `vehicle_log_save` differ from the repo's.
   The fleet migration only calls them. Bring those into the repo when convenient.
+
+## 2026-11-17 — অফিস অপারেশন (office operations)
+- Owner's spec (16 Nov): office rent with room split, running rent from the accounts' expense categories, advance, landlord, number, contract term and photo,
+  new contract by AI, memo (or an own memo format when there is none); electricity bill with a mobile-banking screenshot; wifi bill; residential flat / garage /
+  auto garage attached to a hub; electronic items with optional watt and an estimate of the electricity bill plus ways to lower it; "broken / needed" reports to the
+  zonal manager per item; an item lent to another hub stays counted at its owner; hub vehicles with crew; locks and who holds the key; PCs per desk with the lock
+  shared; chairs, tables, G-printer, weight machine, phones; CCTV / router / DVR with user name and password; residents of a residence; AI suggestions.
+- Migration `20261116000800_office_operations.sql` (builds on `office_*` of 0300; nothing removed): place kinds `garage`, `auto_garage`; lease columns on
+  `office_properties` (advance, contract_from/to, contract_file, rent_due_day, meter_no, unit_rate, wifi_provider, wifi_bill, capacity); `office_assets` gains
+  watt, hours_per_day, spec, vehicle_id; new tables `office_bills` (rent / electricity / wifi / other per month; own memo number `OM-YYMM-00001` when no memo;
+  electricity needs `proof_file`), `office_asset_loans`, `office_residents`, `office_secrets` (no audit trigger, so passwords stay out of the audit log),
+  `office_notices` (`ON-00001`). Functions: `office_bill_save/remove`, `office_expense_lines` (hub's `da_expenses` in the categories of setting
+  `office.bill_categories`: rent = office_rent, others_rental; electricity = utilities; wifi = internet), `office_lend`, `office_lend_return`, `office_loan_list`,
+  `office_notice_send` (marks the item broken, notifies holders of `office.notice.approve` in the zone; head office only when the zone has nobody),
+  `office_notice_update`. Private bucket `office-docs` (`<property_id>/<file>`). Permissions `office.bill.view/edit`, `office.secret.view/edit`,
+  `office.notice.create/approve`; the hub manager role now also gets `office.property.edit` and `office.asset.edit` for the own hub.
+- Pages (`pages/office/OfficeOps.tsx`, `lib/officeOps.ts`): `/app/office/rent`, `/bills`, `/power`, `/security`, `/people`, `/notices`, `/zone`; the resources list has
+  নষ্ট / লাগবে / অন্য অফিসে দিন per item and watt, hours, size fields. The power estimate, saving tips, contract draft, memo and "what to do first" list are worked
+  out in the browser from the data; the "নদী AI" buttons call the Edge Function `nodi-ai` with `action: 'office'` (tasks contract / power / insight) and need
+  `ANTHROPIC_API_KEY`. Passwords are never sent to the AI.
+- Tests: `supabase/tests/99zzzzzz_office_ops.sql` (46). Browser smoke check of every new page with sample data (desktop and phone).
+- **To go live:** apply the migration on Supabase, deploy `nodi-ai` again, then merge to `main`. Until the migration is applied the new tabs say so.
+- Not built: bills are not pushed into the daily sheet (the sheet stays the source; a bill is tied to its line), the unit rate default (৳11) is an assumption.
+
+## 2026-11-17 — Public home in the app's look, with the motto
+- Owner: "home ui/ux android native and this text added". `pages/Home.tsx` is now one column of rounded cards (classes `nh-*` in `theme.css`): a gradient hero
+  with "Less Work, More Automation, Better Manage." and its Bangla line, three cards explaining the motto, the work list, the steps, "what it is not".
+  On a phone the login button sits in a fixed bar at the bottom. The dashboard's greeting card carries the motto too. All earlier wording is kept.
+- Fix found on the way: with the phone in dark mode and the theme on "system", the page background stayed light everywhere (a light-only rule was not limited to light).
