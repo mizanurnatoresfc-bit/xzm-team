@@ -67,7 +67,7 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, homePanels = ['my_work', 'quick_links']
     const prospects = []
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -92,7 +92,8 @@ try {
       if (u.includes('/rest/v1/referral_prospects') && r.request().method() === 'POST') { prospects.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('rpc/role_admin_list')) return j(roles)
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
-      if (u.includes('rpc/dashboard_home')) return j({ panels: ['my_work', 'quick_links'], today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
+      if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
+      if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
       if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 3, unseen: 2 }])
       if (u.includes('rpc/issue_order_incharge_set')) return j(null)
@@ -368,6 +369,26 @@ try {
     await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
     { const c = flowCalls.at(-1) ?? {}
       check(c.fn === 'hr_request_submit' && c.p_format === 'f-inactive' && c.p_employee === 'e01' && c.p_data?.reason === 'নিজে চাকরি ছেড়েছেন' && !!c.p_data?.last_date, `${size}: "has left" goes to the office as a request`) }
+    // arranging a role's home page: add, remove, put in order — and the home page follows the saved order
+    await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('[data-arrange=hub_manager]')
+    await page.locator('[data-arrange=hub_manager]').click(); await page.waitForSelector('.da-modal [data-list=on] .nv-row')
+    check(await page.locator('.da-modal [data-list=on] .nv-row').count() === 2 && await page.locator('.da-modal [data-list=off] .nv-row').count() === 12, `${size}: arranging shows what is on the home page and what can be added`)
+    await page.locator('.da-modal [aria-label="quick_links up"]').click()
+    await page.locator('.da-modal [aria-label="hub_today add"]').click()
+    await page.locator('.da-modal [aria-label="my_work remove"]').click()
+    check((await page.locator('.da-modal [data-list=on] .nv-row').evaluateAll(els => els.map(e => e.dataset.panel))).join() === 'quick_links,hub_today', `${size}: panels can be moved, added and removed`)
+    await fits('arrange dialog')
+    if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.SHOTS}/${size}-arrange.png` }) }
+    await page.locator('.da-modal-acts button').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
+    check(flowCalls.at(-1)?.fn === 'role_dashboard_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_panels?.join() === 'quick_links,hub_today', `${size}: the arranged home page is saved for the role`)
+    { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আমার কাজ' || t === 'দ্রুত যাওয়া').join(' > ')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
+      const first = await order()
+      check(await page.locator('.dash-edit').count() === 1, `${size}: the Super Admin's home has a shortcut to arrange dashboards`)
+      homePanels = ['quick_links', 'my_work']
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
+      check(first === 'আমার কাজ > দ্রুত যাওয়া' && await order() === 'দ্রুত যাওয়া > আমার কাজ', `${size}: the home page shows panels in the saved order`)
+      homePanels = ['my_work', 'quick_links'] }
     // which pages a role sees: the Super Admin ticks them; a limited role gets nothing else
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
     await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')

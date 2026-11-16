@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { hrReq } from '../lib/hrreq'
 import { NodiGaps } from '../components/NodiGaps'
 import { Link } from 'react-router-dom'
@@ -26,7 +26,7 @@ const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: strin
 ]
 
 export function Dashboard() {
-  const { session, grants, can, viewAs } = useAuth()
+  const { session, grants, can, viewAs, isSuperAdmin } = useAuth()
   const { L, n, lang } = usePrefs()
   const home = useLoad(() => dashboard.home(), [])
   const d = home.data
@@ -81,6 +81,7 @@ export function Dashboard() {
         <div className="g-sub">{where || L('আজকের কাজ এক নজরে', 'Today at a glance')}</div></div>
       {d?.my_work && <div className="g-badge"><b>{n(d.my_work.tasks_open)}</b>{L('খোলা কাজ', 'open tasks')}</div>}
     </div>
+    {isSuperAdmin && !viewAs && <Link to="/app/role-dashboards" className="dash-edit"><Icon name="gear" size={15} />{L('ড্যাশবোর্ড সাজান', 'Arrange dashboard')}</Link>}
     {views.length > 1 && <div className="view-switch" role="tablist" aria-label={L('ড্যাশবোর্ড', 'Dashboard')}>
       {views.map(([v, bn, en, ic]) => <button key={v} type="button" role="tab" aria-selected={cur === v} className={cur === v ? 'on' : ''} onClick={() => pickView(v)}>
         <Icon name={ic} size={17} />{L(bn, en)}</button>)}</div>}
@@ -95,13 +96,18 @@ export function Dashboard() {
       {tiles.length > 8 && <button type="button" className="quick-tile t-b more-tile" onClick={() => setAllTiles(v => !v)}>
         <span className="qi"><Icon name={allTiles ? 'x' : 'grid'} size={24} /></span><span>{allTiles ? L('কম দেখুন', 'Less') : L(`আরও ${n(tiles.length - 7)}`, `${tiles.length - 7} more`)}</span></button>}</div>
 
-    {vis('my_day') && <MyDayPanel />}
-    {vis('hub_today') && <HubTodayPanel />}
-    {vis('network') && <NetworkPanel />}
-    {vis('approvals') && <ApprovalsPanel />}
-    {vis('my_requests') && <HrReqPanel />}
+    {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
+    {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
+  </AppShell>
 
-    {vis('my_work') && d?.my_work && <Panel code="my_work">
+  function draw(p: PanelCode): ReactNode {
+    switch (p) {
+      case 'my_day': return <MyDayPanel />
+      case 'hub_today': return <HubTodayPanel />
+      case 'network': return <NetworkPanel />
+      case 'approvals': return <ApprovalsPanel />
+      case 'my_requests': return <HrReqPanel />
+      case 'my_work': return d?.my_work ? <Panel code="my_work">
       <div className="da-stats">
         <Stat icon="log" label={L('আমার দায়িত্ব', 'My tasks')} value={n(d.my_work.tasks_open)}
           sub={d.my_work.tasks_due ? <span className="warn">{L(`${n(d.my_work.tasks_due)} টির সময় শেষ`, `${d.my_work.tasks_due} due`)}</span> : L('সব ঠিক আছে', 'All clear')} tone={d.my_work.tasks_due ? 'warn' : undefined} />
@@ -111,9 +117,8 @@ export function Dashboard() {
         <Stat icon="log" label={L('আমার ছুটির আবেদন', 'My leave requests')} value={n(d.my_work.leave_pending)} sub={L('সিদ্ধান্তের অপেক্ষায়', 'Awaiting a decision')} />
       </div>
       <p className="muted small"><Link to="/app/me">{L('আমার প্রোফাইল', 'My profile')}</Link> · <Link to="/app/hr/leave">{L('ছুটি', 'Leave')}</Link> · <Link to="/app/accounts/mine">{L('আমার হিসাব', 'My accounts')}</Link></p>
-    </Panel>}
-
-    {vis('hr_overview') && d?.hr_overview && <Panel code="hr_overview" to="/app/hr">
+    </Panel> : null
+      case 'hr_overview': return d?.hr_overview ? <Panel code="hr_overview" to="/app/hr">
       <div className="da-stats">
         <Stat icon="users" label={L('মোট কর্মী', 'Staff')} value={n(d.hr_overview.total)} />
         <Stat icon="check" tone="ok" label={L('সক্রিয়', 'Active')} value={n(d.hr_overview.active)} />
@@ -122,18 +127,16 @@ export function Dashboard() {
         <Stat icon="chart" label={L('৩০ দিনে যোগ দিয়েছেন', 'Joined in 30 days')} value={n(d.hr_overview.joined_30d)} />
         <Stat icon="chart" label={L('৩০ দিনে বিদায়', 'Left in 30 days')} value={n(d.hr_overview.left_30d)} />
       </div>
-    </Panel>}
-
-    {vis('hr_pending') && d?.hr_pending && <Panel code="hr_pending">
+    </Panel> : null
+      case 'hr_pending': return d?.hr_pending ? <Panel code="hr_pending">
       <div className="da-stats">
         <Row to="/app/hr/applications" icon="form" label={L('আইডি আবেদন', 'ID applications')} value={d.hr_pending.applications} />
         <Row to="/app/hr/leave" icon="log" label={L('ছুটির আবেদন', 'Leave requests')} value={d.hr_pending.leave} />
         <Row to="/app/hr/employees" icon="wallet" label={L('বেতনের প্রস্তাব', 'Salary proposals')} value={d.hr_pending.salary} />
         <Row to="/app/hr/employees" icon="shield" label={L('ডকুমেন্ট যাচাই', 'Documents to verify')} value={d.hr_pending.documents} />
       </div>
-    </Panel>}
-
-    {vis('hub_staff') && d?.hub_staff && <Panel code="hub_staff" to="/app/zonal/staff">
+    </Panel> : null
+      case 'hub_staff': return d?.hub_staff ? <Panel code="hub_staff" to="/app/zonal/staff">
       {!d.hub_staff.length ? <p className="muted">{L('কোনো হাব নেই।', 'No hubs yet.')}</p> :
         <div className="da-table-wrap"><table className="da-table">
           <thead><tr><th>{L('হাব', 'Hub')}</th><th>{L('মোট', 'Total')}</th><th>{L('সক্রিয়', 'Active')}</th><th>{L('নিষ্ক্রিয়', 'Inactive')}</th><th>{L('আইডির অপেক্ষায়', 'Waiting')}</th></tr></thead>
@@ -143,9 +146,8 @@ export function Dashboard() {
             <td>{h.applicant ? <Badge tone="warn">{n(h.applicant)}</Badge> : <span className="muted">—</span>}</td>
           </tr>)}</tbody></table></div>}
       {d.hub_staff.length > 10 && <p className="muted small">{L(`আরও ${n(d.hub_staff.length - 10)}টি হাব — পুরো তালিকা দেখুন`, `${d.hub_staff.length - 10} more hubs — see the full list`)}</p>}
-    </Panel>}
-
-    {vis('ops_today') && d?.ops_today && <Panel code="ops_today">
+    </Panel> : null
+      case 'ops_today': return d?.ops_today ? <Panel code="ops_today">
       <div className="da-stats">
         <Stat icon="hub" label={L('হাবে আছে', 'At the hub')} value={n(d.ops_today.at_hub)} />
         <Stat icon="truck" label={L('ডেলিভারিতে গেছে', 'Out for delivery')} value={n(d.ops_today.out_for_delivery)} />
@@ -154,9 +156,8 @@ export function Dashboard() {
         <Stat icon="clock" tone={d.ops_today.deliveries_waiting ? 'warn' : undefined} label={L('ডেলিভারি অপেক্ষায়', 'Deliveries waiting')} value={n(d.ops_today.deliveries_waiting)} />
         <Stat icon="alert" tone={d.ops_today.issues_open ? 'bad' : undefined} label={L('খোলা সমস্যা', 'Open issues')} value={n(d.ops_today.issues_open)} />
       </div>
-    </Panel>}
-
-    {vis('cash_today') && d?.cash_today && <Panel code="cash_today">
+    </Panel> : null
+      case 'cash_today': return d?.cash_today ? <Panel code="cash_today">
       <div className="da-stats">
         <Stat icon="wallet" label={L('আজ আদায়', 'Collected today')} value={`৳ ${n(d.cash_today.collected_today)}`} />
         <Stat icon="clock" tone={d.cash_today.handovers_waiting ? 'warn' : undefined} label={L('হ্যান্ডওভার অপেক্ষায়', 'Handovers waiting')} value={n(d.cash_today.handovers_waiting)} />
@@ -164,9 +165,8 @@ export function Dashboard() {
         <Stat icon="wallet" tone={d.cash_today.payments_waiting ? 'warn' : undefined} label={L('মার্চেন্ট পেমেন্ট', 'Merchant payments')} value={n(d.cash_today.payments_waiting)} />
         <Stat icon="check" tone={d.cash_today.recons_waiting ? 'warn' : undefined} label={L('মিলকরণ অপেক্ষায়', 'Reconciliations waiting')} value={n(d.cash_today.recons_waiting)} />
       </div>
-    </Panel>}
-
-    {vis('accounts_today') && d?.accounts_today && <Panel code="accounts_today" to="/app/accounts/daily">
+    </Panel> : null
+      case 'accounts_today': return d?.accounts_today ? <Panel code="accounts_today" to="/app/accounts/daily">
       <div className="da-stats">
         <Stat icon="hub" label={L('হাব', 'Hubs')} value={n(d.accounts_today.hubs)} />
         <Stat icon="ledger" tone={d.accounts_today.open ? 'warn' : undefined} label={L('খোলা খাতা', 'Open sheets')} value={n(d.accounts_today.open)} />
@@ -174,9 +174,8 @@ export function Dashboard() {
         <Stat icon="alert" tone={d.accounts_today.correction ? 'bad' : undefined} label={L('সংশোধন লাগবে', 'Needs correction')} value={n(d.accounts_today.correction)} />
         <Stat icon="check" tone="ok" label={L('অনুমোদিত', 'Approved')} value={n(d.accounts_today.approved)} />
       </div>
-    </Panel>}
-
-    {vis('zonal_overview') && d?.zonal_overview && <Panel code="zonal_overview" to="/app/zonal/staff">
+    </Panel> : null
+      case 'zonal_overview': return d?.zonal_overview ? <Panel code="zonal_overview" to="/app/zonal/staff">
       <div className="da-stats">
         <Stat icon="map" label={L('এরিয়া', 'Areas')} value={n(d.zonal_overview.zones)} />
         <Stat icon="hub" label={L('হাব', 'Hubs')} value={n(d.zonal_overview.hubs)} />
@@ -186,14 +185,15 @@ export function Dashboard() {
         <Stat icon="wallet" tone={d.zonal_overview.claims_waiting ? 'warn' : undefined} label={L('ভ্রমণ দাবি', 'Travel claims')} value={n(d.zonal_overview.claims_waiting)} />
         <Stat icon="chart" tone={d.zonal_overview.metrics_waiting ? 'warn' : undefined} label={L('হাবের হিসাব যাচাই', 'Hub figures to check')} value={n(d.zonal_overview.metrics_waiting)} />
       </div>
-    </Panel>}
-
-    {vis('quick_links') && <Panel code="quick_links">
+    </Panel> : null
+      case 'quick_links': return <Panel code="quick_links">
       <div className="da-cards">{CARDS.filter(c => !c[6] || c[6].some(p => can(p))).map(([to, ic, bn, en, dbn, den]) =>
         <Link key={to} to={to} className="da-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <span className="ri"><Icon name={ic} /></span><strong>{L(bn, en)}</strong><span className="muted small">{L(dbn, den)}</span></Link>)}</div>
-    </Panel>}
-  </AppShell>
+    </Panel>
+      default: return null
+    }
+  }
 
   function Panel({ code, to, children }: { code: PanelCode; to?: string; children: ReactNode }) {
     return <section className="panel">
