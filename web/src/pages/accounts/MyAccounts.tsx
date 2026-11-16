@@ -9,18 +9,23 @@ export function MyAccounts() {
   const today = todayDhaka()
   const [from, setFrom] = useState(addDays(today, -30))
   const [to, setTo] = useState(today)
+  const [range, setRange] = useState<'7' | '30' | 'month' | 'custom'>('30')
+  const show = (r: typeof range) => { setRange(r); if (r === '7') { setFrom(addDays(today, -6)); setTo(today) } else if (r === '30') { setFrom(addDays(today, -30)); setTo(today) } else if (r === 'month') { setFrom(today.slice(0, 8) + '01'); setTo(today) } }
   const me = useLoad(() => da.myAccounts(from, to), [from, to])
   const m = me.data
   const todayLines = (m?.my_lines ?? []).filter(l => l.account_date === today)
   const corrections = (m?.notes ?? []).filter(n => n.action === 'correction_required')
 
   return <AccountsShell title="আমার হিসাব" subtitle={m?.employee ? `${m.employee.name} · ID ${m.employee.code}` : 'নিজের সব হিসাব, খরচ, পেমেন্ট ও অনুমোদনের অবস্থা'}>
-    <section className="da-filters panel">
+    <div className="nv-sheet nv-mine">
+    <div className="nv-chips" role="group" aria-label="কোন সময়ের হিসাব">{([['7', '৭ দিন'], ['30', '৩০ দিন'], ['month', 'এ মাস'], ['custom', 'তারিখ বাছুন']] as const).map(([k, l]) =>
+      <button key={k} type="button" className={`nv-chip${range === k ? ' on' : ''}`} aria-pressed={range === k} onClick={() => show(k)}>{l}</button>)}</div>
+    {range === 'custom' && <section className="da-filters panel">
       <Field label="শুরুর তারিখ"><input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></Field>
       <Field label="শেষ তারিখ"><input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} /></Field>
-    </section>
+    </section>}
     <ErrorNote error={me.error} />
-    {me.loading && <p className="muted">লোড হচ্ছে…</p>}
+    {me.loading && !m && <p className="muted">লোড হচ্ছে…</p>}
     {m && <>
       <section className="da-stats">
         <Stat label="আজকের ডেলিভারি" value={num(todayLines.reduce((a, l) => a + l.line.delivery_qty, 0))} />
@@ -37,14 +42,28 @@ export function MyAccounts() {
           <Link to={`/app/accounts/daily/${n.session_id}`}> খুলুন →</Link></li>)}</ul></section>}
 
       <section className="panel"><h2>আমার রাইডার হিসাব (আজ ও আগের দিন)</h2>
-        <div className="da-table-wrap"><table className="da-table"><thead><tr><th>তারিখ</th><th>হাব</th><th className="r">ডেলিভারি</th><th className="r">পিকআপ</th><th className="r">টাকা</th><th className="r">বকেয়া</th><th className="r">মোবাইল ব্যাংকিং</th><th>অবস্থা</th><th>মন্তব্য</th></tr></thead>
+        <div className="nv-rows nv-phone-only">
+          {m.my_lines.map(l => <div key={l.line.id} className="nv-row">
+            <span className="nv-av">{l.hub.slice(0, 1)}</span>
+            <span className="tx"><b>{dateBn(l.account_date)}{l.account_date === today ? ' · আজ' : ''}</b><span>{l.hub} · {num(l.line.delivery_qty)} ডেলিভারি · {num(l.line.pickup_qty)} পিকআপ</span>
+              {(l.line.due > 0 || l.verify_note || l.line.remarks) && <span className="who">{l.line.due > 0 && <em>বকেয়া {taka(l.line.due)}</em>}{l.verify_note || l.line.remarks ? ` · ${l.verify_note ?? l.line.remarks}` : ''}</span>}</span>
+            <span className="end"><b>{taka(l.line.amount)}</b><StatusBadge status={l.status} /></span></div>)}
+          {m.my_lines.length === 0 && <p className="nv-none">এই সময়ে আপনার নামে কোনো রাইডার হিসাব নেই।</p>}</div>
+        <div className="da-table-wrap nv-not-phone"><table className="da-table"><thead><tr><th>তারিখ</th><th>হাব</th><th className="r">ডেলিভারি</th><th className="r">পিকআপ</th><th className="r">টাকা</th><th className="r">বকেয়া</th><th className="r">মোবাইল ব্যাংকিং</th><th>অবস্থা</th><th>মন্তব্য</th></tr></thead>
           <tbody>{m.my_lines.map(l => <tr key={l.line.id} className={l.account_date === today ? 'today' : ''}><td data-l="তারিখ">{dateBn(l.account_date)}{l.account_date === today && <Badge tone="info">আজ</Badge>}</td><td data-l="হাব">{l.hub}</td>
             <td data-l="ডেলিভারি" className="r">{num(l.line.delivery_qty)}</td><td data-l="পিকআপ" className="r">{num(l.line.pickup_qty)}</td><td data-l="টাকা" className="r">{taka(l.line.amount)}</td>
             <td data-l="বকেয়া" className="r">{taka(l.line.due)}</td><td data-l="মোবাইল ব্যাংকিং" className="r">{taka(l.line.mobile_banking)}</td><td data-l="অবস্থা"><StatusBadge status={l.status} /></td><td data-l="মন্তব্য">{l.verify_note ?? l.line.remarks ?? ''}</td></tr>)}
             {m.my_lines.length === 0 && <tr><td colSpan={9} className="muted">এই সময়ে আপনার নামে কোনো রাইডার হিসাব নেই।</td></tr>}</tbody></table></div></section>
 
       <section className="panel"><h2>আমার শুরু / Submit করা হিসাব</h2>
-        <div className="da-table-wrap"><table className="da-table"><thead><tr><th>নং</th><th>তারিখ</th><th>হাব</th><th>আমার ভূমিকা</th><th>অবস্থা</th><th>Submit</th><th>যাচাই</th><th>মন্তব্য</th><th /></tr></thead>
+        <div className="nv-rows nv-phone-only">
+          {m.my_sheets.map(sh => <Link key={sh.id} className="nv-row" to={`/app/accounts/daily/${sh.id}`}>
+            <span className="nv-av">{sh.hub.slice(0, 1)}</span>
+            <span className="tx"><b>{sh.hub}</b><span>নং {num(sh.no)} · {dateBn(sh.account_date)} · {[sh.started_by_me && 'শুরু', sh.submitted_by_me && 'Submit'].filter(Boolean).join(' · ') || '—'}</span>
+              {sh.verify_note && <span className="who">{sh.verify_note}</span>}</span>
+            <span className="end"><StatusBadge status={sh.status} /><small>খুলুন ›</small></span></Link>)}
+          {m.my_sheets.length === 0 && <p className="nv-none">কোনো হিসাব নেই।</p>}</div>
+        <div className="da-table-wrap nv-not-phone"><table className="da-table"><thead><tr><th>নং</th><th>তারিখ</th><th>হাব</th><th>আমার ভূমিকা</th><th>অবস্থা</th><th>Submit</th><th>যাচাই</th><th>মন্তব্য</th><th /></tr></thead>
           <tbody>{m.my_sheets.map(sh => <tr key={sh.id}><td data-l="নং">{num(sh.no)}</td><td data-l="তারিখ">{dateBn(sh.account_date)}</td><td data-l="হাব">{sh.hub}</td>
             <td data-l="ভূমিকা">{[sh.started_by_me && 'শুরু', sh.submitted_by_me && 'Submit'].filter(Boolean).join(' · ')}</td><td data-l="অবস্থা"><StatusBadge status={sh.status} /></td>
             <td data-l="Submit">{timeBn(sh.submitted_at)}</td><td data-l="যাচাই">{sh.verified_by_name ? `${sh.verified_by_name} · ${timeBn(sh.verified_at)}` : '—'}</td><td data-l="মন্তব্য">{sh.verify_note ?? ''}</td>
@@ -71,6 +90,7 @@ export function MyAccounts() {
       {corrections.length === 0 && m.notes.length > 0 && <section className="panel"><h2>ম্যানেজারের মন্তব্য ও অনুমোদন</h2>
         <ul className="da-notes">{m.notes.map((n, i) => <li key={i} className={`ev-${n.action}`}><b>{EVENT_LABEL[n.action as SheetEvent['action']] ?? n.action}</b> · {n.hub} · {dateBn(n.account_date)}{n.note ? ` — “${n.note}”` : ''} <span className="muted">({n.by}, {timeBn(n.at)})</span></li>)}</ul></section>}
     </>}
+    </div>
   </AccountsShell>
 }
 

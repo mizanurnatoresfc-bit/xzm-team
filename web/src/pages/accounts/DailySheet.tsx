@@ -59,6 +59,7 @@ export function DailySheet() {
     subtitle={`হিসাব নং ${num(s.session.no)} · শুরু করেছেন ${s.session.started_by_name ?? '—'}${s.session.started_by_code ? ` (ID ${s.session.started_by_code})` : ''} · ${timeBn(s.session.started_at)}`}
     actions={<><StatusBadge status={s.session.status} /><button className="secondary" onClick={() => printArea(`Daily-account-${s.hub.code}-${s.session.account_date}`)}>প্রিন্ট / PDF</button></>}>
     {node}
+    <div className="nv-sheet">
     {s.session.status === 'correction' && s.session.verify_note && <p className="notice">সংশোধন প্রয়োজন: {s.session.verify_note}</p>}
     {s.session.status === 'approved' && <p className="da-ok">অনুমোদিত — {s.session.verified_by_name} · {timeBn(s.session.verified_at)}{s.session.verify_note ? ` · “${s.session.verify_note}”` : ''}</p>}
     {s.session.closed_at && <p className="da-ok">আজকের হিসাব ক্লোজ — {timeBn(s.session.closed_at)}</p>}
@@ -87,6 +88,7 @@ export function DailySheet() {
     </div>
     <CollectorStrip s={s} reload={reload} />
     <ActionBar s={s} reload={reload} />
+    </div>
   </AccountsShell>
 }
 
@@ -167,7 +169,21 @@ function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings
       <QuickGrid cols={rcols} rows={rrows} blank={rblank} editable
         ready={v => (v.code.trim() ? null : 'ID লিখুন')} save={rsave} onSaved={() => reload()} lookup={rlookup}
         onRemove={id => setRemove(s.riders.find(r => r.id === id) ?? null)} /></div>}
-    <div className={`da-table-wrap${s.can_edit ? ' only-print' : ''}`}><table className="da-table" data-sec="riders">
+    {/* phone: one row per rider — tap to change it */}
+    <div className="nv-rows nv-phone-only no-print">
+      {s.riders.map(r => <button key={r.id} type="button" className="nv-row" disabled={!s.can_edit} onClick={() => { setErr(null); edit(r) }}>
+        <span className="nv-av">{r.rider_name.slice(0, 1)}</span>
+        <span className="tx"><b>{r.rider_name}</b>
+          <span>ID {r.employee_code}{fields.includes('delivery_qty') ? ` · ${num(r.delivery_qty)} ডেলিভারি` : ''}{fields.includes('pickup_qty') ? ` · ${num(r.pickup_qty)} পিকআপ` : ''}</span>
+          {(r.due > 0 || r.mobile_banking > 0 || r.remarks) && <span className="who">{r.due > 0 && <em>বকেয়া {taka(r.due)}</em>}{r.mobile_banking > 0 ? ` · মোবাইল ব্যাংকিং ${taka(r.mobile_banking)}` : ''}{r.remarks ? ` · ${r.remarks}` : ''}</span>}</span>
+        <span className="end"><b>{taka(r.amount)}</b>{s.can_edit && <small>বদলান ›</small>}</span>
+      </button>)}
+      {s.riders.length === 0 && <p className="nv-none">এখনো কোনো রাইডার যোগ হয়নি।{s.can_edit ? ' উপরের “＋ রাইডার যোগ” চাপুন।' : ''}</p>}
+      {s.riders.length > 0 && <div className="nv-row total"><span className="tx"><b>মোট ({num(s.riders.length)} জন)</b>
+        <span>{fields.includes('delivery_qty') ? `${num(sum(r => r.delivery_qty))} ডেলিভারি` : ''}{fields.includes('pickup_qty') ? ` · ${num(sum(r => r.pickup_qty))} পিকআপ` : ''}{sum(r => r.due) > 0 ? ` · বকেয়া ${taka(sum(r => r.due))}` : ''}</span></span>
+        <span className="end"><b>{taka(sum(r => r.amount))}</b></span></div>}
+    </div>
+    <div className={`da-table-wrap nv-not-phone${s.can_edit ? ' only-print' : ''}`}><table className="da-table" data-sec="riders">
       <thead><tr><th>নং</th><th>Employee ID</th><th>রাইডারের নাম</th><th>মোবাইল</th>
         {fields.filter(f => f !== 'remarks').map(f => <th key={f} className="r">{F_LABEL[f]}</th>)}{fields.includes('remarks') && <th>মন্তব্য</th>}<ExtraHeads settings={settings} sec="riders" /><th className="no-print" /></tr></thead>
       <tbody>{s.riders.map(r => <tr key={r.id}>
@@ -193,7 +209,8 @@ function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings
         {fields.includes('remarks') && <td className="no-print" />}<ExtraBlanks settings={settings} sec="riders" /><td className="no-print" /></tr></tfoot>}</table></div>
 
     {d && <Modal title={d.line ? 'রাইডারের হিসাব এডিট' : 'রাইডার যোগ'} onClose={() => setD(null)} wide
-      actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || !d.code || d.allowed === false} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'সেভ'}</button></>}>
+      actions={<>{d.line && <button className="danger nv-phone-only" onClick={() => { const r = s.riders.find(x => x.id === d.line) ?? null; setD(null); setRemove(r) }}>বাদ দিন</button>}
+        <button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || !d.code || d.allowed === false} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'সেভ'}</button></>}>
       <div className="da-grid3">
         <Field label="Employee ID *" hint={d.name ? <>{d.name} · {d.mobile ?? '—'} · {d.hub ?? ''} {d.allowed === false && <b className="bad"> — এই হাবের সক্রিয় কর্মী নন</b>}</> : 'আইডি লিখলেই নাম, মোবাইল ও হাব চলে আসবে'}>
           <input autoFocus inputMode="numeric" value={d.code} onChange={e => setD({ ...d, code: e.target.value, name: undefined, allowed: undefined })} onBlur={e => void lookup(e.target.value)} list="da-staff" /></Field>

@@ -51,8 +51,12 @@ export function AccountsReports() {
       {can('da.report.export') && <button onClick={() => download(xlsxBlob(`XZM-TEAM — ${def[1]}`, sub, def[2].map(c => c.l), rows.map(r => def[2].map(c => raw(r[c.k], c.t)))), `daily-accounts-${kind}-${from}-${to}.xlsx`)}>Excel</button>}
       {can('da.report.export') && <button className="secondary" onClick={() => printArea(`daily-accounts-${kind}-${from}-${to}`)}>PDF</button>}
       {can('da.report.print') && <button className="secondary" onClick={() => printArea(`daily-accounts-${kind}`)}>প্রিন্ট</button>}</> : undefined}>
+    <div className="nv-chips no-print" role="group" aria-label="কোন রিপোর্ট" style={{ marginBottom: 10 }}>{KINDS.map(k => <button key={k[0]} type="button" className={`nv-chip${kind === k[0] ? ' on' : ''}`} aria-pressed={kind === k[0]} onClick={() => setKind(k[0])}>{k[1]}</button>)}</div>
+    <div className="nv-chips no-print" role="group" aria-label="কোন সময়ের" style={{ marginBottom: 10 }}>
+      <button type="button" className={`nv-chip${from === today && to === today ? ' on' : ''}`} onClick={() => { setFrom(today); setTo(today) }}>আজ</button>
+      <button type="button" className={`nv-chip${from === addDays(today, -6) && to === today ? ' on' : ''}`} onClick={() => { setFrom(addDays(today, -6)); setTo(today) }}>৭ দিন</button>
+      <button type="button" className={`nv-chip${from === today.slice(0, 8) + '01' && to === today ? ' on' : ''}`} onClick={() => { setFrom(today.slice(0, 8) + '01'); setTo(today) }}>এ মাস</button></div>
     <section className="da-filters panel no-print">
-      <Field label="রিপোর্ট"><select value={kind} onChange={e => setKind(e.target.value as ReportKind)}>{KINDS.map(k => <option key={k[0]} value={k[0]}>{k[1]}</option>)}</select></Field>
       <Field label="শুরুর তারিখ"><input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></Field>
       <Field label="শেষ তারিখ"><input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} /></Field>
       <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}><option value="">সব হাব</option>{(hubs.data ?? []).map(h => <option key={h.hub_id} value={h.hub_id}>{h.name}</option>)}</select></Field>
