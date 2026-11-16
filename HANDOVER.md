@@ -252,8 +252,8 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   On a phone the login button sits in a fixed bar at the bottom. The dashboard's greeting card carries the motto too. All earlier wording is kept.
 - Fix found on the way: with the phone in dark mode and the theme on "system", the page background stayed light everywhere (a light-only rule was not limited to light).
 - **17 Nov — live:** office operations and fleet applied to Supabase (recorded as `office_operations`, `fleet`), `nodi-ai` v4 deployed, PR #33 merged.
-  The three kind-check swaps (vehicles, vehicle_logs, office_properties) need a DROP CONSTRAINT, which the MCP client stops for approval; they were given to the
-  owner as a small SQL to run in the SQL Editor. Until then: no auto / covered van vehicles, no খোরাকি lines, no garage / auto garage places.
+  The three kind-check swaps (vehicles, vehicle_logs, office_properties) were applied afterwards as migration `fleet_office_kinds` (owner approved).
+  Live and repo now match for fleet and office operations.
 
 ## 2026-11-17 — HR requests: native-style new request and a report builder
 - Owner (with a screenshot of the format cards): ID create / transfer / inactive→active / remove, modern Android look, easy and smart, reports in any format and style.
