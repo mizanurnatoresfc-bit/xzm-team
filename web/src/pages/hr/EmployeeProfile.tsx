@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { LeftJob, ProfileFill } from './ProfileFill'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
@@ -25,6 +26,8 @@ export function EmployeeProfile() {
   const isDraftOwner = !!e && e.status === 'applicant' && !!app.data && ['draft', 'returned'].includes(app.data.status) && app.data.created_by === session?.user.id
   const [tab, setTab] = useState<'overview' | 'personal' | 'docs' | 'history'>('overview')
   const [askEdit, setAskEdit] = useState(0)
+  const [fill, setFill] = useState(false)
+  const [left, setLeft] = useState(false)
   // Profile photo: the newest "photo" document, opened with a short-lived link.
   const photo = useLoad(async () => {
     const list = await docs.list(id).catch(() => [])
@@ -57,11 +60,16 @@ export function EmployeeProfile() {
         {e.mobile && <a className="nv-qa wa" href={`https://wa.me/88${e.mobile.replace(/\D/g, '').replace(/^88/, '')}`} target="_blank" rel="noreferrer"><i><Icon name="note" size={22} /></i>WhatsApp</a>}
         {e.mobile && <a className="nv-qa" href={`sms:${e.mobile}`}><i><Icon name="form" size={22} /></i>SMS</a>}
         {can('hr.employee.edit') && e.status !== 'applicant' && !e.archived_at && <button type="button" className="nv-qa" onClick={() => { setTab('overview'); setAskEdit(n => n + 1) }}><i><Icon name="edit" size={22} /></i>এডিট</button>}
+        {can('hr.employee_profile.edit') && !e.archived_at && <button type="button" className="nv-qa" onClick={() => setFill(true)}><i><Icon name="form" size={22} /></i>প্রোফাইল পূর্ণ</button>}
+        {can('hr.request.create') && e.status === 'active' && !e.archived_at && <button type="button" className="nv-qa" onClick={() => setLeft(true)}><i><Icon name="out" size={22} /></i>চাকরি ছেড়েছেন</button>}
         <Link to="/app/hub/attendance" className="nv-qa"><i><Icon name="cal" size={22} /></i>হাজিরা</Link>
         <Link to="/app/accounts/daily" className="nv-qa"><i><Icon name="ledger" size={22} /></i>হিসাব খাতা</Link>
         <button type="button" className="nv-qa" onClick={() => setTab('docs')}><i><Icon name="file" size={22} /></i>ডকুমেন্ট</button>
       </div>
     </section>
+    {fill && <ProfileFill employee={e.id} onClose={() => setFill(false)} onDone={async m => { setFill(false); toast(m); await reload() }} />}
+    {left && <LeftJob person={{ id: e.id, full_name: e.full_name, employee_code: e.employee_code, hub_id: e.hub_id, hub: e.hub_id ? o.names.hub[e.hub_id] ?? '' : '', position: e.position_id ? o.names.posEn[e.position_id] ?? '' : '' }}
+      onClose={() => setLeft(false)} onDone={m => { setLeft(false); toast(m) }} />}
     <nav className="emp-tabs" role="tablist">
       {([['overview', 'সারসংক্ষেপ', 'dash'], ['personal', 'ব্যক্তিগত', 'user'], ['docs', 'ডকুমেন্ট', 'file'], ['history', 'HR ইতিহাস', 'log']] as const).map(([k, t, ic]) =>
         <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={16} />{t}</button>)}

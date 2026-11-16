@@ -91,6 +91,14 @@ try {
           created_at: '2026-11-15T05:00:00Z', solved_at: null, reopen_count: 0, assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: true }, { id: 'o1', issue_no: 'IS-00009', title: 'স্টোর অর্ডার: টেপ', kind: 'store',
         priority: 'normal', status: 'open', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null, created_at: '2026-11-15T04:00:00Z', solved_at: null, reopen_count: 0,
         assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: false }] })
+      if (u.includes('rpc/hub_login_list')) return j([
+        { employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position_name: 'Commission Rider', position_name_bn: 'কমিশন রাইডার', mobile: null, role_id: 'r5', role_code: 'rider', can_make: true, user_id: null, login_id: null, must_change: false, last_login_at: null, locked: false },
+        { employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', position_name: 'Commission Rider', position_name_bn: 'কমিশন রাইডার', mobile: '01711000003', role_id: 'r5', role_code: 'rider', can_make: false, user_id: 'u9', login_id: 'id-6799@xzmteam.com', must_change: true, last_login_at: null, locked: false },
+        { employee_id: 'e04', employee_code: '8157', full_name: 'Sohel Sardar', position_name: 'Assistant Manager', position_name_bn: 'সহকারী ম্যানেজার', mobile: null, role_id: 'r2', role_code: 'hub_manager', can_make: false, user_id: null, login_id: null, must_change: false, last_login_at: null, locked: false }])
+      if (u.includes('rpc/hr_hub_profile_get')) return j({ full_name: 'Staff 01', employee_code: '1001', full_name_bn: null, mobile: '01711000001', email: null, emergency_contact_name: null, emergency_contact_phone: null, alt_mobile: null, blood_group: null,
+        has: { nid_number: true, date_of_birth: false, father_name: false, mother_name: false, present_address: false, permanent_address: false } })
+      if (u.includes('rpc/hr_hub_profile_save') || u.includes('rpc/hr_request_submit')) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j('q1') }
+      if (u.includes('/rest/v1/hr_request_formats') && u.includes('kind=eq.id_inactive')) return j({ id: 'f-inactive' })
       if (u.includes('rpc/my_menu')) return j(menuNow)
       if (u.includes('rpc/role_menu_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, menu: null, user_count: 4 }])
       if (u.includes('rpc/role_menu_save')) { flowCalls.push({ fn: 'role_menu_save', ...r.request().postDataJSON() }); return j(null) }
@@ -316,6 +324,37 @@ try {
       check(c.fn === 'att_days_save' && c.p_rows?.length === 2 && c.p_rows[0].online_days === 13 && c.p_rows[0].register_days === 15 && /^\d{4}-\d\d-(01|16)$/.test(c.p_from), `${size}: the hub submits the attendance days for the half month`) }
     await fits('attendance days')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-days.png` })
+    // the hub sets up its own people: logins for riders / plain staff, a new password, profile details, "has left"
+    await page.goto(`${BASE}/app/hub/logins`); await page.waitForSelector('.hl .nv-row', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.hl .nv-row').count() === 3 && await page.locator('.hl .nv-row button', { hasText: 'লগইন বানান' }).count() === 1 && (await page.locator('.hl .nv-row').last().innerText()).includes('অ্যাডমিন'),
+      `${size}: the hub's login page offers a login only where the hub may make one`)
+    const acBefore = accounts.length
+    await page.locator('.hl .nv-row button', { hasText: 'লগইন বানান' }).click(); await page.waitForSelector('.da-modal input')
+    await page.locator('.da-modal input').fill('short'); await page.locator('.da-modal-acts button').last().click()
+    check(accounts.length === acBefore && await page.locator('.da-modal .da-error').count() === 1, `${size}: a weak first password is refused before anything is sent`)
+    await page.locator('.da-modal input').fill('Xzm12345'); await page.locator('.da-modal-acts button').last().click()
+    await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+    { const a = accounts.at(-1) ?? {}
+      check(accounts.length === acBefore + 1 && a.action === 'create' && a.email === 'id-7982@xzmteam.com' && a.scope_type === 'hub' && a.role_id === 'r5' && a.employee_id === 'e02', `${size}: the login is made with the Employee ID, the post's role and the hub`) }
+    await page.locator('.hl .nv-row button', { hasText: 'নতুন পাসওয়ার্ড দিন' }).click(); await page.waitForSelector('.da-modal input')
+    await page.locator('.da-modal input').fill('Xzm67890'); await page.locator('.da-modal-acts button').last().click()
+    await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+    check(accounts.at(-1)?.action === 'reset_password' && accounts.at(-1)?.user_id === 'u9', `${size}: the hub gives a new password to one of its own`)
+    await fits('hub logins')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-logins.png` })
+    await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.nv-qa', { timeout: 10000 }).catch(() => {})
+    await page.locator('.nv-qa', { hasText: 'প্রোফাইল পূর্ণ' }).click(); await page.waitForSelector('.da-modal .da-form input')
+    check((await page.locator('.da-modal').innerText()).includes('জমা আছে') && await page.locator('.da-modal .da-form input').first().inputValue() === '01711000001', `${size}: the profile form shows contact details and only "on file" for identity details`)
+    await page.locator('.da-modal .da-form select').selectOption('B+'); await page.locator('.da-modal .da-form input[type=date]').fill('1998-03-05')
+    await page.locator('.da-modal-acts button').last().click()
+    await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+    { const c = flowCalls.at(-1) ?? {}
+      check(c.fn === 'hr_hub_profile_save' && c.p_employee === 'e01' && JSON.stringify(c.p) === JSON.stringify({ blood_group: 'B+', date_of_birth: '1998-03-05' }), `${size}: only what was newly written is sent`) }
+    await page.locator('.nv-qa', { hasText: 'চাকরি ছেড়েছেন' }).click(); await page.waitForSelector('.da-modal textarea')
+    await page.locator('.da-modal textarea').fill('নিজে চাকরি ছেড়েছেন'); await page.locator('.da-modal-acts button').last().click()
+    await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+    { const c = flowCalls.at(-1) ?? {}
+      check(c.fn === 'hr_request_submit' && c.p_format === 'f-inactive' && c.p_employee === 'e01' && c.p_data?.reason === 'নিজে চাকরি ছেড়েছেন' && !!c.p_data?.last_date, `${size}: "has left" goes to the office as a request`) }
     // which pages a role sees: the Super Admin ticks them; a limited role gets nothing else
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
     await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')
@@ -502,8 +541,9 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-bulk.png`, fullPage: true })
     await page.locator('.da-modal-acts button').last().click()
     await page.waitForFunction(() => /শেষ হয়েছে/.test(document.querySelector('.da-modal')?.textContent ?? ''), null, { timeout: 30000 }).catch(() => {})
-    check(accounts.length === 12 && accounts.every(a => a.action === 'create' && /^id-10\d\d@xzmteam\.com$/.test(a.email) && a.role_id === 'r3' && a.scope_type === 'hub'
-      && a.hub_id === 'h2' && a.password === 'Natore2026' && /^e\d\d$/.test(a.employee_id)), `${size}: one login per staff member with an ID, role and hub from their record (${accounts.length})`)
+    const bulkMade = accounts.filter(a => a.password === 'Natore2026')
+    check(bulkMade.length === 12 && bulkMade.every(a => a.action === 'create' && /^id-10\d\d@xzmteam\.com$/.test(a.email) && a.role_id === 'r3' && a.scope_type === 'hub'
+      && a.hub_id === 'h2' && a.password === 'Natore2026' && /^e\d\d$/.test(a.employee_id)), `${size}: one login per staff member with an ID, role and hub from their record (${bulkMade.length})`)
 
     // roll-out progress: hubs, then the people of a hub with where each one is stuck
     await page.goto(`${BASE}/app/rollout`); await page.waitForSelector('.ro-steps')
