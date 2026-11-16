@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Contact } from '../../components/Contact'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
@@ -125,7 +126,7 @@ function HubStaff({ hub, onToast, onClose, onOpen }: {
             checked={picked.has(e.id)} onChange={() => toggle(e.id)} onClick={ev => ev.stopPropagation()} /> },
         { key: 'code', label: L('আইডি', 'ID'), value: e => e.employee_code ?? '', render: e => e.employee_code ? <strong>{e.employee_code}</strong> : <Badge tone="warn">{L('আইডি নেই', 'No ID')}</Badge> },
         { key: 'name', label: L('নাম', 'Name'), primary: true, value: e => e.full_name },
-        { key: 'mobile', label: L('মোবাইল', 'Mobile'), value: e => e.mobile ?? '' },
+        { key: 'mobile', label: L('মোবাইল', 'Mobile'), value: e => e.mobile ?? '', render: e => <Contact phone={e.mobile} /> },
         { key: 'pos', label: L('পদবি', 'Position'), value: e => e.position_id ? o.names.pos[e.position_id] ?? '' : '' },
         { key: 'join', label: L('যোগদান', 'Joined'), value: e => dmy(e.joining_date) },
         { key: 'status', label: L('অবস্থা', 'Status'), value: e => EMP_STATUS[e.status]?.[0] ?? e.status, render: e => <EmpBadge status={e.status} /> },

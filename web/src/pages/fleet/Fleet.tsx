@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Contact } from '../../components/Contact'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
@@ -75,7 +76,7 @@ function Vehicles({ rows, loading, settings, canAdd, onChanged }: { rows: BoardR
         <div className="fl-crew">{r.roles.map(role => { const c = r.crew.find(x => x.role === role)
           return <button key={role} type="button" className={`fl-crew-row${c ? '' : ' empty'}`} disabled={!r.can_crew} onClick={() => setCrew({ v: r, role })}>
             <span className="role">{ROLE_BN[role]}</span>
-            {c ? <span className="who"><b>{c.name}</b><small>{[c.code && `আইডি ${c.code}`, c.mobile].filter(Boolean).join(' · ')}</small></span> : <span className="who muted">দেওয়া হয়নি — চাপুন</span>}
+            {c ? <span className="who"><b>{c.name}</b><small>{c.code && `আইডি ${c.code}`}</small>{c.mobile && <Contact phone={c.mobile} />}</span> : <span className="who muted">দেওয়া হয়নি — চাপুন</span>}
             {c?.allowance ? <span className="amt">খোরাকি {tk(c.allowance)}</span> : null}{r.can_crew && <Icon name="chev" size={16} />}</button> })}</div>
         {(r.pending > 0 || r.requests_open > 0) && <p className="fl-flag"><Icon name="alert" size={14} />{[r.pending && `${bnNum(r.pending)}টি খরচ অনুমোদন বাকি`, r.requests_open && `${bnNum(r.requests_open)}টি রিকুইজিশন খোলা`].filter(Boolean).join(' · ')}</p>}
       </section>)}</div>}
