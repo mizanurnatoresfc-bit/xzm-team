@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { menuApi, type RoleMenu } from '../../lib/menu'
+import { GROUPS, HOME } from '../../components/AppShell'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Badge, Modal, useLoad, useToast } from '../accounts/ui'
@@ -23,6 +25,8 @@ export function RoleDashboards() {
     catch (e) { toast(dashboardFriendly(e)) }
   }
   const [edit, setEdit] = useState<RoleDashboard | null>(null)
+  const menus = useLoad(() => (sup ? menuApi.roles() : Promise.resolve([] as RoleMenu[])), [sup])
+  const [pages, setPages] = useState<RoleMenu | null>(null)
   const { toast, node } = useToast()
 
   return <AppShell title={L('রোল অনুযায়ী ড্যাশবোর্ড', 'Dashboard by role')}
@@ -45,14 +49,52 @@ export function RoleDashboards() {
           </tr>)}</tbody></table></div>
         {list.loading && <p className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       </section>
+      <section className="panel" id="role-pages">
+        <h2>{L('কোন রোল কোন কোন পাতা দেখবে', 'Which pages each role sees')}</h2>
+        <p className="muted small">{L('তালিকা বসালে সেই রোল শুধু ওই পাতাগুলো মেনুতে পাবে, অন্য পাতা ঠিকানা লিখেও খুলবে না। পরে আরও পাতা চালু করতে শুধু টিক দিন। (কী তথ্য দেখা বা বদলানো যাবে তা অনুমতি দিয়েই ঠিক হয় — সেটা “রোল ও অনুমতি” পাতায়।)',
+          'With a list, the role gets only those pages in its menu and cannot open others. Tick more pages later to switch them on. (What data may be seen or changed is still set by permissions.)')}</p>
+        <div className="nv-rows">{(menus.data ?? []).filter(r => !r.is_super).map(r => <div key={r.role_id} className="nv-row">
+          <span className="tx"><b>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</b>
+            <span>{r.menu ? L(`${n(r.menu.length)}টি পাতা চালু`, `${r.menu.length} pages on`) : L('সব পাতা (অনুমতি অনুযায়ী)', 'Every page (by permission)')} · {n(r.user_count)} {L('জন ইউজার', 'users')}</span></span>
+          <span className="end">{r.menu ? <Badge tone="warn">{L('সীমিত', 'Limited')}</Badge> : null}<button type="button" className="secondary sm" onClick={() => setPages(r)}>{L('পাতা বাছুন', 'Choose pages')}</button></span>
+        </div>)}</div>
+        {menus.error ? <p className="da-error">{dashboardFriendly(menus.error)}</p> : null}
+      </section>
       <section className="panel">
         <h2>{L('প্যানেলগুলো কী কী', 'What the panels are')}</h2>
         <ul className="muted small">{PANELS.map(([code]) => <li key={code}><strong>{panelLabel(code, lang)}</strong> — {panelNote(code, lang)}</li>)}</ul>
       </section>
     </>}
+    {pages && <PagesEditor role={pages} onClose={() => setPages(null)} onDone={() => { setPages(null); toast(L('পাতার তালিকা সেভ হয়েছে', 'Pages saved')); void menus.reload() }} />}
     {edit && <LayoutEditor role={edit} onClose={() => setEdit(null)}
       onDone={() => { setEdit(null); toast(L('ড্যাশবোর্ড সেভ হয়েছে', 'Dashboard saved')); void list.reload() }} />}
   </AppShell>
+}
+
+/** Tick the pages a role gets. "No limit" clears the list. */
+function PagesEditor({ role, onClose, onDone }: { role: RoleMenu; onClose: () => void; onDone: () => void }) {
+  const { L, lang } = usePrefs()
+  const [limit, setLimit] = useState(role.menu !== null)
+  const [picked, setPicked] = useState<string[]>(role.menu ?? [])
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
+  const toggle = (to: string) => setPicked(p => p.includes(to) ? p.filter(x => x !== to) : [...p, to])
+  const groups = [{ key: 'home', bn: 'শুরু', en: 'Start', items: HOME.filter(i => i.to !== '/app') }, ...GROUPS]
+  async function save() {
+    setBusy(true); setErr('')
+    try { await menuApi.save(role.role_id, limit ? picked : null); onDone() } catch (e) { setErr(dashboardFriendly(e)) } finally { setBusy(false) }
+  }
+  return <Modal wide title={`${L('পাতা বাছুন', 'Choose pages')} — ${lang === 'bn' && role.name_bn ? role.name_bn : role.name}`} onClose={onClose}
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('সেভ', 'Save')}</button></>}>
+    <div className="da-seg" role="group"><button type="button" className={limit ? 'secondary' : ''} aria-pressed={!limit} onClick={() => setLimit(false)}>{L('সব পাতা (সীমা নেই)', 'Every page (no limit)')}</button>
+      <button type="button" className={limit ? '' : 'secondary'} aria-pressed={limit} onClick={() => setLimit(true)}>{L('শুধু টিক দেওয়া পাতা', 'Only the ticked pages')}</button></div>
+    {limit && <><p className="muted small">{L('হোম, নিজের প্রোফাইল ও পাসওয়ার্ড বদলানো সবসময় খোলা থাকে। টিক দেওয়া পাতা তখনই দেখাবে যখন রোলের সেই পাতার অনুমতিও আছে।',
+      'Home, own profile and password are always open. A ticked page shows only when the role also has the permission for it.')}</p>
+      <div className="pg-pick">{groups.map(g => <fieldset key={g.key}><legend>{L(g.bn, g.en)}
+        <button type="button" className="link small" onClick={() => { const all = g.items.map(i => i.to); setPicked(p => all.every(t => p.includes(t)) ? p.filter(t => !all.includes(t)) : [...new Set([...p, ...all])]) }}>{L('সব', 'all')}</button></legend>
+        {g.items.map(i => <label key={i.to} className="da-check"><input type="checkbox" checked={picked.includes(i.to)} onChange={() => toggle(i.to)} /> {L(i.bn, i.en)}</label>)}</fieldset>)}</div>
+      <p className="muted small">{L(`${picked.length}টি পাতা বাছা হয়েছে`, `${picked.length} pages chosen`)}</p></>}
+    {err && <p className="da-error" role="alert">{err}</p>}
+  </Modal>
 }
 
 function LayoutEditor({ role, onClose, onDone }: { role: RoleDashboard; onClose: () => void; onDone: () => void }) {
