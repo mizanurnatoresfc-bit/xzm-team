@@ -1568,3 +1568,19 @@ button.nv-row:disabled{opacity:1}
 .pg-pick fieldset{border:1px solid var(--border);border-radius:12px;padding:8px 12px;margin:0;display:flex;flex-direction:column;gap:4px;min-width:0}
 .pg-pick legend{font-weight:700;font-size:13px;padding:0 6px;display:flex;gap:8px;align-items:center}
 .pg-pick .da-check{font-weight:400;font-size:13.5px}
+
+/* ---- post chips with a small icon (hub team) ---- */
+.post-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.post-chip{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:4px 12px 4px 5px;border-radius:999px;font-size:13.5px;font-weight:600;white-space:nowrap;
+  background:var(--surface)!important;color:var(--text)!important;border:1px solid var(--border)!important;box-shadow:none!important}
+.post-chip i{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--primary-50);color:var(--primary)}
+.post-chip b{font-size:12px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;background:var(--canvas);color:var(--muted)}
+.post-chip:hover{border-color:var(--primary)!important}
+.post-chip.on{background:var(--primary-50)!important;border-color:var(--primary)!important;color:var(--primary)!important}
+.post-chip.on i{background:var(--primary);color:#fff}
+.post-chip.on b{background:var(--primary);color:#fff}
+@media (max-width:899px){
+  .post-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:10px -12px 0;padding:0 12px 4px;scroll-snap-type:x proximity}
+  .post-chips::-webkit-scrollbar{display:none}
+  .post-chip{flex:none;scroll-snap-align:start}
+}
