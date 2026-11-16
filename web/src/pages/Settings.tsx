@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon'
 import { ViewAsPicker } from '../components/ViewAs'
 import { isNativeApp } from '../lib/native'
 import { FONTS, usePrefs, type Theme } from '../lib/prefs'
+import { AppUpdate } from '../components/AppUpdate'
 
 type Row = [to: string, icon: string, bn: string, en: string, perms: string[]]
 // Every settings / set-up page in the system, grouped. A row shows only when the role may open it.
@@ -51,6 +52,7 @@ export function Settings() {
     } catch { /* the person closed the share sheet */ }
   }
   return <AppShell title={L('সেটিং', 'Setting')}>
+    <AppUpdate />
     <section className="panel">
       <h2>{L('ভাষা', 'Language')}</h2>
       <div className="da-seg">{(['bn', 'en'] as const).map(l => <button key={l} className={lang === l ? '' : 'secondary'} onClick={() => setLang(l)}>{l === 'bn' ? 'বাংলা' : 'English'}</button>)}</div>

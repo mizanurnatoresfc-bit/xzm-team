@@ -393,6 +393,17 @@ try {
     await page.locator('.da-actionbar button').click(); await page.waitForTimeout(300)
     check(flowCalls.slice(-2).map(c => c.fn).join() === 'vehicle_configure,vehicle_configure' && flowCalls.at(-2)?.p_key === 'fleet', `${size}: vehicle settings are saved`)
     await fits('vehicle settings')
+    // in-app update: when a newer build is live, the app offers "আপডেট করুন"; settings show the version and a check button
+    await page.route('**/version.json*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ build: 'newer-build' }) }))
+    await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.upd-bar', { timeout: 8000 }).catch(() => {})
+    check((await page.locator('.upd-bar').innerText().catch(() => '')).includes('নতুন আপডেট এসেছে') && await page.locator('.app-upd').count() === 1,
+      `${size}: a newer build shows the update bar, and settings show the version`)
+    await fits('update bar')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-update.png` })
+    await page.locator('.upd-bar .upd-later').click()
+    check(await page.locator('.upd-bar').count() === 0, `${size}: "পরে" hides the update bar`)
+    await page.unroute('**/version.json*')
+    await page.evaluate(() => sessionStorage.removeItem('xzm_upd_later'))
     // staff gave their own attendance: the manager approves it (as present or late) or returns it with a reason
     await page.goto(`${BASE}/app/hub/attendance`); await page.waitForSelector('.self-marks .nv-row', { timeout: 10000 }).catch(() => {})
     check(await page.locator('.self-marks .nv-row').count() === 2 && (await page.locator('.self-marks').innerText()).includes('জ্বর'), `${size}: the hub attendance page lists the attendance staff gave themselves`)

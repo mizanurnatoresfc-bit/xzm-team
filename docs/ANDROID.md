@@ -14,7 +14,15 @@ Double-click `make-android.bat` in the project folder. First run: 10–20 minute
 Result: `XZM-TEAM.apk` in the project folder. Send it to a phone (WhatsApp / Drive / USB) and open it;
 Android asks to allow "install unknown apps" once.
 
-After any change to the web code, run `make-android.bat` again and reinstall the APK.
+## Updates from inside the app (since 16 Nov 2026)
+The app loads the live site (`server.url` = https://xzmteam.com in `web/capacitor.config.json`), so a website update is an app
+update too: install the APK **once**. When a newer build is live, the app shows "নতুন আপডেট এসেছে — আপডেট করুন" (it compares its
+build id with `/version.json`); tapping reloads into the new pages. Settings → "অ্যাপ ও আপডেট" shows the version and checks now.
+
+A new APK is needed only when the phone side changes (a new native plugin, permissions, icon). Build it with Actions → "Android APK
+and site build" → Run workflow: the APK is numbered with the run number and published at `/download/XZM-TEAM.apk` with
+`/download/apk.json`; installed apps then show "অ্যাপের নতুন ভার্সন — ডাউনলোড করুন". Ordinary pushes keep the published APK.
+Without internet the app shows `offline.html` with a retry button.
 
 ## What the script does
 `npm install` → `npm run build` → `npx cap add android` (first time only, creates `web/android/`)

@@ -1732,3 +1732,13 @@ button.nv-row:disabled{opacity:1}
 .fl .da-actionbar{position:sticky;bottom:12px;left:auto;right:auto;border:1px solid var(--border)!important;border-radius:18px;padding:10px 12px;box-shadow:0 8px 22px rgba(0,0,0,.14);z-index:20}
 @media (max-width:960px){.fl .da-actionbar{bottom:calc(88px + env(safe-area-inset-bottom))}.fl .da-actionbar>button{flex:1 1 auto;min-height:46px;border-radius:99px}}
 @media (min-width:900px){.fl .da-actionbar{padding-right:12px!important}}
+
+/* ============ in-app update ============ */
+.upd-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 16px 0;padding:10px 12px;border-radius:16px;background:var(--info-bg);color:var(--info-fg);border:1px solid color-mix(in srgb,var(--info-fg) 25%,transparent)}
+.upd-i{flex:none;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface)}
+.upd-tx{flex:1;min-width:160px;display:flex;flex-direction:column}.upd-tx b{color:var(--text)}.upd-tx small{color:var(--muted)}
+.upd-bar .upd-later{color:var(--muted)}
+.app-upd h2{display:flex;align-items:center;gap:8px}
+.app-upd-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:10px}
+.app-upd-rows>div{display:flex;flex-direction:column;padding:10px 12px;border-radius:12px;background:var(--canvas)}
+.app-upd-rows span{font-size:12.5px;color:var(--muted)}.app-upd-rows b{font-variant-numeric:tabular-nums;word-break:break-all}
