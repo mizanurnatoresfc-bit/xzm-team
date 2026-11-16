@@ -34,7 +34,8 @@ process.on('exit', stop)
 for (let i = 0; i < 40; i++) { try { if ((await fetch(BASE)).ok) break } catch { /* not up yet */ } await new Promise(r => setTimeout(r, 250)) }
 
 const daSettings = JSON.parse(readFileSync(new URL('./fixtures/da_settings.json', import.meta.url), 'utf8'))
-const browser = await chromium.launch()
+// CHROME=/path/to/chrome uses a browser already on the machine instead of Playwright's own download.
+const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {})
 try {
   for (const [size, viewport] of [['pc', { width: 1366, height: 800 }], ['phone', { width: 390, height: 800 }]]) {
     // --- not signed in: every app page goes to the login screen
@@ -117,6 +118,11 @@ try {
       if (u.includes('rpc/my_menu')) return j(menuNow)
       if (u.includes('rpc/role_menu_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, menu: null, user_count: 4 }])
       if (u.includes('rpc/role_menu_save')) { flowCalls.push({ fn: 'role_menu_save', ...r.request().postDataJSON() }); return j(null) }
+      if (/rpc\/(att_self_mark|att_self_decide)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j(1) }
+      if (u.includes('rpc/my_att_today')) return j({ work_date: '2026-11-16', record: null, mark: null })
+      if (u.includes('rpc/att_self_list')) return j([
+        { id: 'sm1', employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', kind: 'present', note: null, marked_at: '2026-11-16T03:05:00Z', status: 'waiting', decided_as: null, decide_note: null, decided_at: null, decided_by_name: null },
+        { id: 'sm2', employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', kind: 'absent', note: 'জ্বর', marked_at: '2026-11-16T02:00:00Z', status: 'waiting', decided_as: null, decide_note: null, decided_at: null, decided_by_name: null }])
       if (u.includes('rpc/att_days_save')) { flowCalls.push({ fn: 'att_days_save', ...r.request().postDataJSON() }); return j(2) }
       if (u.includes('rpc/att_days_list')) return j([
         { employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position_name: 'Commission Rider', site_days: 0, online_days: null, register_days: null, note: null, submitted_by_name: null, submitted_at: null },
@@ -329,6 +335,17 @@ try {
     check(await page.locator('.da-actionbar button').count() === 0 && (await page.locator('.da-actionbar').innerText()).includes('ডেইলি হিসাবের খাতা'), `${size}: the final "send to accounts" button waits until the daily sheet is opened`)
     await fits('accounts sheet')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
+    // staff gave their own attendance: the manager approves it (as present or late) or returns it with a reason
+    await page.goto(`${BASE}/app/hub/attendance`); await page.waitForSelector('.self-marks .nv-row', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.self-marks .nv-row').count() === 2 && (await page.locator('.self-marks').innerText()).includes('জ্বর'), `${size}: the hub attendance page lists the attendance staff gave themselves`)
+    await page.locator('.self-marks .nv-row', { hasText: 'Alamin Sarker' }).getByRole('button', { name: 'দেরিতে' }).click(); await page.waitForTimeout(300)
+    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'att_self_decide' && c.p_ids?.join() === 'sm1' && c.p_ok === true && c.p_as === 'late', `${size}: the manager approves a staff member's attendance as late`) }
+    await page.locator('.self-marks .nv-row', { hasText: 'Md Mahin' }).getByRole('button', { name: 'ফেরত' }).click(); await page.waitForSelector('#self-back-why')
+    check(await page.locator('.da-modal-acts button.danger').isDisabled(), `${size}: returning attendance needs a reason`)
+    await page.locator('#self-back-why').fill('ফোনে পাইনি'); await page.locator('.da-modal-acts button.danger').click(); await page.waitForTimeout(300)
+    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'att_self_decide' && c.p_ok === false && c.p_note === 'ফোনে পাইনি', `${size}: the manager returns it with the reason`) }
+    await fits('self attendance approval')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-self-att.png`, fullPage: true })
     // attendance days to compare: two numbers per person, a difference is pointed out, then submit
     await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
     const adRow = page.locator('.ad-rows .nv-row', { hasText: 'Alamin Sarker' })
@@ -626,6 +643,26 @@ try {
     await fits('my profile')
     // staff desk: someone who acts only for themselves gets plain words instead of format names
     plainStaff = true
+    // staff panel: one screen with the person's whole day, in the owner's order
+    await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
+    await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
+    { const sp = await page.locator('.sp').innerText()
+      const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
+      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
+        `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
+      check(await page.locator('.sp a.nv-row[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
+    { const before = flowCalls.length
+      await page.locator('.sp button.nv-row', { hasText: 'হাবে এসেছি' }).click(); await page.waitForTimeout(400)
+      check(flowCalls.length === before + 1 && flowCalls.at(-1)?.fn === 'att_self_mark' && flowCalls.at(-1)?.p_kind === 'present', `${size}: one tap gives today's attendance for the manager to approve`)
+      await page.locator('.sp button.nv-row', { hasText: 'আজ আসব না' }).click(); await page.waitForSelector('#sp-absent')
+      check(await page.locator('.da-modal-acts button').last().isDisabled(), `${size}: "not coming" needs a reason`)
+      await page.locator('#sp-absent').fill('জ্বর'); await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(400)
+      check(flowCalls.at(-1)?.fn === 'att_self_mark' && flowCalls.at(-1)?.p_kind === 'absent' && flowCalls.at(-1)?.p_note === 'জ্বর', `${size}: "not coming" is sent with the reason`) }
+    await fits('staff panel home')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-panel.png`, fullPage: true })
+    await page.locator('.sp-cta').click(); await page.waitForSelector('.da-modal', { timeout: 8000 }).catch(() => {})
+    check(await page.locator('.da-modal input[type=number]').count() === 1 && !page.url().includes('bill='), `${size}: "put up today's bill" opens the bill form at once`)
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-bill.png` })
     await page.goto(`${BASE}/app/hr/requests`); await page.waitForSelector('.sd .nv-row')
     await page.waitForFunction(() => document.querySelector('.sd')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
     { const desk = await page.locator('.sd').innerText()

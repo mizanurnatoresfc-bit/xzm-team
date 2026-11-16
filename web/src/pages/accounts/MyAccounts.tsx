@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { da, num, taka, dateBn, timeBn, todayDhaka, addDays, EVENT_LABEL,
   type SheetEvent, type Claim, type Category, type Handover, NOTE_METHOD } from '../../lib/dailyAccounts'
 import { AccountsShell, Stat, StatusBadge, Badge, Field, Modal, ErrorNote, useLoad } from './ui'
@@ -118,6 +118,14 @@ function MyClaims() {
   const list = claims.data ?? []
   const blank = (): CDraft => ({ kind: 'employee', name: '', category: cats[0]?.code ?? 'other', amount: '', date: today,
     billNo: '', refName: '', refPhone: '', refPosition: '', vehicle: '', remarks: '' })
+  // A shortcut link (/app/accounts/mine?bill=1) opens the bill form at once.
+  const [sp, setSp] = useSearchParams()
+  const box = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!sp.get('bill') || settings.loading) return
+    setErr(null); setD(blank()); box.current?.scrollIntoView({ block: 'start' })
+    const n = new URLSearchParams(sp); n.delete('bill'); setSp(n, { replace: true })
+  }, [sp, settings.loading]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     if (!d) return
@@ -136,7 +144,7 @@ function MyClaims() {
     catch (e) { setErr(e) } finally { setBusy(false) }
   }
 
-  return <section className="panel">
+  return <section className="panel" ref={box}>
     <div className="da-bar"><h2>আমার জমা দেওয়া বিল</h2>
       <button onClick={() => { setErr(null); setD(blank()) }}>＋ বিল জমা দিন</button></div>
     <p className="muted small">নিজের খরচ এখানে জমা দিন — হাব ম্যানেজার দেখে আজকের হিসাব খাতায় তুলে নেবেন।</p>

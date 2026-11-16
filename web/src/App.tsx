@@ -57,6 +57,7 @@ const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default:
 const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ default: m.UserDetail })))
 const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.RoleEditor })))
 const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.Roles })))
+const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ default: m.StaffPanel })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
 
 // After the first screen is shown, quietly fetch the most-used pages so later taps open at once.
@@ -81,6 +82,7 @@ export default function App() {
     <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<Dashboard />} />
+      <Route path="/app/staff" element={<StaffPanel />} />
       <Route path="/app/accounts/khata" element={<MyKhata />} />
       <Route path="/app/accounts/daily" element={<DailyDashboard />} />
       <Route path="/app/accounts/daily/:id" element={<DailySheet />} />
