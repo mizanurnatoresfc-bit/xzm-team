@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 // Smoke test: opens the built site in a real browser at PC and phone size, with the
 // database answers faked, and checks the screens that every change must keep working.
 // Run:  npm run build && npm run test:smoke      (CI runs it before the site is published)
@@ -32,6 +33,7 @@ const stop = () => { try { server.kill() } catch { /* already gone */ } }
 process.on('exit', stop)
 for (let i = 0; i < 40; i++) { try { if ((await fetch(BASE)).ok) break } catch { /* not up yet */ } await new Promise(r => setTimeout(r, 250)) }
 
+const daSettings = JSON.parse(readFileSync(new URL('./fixtures/da_settings.json', import.meta.url), 'utf8'))
 const browser = await chromium.launch()
 try {
   for (const [size, viewport] of [['pc', { width: 1366, height: 800 }], ['phone', { width: 390, height: 800 }]]) {
@@ -89,6 +91,22 @@ try {
           created_at: '2026-11-15T05:00:00Z', solved_at: null, reopen_count: 0, assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: true }, { id: 'o1', issue_no: 'IS-00009', title: 'স্টোর অর্ডার: টেপ', kind: 'store',
         priority: 'normal', status: 'open', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null, created_at: '2026-11-15T04:00:00Z', solved_at: null, reopen_count: 0,
         assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: false }] })
+      if (u.includes('rpc/da_settings')) return j(daSettings)
+      if (u.includes('rpc/da_sheet_claims') || u.includes('rpc/da_my_claims') || u.includes('rpc/da_my_handovers') || u.includes('rpc/da_my_vehicles') || u.includes('rpc/da_collectors')) return j([])
+      if (u.includes('rpc/da_sheet')) return j({ can_edit: true, can_verify: true, can_reopen: false, can_layout: true,
+        session: { id: 's2', no: 11, hub_id: 'h2', zone_id: 'z1', account_date: '2026-11-15', status: 'open', started_by: session.user.id, started_by_name: 'Owner', started_by_code: '1', started_at: '2026-11-15T03:00:00Z',
+          submitted_by_name: null, submitted_by_code: null, submitted_at: null, submit_note: null, submit_count: 0, verified_by_name: null, verified_at: null, verify_note: null, last_saved_at: '2026-11-15T05:00:00Z', closed_at: null, closed_by: null, closed_totals: null },
+        hub: { id: 'h2', code: 'BGT', name: 'Bagatipara', name_bn: null }, zone: { id: 'z1', code: 'NAT', name: 'Natore Area' },
+        riders: [{ id: 'r1', no: 1, employee_id: 'e02', employee_code: '1002', rider_name: 'Rahim Uddin', mobile: '01711000002', delivery_qty: 42, pickup_qty: 6, amount: 38500, paid_amount: 38000, due_input: 500, due: 500, mobile_banking: 0, remarks: null },
+          { id: 'r2', no: 2, employee_id: 'e03', employee_code: '1003', rider_name: 'Sohel Rana', mobile: null, delivery_qty: 35, pickup_qty: 4, amount: 29800, paid_amount: 29800, due_input: 0, due: 0, mobile_banking: 2000, remarks: 'সব জমা' }],
+        merchant_payments: [], notes_in: [], collectors: [], events: [], visits: [], report_ids: [], deposits: [], cells: [],
+        expenses: [{ id: 'x1', no: 1, kind: 'transport', employee_id: null, employee_code: null, employee_name: null, expense_name: 'অটো ভাড়া', category: 'transport', amount: 450, bill_date: '2026-11-15', bill_no: null, reference_no: 'EXP-1',
+          attachment_path: null, paid_by_name: 'Owner', template_id: null, ocr: null, ocr_verified: false, remarks: null, voucher_no: null, vehicle_id: null, reference_name: null, reference_phone: null, reference_position: null, claim_id: null, claim_file: null }],
+        totals: { riders: 2, delivery: 77, pickup: 10, amount: 68300, paid: 67800, due: 500, mobile_banking: 2000, merchant_cash: 0, transport_expense: 450, employee_expense: 0 } })
+      if (u.includes('rpc/da_page_enter')) return j('v1')
+      if (u.includes('rpc/da_my_accounts')) return j({ notes: [], employee: { id: 'e01', code: '1001', name: 'Owner', hub_id: 'h1' }, my_expenses: [], my_payments: [],
+        my_lines: [{ account_date: '2026-11-15', hub: 'Bagatipara', status: 'open', verify_note: null, line: { id: 'r1', no: 1, employee_id: 'e01', employee_code: '1001', rider_name: 'Owner', mobile: null, delivery_qty: 42, pickup_qty: 6, amount: 38500, paid_amount: 38000, due_input: 500, due: 500, mobile_banking: 0, remarks: null } }],
+        my_sheets: [{ id: 's2', no: 11, hub: 'Bagatipara', status: 'open', verified_at: null, verify_note: null, account_date: '2026-11-15', submitted_at: null, started_by_me: true, submitted_by_me: null, verified_by_name: null }] })
       if (u.includes('rpc/da_my_hubs')) return j([['h1', 'Natore Sadar'], ['h2', 'Bagatipara'], ['h3', 'Singra'], ['h4', 'Lalpur']].map(([hub_id, name]) => ({ hub_id, code: hub_id, name, name_bn: null, zone_id: 'z1', zone_name: 'Natore Area', can_view: true, can_submit: true, can_verify: true })))
       if (u.includes('rpc/da_dashboard')) return j({ today: '2026-11-15', sheets: 3, open: 1, submitted: 1, pending_verification: 1, correction: 0, approved: 1, riders: 9, delivery: 360, pickup: 42, amount: 285300, due: 1200, mobile_banking: 5000, merchant_cash: 0, expense: 1350 })
       if (u.includes('rpc/da_list_sessions')) return j([{ id: 's1', no: 10, hub_id: 'h1', hub_name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore Area', account_date: '2026-11-15', status: 'submitted', started_by_name: 'Owner', started_at: '2026-11-15T03:00:00Z', submitted_by_name: 'Abdul Karim', submitted_at: '2026-11-15T12:00:00Z', verified_by_name: null, verified_at: null, riders: 3, delivery: 120, pickup: 14, amount: 100700, due: 1200, mobile_banking: 0, merchant_cash: 0, expense: 450 }, { id: 's2', no: 11, hub_id: 'h2', hub_name: 'Bagatipara', zone_id: 'z1', zone_name: 'Natore Area', account_date: '2026-11-15', status: 'open', started_by_name: 'Owner', started_at: '2026-11-15T03:00:00Z', submitted_by_name: null, submitted_at: null, verified_by_name: null, verified_at: null, riders: 3, delivery: 120, pickup: 14, amount: 68300, due: 0, mobile_banking: 0, merchant_cash: 0, expense: 450 }, { id: 's3', no: 12, hub_id: 'h3', hub_name: 'Singra', zone_id: 'z1', zone_name: 'Natore Area', account_date: '2026-11-15', status: 'approved', started_by_name: 'Owner', started_at: '2026-11-15T03:00:00Z', submitted_by_name: 'Abdul Karim', submitted_at: '2026-11-15T12:00:00Z', verified_by_name: null, verified_at: null, riders: 3, delivery: 120, pickup: 14, amount: 116300, due: 0, mobile_banking: 0, merchant_cash: 0, expense: 450 }])
@@ -244,6 +262,22 @@ try {
     await page.locator('.mg-desk').click(); await page.waitForSelector('.od-desk')
     check(await page.locator('.od-kind').count() === 2, `${size}: who receives Store and IT orders is one tap away`)
     await page.locator('.da-modal button', { hasText: 'বন্ধ' }).last().click()
+    // inside a sheet, and "my accounts"
+    await page.goto(`${BASE}/app/accounts/daily/s2`); await page.waitForSelector('.da-tabs', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.da-tabs button').count() >= 4 && (phone ? await page.locator('.nv-rows button.nv-row').count() === 2 : await page.locator('.qg input, .da-table input').count() > 2), `${size}: a sheet opens with its parts and the riders' lines`)
+    if (phone) {
+      const bar = await page.locator('.da-actionbar').boundingBox(), nav = await page.locator('.bottom-nav').boundingBox()
+      check(!!bar && !!nav && bar.y + bar.height <= nav.y + 1, `${size}: the Submit bar sits above the bottom menu, not under it`)
+      await page.locator('.nv-rows button.nv-row').first().click(); await page.waitForSelector('.da-modal input')
+      check(await page.locator('.da-modal input').first().inputValue() === '1002' && await page.locator('.da-modal-acts button.danger').count() === 1, `${size}: tapping a rider opens their line to change or remove`)
+      await page.locator('.da-modal-acts button.secondary').click()
+    }
+    await fits('accounts sheet')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
+    await page.goto(`${BASE}/app/accounts/mine`); await page.waitForSelector('.da-stats, .panel', { timeout: 10000 }).catch(() => {})
+    check((await page.locator('.nv-mine').innerText().catch(() => '')).includes('Bagatipara') && await page.locator('.nv-mine .nv-chip').count() >= 3, `${size}: "my accounts" shows the person's own lines and sheets`)
+    await fits('my accounts')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-mine.png`, fullPage: true })
     // arriving through the email link: only the new-password screen opens until a password is saved
     await page.goto(`${BASE}/app#type=recovery`); await page.waitForURL(/\/app\/password/, { timeout: 8000 }).catch(() => {})
     check(/\/app\/password/.test(page.url()) && (await page.locator('.login-card h1').innerText().catch(() => '')).includes('নতুন পাসওয়ার্ড দিন'), `${size}: the email link opens the "set a new password" screen`)

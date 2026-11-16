@@ -1479,3 +1479,39 @@ a.nv-row:hover{background:var(--canvas)}a.nv-row:active{background:var(--primary
   .nv-actrow button{flex:none;white-space:nowrap;border-radius:10px;min-height:36px}
 }
 @media (min-width:900px){.nv-qas{padding:16px 18px 18px;gap:10px}.nv-qa{flex:0 0 84px}}
+
+/* ---- inside an accounts sheet, native style on a phone ---- */
+.nv-phone-only{display:none!important}
+.nv-row.total{background:var(--primary-50);min-height:56px}
+.nv-row .end small{font-size:11.5px;color:var(--primary);font-weight:600}
+button.nv-row{width:100%;text-align:left;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;font-weight:400;justify-content:flex-start}
+button.nv-row+.nv-row,.nv-row+button.nv-row{border-top:1px solid var(--border)!important}
+button.nv-row:active{background:var(--primary-50)!important}
+button.nv-row:disabled{opacity:1}
+.nv-none{margin:0;padding:18px 16px;color:var(--muted);font-size:13.5px}
+@media screen and (max-width:899px){
+  .nv-phone-only{display:flex!important}
+  button.nv-phone-only{display:inline-flex!important}
+  .nv-not-phone{display:none!important}
+  .nv-sheet{padding-bottom:84px}
+  .nv-sheet .screen-only{display:none}
+  .nv-sheet .da-stats{display:flex!important;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -12px;padding:2px 12px 6px;scroll-snap-type:x proximity}
+  .nv-sheet .da-stats::-webkit-scrollbar{display:none}
+  .nv-sheet .da-stat{flex:0 0 132px;scroll-snap-align:start;padding:10px 12px!important;border-radius:16px!important}
+  .nv-sheet .da-stat .ri{display:none}
+  .nv-sheet .da-stat .val{font-size:18px}
+  .nv-sheet .da-tabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:10px -12px 10px;padding:6px 12px;top:60px;background:var(--canvas)}
+  .nv-sheet .da-tabs::-webkit-scrollbar{display:none}
+  .nv-sheet .da-tabs button{flex:none;white-space:nowrap;min-height:38px;border-radius:10px}
+  .nv-sheet .panel{border-radius:20px}
+  .nv-sheet .da-bar{flex-wrap:wrap;gap:8px}
+  .nv-sheet .da-bar h2{flex:1 1 100%;margin:0;font-size:17px}
+  .nv-sheet .da-bar .row{flex-wrap:wrap;gap:8px}
+  .nv-sheet .da-bar .row>button{min-height:44px;border-radius:99px}
+  .nv-sheet .nv-rows{margin:10px -6px 0}
+  /* the submit / approve bar sits above the bottom menu instead of under it */
+  .nv-sheet .da-actionbar{left:10px;right:10px;bottom:calc(88px + env(safe-area-inset-bottom));border:1px solid var(--border)!important;border-radius:18px;padding:10px 12px;gap:8px;z-index:38;box-shadow:0 8px 22px rgba(0,0,0,.18)}
+  .nv-sheet .da-actionbar .muted{flex:1 1 100%;margin:0}
+  .nv-sheet .da-actionbar>button{flex:1 1 auto;min-height:46px;border-radius:99px}
+}
+@media screen and (max-width:899px){.nv-sheet .da-stat{flex-basis:144px}.nv-sheet .da-stat .lbl{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.25}.nv-mine{padding-bottom:0;display:flex;flex-direction:column;gap:12px}}
