@@ -6,14 +6,22 @@ function fail(error: { message: string; code?: string } | null): void {
   if (error) throw Object.assign(new Error(error.message), { code: error.code })
 }
 
-export type Property = { id: string; code: string; name: string; kind: 'office' | 'residence'; zone_id: string; hub_id: string | null
+export type PlaceKind = 'office' | 'residence' | 'garage' | 'auto_garage'
+export type Property = { id: string; code: string; name: string; kind: PlaceKind; zone_id: string; hub_id: string | null
   sorting_center_id: string | null; address: string | null; floor_note: string | null; owner_name: string | null; owner_phone: string | null
-  rent: number | null; front_direction: string | null; note: string | null; status: string }
+  rent: number | null; front_direction: string | null; note: string | null; status: string
+  advance: number | null; contract_from: string | null; contract_to: string | null; contract_file: string | null; rent_due_day: number | null
+  meter_no: string | null; unit_rate: number | null; wifi_provider: string | null; wifi_bill: number | null; capacity: number | null }
+/** [বাংলা, English, emoji] */
+export const PLACE_KIND: Record<PlaceKind, [string, string, string]> = {
+  office: ['অফিস', 'Office', '🏢'], residence: ['আবাসিক ফ্ল্যাট', 'Residence', '🏠'], garage: ['গ্যারেজ', 'Garage', '🚚'], auto_garage: ['অটো গ্যারেজ', 'Auto garage', '🛺'],
+}
 export type Room = { id: string; property_id: string; name: string; kind: string; direction: string; floor: number; responsible_id: string | null; note: string | null; sort: number }
 export type Desk = { id: string; property_id: string; room_id: string | null; code: string; name: string; responsible_id: string | null; duty: string | null; note: string | null; sort: number }
 export type Asset = { id: string; property_id: string; room_id: string | null; desk_id: string | null; kind: string; name: string; brand: string | null
   serial_no: string | null; quantity: number; condition: 'good' | 'repair' | 'broken' | 'lost'; holder_id: string | null
-  purchase_date: string | null; price: number | null; note: string | null }
+  purchase_date: string | null; price: number | null; note: string | null
+  watt: number | null; hours_per_day: number | null; spec: string | null; vehicle_id: string | null }
 
 export const ROOM_KIND: Record<string, [string, string, string]> = {
   office_room: ['অফিস রুম', 'Office room', 'grid'], room: ['রুম', 'Room', 'home'], garage: ['গ্যারেজ', 'Garage', 'truck'],
@@ -29,7 +37,10 @@ export const DIR_GRID = ['nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', 'se']
 export const ASSET_KIND: Record<string, [string, string, string]> = {
   monitor: ['মনিটর', 'Monitor', 'grid'], pc: ['পিসি', 'PC', 'box'], keyboard: ['কিবোর্ড', 'Keyboard', 'table'], mouse: ['মাউস', 'Mouse', 'user'],
   printer: ['জি-প্রিন্টার', 'G-printer', 'print'], laptop: ['ল্যাপটপ', 'Laptop', 'grid'], ups: ['UPS', 'UPS', 'box'], router: ['রাউটার', 'Router', 'globe'],
-  scanner: ['স্ক্যানার', 'Scanner', 'scan'], chair: ['চেয়ার', 'Chair', 'user'], table: ['টেবিল', 'Table', 'table'],
+  scanner: ['স্ক্যানার', 'Scanner', 'scan'], chair: ['চেয়ার', 'Chair', 'user'], chair_plastic: ['প্লাস্টিক চেয়ার', 'Plastic chair', 'user'],
+  chair_exec: ['এক্সিকিউটিভ চেয়ার', 'Executive chair', 'user'], table: ['টেবিল', 'Table', 'table'],
+  weight_machine: ['ওয়েট মেশিন', 'Weight machine', 'box'], mobile: ['মোবাইল ফোন', 'Mobile phone', 'phone'], ip_phone: ['আইপি ফোন', 'IP phone', 'phone'],
+  lock: ['তালা', 'Lock', 'key'], dvr: ['DVR', 'DVR', 'box'], cable: ['তার (গজ)', 'Cable (yards)', 'log'],
   light: ['লাইট', 'Light', 'sun'], fan: ['ফ্যান', 'Fan', 'gear'], bedding: ['বেডিং', 'Bedding', 'home'], stove: ['চুলা', 'Stove', 'alert'],
   cylinder: ['গ্যাস সিলিন্ডার', 'Gas cylinder', 'alert'], ac: ['এসি', 'AC', 'sun'], cctv: ['সিসিটিভি', 'CCTV', 'eye'], other: ['অন্যান্য', 'Other', 'form'],
 }

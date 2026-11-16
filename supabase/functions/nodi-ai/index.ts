@@ -4,6 +4,9 @@
 //   chat     → { messages: [{role, content}] } → { text, usage, actions }
 //            নদী can run several commands in one message through tools (see TOOLS). Every tool runs AS THE CALLER:
 //            the same database functions and permission checks as the app itself — nodi can do nothing a person could not.
+//   office   → { task: 'contract' | 'power' | 'insight', data } → { text }
+//            One answer, no tools: a rental agreement draft, ways to lower the electricity bill, or what to fix first
+//            in an office. The page sends only what the person already sees; passwords are never sent here.
 //
 // Secrets (Supabase → Edge Functions → Secrets):  ANTHROPIC_API_KEY
 // Provided by Supabase: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
@@ -31,6 +34,20 @@ const TOOLS = [
     input_schema: { type: 'object', properties: { issue_no: { type: 'string', description: 'যেমন IS-00012' }, action: { type: 'string', enum: ['start', 'solve', 'approve', 'reopen', 'cancel'] }, note: { type: 'string' } }, required: ['issue_no', 'action'] } },
   { name: 'post_to_hub', description: 'হাবের গ্রুপে বার্তা লেখা', input_schema: { type: 'object', properties: { hub: { type: 'string' }, text: { type: 'string' } }, required: ['hub', 'text'] } },
 ]
+
+const OFFICE: Record<string, { system: string; ask: string; tokens: number }> = {
+  contract: { tokens: 3000, ask: 'এই তথ্য দিয়ে চুক্তিপত্রটি লেখো:',
+    system: `তুমি বাংলাদেশের বাড়ি/অফিস ভাড়ার চুক্তিপত্র লেখায় দক্ষ সহকারী। দেওয়া তথ্য দিয়ে সহজ, পরিষ্কার বাংলায় একটি পূর্ণ ভাড়ার চুক্তিপত্রের খসড়া লেখো:
+পক্ষদ্বয়, জায়গার বিবরণ (কয়টা রুম অফিস, কয়টা আবাসিক), মেয়াদ, মাসিক ভাড়া ও পরিশোধের তারিখ, অগ্রিম ও ফেরতের নিয়ম, বিদ্যুৎ/ইন্টারনেট বিল, মেরামত, চুক্তি বাতিলের নোটিশ, নবায়ন, স্বাক্ষর ও সাক্ষীর জায়গা।
+যে তথ্য দেওয়া নেই সেখানে ".............." রাখো — কোনো নাম, টাকা বা তারিখ বানাবে না। শুধু চুক্তিপত্রটাই দাও, আগে-পরে কোনো ভূমিকা বা মন্তব্য নয়, কোনো মার্কডাউন চিহ্ন নয়।` },
+  power: { tokens: 1200, ask: 'এই অফিসের ডিভাইস ও বিলের তথ্য:',
+    system: `তুমি একটি কুরিয়ার অফিসের বিদ্যুৎ খরচ কমানোর পরামর্শদাতা। দেওয়া ডিভাইসের তালিকা (ওয়াট, ঘণ্টা, সংখ্যা), হিসাব করা ইউনিট ও আসল বিল দেখে সহজ বাংলায় বলো:
+১) মাসে আনুমানিক কত বিল আসা উচিত এবং আসল বিলের সাথে মিল আছে কি; ২) কোন ৩–৫টা কাজ করলে সবচেয়ে বেশি কমবে, প্রতিটার পাশে আনুমানিক মাসিক সাশ্রয় টাকায়; ৩) কোনো তথ্য অস্বাভাবিক লাগলে সেটা।
+শুধু দেওয়া তথ্য থেকে বলো, সংখ্যা বানাবে না। ছোট বাক্য, সর্বোচ্চ ১০ লাইন, কোনো মার্কডাউন চিহ্ন নয়।` },
+  insight: { tokens: 1200, ask: 'অফিসগুলোর বর্তমান তথ্য:',
+    system: `তুমি একটি কুরিয়ার কোম্পানির জোনাল ম্যানেজারের অপারেশন সহকারী। দেওয়া অফিস/হাবের তথ্য (ভাড়া, চুক্তির মেয়াদ, বিল, জিনিসপত্র, নষ্ট জিনিস, ধার দেওয়া জিনিস, খোলা রিপোর্ট, দায়িত্বহীন ডেস্ক) দেখে সহজ বাংলায় বলো আগে কোন কাজগুলো করা দরকার, গুরুত্ব অনুযায়ী সাজিয়ে — প্রতিটা এক লাইনে, কোন হাব/অফিস তার নামসহ।
+শুধু দেওয়া তথ্য থেকে বলো, কিছু বানাবে না। সর্বোচ্চ ১০ লাইন, কোনো মার্কডাউন চিহ্ন নয়।` },
+}
 
 type Db = ReturnType<typeof createClient>
 type Hub = { hub_id: string; hub_name: string; hub_code: string }
@@ -107,13 +124,34 @@ Deno.serve(async (req) => {
   const key = Deno.env.get('ANTHROPIC_API_KEY')
 
   if (b.action === 'status') return reply(200, { configured: Boolean(key) })
-  if (b.action !== 'chat') return reply(400, { error: 'bad_request' })
+  if (b.action !== 'chat' && b.action !== 'office') return reply(400, { error: 'bad_request' })
   if (!key) return reply(503, { error: 'not_configured', message: 'API key বসানো হয়নি — অ্যাডমিন Supabase secret-এ ANTHROPIC_API_KEY দিন' })
 
   // the database decides: permission, on/off, daily limit, model
   const gate = await caller.rpc('nodi_gate')
   if (gate.error) return reply(gate.error.code === '42501' ? 403 : 429, { error: 'gate', message: gate.error.message })
   const g = gate.data as { model: string; max_tokens: number; user: string }
+
+  if (b.action === 'office') {
+    const job = OFFICE[String(b.task ?? '')]
+    if (!job) return reply(400, { error: 'bad_request', message: 'অজানা কাজ' })
+    const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+    const log = (ok: boolean, i: number, o: number, note?: string) => admin.rpc('nodi_log', { p_profile: g.user, p_model: g.model, p_in: i, p_out: o, p_ok: ok, p_note: note ?? null })
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        // a contract is longer than a chat answer, so each job has its own length
+        body: JSON.stringify({ model: g.model, max_tokens: job.tokens, system: job.system,
+          messages: [{ role: 'user', content: `${job.ask}\n${JSON.stringify(b.data ?? {}).slice(0, 14000)}` }] }) })
+      const j = await r.json()
+      if (!r.ok) { await log(false, 0, 0, `office ${r.status} ${j?.error?.type ?? ''}`); return reply(502, { error: 'upstream', message: 'নদী AI এখন উত্তর দিতে পারছে না' }) }
+      const text = ((j.content ?? []) as Array<{ type: string; text?: string }>).filter(c => c.type === 'text').map(c => c.text).join('\n')
+      await log(true, j.usage?.input_tokens ?? 0, j.usage?.output_tokens ?? 0, `office:${b.task}`)
+      return reply(200, { text })
+    } catch (e) {
+      await log(false, 0, 0, String(e).slice(0, 200)); return reply(502, { error: 'upstream', message: 'নদী AI-র সাথে যোগাযোগ হয়নি' })
+    }
+  }
 
   const raw = Array.isArray(b.messages) ? b.messages : []
   const messages = raw.slice(-12).map((m: { role?: unknown; content?: unknown }) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content ?? '').slice(0, 4000) }))
