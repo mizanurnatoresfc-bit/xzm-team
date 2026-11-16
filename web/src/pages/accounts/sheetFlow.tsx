@@ -7,7 +7,6 @@ import { Icon } from '../../components/Icon'
 import { collectorsNeeded, da, dateBn, num, taka, timeBn, type Category, type DaSettings, type Sheet } from '../../lib/dailyAccounts'
 import { download, printArea, xlsxBlob } from '../../lib/xlsx'
 import { AccountsShell, Badge, ErrorNote, Field, Modal, StatusBadge, useLoad, useToast } from './ui'
-import { approval, type Mode } from '../../lib/approval'
 
 type Reload = (m?: string) => Promise<void>
 const sumOf = <T,>(rows: T[], f: (r: T) => number) => rows.reduce((a, r) => a + (Number(f(r)) || 0), 0)
@@ -32,9 +31,6 @@ export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; 
   const [dlg, setDlg] = useState<null | 'check' | 'ok' | 'undo' | 'reopen'>(null)
   const [note, setNote] = useState('')
   const [marked, setMarked] = useState<Set<string>>(new Set())
-  // The zone's rule for khatas: on "auto" or "view" a khata is accepted when it is submitted; on "view" it cannot be taken back.
-  const rule = useLoad<Mode>(() => approval.modeAt('khata', s.hub.id), [s.hub.id])
-  const mode: Mode = rule.data ?? 'approve'
   const people = s.collectors ?? []
   const needed = collectorsNeeded(settings, s.hub.id)
   const submitted = people.filter(c => c.closed_at).length
@@ -73,7 +69,6 @@ export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; 
       <li className={banked ? 'done' : step === 4 ? 'on' : ''}><i>{banked ? '✓' : num(4)}</i><span><b>ব্যাংকে জমা — ক্লোজ</b><small>{banked ? `ক্লোজ হয়েছে · ${timeBn(s.session.bank_done_at)}` : `${num((s.deposits ?? []).length)}টি ডিপোজিট`}</small></span></li>
     </ol>
 
-    {mode !== 'approve' && <p className="notice fl-rule" data-rule={mode}>এই জোনে খাতা সাবমিট করলেই গৃহীত হয়{mode === 'view' ? ' — উপর থেকে ফিরিয়ে নেওয়া যায় না; ভুল থাকলে যাঁর খাতা তিনি আবার খুলে ঠিক করবেন।' : ' (অটো গ্রহণ)। ভুল মনে হলে “ফিরিয়ে নিন” চাপুন।'}</p>}
     <div className="da-bar"><h2 style={{ margin: 0 }}>জমা পড়া খাতা</h2>
       {canMark && markable.length > 1 && <button type="button" className="link small" onClick={() => setMarked(new Set(picked.length === markable.length ? [] : markable))}>{picked.length === markable.length ? 'মার্ক তুলুন' : 'সব মার্ক করুন'}</button>}</div>
     <div className="nv-rows fl-people">
@@ -87,7 +82,7 @@ export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; 
           <span className="row-acts">
             {onView && <button type="button" className="link small" onClick={() => onView(viewing === c.user_id ? null : c.user_id)}>{viewing === c.user_id ? 'সব দেখুন' : 'চেক করুন'}</button>}
             {canMark && st === 'sub' && <button type="button" className="sm" disabled={!!busy} onClick={() => void run(c.user_id, () => da.acceptParts(s.session.id, [c.user_id]), `${c.name ?? ''} — Accept হয়েছে`)}>Accept</button>}
-            {canMark && st === 'acc' && mode !== 'view' && <button type="button" className="link small" disabled={!!busy} onClick={() => void run(c.user_id, () => da.acceptParts(s.session.id, [c.user_id], false), 'Accept ফিরিয়ে নেওয়া হলো')}>ফিরিয়ে নিন</button>}
+            {canMark && st === 'acc' && <button type="button" className="link small" disabled={!!busy} onClick={() => void run(c.user_id, () => da.acceptParts(s.session.id, [c.user_id], false), 'Accept ফিরিয়ে নেওয়া হলো')}>ফিরিয়ে নিন</button>}
             {canMark && st === 'draft' && <button type="button" className="link small" disabled={!!busy} onClick={() => void run(c.user_id, () => da.closePartFor(s.session.id, c.user_id, true), `${c.name ?? ''} — সাবমিট হয়েছে`)}>সাবমিট করে দিন</button>}
           </span></span>
       </div> })}
