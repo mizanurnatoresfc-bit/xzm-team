@@ -12,6 +12,9 @@ import { Badge, Stat, useLoad } from './accounts/ui'
 import { usePrefs } from '../lib/prefs'
 import { VIEWS, VIEW_OF, dashboard, dashboardFriendly, panelLabel, pickedView, setView, type DashView, type PanelCode } from '../lib/dashboard'
 import { ApprovalsPanel, HubTodayPanel, MyDayPanel } from '../components/HomePanels'
+import { reportImport } from '../lib/reportImport'
+import { todayDhaka } from '../lib/dailyAccounts'
+import { pageAllowed } from '../lib/menu'
 
 const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
   ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
@@ -26,7 +29,7 @@ const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: strin
 ]
 
 export function Dashboard() {
-  const { session, grants, can, viewAs, isSuperAdmin } = useAuth()
+  const { session, grants, can, viewAs, isSuperAdmin, menu } = useAuth()
   const { L, n, lang } = usePrefs()
   const home = useLoad(() => dashboard.home(), [])
   const d = home.data
@@ -95,6 +98,8 @@ export function Dashboard() {
       <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}
       {tiles.length > 8 && <button type="button" className="quick-tile t-b more-tile" onClick={() => setAllTiles(v => !v)}>
         <span className="qi"><Icon name={allTiles ? 'x' : 'grid'} size={24} /></span><span>{allTiles ? L('কম দেখুন', 'Less') : L(`আরও ${n(tiles.length - 7)}`, `${tiles.length - 7} more`)}</span></button>}</div>
+
+    {(can('da.import.create') || can('da.sheet.view')) && pageAllowed(menu ?? null, '/app/accounts/report-import') && <ReportUploadCard />}
 
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
     {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
@@ -208,6 +213,21 @@ function Row({ to, icon, label, value }: { to: string; icon: string; label: stri
   const { n } = usePrefs()
   return <Link to={to} className={`da-stat${value ? ' warn' : ''}`} style={{ textDecoration: 'none', color: 'inherit' }}>
     <span className="ri"><Icon name={icon} size={18} /></span><span className="lbl">{label}</span><span className="val">{n(value)}</span></Link>
+}
+
+/** Menu card: upload the courier panel's daily report; shows how many reports came in today. */
+function ReportUploadCard() {
+  const { L, n } = usePrefs()
+  const q = useLoad(() => reportImport.status(todayDhaka()).catch(() => []), [])
+  const rows = q.data ?? []
+  const reports = rows.reduce((a, r) => a + r.reports, 0), done = rows.filter(r => r.reports > 0).length
+  return <Link to="/app/accounts/report-import" className="ri-home">
+    <span className="qi"><Icon name="upload" size={24} /></span>
+    <span className="ri-home-t"><strong>{L('রিপোর্ট আপলোড', 'Report upload')}</strong>
+      <span className="muted small">{L('কুরিয়ার প্যানেলের Update Report পেস্ট করুন', 'Paste the courier panel’s Update Report')}</span></span>
+    <span className="ri-home-n"><b>{q.loading && !q.data ? '…' : n(reports)}</b>
+      <span>{L('আজ কয়টি রিপোর্ট', 'reports today')}{rows.length > 1 ? L(` · ${n(done)}/${n(rows.length)} হাব`, ` · ${done}/${rows.length} hubs`) : ''}</span></span>
+  </Link>
 }
 
 /** First steps after the first sign-in. Shown only while one of them is still open. */

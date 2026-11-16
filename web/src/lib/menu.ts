@@ -8,6 +8,10 @@ const ALWAYS = ['/app', '/app/me', '/app/me/permissions', '/app/password', '/app
 const WITH: Record<string, string[]> = {
   '/app/hub/team': ['/app/hr/employees'],
   '/app/hr/employees': ['/app/hr/applications'],
+  // the report upload page comes with the accounts and zonal pages it is opened from
+  '/app/accounts/daily': ['/app/accounts/report-import'],
+  '/app/accounts/khata': ['/app/accounts/report-import'],
+  '/app/zonal': ['/app/accounts/report-import'],
 }
 const bare = (p: string) => p.split('?')[0].replace(/\/+$/, '') || '/app'
 

@@ -201,3 +201,16 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Database not touched:** vehicle tables, functions and data (migrations `0900`–`1100`) are still on Supabase. The vehicle picker in
   sorting (route / fuel / trips) and in daily accounts (expense for a vehicle, "আমার নামে থাকা গাড়ি") still read the `vehicles` list.
   The owner will describe the vehicle feature he wants instead.
+
+## 2026-11-16 — ডেইলি রিপোর্ট ইম্পোর্ট (ধাপ ১)
+- Page `/app/accounts/report-import`: paste the courier panel's "Update Report"; it is read (`web/src/lib/reportParser.ts`), the three checks
+  must pass, and it lands in the manager's khata for the picked date, rider by rider. Details: `docs/DAILY_ACCOUNTS.md` (last section).
+- Migration `20261116000700_report_import.sql` (live on `xzm-team-erp-dev`): tables `da_import_reports`, `da_import_lists`,
+  `da_import_rider_map`; permission `da.import.create`; functions `da_import_save / day / status / map_rider`. Additive only.
+- Also: home card "রিপোর্ট আপলোড", menu entry, zonal dashboard tab "আজকের রিপোর্ট" (`pages/accounts/ReportStatus.tsx`).
+- Tests: `npm run test:parser` (11), `supabase/tests/99zzzzz_report_import.sql` (38), smoke checks for the page (PC + phone).
+- Decisions (owner): the khata date is picked by the uploader; the existing hub sheet (`da_rider_lines`) is not written to in this step.
+- Roles with a page list ("শুধু এই কয়টা পাতা"): the page opens for a role that has the hub accounts, my-sheet or zonal dashboard page; to show
+  it in that role's side menu too, add it in রোল ও অনুমতি.
+- Next steps (not started): courier-panel login / scraping, parcel data, reading images, red marks, bank suggestion, share page,
+  and joining the imported khata to the hub's daily sheet.
