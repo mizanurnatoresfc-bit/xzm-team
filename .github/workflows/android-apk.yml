@@ -69,6 +69,48 @@ jobs:
           npx playwright install --with-deps chromium
           npm run test:smoke
 
+      # The Android app loads the live site, so page updates reach it without a new APK; the app offers "আপডেট করুন".
+      # A new APK is needed only when something on the phone side changes. It is built by hand (Run workflow),
+      # numbered with the run number, and published with the site under /download/, where the app finds it.
+      - name: Android project
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ ! -d android ]; then npx cap add android; fi
+          npx -y @capacitor/assets generate --android || echo "icons skipped"
+          npx cap sync android
+          # the app's version: build number = this run, shown as 1.<run>
+          sed -i -E "s/versionCode [0-9]+/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"1.${GITHUB_RUN_NUMBER}\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+
+      - name: Build APK
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: web/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/XZM-TEAM.apk"
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: XZM-TEAM-apk
+          path: XZM-TEAM.apk
+          retention-days: 30
+
+      # The download the app offers: this run's APK, or (on an ordinary push) the one already live, kept as it is.
+      - name: App download
+        run: |
+          mkdir -p dist/download
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            cp "$GITHUB_WORKSPACE/XZM-TEAM.apk" dist/download/XZM-TEAM.apk
+            printf '{"build":%s,"version":"1.%s","url":"/download/XZM-TEAM.apk","at":"%s"}\n' "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$(date -u +%FT%TZ)" > dist/download/apk.json
+          else
+            ok=0
+            if curl -fsSL https://xzmteam.com/download/apk.json -o /tmp/apk.json && node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/apk.json','utf8')); if(!(j.build>0)) process.exit(1)" \
+               && curl -fsSL https://xzmteam.com/download/XZM-TEAM.apk -o /tmp/app.apk && [ "$(head -c 2 /tmp/app.apk)" = "PK" ]; then ok=1; fi
+            if [ "$ok" = 1 ]; then cp /tmp/apk.json dist/download/apk.json; cp /tmp/app.apk dist/download/XZM-TEAM.apk; echo "kept the live APK"; else echo "no APK published yet"; fi
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: site-dist
@@ -90,25 +132,3 @@ jobs:
             exit 0
           fi
           npx -y netlify-cli@latest deploy --prod --dir dist --site "$NETLIFY_SITE_ID" --message "GitHub build ${GITHUB_SHA:0:7}"
-
-      - name: Android project
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          if [ ! -d android ]; then npx cap add android; fi
-          npx -y @capacitor/assets generate --android || echo "icons skipped"
-          npx cap sync android
-
-      - name: Build APK
-        if: github.event_name == 'workflow_dispatch'
-        working-directory: web/android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/XZM-TEAM.apk"
-
-      - uses: actions/upload-artifact@v4
-        if: github.event_name == 'workflow_dispatch'
-        with:
-          name: XZM-TEAM-apk
-          path: XZM-TEAM.apk
-          retention-days: 30

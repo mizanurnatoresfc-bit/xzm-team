@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
+import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
 import { NodiAvatar } from './NodiAvatar'
@@ -360,6 +361,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     <div className={`side-backdrop${open ? ' open' : ''}`} onClick={() => setOpen(false)} />
     <div className="app-main">
       <ViewAsBar onChange={() => setAsRole(true)} />
+      <UpdateBar />
       <header className="top no-print">
         <button className="icon menu-btn" aria-label={L('মেনু', 'Menu')} aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name="menu" /></button>
         {here !== '/app' && <button className="icon back-btn" aria-label={L('পেছনে', 'Back')} onClick={() => history.length > 1 ? nav(-1) : nav('/app')}><Icon name="back" /></button>}

@@ -8,7 +8,10 @@
     "adjustMarginsForEdgeToEdge": "auto"
   },
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "url": "https://xzmteam.com",
+    "errorPath": "offline.html",
+    "cleartext": false
   },
   "plugins": {
     "StatusBar": {
