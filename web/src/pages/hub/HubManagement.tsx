@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { inMenu } from '../../lib/menu'
 import { AttendanceDays } from './AttendanceDays'
 import { HubLogins } from './HubLogins'
+import { AbsenceList, RouteCover } from './DailyDuty'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
@@ -127,6 +128,7 @@ function AttendanceToday({ hub }: { hub: Hub }) {
       <Stat icon="x" tone={c('absent') ? 'bad' : undefined} label={L('অনুপস্থিত', 'Absent')} value={n(c('absent'))} />
       <Stat icon="alert" tone={total - (day.data?.length ?? 0) ? 'warn' : undefined} label={L('এখনো বাকি', 'Not marked')} value={n(total - (day.data?.length ?? 0))} />
     </div>
+    {canAdd && <AbsenceList hub={hub} onDone={() => void day.reload()} />}
     {canAdd && <SelfMarks hub={hub.id} date={date} onDone={() => void day.reload()} />}
     {canAdd && <HubPlaceBox hub={hub} />}
     <section className="panel">
@@ -750,6 +752,7 @@ function RiderRoutes({ hub }: { hub: Hub }) {
   const [view, setView] = useState<'map' | 'list'>('map')
   return <>
     {node}
+    <RouteCover hub={hub} />
     <div className="da-stats">
       <Stat icon="map" label={L('রুট', 'Routes')} value={n(routes.data?.length ?? 0)} />
       <Stat icon="truck" label={L('রুট পাওয়া রাইডার', 'Riders with a route')} value={n(new Set((riders.data ?? []).map(r => r.employee_id)).size)} />

@@ -265,3 +265,22 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   while the page is open/visible. Page `/app/zonal/locations` (menu: জোনাল প্যানেল → জোন ও হাব): counts, list (distance in km, last seen,
   today's count, call), map, the day's trail. A role with a fixed page list needs the page added in "রোল ও মেনু".
 - Tests: `supabase/tests/99zzzzzzzz_staff_locations.sql` (13). **To go live:** apply `0800`, `0900`, `1000`, merge, new APK.
+
+## 2026-11-16 — Absent list by 11 am, route cover with hourly reminders, staff day notes, zonal midnight report
+- Owner (16 Nov) + decisions: keep staff self-marking (the manager's list is final for the day); the midnight report goes to the zonal
+  manager; staff report = system day summary + the staff member's own note and suggestion.
+- Migration `20261116001100_absence_cover_reports.sql`: attendance source `absence_list`; tables `hub_absence_submissions`,
+  `attendance_corrections`, `route_covers`, `staff_day_notes` (all function-only); permission `zonal.daily_report.view` (Zonal Manager + Admin).
+  `hub_absence_sheet` / `hub_absence_submit` (only absent / late / half day are sent; every other working staff member of the hub becomes
+  present; approved leave stays; waiting self-marks close with it; after 11:00 it is marked late; absent staff are told), `att_correct`
+  (note required, logged, staff told; hub managers already hold `hr.attendance.edit`), `route_cover_list` / `route_cover_assign` /
+  `route_cover_update` (a rider with an open route on approved leave or absent / half day needs a cover; cover's deliveries from the sheet,
+  else written by the manager or the cover), `my_day_note` / `my_day_note_save`, `zone_daily_report(zone, date)`.
+  Jobs: `private.job_route_reminders` (hourly 08–20 Dhaka until covered), `private.job_absence_deadline` (11:05: hub managers + zonal),
+  `private.job_midnight_report` (00:10: yesterday's summary to each zonal manager). Scheduled with pg_cron when the database has it
+  (the migration creates the extension and three `cron.schedule` jobs; times in UTC); locally it only prints a notice.
+- UI: hub attendance tab — "আজকের অনুপস্থিত তালিকা" (prefilled from self "not coming", leave locked, then "সংশোধন" with a note);
+  hub routes tab — "ছুটিতে / অনুপস্থিত রাইডারের রুট" (assign cover by ID, delivery update); staff panel — today's extra route with
+  "ডেলিভারি জানান", and "আজকের কাজ ও পরামর্শ"; page `/app/zonal/daily-report` (problems, hubs, route covers, suggestions, staff table).
+- Not decided yet: whether the 11:05 chase should skip Fridays / holidays (it runs every day now). Reminders are in-app only (no phone push yet).
+- Tests: `supabase/tests/99zzzzzzzzz_absence_cover.sql` (27). **To go live:** apply `0800`–`1100` in order, merge, new APK.

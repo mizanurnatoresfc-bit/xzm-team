@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { pageAllowed } from '../../lib/menu'
@@ -16,6 +16,7 @@ import { supabase } from '../../lib/supabase'
 import { fleet } from '../../lib/fleet'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
 import { distText, getFix, PLACE, presence, type Presence } from '../../lib/presence'
+import { daily, dailyFriendly, type MyDay } from '../../lib/daily'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
 /**
@@ -42,7 +43,7 @@ export function StaffPanel() {
   const today = todayDhaka()
   const d = useLoad(async () => {
     const [home, me] = await Promise.all([quiet(dashboard.home(), null), quiet(hrReq.myEmployee(), null)])
-    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car] = await Promise.all([
+    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car, myDay] = await Promise.all([
       quiet(da.myAccounts(addDays(today, -30), today), null),
       quiet(da.myClaims(30), [] as Claim[]),
       quiet(issues.panels(), null),
@@ -54,8 +55,9 @@ export function StaffPanel() {
       me ? quiet(referrals.prospects(me.id).then(x => x.length), 0) : 0,
       me ? quiet(referrals.brought(me.id).then(x => x.length), 0) : 0,
       quiet(fleet.mine(), null),
+      quiet(daily.myDay(), null as MyDay),
     ])
-    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car }
+    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car, myDay }
   }, [])
   const v = d.data
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
@@ -107,6 +109,23 @@ export function StaffPanel() {
     if (!p && !wifi) return null
     return <span className="place-line">{p && <span className={`place-chip t-${p[2]}`}><Icon name="map" size={13} />{L(p[0], p[1])}{dist != null && st !== 'at_hub' ? ` · ${distText(dist, L, n)}` : ''}</span>}
       {wifi && <span className="place-chip t-ok"><Icon name="globe" size={13} />{L('হাবের ওয়াইফাই', 'Hub Wi-Fi')}</span>}</span>
+  }
+  // Today's work note and suggestion (goes to the zonal manager's midnight report).
+  const [dn, setDn] = useState<{ work: string; suggestion: string } | null>(null)
+  const [dnMsg, setDnMsg] = useState('')
+  useEffect(() => { const x = v?.myDay?.note; setDn({ work: x?.work ?? '', suggestion: x?.suggestion ?? '' }) }, [v?.myDay])
+  async function saveNote() {
+    if (!dn) return
+    setBusy(true); setDnMsg('')
+    try { await daily.saveMyDay(dn.work, dn.suggestion); await d.reload(); toast(L('সেভ হয়েছে — রাত ১২টার রিপোর্টে যাবে', 'Saved — it goes in the midnight report')) }
+    catch (e) { setDnMsg(dailyFriendly(e)) } finally { setBusy(false) }
+  }
+  const [cu, setCu] = useState<{ id: string; delivered: string } | null>(null)
+  async function coverDone() {
+    if (!cu || cu.delivered.trim() === '') return
+    setBusy(true); setDnMsg('')
+    try { await daily.coverUpdate(cu.id, Number(cu.delivered), null); setCu(null); await d.reload(); toast(L('ডেলিভারি জানানো হয়েছে', 'Delivery sent')) }
+    catch (e) { setDnMsg(dailyFriendly(e)) } finally { setBusy(false) }
   }
   const claims = v?.claims ?? []
   const waitingBills = claims.filter(c => (c.status ?? 'submitted') === 'submitted')
@@ -212,6 +231,28 @@ export function StaffPanel() {
 
       <div className="nv-rows">{row('/app/hub-sorting', 'b', 'truck', L('শটিং রুট ও রিপোর্ট টু শটিং', 'Sorting routes & report to sorting'),
         L('শটিংয়ের গাড়ির ড্রাইভার, হেল্পার, ম্যানেজারের নাম ও নাম্বার · পার্সেলের ছবি দিয়ে শটিংকে জানান', 'Names and numbers of the sorting vehicle’s driver, helper, manager · tell sorting with a parcel photo'))}</div>
+
+      {(v?.myDay?.covers ?? []).map(c => <div key={c.id} className="sp-card t-w">
+        <span className="i"><Icon name="map" size={24} /></span>
+        <div className="tx"><b>{L(`আজ ${c.for}-এর বদলে "${c.route}" রুট আপনার`, `Today you cover "${c.route}" for ${c.for}`)}</b>
+          {c.areas.length > 0 && <div className="myday-chips">{c.areas.slice(0, 10).map(a => <span key={a}>{a}</span>)}</div>}
+          <span>{c.sheet ? L(`হিসাব খাতায় ডেলিভারি ${n(c.sheet.delivery)}টি`, `${c.sheet.delivery} delivered on the sheet`)
+            : c.delivered != null ? L(`ডেলিভারি জানানো হয়েছে: ${n(c.delivered)}টি`, `Delivery sent: ${c.delivered}`) : L('শেষে কয়টা ডেলিভারি হলো জানান', 'Tell how many were delivered at the end')}{c.note ? ` · ${c.note}` : ''}</span>
+          {!c.sheet && (cu?.id === c.id
+            ? <span className="row-acts"><input inputMode="numeric" style={{ width: 110 }} value={cu.delivered} placeholder={L('কয়টা', 'How many')} onChange={e => setCu({ id: c.id, delivered: e.target.value.replace(/\D/g, '') })} />
+                <button className="sm" disabled={busy} onClick={() => void coverDone()}>{L('পাঠান', 'Send')}</button></span>
+            : <button className="secondary sm" style={{ alignSelf: 'flex-start' }} onClick={() => setCu({ id: c.id, delivered: c.delivered?.toString() ?? '' })}>{L('ডেলিভারি জানান', 'Report delivery')}</button>)}
+        </div></div>)}
+
+      {v?.myDay && dn && <div className="sp-box sp-note"><h3><Icon name="note" size={16} />{L('আজকের কাজ ও পরামর্শ', "Today's work & suggestion")}</h3>
+        <Field label={L('আজ কী কী করলাম', 'What I did today')}><textarea rows={2} value={dn.work} onChange={e => setDn({ ...dn, work: e.target.value })}
+          placeholder={L('যেমন: ৪২টা ডেলিভারি, ৩টা রিটার্ন, বাজার এলাকায় ২টা ঠিকানা পাওয়া যায়নি', 'e.g. 42 delivered, 3 returned, 2 addresses not found')} /></Field>
+        <Field label={L('পরামর্শ / সমস্যা', 'Suggestion / problem')}><textarea rows={2} value={dn.suggestion} onChange={e => setDn({ ...dn, suggestion: e.target.value })}
+          placeholder={L('যেমন: বাজার রুটে আরেকজন রাইডার লাগবে', 'e.g. the market route needs one more rider')} /></Field>
+        <div className="row-acts"><button className="sm" disabled={busy || (!dn.work.trim() && !dn.suggestion.trim())} onClick={() => void saveNote()}>{L('সেভ', 'Save')}</button>
+          <span className="muted small">{v.myDay.note ? L('সেভ করা আছে · রাত ১২টার আগে বদলানো যায়', 'Saved · can change until midnight') : L('জোনাল ম্যানেজার রাত ১২টার রিপোর্টে দেখবেন', 'The zonal manager sees it in the midnight report')}</span></div>
+        {dnMsg && <p className="da-error">{dnMsg}</p>}
+      </div>}
 
       {(v?.car?.vehicles.length ?? 0) > 0 && <div className="nv-rows">{row('/app/fleet/mine', 'o', 'truck', `${L('আমার গাড়ি', 'My vehicle')} — ${v!.car!.vehicles[0].name}`,
         L('হাব রিপোর্ট, তেল/স্লিপ, সার্ভিস রিকুইজিশন, গ্যারেজ বিল ও খরচ', 'Hub report, fuel slip, service request, garage bills and costs'))}</div>}

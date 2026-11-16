@@ -67,6 +67,7 @@ export const GROUPS: Group[] = [
   panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
     { bn: 'জোন ও হাব', en: 'Zone & hubs', items: [
       { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
+      { to: '/app/zonal/daily-report', icon: 'chart', bn: 'জোনের দৈনিক রিপোর্ট (রাত ১২টা)', en: 'Zone day report (midnight)', perms: ['zonal.daily_report.view'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
       { to: '/app/zonal/locations', icon: 'map', bn: 'স্টাফ কোথায় (হাব থেকে দূরত্ব)', en: 'Where staff are (distance from hub)', perms: ['zonal.location.view'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
