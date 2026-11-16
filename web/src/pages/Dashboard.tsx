@@ -78,7 +78,8 @@ export function Dashboard() {
 
     <div className="greet">
       <div style={{ minWidth: 0 }}><div className="g-day">{day}</div><h2>{hello}, {String(name).split(' ').slice(0, 2).join(' ')}</h2>
-        <div className="g-sub">{where || L('আজকের কাজ এক নজরে', 'Today at a glance')}</div></div>
+        <div className="g-sub">{where || L('আজকের কাজ এক নজরে', 'Today at a glance')}</div>
+        <div className="g-motto">Less Work · More Automation · Better Manage</div></div>
       {d?.my_work && <div className="g-badge"><b>{n(d.my_work.tasks_open)}</b>{L('খোলা কাজ', 'open tasks')}</div>}
     </div>
     {isSuperAdmin && !viewAs && <Link to="/app/role-dashboards" className="dash-edit"><Icon name="gear" size={15} />{L('ড্যাশবোর্ড সাজান', 'Arrange dashboard')}</Link>}

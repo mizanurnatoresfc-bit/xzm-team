@@ -23,12 +23,20 @@ export type Notice = { id: string; title: string; body: string | null; link: str
 export type EmpRow = { id: string; employee_code: string | null; full_name: string; mobile: string | null; hub_id: string | null; position_id: string | null
   department_id: string | null; reporting_manager_id: string | null; joining_date: string | null; status: string; profile_id: string | null; zone_id?: string | null }
 
-export const KINDS: Record<ReqKind, { bn: string; icon: string; tone: string }> = {
-  id_create: { bn: 'ID CREATE', icon: 'plus', tone: 'g' },
-  id_transfer: { bn: 'ID TRANSFER', icon: 'truck', tone: 'b' },
-  id_active: { bn: 'ID ACTIVE', icon: 'check', tone: 'p' },
-  id_inactive: { bn: 'ID INACTIVE / REMOVE', icon: 'x', tone: 'r' },
-  custom: { bn: 'অন্যান্য রিপোর্ট', icon: 'form', tone: 'o' },
+/** bn = the Bangla name shown everywhere, en = the short English code people also use. */
+export const KINDS: Record<ReqKind, { bn: string; en: string; icon: string; tone: string }> = {
+  id_create: { bn: 'নতুন আইডি তৈরি', en: 'ID CREATE', icon: 'userplus', tone: 'g' },
+  id_transfer: { bn: 'আইডি বদলি', en: 'ID TRANSFER', icon: 'swap', tone: 'b' },
+  id_active: { bn: 'আইডি চালু', en: 'ID ACTIVE', icon: 'usercheck', tone: 'p' },
+  id_inactive: { bn: 'আইডি বন্ধ / বাদ', en: 'ID INACTIVE', icon: 'userx', tone: 'r' },
+  custom: { bn: 'অন্যান্য রিপোর্ট', en: 'OTHER', icon: 'form', tone: 'o' },
+}
+/** A format's name in Bangla: its own Bangla name, else the kind's. */
+export const fmtName = (f: { kind: ReqKind; name: string; name_bn: string | null } | undefined | null) =>
+  !f ? '' : f.name_bn?.trim() || (f.kind !== 'custom' ? KINDS[f.kind]?.bn : '') || f.name
+/** One line under each action, in plain words. */
+export const KIND_HINT: Record<ReqKind, string> = {
+  id_create: 'নতুন লোকের আইডি খোলা', id_transfer: 'অন্য হাবে বদলি', id_active: 'বন্ধ আইডি আবার চালু', id_inactive: 'আইডি বন্ধ / চাকরি ছাড়া', custom: 'নিজের বানানো ফরম্যাট',
 }
 export const STATUS: Record<ReqStatus, { bn: string; tone: 'ok' | 'warn' | 'bad' | 'info' | 'neutral' }> = {
   submitted: { bn: 'জমা হয়েছে', tone: 'info' }, processing: { bn: 'কাজ চলছে', tone: 'warn' }, done: { bn: 'সম্পন্ন', tone: 'ok' },
@@ -62,6 +70,13 @@ export const hrReq = {
   list: async () => {
     const { data, error } = await supabase.from('hr_requests').select('*').order('created_at', { ascending: false }).limit(500); fail(error)
     return (data ?? []) as HrRequest[]
+  },
+  /** Every request the person may see between two dates (Dhaka days), oldest last. */
+  between: async (from: string | null, to: string | null) => {
+    let q = supabase.from('hr_requests').select('*').order('created_at', { ascending: false }).limit(5000)
+    if (from) q = q.gte('created_at', `${from}T00:00:00+06:00`)
+    if (to) q = q.lte('created_at', `${to}T23:59:59.999+06:00`)
+    const { data, error } = await q; fail(error); return (data ?? []) as HrRequest[]
   },
   one: async (id: string) => {
     const { data, error } = await supabase.from('hr_requests').select('*').eq('id', id).maybeSingle(); fail(error); return data as HrRequest | null

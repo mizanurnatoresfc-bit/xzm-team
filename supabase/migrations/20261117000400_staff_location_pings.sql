@@ -8,7 +8,7 @@
 --    location at most once an hour (after the staff member has seen a one-line notice). Nothing is sent
 --    when the app is closed or outside duty hours.
 --  * Each ping keeps the distance to the person's own hub and the verdict (at the hub / near / far) and
---    whether it came from the hub's saved Wi-Fi (see 20261116000900_hub_presence).
+--    whether it came from the hub's saved Wi-Fi (see 20261117000300_hub_presence).
 --  * Only `zonal.location.view` may read it — given to the Zonal Manager role for their zone, and to Admin (who assigns
 --    zonal managers); a Super Admin sees everything as always. Hub managers and staff never see it.
 --    Pings older than 30 days are removed.

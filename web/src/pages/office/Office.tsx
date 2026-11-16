@@ -9,28 +9,36 @@ import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import {
-  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, office, ROOM_DEFAULT, ROOM_KIND,
-  type Asset, type Desk, type Property, type Room,
+  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, office, PLACE_KIND, ROOM_DEFAULT, ROOM_KIND,
+  type Asset, type Desk, type PlaceKind, type Property, type Room,
 } from '../../lib/office'
+import { POWER } from '../../lib/officeOps'
+import { Bills, LendModal, NoticeModal, Notices, People, Power, Rent, roomSplit, Security, useLoans, Zone, type Ctx } from './OfficeOps'
 import { useOrg } from '../hr/common'
 import { EmpPicker, empLabel } from '../sorting/Sorting'
 
-type Sec = 'overview' | 'places' | 'rooms' | 'desks' | 'assets'
+type Sec = 'overview' | 'places' | 'rooms' | 'desks' | 'assets' | 'rent' | 'bills' | 'power' | 'security' | 'people' | 'notices' | 'zone'
 const SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: string; perms: string[] }> = [
   { key: 'overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
   { key: 'places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
   { key: 'rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ (রুম ও দিক)', en: 'Flat details (rooms & direction)', perms: ['office.property.view'] },
   { key: 'desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
   { key: 'assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
+  { key: 'rent', icon: 'cash', bn: 'ভাড়া ও চুক্তি', en: 'Rent & contract', perms: ['office.bill.view', 'office.property.edit'] },
+  { key: 'bills', icon: 'receipt', bn: 'বিদ্যুৎ ও ওয়াইফাই বিল', en: 'Electricity & wifi bills', perms: ['office.bill.view'] },
+  { key: 'power', icon: 'sun', bn: 'ইলেকট্রনিক ও বিদ্যুৎ হিসাব', en: 'Devices & power', perms: ['office.asset.view'] },
+  { key: 'security', icon: 'key', bn: 'গাড়ি, তালা, সিসি ও পাসওয়ার্ড', en: 'Vehicles, locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'] },
+  { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who lives here', perms: ['office.property.view'] },
+  { key: 'notices', icon: 'bell', bn: 'নষ্ট / লাগবে রিপোর্ট', en: 'Broken / needed reports', perms: ['office.notice.create', 'office.notice.approve'] },
+  { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.asset.view'] },
 ]
 const PKEY = 'xzm_office_property'
-
-type Ctx = { p: Property; rooms: Room[]; desks: Desk[]; assets: Asset[]; emp: Record<string, EmpLite>; reload: () => Promise<void> }
 
 export function Office() {
   const { section } = useParams()
   const { can } = useAuth()
   const { L } = usePrefs()
+  const o = useOrg()
   const props = useLoad(() => office.properties(), [])
   const [pid, setPid] = useState(() => { try { return sessionStorage.getItem(PKEY) || '' } catch { return '' } })
   const list = props.data ?? []
@@ -49,10 +57,13 @@ export function Office() {
   const tabs = SECTIONS.filter(s => s.perms.some(x => can(x)))
   const reload = async () => { await Promise.all([rooms.reload(), desks.reload(), assets.reload()]) }
 
-  return <AppShell title={L(sec.bn, sec.en)} subtitle={p ? `${p.name} · ${p.kind === 'office' ? L('অফিস', 'Office') : L('আবাসিক', 'Residence')}` : undefined}>
+  const hubName = (id: string | null) => (id && o.names.hub[id]) || ''
+  const reloadPlaces = async () => { await props.reload() }
+
+  return <AppShell title={L(sec.bn, sec.en)} subtitle={p ? `${p.name} · ${L(PLACE_KIND[p.kind][0], PLACE_KIND[p.kind][1])}` : undefined}>
     <section className="da-filters panel no-print hub-top">
       {sec.key !== 'places' && <Field label={L('অফিস / আবাসিক', 'Office / residence')}><select value={pid} onChange={e => setPid(e.target.value)}>
-        {list.map(x => <option key={x.id} value={x.id}>{x.kind === 'office' ? '🏢' : '🏠'} {x.name}</option>)}</select></Field>}
+        {list.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>}
       <nav className="hub-tabs" aria-label={L('অফিস ম্যানেজমেন্ট', 'Office management')}>
         {tabs.map(t => <Link key={t.key} to={`/app/office/${t.key}`} className={t.key === sec.key ? 'on' : ''}><Icon name={t.icon} size={15} /><span>{L(t.bn, t.en)}</span></Link>)}
       </nav>
@@ -62,7 +73,7 @@ export function Office() {
       : sec.key === 'places' ? <Places list={list} reload={async () => { await props.reload() }} />
       : props.data && !list.length ? <p className="notice">{L('এখনো কোনো অফিস বা আবাসিক যোগ হয়নি।', 'No office or residence yet.')} <Link to="/app/office/places">{L('যোগ করুন →', 'Add one →')}</Link></p>
       : !p ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
-      : <Body sec={sec.key} ctx={{ p, rooms: rooms.data ?? [], desks: desks.data ?? [], assets: assets.data ?? [], emp, reload }} />}
+      : <Body sec={sec.key} ctx={{ p, all: list, hubName, rooms: rooms.data ?? [], desks: desks.data ?? [], assets: assets.data ?? [], emp, reload, reloadPlaces }} />}
   </AppShell>
 }
 
@@ -72,6 +83,13 @@ function Body({ sec, ctx }: { sec: Sec; ctx: Ctx }) {
     case 'rooms': return <Rooms ctx={ctx} />
     case 'desks': return <Desks ctx={ctx} />
     case 'assets': return <Assets ctx={ctx} />
+    case 'rent': return <Rent ctx={ctx} />
+    case 'bills': return <Bills ctx={ctx} />
+    case 'power': return <Power ctx={ctx} />
+    case 'security': return <Security ctx={ctx} />
+    case 'people': return <People ctx={ctx} />
+    case 'notices': return <Notices ctx={ctx} />
+    case 'zone': return <Zone ctx={ctx} />
     default: return null
   }
 }
@@ -88,6 +106,7 @@ function Overview({ ctx }: { ctx: Ctx }) {
   const itemsOf = (room: string) => ctx.assets.filter(a => a.room_id === room && !a.desk_id)
   const desksOf = (room: string) => ctx.desks.filter(d => d.room_id === room)
   const bad = ctx.assets.filter(a => a.condition !== 'good')
+  const split = roomSplit(ctx.rooms)
   // Smart checks: what someone walking the office would notice.
   const checks: Array<[string, 'warn' | 'bad' | 'info']> = []
   for (const d of ctx.desks) {
@@ -102,10 +121,15 @@ function Overview({ ctx }: { ctx: Ctx }) {
     if (miss.length) checks.push([L(`${r.name}: ${miss.map(k => ASSET_KIND[k][0]).join(', ')} লেখা নেই`, `${r.name}: no ${miss.map(k => ASSET_KIND[k][1]).join(', ')} listed`), 'info'])
     if (r.kind === 'kitchen' && have.has('cylinder') && r.direction === 'ne') checks.push([L(`${r.name}: উত্তর-পূর্ব কোণে রান্নাঘর — সিলিন্ডারের বাতাস চলাচল দেখে নিন`, `${r.name}: kitchen in the north-east — check ventilation for the cylinder`), 'info'])
   }
+  if (ctx.p.kind === 'office' && split.living > 0) checks.push([L(`অফিসের ${n(split.living)}টা রুম থাকার কাজে — "কারা থাকেন"-এ নাম লিখে রাখুন`, `${split.living} room(s) of this office are lived in — list who under "Who lives here"`), 'info'])
+  for (const r of ctx.rooms) {
+    const w = ctx.assets.filter(a => a.room_id === r.id && a.condition === 'good').reduce((s, a) => s + a.quantity * (a.watt ?? POWER[a.kind]?.[0] ?? 0), 0)
+    if (w >= 2000) checks.push([L(`${r.name}: এক রুমে ${n(w)} ওয়াটের লোড — একই লাইনে/মাল্টিপ্লাগে সব না দিয়ে ভাগ করে দিন`, `${r.name}: ${w} W in one room — split it across lines`), 'warn'])
+  }
   for (const a of bad) checks.push([`${a.name}${a.serial_no ? ` (${a.serial_no})` : ''}: ${L(CONDITION[a.condition][0], CONDITION[a.condition][1])}`, a.condition === 'repair' ? 'warn' : 'bad'])
   return <>
     <div className="da-stats">
-      <Stat icon="grid" label={L('রুম', 'Rooms')} value={n(ctx.rooms.length)} />
+      <Stat icon="grid" label={L('রুম', 'Rooms')} value={n(ctx.rooms.length)} sub={L(`অফিস ${n(split.office)} · আবাসিক ${n(split.living)} · অন্য ${n(split.other)}`, `office ${split.office} · living ${split.living} · other ${split.other}`)} />
       <Stat icon="table" label={L('ডেস্ক', 'Desks')} value={n(ctx.desks.length)} sub={L(`${n(ctx.desks.filter(d => !d.responsible_id).length)}টা দায়িত্বহীন`, `${ctx.desks.filter(d => !d.responsible_id).length} unassigned`)} />
       <Stat icon="box" label={L('রিসোর্স', 'Resources')} value={n(ctx.assets.reduce((s, a) => s + a.quantity, 0))} />
       <Stat icon="alert" tone={bad.length ? 'warn' : 'ok'} label={L('মেরামত / নষ্ট / হারানো', 'Repair / broken / lost')} value={n(bad.length)} />
@@ -156,7 +180,8 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
     try {
       await office.saveProperty({ code: autoCode(f.name, f.code), name: f.name.trim(), kind: f.kind ?? 'office', zone_id: f.zone_id, hub_id: f.hub_id || null,
         address: f.address || null, floor_note: f.floor_note || null, owner_name: f.owner_name || null, owner_phone: f.owner_phone || null,
-        rent: f.rent ? Number(f.rent) : null, front_direction: f.front_direction || null, note: f.note || null }, f.id)
+        rent: f.rent ? Number(f.rent) : null, front_direction: f.front_direction || null, note: f.note || null,
+        advance: f.advance ? Number(f.advance) : null, capacity: f.capacity ? Number(f.capacity) : null }, f.id)
       setF(null); await reload(); toast(L('সেভ হয়েছে', 'Saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
@@ -179,8 +204,8 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
     <DataTable<Property> title={L('অফিস ও আবাসিক', 'Offices & residences')} file="office-places" rows={list} rowKey={r => r.id}
       empty={<p className="muted">{L('এখনো কিছু যোগ হয়নি।', 'Nothing yet.')}</p>}
       cols={[
-        { key: 'kind', label: L('ধরন', 'Kind'), value: r => r.kind === 'office' ? L('অফিস', 'Office') : L('আবাসিক', 'Residence'),
-          render: r => <Badge tone={r.kind === 'office' ? 'info' : 'neutral'}>{r.kind === 'office' ? L('অফিস', 'Office') : L('আবাসিক', 'Residence')}</Badge> },
+        { key: 'kind', label: L('ধরন', 'Kind'), value: r => L(PLACE_KIND[r.kind][0], PLACE_KIND[r.kind][1]),
+          render: r => <Badge tone={r.kind === 'office' ? 'info' : 'neutral'}>{PLACE_KIND[r.kind][2]} {L(PLACE_KIND[r.kind][0], PLACE_KIND[r.kind][1])}</Badge> },
         { key: 'name', label: L('নাম', 'Name'), value: r => r.name },
         { key: 'hub', label: L('হাব', 'Hub'), value: r => r.hub_id ? o.names.hub[r.hub_id] ?? '' : '' },
         { key: 'addr', label: L('ঠিকানা', 'Address'), value: r => r.address ?? '' },
@@ -190,11 +215,11 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
           {can('office.property.edit') && <button className="secondary sm" onClick={() => { setErr(''); setF({ ...r }) }}><Icon name="edit" size={14} /></button>}
           {can('office.property.archive') && <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span> },
       ]} />
-    {f && <Modal wide title={f.id ? L('এডিট', 'Edit') : L('নতুন অফিস / আবাসিক', 'New office / residence')} onClose={() => setF(null)}
+    {f && <Modal wide title={f.id ? L('এডিট', 'Edit') : L('নতুন অফিস / আবাসিক ফ্ল্যাট / গ্যারেজ', 'New office / residence / garage')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form">
-        <Field label={L('ধরন', 'Kind')}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Property['kind'] })}>
-          <option value="office">{L('অফিস', 'Office')}</option><option value="residence">{L('আবাসিক (ফ্ল্যাট / মেস)', 'Residence (flat / mess)')}</option></select></Field>
+        <Field label={L('ধরন', 'Kind')} hint={f.kind !== 'office' ? L('হাব বেছে দিলে এটা ওই হাবের সাথে যুক্ত থাকবে', 'Pick the hub to attach it to') : undefined}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as PlaceKind })}>
+          {(Object.keys(PLACE_KIND) as PlaceKind[]).map(k => <option key={k} value={k}>{PLACE_KIND[k][2]} {L(PLACE_KIND[k][0], PLACE_KIND[k][1])}</option>)}</select></Field>
         <Field label={L('নাম', 'Name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
         <Field label={L('এরিয়া', 'Area')}><select value={f.zone_id ?? ''} onChange={e => setF({ ...f, zone_id: e.target.value, hub_id: null })}>
           {o.data?.zones.filter(z => !z.archived_at).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
@@ -207,8 +232,12 @@ function Places({ list, reload }: { list: Property[]; reload: () => Promise<void
         <Field label={L('বাড়ির মালিক', 'Owner')}><input value={f.owner_name ?? ''} onChange={e => setF({ ...f, owner_name: e.target.value })} /></Field>
         <Field label={L('মালিকের ফোন', 'Owner phone')}><input inputMode="tel" value={f.owner_phone ?? ''} onChange={e => setF({ ...f, owner_phone: e.target.value })} /></Field>
         <Field label={L('মাসিক ভাড়া (৳)', 'Monthly rent (৳)')}><input inputMode="decimal" value={f.rent ?? ''} onChange={e => setF({ ...f, rent: e.target.value as unknown as number })} /></Field>
-        <Field label={L('নোট', 'Note')} wide><input value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></Field>
+        <Field label={L('এডভান্স (৳)', 'Advance (৳)')}><input inputMode="decimal" value={f.advance ?? ''} onChange={e => setF({ ...f, advance: e.target.value as unknown as number })} /></Field>
+        <Field label={f.kind === 'residence' ? L('কয়জন থাকতে পারেন', 'Sleeps how many') : f.kind === 'office' ? L('কয়জন বসতে পারেন', 'Seats how many') : L('কয়টা গাড়ি ধরে', 'Holds how many vehicles')}>
+          <input inputMode="numeric" value={f.capacity ?? ''} onChange={e => setF({ ...f, capacity: e.target.value as unknown as number })} /></Field>
+        <Field label={L('নোট', 'Note')} wide><input value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} placeholder={f.kind === 'auto_garage' ? L('যেমন: কয়টা চার্জিং পয়েন্ট, মাসিক চার্জ', 'e.g. charging points, monthly charge') : ''} /></Field>
       </div>
+      <p className="muted small">{L('চুক্তির মেয়াদ, চুক্তির ছবি ও মাসের ভাড়া — "ভাড়া ও চুক্তি" ট্যাবে।', 'Contract dates, its photo and the month’s rent — under "Rent & contract".')}</p>
       {err && <p className="da-error">{err}</p>}
     </Modal>}
   </section>
@@ -343,9 +372,14 @@ function Assets({ ctx }: { ctx: Ctx }) {
   const { toast, node } = useToast()
   const [cond, setCond] = useState('')
   type F = { id?: string; kind: string; name: string; room: string; desk: string; qty: string; condition: Asset['condition']; brand: string; serial: string
-    holder: EmpLite | null; date: string; price: string; note: string }
+    holder: EmpLite | null; date: string; price: string; note: string; watt: string; hours: string; spec: string }
   const [f, setF] = useState<F | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const [rep, setRep] = useState<{ a: Asset | null; kind: 'broken' | 'need' } | null>(null)
+  const [lend, setLend] = useState<Asset | null>(null)
+  const loans = useLoans(ctx.p.id)
+  const mineOut = loans.list.filter(l => l.from_property_id === ctx.p.id); const mineIn = loans.list.filter(l => l.to_property_id === ctx.p.id)
+  const canRep = can('office.notice.create')
   const roomName = Object.fromEntries(ctx.rooms.map(r => [r.id, r.name])) as Record<string, string>
   const deskName = Object.fromEntries(ctx.desks.map(d => [d.id, d.name])) as Record<string, string>
   const rows = ctx.assets.filter(a => !cond || a.condition === cond)
@@ -358,7 +392,8 @@ function Assets({ ctx }: { ctx: Ctx }) {
       const desk = ctx.desks.find(d => d.id === f.desk)
       await office.saveAsset({ property_id: ctx.p.id, kind: f.kind, name: f.name.trim(), room_id: f.room || desk?.room_id || null, desk_id: f.desk || null,
         quantity: Math.max(1, Number(f.qty) || 1), condition: f.condition, brand: f.brand.trim() || null, serial_no: f.serial.trim() || null,
-        holder_id: f.holder?.id ?? null, purchase_date: f.date || null, price: f.price ? Number(f.price) : null, note: f.note.trim() || null }, f.id)
+        holder_id: f.holder?.id ?? null, purchase_date: f.date || null, price: f.price ? Number(f.price) : null, note: f.note.trim() || null,
+        watt: f.watt ? Number(f.watt) : null, hours_per_day: f.hours ? Number(f.hours) : null, spec: f.spec.trim() || null }, f.id)
       setF(null); await ctx.reload(); toast(L('সেভ হয়েছে', 'Saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
@@ -372,10 +407,14 @@ function Assets({ ctx }: { ctx: Ctx }) {
       <div className="da-bar"><h2>{L('অফিসের রিসোর্স', 'Office resources')} <span className="count-pill">{n(ctx.assets.reduce((s, a) => s + a.quantity, 0))}</span></h2><span className="row-acts">
         <select value={cond} onChange={e => setCond(e.target.value)} aria-label={L('অবস্থা', 'Condition')}><option value="">{L('সব অবস্থা', 'All')}</option>
           {Object.entries(CONDITION).map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select>
-        {edit && <button onClick={() => { setErr(''); setF({ kind: 'monitor', name: ASSET_KIND.monitor[0], room: '', desk: '', qty: '1', condition: 'good', brand: '', serial: '', holder: null, date: '', price: '', note: '' }) }}>
-          <Icon name="plus" size={15} />{L('জিনিস যোগ', 'Add item')}</button>}</span></div>
+        {edit && <button onClick={() => { setErr(''); setF({ kind: 'monitor', name: ASSET_KIND.monitor[0], room: '', desk: '', qty: '1', condition: 'good', brand: '', serial: '', holder: null, date: '', price: '', note: '', watt: '', hours: '', spec: '' }) }}>
+          <Icon name="plus" size={15} />{L('জিনিস যোগ', 'Add item')}</button>}
+        {canRep && <button className="secondary" onClick={() => setRep({ a: null, kind: 'need' })}><Icon name="bell" size={15} />{L('কিছু লাগবে', 'Need something')}</button>}</span></div>
+      <p className="muted small">{L('প্রতিটা জিনিসের পাশে "নষ্ট" চাপলে জোনাল ম্যানেজারের কাছে রিপোর্ট যায়; "লাগবে" দিয়ে আরও চাওয়া যায়। তালিকায় যা নেই তা "অন্যান্য" ধরনে নিজের নাম দিয়ে যোগ করুন।', 'Tap "Broken" beside an item to report it to the zonal manager; "Needed" asks for more. Anything not in the list goes under "Other" with its own name.')}</p>
       <div className="team-cards">{byKind.map(([k, c]) => <div key={k} className="team-card static"><span className="ti"><Icon name={ASSET_KIND[k]?.[2] ?? 'form'} size={20} /></span>
         <span className="tn">{L(ASSET_KIND[k]?.[0] ?? k, ASSET_KIND[k]?.[1] ?? k)}</span><span className="tc">{n(c)}</span></div>)}</div>
+      {mineOut.length > 0 && <p className="small">{L('অন্য হাব ব্যবহার করছে (গোনা এই অফিসের নামেই)', 'Used by other hubs (still counted here)')}: {mineOut.map(l => `${l.asset_name} ${n(l.quantity)} → ${l.to_name}`).join(' · ')}</p>}
+      {mineIn.length > 0 && <p className="small">{L('অন্যের জিনিস এখানে ব্যবহার হচ্ছে', 'Borrowed from others')}: {mineIn.map(l => `${l.asset_name} ${n(l.quantity)} (${l.from_name})`).join(' · ')}</p>}
     </section>
     <section className="panel">
       {err && !f && <p className="da-error">{err}</p>}
@@ -383,16 +422,21 @@ function Assets({ ctx }: { ctx: Ctx }) {
         empty={<p className="muted">{L('কিছু নেই।', 'Nothing here.')}</p>}
         cols={[
           { key: 'kind', label: L('ধরন', 'Kind'), value: r => L(ASSET_KIND[r.kind]?.[0] ?? r.kind, ASSET_KIND[r.kind]?.[1] ?? r.kind) },
-          { key: 'name', label: L('নাম', 'Name'), value: r => r.name, render: r => <><strong>{r.name}</strong>{(r.brand || r.serial_no) && <span className="sec">{[r.brand, r.serial_no].filter(Boolean).join(' · ')}</span>}</> },
+          { key: 'name', label: L('নাম', 'Name'), value: r => r.name, render: r => <><strong>{r.name}</strong>{(r.brand || r.serial_no || r.spec || r.watt) && <span className="sec">{[r.spec, r.brand, r.serial_no, r.watt ? `${n(r.watt)}W` : null].filter(Boolean).join(' · ')}</span>}
+            {loans.out[r.id] ? <span className="sec">{mineOut.filter(l => l.asset_id === r.id).map(l => L(`${l.to_name} ${n(l.quantity)}টি ব্যবহার করছে`, `${l.to_name} uses ${l.quantity}`)).join(', ')}</span> : null}</> },
           { key: 'where', label: L('কোথায়', 'Where'), value: r => [r.desk_id && deskName[r.desk_id], r.room_id && roomName[r.room_id]].filter(Boolean).join(' · ') },
           { key: 'qty', label: L('সংখ্যা', 'Qty'), className: 'r', value: r => n(r.quantity) },
           { key: 'holder', label: L('কার কাছে', 'Held by'), value: r => empLabel(ctx.emp[r.holder_id ?? '']) },
           { key: 'cond', label: L('অবস্থা', 'Condition'), value: r => L(CONDITION[r.condition][0], CONDITION[r.condition][1]),
             render: r => <Badge tone={CONDITION[r.condition][2]}>{L(CONDITION[r.condition][0], CONDITION[r.condition][1])}</Badge> },
-          ...(edit ? [{ key: 'act', label: '', noExport: true, render: (r: Asset) => <span className="row-acts">
-            <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, kind: r.kind, name: r.name, room: r.room_id ?? '', desk: r.desk_id ?? '', qty: String(r.quantity), condition: r.condition,
-              brand: r.brand ?? '', serial: r.serial_no ?? '', holder: r.holder_id ? ctx.emp[r.holder_id] ?? null : null, date: r.purchase_date ?? '', price: r.price?.toString() ?? '', note: r.note ?? '' }) }}><Icon name="edit" size={14} /></button>
-            <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} /></button></span> }] : []),
+          ...(edit || canRep ? [{ key: 'act', label: '', noExport: true, render: (r: Asset) => <span className="row-acts">
+            {canRep && r.condition !== 'broken' && <button className="secondary sm oo-bad" onClick={() => setRep({ a: r, kind: 'broken' })}>{L('নষ্ট', 'Broken')}</button>}
+            {canRep && <button className="secondary sm" onClick={() => setRep({ a: r, kind: 'need' })}>{L('লাগবে', 'Needed')}</button>}
+            {edit && <button className="secondary sm" title={L('অন্য অফিসে দিন', 'Lend to another office')} onClick={() => setLend(r)}><Icon name="hub" size={14} /></button>}
+            {edit && <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, kind: r.kind, name: r.name, room: r.room_id ?? '', desk: r.desk_id ?? '', qty: String(r.quantity), condition: r.condition,
+              brand: r.brand ?? '', serial: r.serial_no ?? '', holder: r.holder_id ? ctx.emp[r.holder_id] ?? null : null, date: r.purchase_date ?? '', price: r.price?.toString() ?? '', note: r.note ?? '',
+              watt: r.watt?.toString() ?? '', hours: r.hours_per_day?.toString() ?? '', spec: r.spec ?? '' }) }}><Icon name="edit" size={14} /></button>}
+            {edit && <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span> }] : []),
         ]} />
     </section>
     {f && <Modal wide title={f.id ? L('জিনিস এডিট', 'Edit item') : L('জিনিস যোগ', 'Add item')} onClose={() => setF(null)}
@@ -413,9 +457,15 @@ function Assets({ ctx }: { ctx: Ctx }) {
         <EmpPicker label={L('কার কাছে (আইডি)', 'Held by (ID)')} value={f.holder} onPick={e => setF({ ...f, holder: e })} />
         <Field label={L('কেনার তারিখ', 'Bought on')}><input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
         <Field label={L('দাম (৳)', 'Price (৳)')}><input inputMode="decimal" value={f.price} onChange={e => setF({ ...f, price: e.target.value })} /></Field>
+        <Field label={L('মাপ / ধরন', 'Size / type')} hint={L('যেমন টেবিল ৪×২ ফুট, DVR ৮ পোর্ট', 'e.g. table 4×2 ft, DVR 8 ports')}><input value={f.spec} onChange={e => setF({ ...f, spec: e.target.value })} /></Field>
+        <Field label={L('ওয়াট (W)', 'Watt (W)')} hint={POWER[f.kind] ? L(`না লিখলে ${n(POWER[f.kind][0])}W ধরা হবে`, `${POWER[f.kind][0]}W assumed if blank`) : L('বিদ্যুতে চললে লিখুন', 'if it runs on electricity')}><input inputMode="numeric" value={f.watt} onChange={e => setF({ ...f, watt: e.target.value })} /></Field>
+        <Field label={L('দিনে কত ঘণ্টা চলে', 'Hours a day')}><input inputMode="decimal" value={f.hours} onChange={e => setF({ ...f, hours: e.target.value })} placeholder={POWER[f.kind] ? String(POWER[f.kind][1]) : ''} /></Field>
         <Field label={L('নোট', 'Note')}><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Field>
       </div>
       {err && <p className="da-error">{err}</p>}
     </Modal>}
+    {rep && <NoticeModal property={ctx.p} asset={rep.a} kind={rep.kind} onClose={() => setRep(null)} onDone={(no, c) => { setRep(null); void ctx.reload()
+      toast(c ? L(`${no} — জোনাল ম্যানেজারকে জানানো হয়েছে`, `${no} — the zonal manager was told`) : L(`${no} জমা হয়েছে`, `${no} saved`)) }} />}
+    {lend && <LendModal ctx={ctx} asset={lend} lentOut={loans.out[lend.id] ?? 0} onClose={() => setLend(null)} onDone={() => { setLend(null); void loans.reload(); toast(L('দেওয়া হয়েছে — গোনা এই অফিসের নামেই থাকবে', 'Lent — still counted here')) }} />}
   </>
 }
