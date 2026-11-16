@@ -1605,3 +1605,13 @@ button.nv-row:disabled{opacity:1}
 .sd-top .tx b{font-size:17px}
 .sd-who{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:12px;background:var(--canvas);margin-bottom:10px}
 .sd-form{display:flex;flex-direction:column;gap:10px}
+
+/* ---------- Arranging a role's home page ---------- */
+.rd-h{margin:14px 2px 8px;font-size:14px}
+.rd-list{overflow:visible;flex:none}
+.rd-list .nv-row{flex:none;min-height:60px;padding:10px 12px;gap:10px;flex-wrap:wrap}
+.rd-list .nv-row .tx{min-width:150px}.rd-list .nv-row .tx span{white-space:normal}
+.rd-list .rd-no{width:32px;height:32px;font-size:14px}
+.rd-acts{display:flex;gap:6px;flex:none;margin-left:auto}
+.rd-acts button{min-height:36px!important;min-width:40px}
+.dash-edit{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--primary);text-decoration:none;padding:6px 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface);width:max-content}

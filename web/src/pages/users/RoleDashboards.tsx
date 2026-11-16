@@ -30,7 +30,7 @@ export function RoleDashboards() {
   const { toast, node } = useToast()
 
   return <AppShell title={L('রোল অনুযায়ী ড্যাশবোর্ড', 'Dashboard by role')}
-    subtitle={L('কোন রোল হোম পেজে কী দেখবে — এখানে ঠিক করুন। অনুমতি না থাকলে প্যানেল এমনিতেই লুকানো থাকবে।',
+    subtitle={L('কোন রোল হোম পেজে কী দেখবে আর কোন ক্রমে — “সাজান” চেপে যোগ করুন, সরান, উপরে-নিচে সাজান। অনুমতি না থাকলে প্যানেল এমনিতেই লুকানো থাকবে।',
       'Decide what each role sees on the home page. A panel stays hidden anyway if the role has no permission for it.')}>
     {node}
     {!sup ? <p className="notice">{L('এই পাতা শুধু সুপার অ্যাডমিনের জন্য।', 'This page is for the Super Admin only.')}</p> : <>
@@ -45,7 +45,7 @@ export function RoleDashboards() {
               <option value="">{L('নিজে ঠিক হবে', 'Automatic')}</option>{VIEWS.map(([v, bn, en]) => <option key={v} value={v}>{L(bn, en)}</option>)}</select></td>
             <td className="small">{r.panels.length ? r.panels.map(p => panelLabel(p, lang)).join(' · ')
               : <span className="muted">{L('আলাদা করে কিছু বলা নেই — অনুমতি অনুযায়ী দেখাবে', 'Nothing set — follows their permissions')}</span>}</td>
-            <td style={{ textAlign: 'right' }}><button className="secondary sm" onClick={() => setEdit(r)}>{L('বদলান', 'Change')}</button></td>
+            <td style={{ textAlign: 'right' }}><button className="secondary sm" data-arrange={r.code} onClick={() => setEdit(r)}>{L('সাজান', 'Arrange')}</button></td>
           </tr>)}</tbody></table></div>
         {list.loading && <p className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       </section>
@@ -98,40 +98,50 @@ function PagesEditor({ role, onClose, onDone }: { role: RoleMenu; onClose: () =>
 }
 
 function LayoutEditor({ role, onClose, onDone }: { role: RoleDashboard; onClose: () => void; onDone: () => void }) {
-  const { L, lang } = usePrefs()
+  const { L, n, lang } = usePrefs()
   const [picked, setPicked] = useState<PanelCode[]>(role.panels)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
-  const toggle = (p: PanelCode) => setPicked(x => x.includes(p) ? x.filter(y => y !== p) : [...x, p])
+  const rest = PANELS.map(x => x[0]).filter(c => !picked.includes(c))
+  const shares = (a: PanelCode, b: PanelCode) => (VIEW_OF[a] ?? []).some(v => VIEW_OF[b]?.includes(v))
+  // Up / down jumps over panels of other views: those are never on screen together, so swapping with them would look like nothing happened.
+  const target = (p: PanelCode, d: -1 | 1) => {
+    const i = picked.indexOf(p)
+    for (let j = i + d; j >= 0 && j < picked.length; j += d) if (shares(p, picked[j])) return j
+    return -1
+  }
   const move = (p: PanelCode, d: -1 | 1) => {
-    const i = picked.indexOf(p), j = i + d
-    if (i < 0 || j < 0 || j >= picked.length) return
+    const i = picked.indexOf(p), j = target(p, d)
+    if (i < 0 || j < 0) return
     const c = [...picked]; c.splice(i, 1); c.splice(j, 0, p); setPicked(c)
   }
+  const tags = (code: PanelCode) => (VIEW_OF[code] ?? []).map(v => <span key={v} className={`vw-tag v-${v}`}>{L(...(VIEWS.find(x => x[0] === v)!.slice(1, 3) as [string, string]))}</span>)
   async function save() {
     setErr(''); setBusy(true)
     try { await dashboard.saveRoleLayout(role.role_id, picked); onDone() }
     catch (e) { setErr(dashboardFriendly(e)) } finally { setBusy(false) }
   }
-  return <Modal wide title={`${lang === 'bn' && role.name_bn ? role.name_bn : role.name} — ${L('হোম পেজ', 'home page')}`} onClose={onClose}
-    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ করুন', 'Save')}</button></>}>
-    <p className="muted small">{L('টিক দিলে প্যানেলটি এই রোলের হোম পেজে আসবে। উপরে-নিচে সাজিয়ে ক্রম ঠিক করুন। কিছুই টিক না দিলে অনুমতি অনুযায়ী আপনা-আপনি সাজবে।',
-      'Tick a panel to put it on this role’s home page, and use the arrows for the order. Tick nothing and it arranges itself from their permissions.')}</p>
-    <div className="da-table-wrap"><table className="da-table">
-      <thead><tr><th>{L('দেখাবে', 'Show')}</th><th>{L('প্যানেল', 'Panel')}</th><th>{L('কোন ভিউতে', 'In view')}</th><th>{L('কী থাকে', 'What it holds')}</th><th>{L('ক্রম', 'Order')}</th></tr></thead>
-      <tbody>{[...PANELS].sort((a, b) => VIEWS.findIndex(v => v[0] === VIEW_OF[a[0]]?.[0]) - VIEWS.findIndex(v => v[0] === VIEW_OF[b[0]]?.[0])).map(([code]) => {
-        const on = picked.includes(code)
-        return <tr key={code}>
-          <td><input type="checkbox" style={{ width: 'auto' }} aria-label={code} checked={on} onChange={() => toggle(code)} /></td>
-          <td><strong>{panelLabel(code, lang)}</strong></td>
-          <td data-label={L('কোন ভিউতে', 'In view')}>{(VIEW_OF[code] ?? []).map(v => <span key={v} className={`vw-tag v-${v}`}>{L(...(VIEWS.find(x => x[0] === v)!.slice(1, 3) as [string, string]))}</span>)}</td>
-          <td className="small muted">{panelNote(code, lang)}</td>
-          <td style={{ whiteSpace: 'nowrap' }}>{on && <>
-            <button className="secondary sm" aria-label={`${code} up`} disabled={picked.indexOf(code) === 0} onClick={() => move(code, -1)}>↑</button>{' '}
-            <button className="secondary sm" aria-label={`${code} down`} disabled={picked.indexOf(code) === picked.length - 1} onClick={() => move(code, 1)}>↓</button>
-          </>}</td>
-        </tr>
-      })}</tbody></table></div>
-    <p className="muted small">{L('এই রোলের ক্রম: ', 'Order for this role: ')}{picked.length ? picked.map(p => panelLabel(p, lang)).join(' → ') : L('—', '—')}</p>
+  return <Modal wide title={`${lang === 'bn' && role.name_bn ? role.name_bn : role.name} — ${L('হোম পেজ সাজান', 'arrange the home page')}`} onClose={onClose}
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('সেভ করুন', 'Save')}</button></>}>
+    <p className="muted small">{L('উপরের তালিকায় যা আছে, এই রোলের হোম পেজে সেটাই এই ক্রমে দেখাবে। ↑ ↓ দিয়ে সাজান, “সরান” দিয়ে বাদ দিন, নিচের তালিকা থেকে যোগ করুন। রংয়ের ট্যাগ বলে প্যানেলটি কোন ভিউতে (আমি / হাব / জোন) থাকে।',
+      'What is in the top list shows on this role’s home page, in this order. Arrange with ↑ ↓, take off with “Remove”, add from the list below. The coloured tag says which view (Me / Hub / Zone) a panel sits in.')}</p>
+
+    <h3 className="rd-h">{L('হোম পেজে আছে', 'On the home page')} <span className="muted small">({n(picked.length)})</span></h3>
+    {!picked.length ? <p className="notice">{L('কিছু রাখা নেই — এই রোলের অনুমতি অনুযায়ী প্যানেল আপনা-আপনি দেখাবে।', 'Nothing chosen — panels follow this role’s permissions on their own.')}</p>
+      : <div className="nv-rows rd-list" data-list="on">{picked.map((code, i) => <div key={code} className="nv-row" data-panel={code}>
+          <span className="nv-av rd-no">{n(i + 1)}</span>
+          <span className="tx"><b>{panelLabel(code, lang)}</b><span>{tags(code)}{panelNote(code, lang)}</span></span>
+          <span className="rd-acts">
+            <button type="button" className="secondary sm" aria-label={`${code} up`} disabled={target(code, -1) < 0} onClick={() => move(code, -1)}>↑</button>
+            <button type="button" className="secondary sm" aria-label={`${code} down`} disabled={target(code, 1) < 0} onClick={() => move(code, 1)}>↓</button>
+            <button type="button" className="danger sm" aria-label={`${code} remove`} onClick={() => setPicked(x => x.filter(y => y !== code))}>{L('সরান', 'Remove')}</button>
+          </span></div>)}</div>}
+
+    <h3 className="rd-h">{L('যোগ করা যায়', 'Can be added')} <span className="muted small">({n(rest.length)})</span></h3>
+    {!rest.length ? <p className="muted small">{L('সব প্যানেলই হোম পেজে আছে।', 'Every panel is already on the home page.')}</p>
+      : <div className="nv-rows rd-list" data-list="off">{rest.map(code => <div key={code} className="nv-row none" data-panel={code}>
+          <span className="tx"><b>{panelLabel(code, lang)}</b><span>{tags(code)}{panelNote(code, lang)}</span></span>
+          <span className="rd-acts"><button type="button" className="sm" aria-label={`${code} add`} onClick={() => setPicked(x => [...x, code])}>+ {L('যোগ করুন', 'Add')}</button></span></div>)}</div>}
+    <p className="muted small">{L('রোলের অনুমতি না থাকলে প্যানেল যোগ করলেও দেখাবে না।', 'A panel the role has no permission for stays hidden even if added.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }
