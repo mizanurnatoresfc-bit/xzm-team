@@ -16,6 +16,7 @@ import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 import { selfAtt, selfAttFriendly, type Decided, type SelfMark } from '../../lib/selfAtt'
+import { distText, getFix, PLACE, presence, type PlaceStatus } from '../../lib/presence'
 
 export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'days' | 'logins' | 'routes'
 
@@ -127,6 +128,7 @@ function AttendanceToday({ hub }: { hub: Hub }) {
       <Stat icon="alert" tone={total - (day.data?.length ?? 0) ? 'warn' : undefined} label={L('এখনো বাকি', 'Not marked')} value={n(total - (day.data?.length ?? 0))} />
     </div>
     {canAdd && <SelfMarks hub={hub.id} date={date} onDone={() => void day.reload()} />}
+    {canAdd && <HubPlaceBox hub={hub} />}
     <section className="panel">
       <div className="da-bar"><h2>{L('আজকের হাজিরা খাতা', "Today's attendance")}</h2>
         {canAdd && staff.data?.some(e => !byEmp[e.id]) && <button className="secondary sm" onClick={() => void allPresent()}>{L('বাকি সবাই উপস্থিত', 'Rest are present')}</button>}</div>
@@ -140,6 +142,66 @@ function AttendanceToday({ hub }: { hub: Hub }) {
               : r ? ATT_STATUS[r.status] : <span className="muted">{L('দেওয়া হয়নি', 'Not marked')}</span>}</td></tr> })}</tbody></table></div>}
     </section>
   </>
+}
+
+/** Where the staff member was when they tapped "হাবে এসেছি": GPS against the hub, and the hub's Wi-Fi. */
+function PlaceChips({ st, dist, acc, wifi }: { st?: PlaceStatus | null; dist?: number | null; acc?: number | null; wifi?: boolean }) {
+  const { L, n } = usePrefs()
+  const p = st ? PLACE[st] : null
+  if (!p && !wifi) return null
+  return <span className="place-line">
+    {p && <span className={`place-chip t-${p[2]}`} title={acc != null ? L(`লোকেশন ±${n(acc)} মিটার`, `Location ±${acc} m`) : undefined}>
+      <Icon name="map" size={13} />{L(p[0], p[1])}{dist != null && st !== 'at_hub' ? ` · ${distText(dist, L, n)}` : ''}</span>}
+    {wifi && <span className="place-chip t-ok"><Icon name="globe" size={13} />{L('হাবের ওয়াইফাই', 'Hub Wi-Fi')}</span>}
+  </span>
+}
+
+/** The hub's location and Wi-Fi for the "at the hub?" check. Managers save the hub Wi-Fi; people who edit hubs set the GPS. */
+function HubPlaceBox({ hub }: { hub: Hub }) {
+  const { L, n } = usePrefs()
+  const { toast, node } = useToast()
+  const q = useLoad(() => presence.hubInfo(hub.id), [hub.id])
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
+  const v = q.data
+  async function run(f: () => Promise<unknown>, ok: string) {
+    setBusy(true); setErr('')
+    try { await f(); await q.reload(); toast(ok) } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
+  async function gpsHere() {
+    if (!window.confirm(L(`এখন যেখানে দাঁড়িয়ে আছেন সেটাই "${hub.name}"-এর লোকেশন হবে। আপনি কি হাবে আছেন?`, `Your current spot becomes "${hub.name}"'s location. Are you at the hub?`))) return
+    setBusy(true); setErr('')
+    const fix = await getFix(15000)
+    setBusy(false)
+    if (!fix) { setErr(L('ফোনের লোকেশন পাওয়া যায়নি — লোকেশন চালু করে অনুমতি দিন', 'Could not get the location — turn it on and allow it')); return }
+    await run(() => presence.setGps(hub.id, fix, null), L(`হাবের লোকেশন বসেছে (±${n(fix.accuracy)} মি)`, `Hub location saved (±${fix.accuracy} m)`))
+  }
+  async function radius() {
+    const r = window.prompt(L('কত মিটারের মধ্যে থাকলে "হাবে আছেন" ধরা হবে? (৩০–২০০০)', 'Within how many metres counts as "at the hub"? (30–2000)'), String(v?.radius_m ?? 150))
+    if (r === null) return
+    const x = Number(r); if (!Number.isFinite(x) || x < 30 || x > 2000) { setErr(L('৩০ থেকে ২০০০ এর মধ্যে দিন', 'Give 30 to 2000')); return }
+    await run(() => presence.setGps(hub.id, null, Math.round(x)), L('সেভ হয়েছে', 'Saved'))
+  }
+  if (q.error) return null
+  return <section className="panel hub-place">{node}
+    <div className="da-bar"><h2><Icon name="map" size={17} /> {L('হাবে আছেন কিনা — লোকেশন ও ওয়াইফাই', 'At the hub? — location & Wi-Fi')}</h2></div>
+    <p className="muted small">{L('স্টাফ "হাবে এসেছি" চাপলে ফোনের লোকেশন (ওয়াইফাই বা মোবাইল ডাটা যেভাবেই হোক) হাবের লোকেশনের সাথে মিলিয়ে উপরে দেখানো হয়: হাবে / কাছে / দূরে। হাবের ওয়াইফাই একবার সেভ করে রাখলে সেই নেট থেকে দিলে "হাবের ওয়াইফাই" দেখায়। এটা শুধু তথ্য — অনুমোদন আপনিই দেবেন।',
+      'When staff tap "I am at the hub", the phone’s location (Wi-Fi or mobile data) is compared with the hub’s: at / near / far. Save the hub Wi-Fi once and marks from it show "Hub Wi-Fi". Information only — you still approve.')}</p>
+    {!v ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : <div className="hub-place-rows">
+      <div className="nv-row static"><span className={`nv-av sd-i ${v.latitude != null ? 'g' : 'o'}`}><Icon name="map" size={20} /></span>
+        <span className="tx"><b>{v.latitude != null ? L('হাবের লোকেশন সেট আছে', 'Hub location is set') : L('হাবের লোকেশন সেট নেই', 'Hub location not set')}</b>
+          <span>{v.latitude != null ? L(`${n(v.radius_m)} মিটারের মধ্যে = হাবে আছেন`, `Within ${v.radius_m} m = at the hub`) : L('লোকেশন না থাকলে দূরত্ব মাপা যায় না', 'Without it distance cannot be measured')}</span></span>
+        {v.can_edit_gps && <span className="row-acts"><button className="secondary sm" disabled={busy} onClick={() => void gpsHere()}>{L('এখানেই হাব', 'Hub is here')}</button>
+          {v.latitude != null && <button className="secondary sm" disabled={busy} onClick={() => void radius()}>{L('দূরত্বের সীমা', 'Radius')}</button>}</span>}</div>
+      <div className="nv-row static"><span className={`nv-av sd-i ${v.wifi_count ? 'g' : 'o'}`}><Icon name="globe" size={20} /></span>
+        <span className="tx"><b>{v.wifi_count ? L(`হাবের ওয়াইফাই সেভ আছে (${n(v.wifi_count)}টি)`, `Hub Wi-Fi saved (${v.wifi_count})`) : L('হাবের ওয়াইফাই সেভ করা নেই', 'No hub Wi-Fi saved')}</b>
+          <span>{v.on_hub_wifi ? L('আপনি এখন হাবের ওয়াইফাইতে আছেন', 'You are on the hub Wi-Fi now') : L('হাবের ওয়াইফাইতে যুক্ত থেকে "এই ওয়াইফাই হাবের" চাপুন (মোবাইল ডাটায় নয়)', 'Connect to the hub Wi-Fi, then tap "This Wi-Fi is the hub’s" (not on mobile data)')}</span></span>
+        <span className="row-acts">{!v.on_hub_wifi && <button className="sm" disabled={busy || !v.have_ip} onClick={() => {
+            if (window.confirm(L('আপনি কি এখন হাবের ওয়াইফাইতে যুক্ত আছেন? (মোবাইল ডাটা হলে সেভ করবেন না)', 'Are you on the hub Wi-Fi now? (do not save on mobile data)'))) void run(() => presence.wifi(hub.id, 'add'), L('হাবের ওয়াইফাই সেভ হয়েছে', 'Hub Wi-Fi saved')) }}>{L('এই ওয়াইফাই হাবের', 'This Wi-Fi is the hub’s')}</button>}
+          {v.wifi_count > 0 && <button className="secondary sm" disabled={busy} onClick={() => void run(() => presence.wifi(hub.id, 'clear'), L('মুছে দেওয়া হয়েছে', 'Cleared'))}>{L('মুছুন', 'Clear')}</button>}</span></div>
+    </div>}
+    <p className="muted small">{L('ইন্টারনেট লাইনের ঠিকানা মাঝে মাঝে বদলায় — "হাবের ওয়াইফাই" না দেখালে আবার সেভ করুন।', 'The line’s internet address changes now and then — save again if "Hub Wi-Fi" stops showing.')}</p>
+    {err && <p className="da-error">{err}</p>}
+  </section>
 }
 
 /** Attendance staff gave themselves today: it goes on the register only when a manager approves it. */
@@ -171,6 +233,7 @@ function SelfMarks({ hub, date, onDone }: { hub: string; date: string; onDone: (
       <span className={`nv-av sd-i ${r.kind === 'present' ? 'g' : 'r'}`}><Icon name={r.kind === 'present' ? 'check' : 'log'} size={20} /></span>
       <span className="tx"><b>{r.full_name}{r.employee_code ? ` · ${r.employee_code}` : ''}</b>
         <span>{r.kind === 'present' ? `${L('হাবে এসেছেন', 'Arrived')} ${timeOf(r.marked_at)}` : `${L('আজ আসবেন না', 'Not coming')} — ${r.note ?? ''}`}</span>
+        {r.kind === 'present' && <PlaceChips st={r.place_status} dist={r.distance_m} acc={r.accuracy_m} wifi={r.wifi_match} />}
         {r.status !== 'waiting' && <span className="who">{r.status === 'approved' ? `${L('অনুমোদিত', 'Approved')}: ${DONE[r.decided_as ?? ''] ?? ''}` : `${L('ফেরত', 'Returned')}: ${r.decide_note ?? ''}`}{r.decided_by_name ? ` · ${r.decided_by_name}` : ''}</span>}</span>
       {r.status === 'waiting' ? <span className="self-acts">
         {r.kind === 'present' ? <>

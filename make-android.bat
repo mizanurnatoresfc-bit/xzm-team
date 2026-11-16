@@ -43,6 +43,8 @@ if errorlevel 1 echo    (icons skipped - the app still works with the default ic
 
 echo [5/6] Copying the pages into the Android project...
 call npx cap sync android
+rem location permission for the "at the hub?" check
+powershell -NoProfile -Command "$m='android\app\src\main\AndroidManifest.xml'; $t=Get-Content $m -Raw; if ($t -notmatch 'ACCESS_FINE_LOCATION') { $t=$t -replace '</manifest>', ('    <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />' + [Environment]::NewLine + '    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />' + [Environment]::NewLine + '</manifest>'); Set-Content $m $t -NoNewline }"
 if errorlevel 1 goto fail
 
 echo [6/6] Building the APK...

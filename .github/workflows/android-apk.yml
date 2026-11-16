@@ -78,6 +78,10 @@ jobs:
           if [ ! -d android ]; then npx cap add android; fi
           npx -y @capacitor/assets generate --android || echo "icons skipped"
           npx cap sync android
+          # location for "হাবে আছেন কিনা" (the page asks the phone for its location on Wi-Fi or mobile data)
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q ACCESS_FINE_LOCATION "$M" || sed -i 's|</manifest>|    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n</manifest>|' "$M"
+          grep -c LOCATION "$M"
           # the app's version: build number = this run, shown as 1.<run>
           sed -i -E "s/versionCode [0-9]+/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"1.${GITHUB_RUN_NUMBER}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle

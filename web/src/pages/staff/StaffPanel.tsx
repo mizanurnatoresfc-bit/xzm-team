@@ -15,6 +15,7 @@ import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { fleet } from '../../lib/fleet'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
+import { distText, getFix, PLACE, presence, type Presence } from '../../lib/presence'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
 /**
@@ -84,12 +85,28 @@ export function StaffPanel() {
   const [busy, setBusy] = useState(false)
   const [absent, setAbsent] = useState<string | null>(null)
   const [attErr, setAttErr] = useState('')
+  const [locating, setLocating] = useState(false)
+  const [here, setHere] = useState<Presence | null | 'none'>(null)
   async function give(kind: 'present' | 'absent', note?: string) {
     setBusy(true); setAttErr('')
     try {
-      await selfAtt.mark(kind, note); setAbsent(null); await d.reload()
+      // "হাবে এসেছি" carries the phone's location (Wi-Fi or mobile data) so the manager sees whether the person is at the hub.
+      let fix = null
+      if (kind === 'present') { setLocating(true); fix = await getFix(); setLocating(false) }
+      await selfAtt.mark(kind, note, fix); setAbsent(null); await d.reload()
       toast(kind === 'present' ? L('হাজিরা দেওয়া হয়েছে — ম্যানেজারের অনুমোদনের অপেক্ষায়', 'Given — waiting for the manager') : L('হাব ম্যানেজারকে জানানো হয়েছে', 'Your hub manager has been told'))
-    } catch (e) { setAttErr(selfAttFriendly(e)) } finally { setBusy(false) }
+    } catch (e) { setAttErr(selfAttFriendly(e)) } finally { setBusy(false); setLocating(false) }
+  }
+  async function whereAmI() {
+    setBusy(true); setAttErr(''); setLocating(true)
+    try { const fix = await getFix(); setLocating(false); setHere((await presence.check(fix)) ?? 'none') }
+    catch (e) { setAttErr(selfAttFriendly(e)) } finally { setBusy(false); setLocating(false) }
+  }
+  const placeLine = (st: string | null | undefined, dist: number | null | undefined, wifi: boolean | undefined) => {
+    const p = st ? PLACE[st as keyof typeof PLACE] : null
+    if (!p && !wifi) return null
+    return <span className="place-line">{p && <span className={`place-chip t-${p[2]}`}><Icon name="map" size={13} />{L(p[0], p[1])}{dist != null && st !== 'at_hub' ? ` · ${distText(dist, L, n)}` : ''}</span>}
+      {wifi && <span className="place-chip t-ok"><Icon name="globe" size={13} />{L('হাবের ওয়াইফাই', 'Hub Wi-Fi')}</span>}</span>
   }
   const claims = v?.claims ?? []
   const waitingBills = claims.filter(c => (c.status ?? 'submitted') === 'submitted')
@@ -138,14 +155,27 @@ export function StaffPanel() {
       <h2 className="sd-h">{L('আজকের হাজিরা', "Today's attendance")}</h2>
       <div className={`sp-card t-${attTone}`} id="sp-att">
         <span className="i"><Icon name={a ? 'check' : returned ? 'alert' : 'clock'} size={24} /></span>
-        <div className="tx"><b>{attTitle}</b><span>{attSub}</span></div>
+        <div className="tx"><b>{attTitle}</b><span>{attSub}</span>
+          {mark?.kind === 'present' && placeLine(mark.place_status, mark.distance_m, mark.wifi_match)}</div>
       </div>
+      {locating && <p className="muted small">{L('ফোনের লোকেশন নেওয়া হচ্ছে… (লোকেশন চালু রাখুন)', 'Getting the phone’s location… (keep location on)')}</p>}
       {attErr && <p className="da-error">{attErr}</p>}
       {!rec && <div className="nv-rows">
         {act('g', 'check', waiting?.kind === 'present' ? L('হাজিরা আবার দিন', 'Give it again') : L('হাবে এসেছি — হাজিরা দিই', 'I am at the hub — mark me'),
           L('চাপলেই হাজিরা যাবে, হাব ম্যানেজার অনুমোদন দেবেন', 'One tap; your hub manager approves it'), () => void give('present'), busy || !v?.me)}
         {act('p', 'log', L('আজ আসব না — কারণ জানাই', 'Not coming — give the reason'), L('কারণ লিখুন, হাব ম্যানেজার দেখবেন', 'Write the reason for your hub manager'),
           () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
+      </div>}
+      <div className="nv-rows">{act('b', 'map', L('আমি কি হাবে আছি? দেখুন', 'Am I at the hub? Check'),
+        L('ওয়াইফাই বা মোবাইল ডাটা — যেভাবেই হোক, ফোনের লোকেশন দিয়ে হাবের সাথে মিলিয়ে দেখায়', 'On Wi-Fi or mobile data — compares the phone’s location with the hub'), () => void whereAmI(), busy)}</div>
+      {here && <div className={`sp-card t-${here === 'none' ? 'w' : here.status === 'at_hub' || here.wifi ? 'g' : here.status === 'far' ? 'r' : 'w'}`}>
+        <span className="i"><Icon name="map" size={24} /></span>
+        <div className="tx">{here === 'none' ? <><b>{L('আপনার হাব পাওয়া যায়নি', 'Your hub was not found')}</b><span>{L('প্রোফাইলে হাব দেওয়া নেই', 'No hub on your profile')}</span></> : <>
+          <b>{here.hub_name}: {L(PLACE[here.status][0], PLACE[here.status][1])}{here.distance_m != null ? ` · ${distText(here.distance_m, L, n)}` : ''}</b>
+          <span>{[here.wifi ? L('হাবের ওয়াইফাই থেকে আছেন', 'You are on the hub’s Wi-Fi') : here.hub_has_wifi ? L('হাবের ওয়াইফাইতে নেই (মোবাইল ডাটা বা অন্য নেট)', 'Not on the hub’s Wi-Fi') : null,
+            here.status === 'no_gps' ? L('ফোনের লোকেশন চালু করে অনুমতি দিন', 'Turn on location and allow it') : null,
+            here.status === 'hub_no_gps' ? L('হাবের লোকেশন এখনো সেট করা হয়নি — ম্যানেজারকে জানান', 'The hub’s location is not set yet — tell your manager') : null,
+            here.accuracy_m != null && here.accuracy_m > 100 ? L(`লোকেশন আনুমানিক (±${n(here.accuracy_m)} মি)`, `Location is rough (±${here.accuracy_m} m)`) : null].filter(Boolean).join(' · ')}</span></>}</div>
       </div>}
       {canLeave && ok('/app/hr/leave') && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
       {absent !== null && <Modal title={L('আজ আসব না', 'Not coming today')} onClose={() => setAbsent(null)}

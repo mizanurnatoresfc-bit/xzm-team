@@ -1802,3 +1802,10 @@ button.nv-row:disabled{opacity:1}
 .hs-more{border:1px solid var(--border);border-radius:12px;padding:8px 12px;background:var(--surface)}
 .hs-more summary{cursor:pointer;display:flex;flex-direction:column;gap:2px}
 .hs-more[open] summary{margin-bottom:8px}
+/* At the hub? location + hub Wi-Fi chips */
+.place-line{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.place-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.place-chip.t-ok{background:var(--ok-bg);color:var(--ok-fg)}.place-chip.t-warn{background:var(--warn-bg);color:var(--warn-fg)}
+.place-chip.t-bad{background:var(--bad-bg);color:var(--bad-fg)}.place-chip.t-neutral{background:color-mix(in srgb,var(--muted) 16%,transparent);color:var(--muted)}
+.hub-place-rows{display:flex;flex-direction:column;gap:8px}
+.hub-place-rows .nv-row{flex-wrap:wrap}

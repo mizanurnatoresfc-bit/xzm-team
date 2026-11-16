@@ -1,6 +1,7 @@
 // Staff give their own attendance ("হাবে এসেছি" / "আজ আসব না"); it counts once the hub manager approves it.
 import { supabase } from './supabase'
 import { HrError } from './hr'
+import type { Fix, PlaceStatus } from './presence'
 
 export type SelfKind = 'present' | 'absent'
 export type SelfStatus = 'waiting' | 'approved' | 'rejected'
@@ -9,10 +10,12 @@ export type MyAttToday = {
   work_date: string
   record: { status: string; check_in: string | null; source: string } | null
   mark: { id: string; kind: SelfKind; note: string | null; marked_at: string; status: SelfStatus; decided_as: Decided | null
-    decide_note: string | null; decided_at: string | null; decided_by_name: string | null } | null
+    decide_note: string | null; decided_at: string | null; decided_by_name: string | null
+    place_status?: PlaceStatus | null; distance_m?: number | null; wifi_match?: boolean } | null
 }
 export type SelfMark = { id: string; employee_id: string; employee_code: string | null; full_name: string; kind: SelfKind; note: string | null
-  marked_at: string; status: SelfStatus; decided_as: Decided | null; decide_note: string | null; decided_at: string | null; decided_by_name: string | null }
+  marked_at: string; status: SelfStatus; decided_as: Decided | null; decide_note: string | null; decided_at: string | null; decided_by_name: string | null
+  place_status?: PlaceStatus | null; distance_m?: number | null; accuracy_m?: number | null; wifi_match?: boolean }
 
 async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
   const { data, error } = await supabase.rpc(fn, args)
@@ -26,6 +29,7 @@ const BN: Array<[RegExp, string]> = [
   [/reason for not coming/i, 'কেন আসছেন না, লিখুন'],
   [/turned down/i, 'কেন ফেরত দিচ্ছেন, লিখুন'],
   [/Your own attendance/i, 'নিজের হাজিরা অন্য ম্যানেজার অনুমোদন দেবেন'],
+  [/Bad location/i, 'ফোনের লোকেশন ঠিক আসেনি — আবার চেষ্টা করুন'],
   [/No active staff profile/i, 'আপনার লগইনের সাথে সক্রিয় কর্মী প্রোফাইল যুক্ত নেই'],
   [/may not approve|42501|permission denied/i, 'এই কাজের অনুমতি আপনার নেই'],
 ]
@@ -36,7 +40,8 @@ export const selfAttFriendly = (e: unknown) => {
 
 export const selfAtt = {
   mine: () => rpc<MyAttToday | null>('my_att_today'),
-  mark: (kind: SelfKind, note?: string) => rpc<string>('att_self_mark', { p_kind: kind, p_note: note || null }),
+  mark: (kind: SelfKind, note?: string, fix?: Fix | null) => rpc<string>('att_self_mark', { p_kind: kind, p_note: note || null,
+    p_lat: fix?.lat ?? null, p_lng: fix?.lng ?? null, p_accuracy: fix?.accuracy ?? null }),
   list: (hub: string, date: string) => rpc<SelfMark[]>('att_self_list', { p_hub: hub, p_date: date }),
   decide: (ids: string[], ok: boolean, as?: Decided | null, note?: string) =>
     rpc<number>('att_self_decide', { p_ids: ids, p_ok: ok, p_as: as ?? null, p_note: note || null }),

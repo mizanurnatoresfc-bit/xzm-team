@@ -239,3 +239,17 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   menu, linked from the staff panel): the hub's routes, people with call links, instructions, report form with photos (shrunk to 1600 px), reports + replies.
 - Tests: `supabase/tests/99zzzzzz_sorting_route_crew.sql` (35); smoke test menu count 6 → 7.
 - **To go live:** apply the migration on Supabase, then merge to `main`.
+
+## 2026-11-16 — "হাবে আছেন কিনা": location + hub Wi-Fi (information only)
+- Owner (16 Nov): "ওয়াইফাই বা ডাটা যেভাবেই হোক, হাবের কাছে বা হাবে আছেন — এই ইনফো পাওয়া যাবে।" It never blocks; the manager still approves.
+- Migration `20261116000900_hub_presence.sql`: `hubs.geo_radius_m` (default 150 m), `hubs.wifi_ips`; `attendance_self_marks` keeps
+  latitude/longitude/accuracy, `distance_m`, `place_status` (at_hub | near ≤1 km | far | no_gps | hub_no_gps), `client_ip`, `wifi_match`.
+  Wi-Fi = the public internet address the request came from (`private.client_ip()` from `x-forwarded-for`); a page cannot read the Wi-Fi name.
+  `att_self_mark(kind, note, lat, lng, accuracy)` replaces the two-argument form (old calls still work); `my_att_today` / `att_self_list` return the place
+  (the manager gets distance + verdict, not raw GPS); `hub_presence_check(lat, lng, acc)` for "আমি কি হাবে আছি?"; `hub_place_info` / `hub_place_save`
+  (Wi-Fi add/clear: hub managers with `hr.attendance.create`; GPS + radius: `org.hub.edit`). The notification to managers says where the person was.
+- UI: staff panel sends the phone location with "হাবে এসেছি" and has "আমি কি হাবে আছি? দেখুন"; hub attendance page shows chips per staff mark and a
+  "লোকেশন ও ওয়াইফাই" box ("এই ওয়াইফাই হাবের", "এখানেই হাব", radius).
+- Android: the APK build now adds ACCESS_COARSE/FINE_LOCATION to the manifest (workflow + make-android.bat) — **a new APK is needed** for the app;
+  the website works already. Tests: `supabase/tests/99zzzzzzz_hub_presence.sql` (17).
+- **To go live:** apply both migrations (`0800`, `0900`) on Supabase, merge to `main`, then build a new APK by hand from Actions.
