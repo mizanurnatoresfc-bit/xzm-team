@@ -194,3 +194,10 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `my_att_today()` feeds the staff panel. UI: hub page "আজকের হাজিরা খাতা" has a "স্টাফের দেওয়া হাজিরা" box above the register.
 - Tests: `supabase/tests/99zzzz_self_attendance.sql` (19). `99f_role_dashboards.sql` already fails on its "nine panels" count (the catalogue grew); not touched.
 - **To go live:** apply the migration on Supabase, then merge to `main` (site deploys itself; APK by hand from Actions).
+
+## 2026-11-16 — Vehicle pages taken off the website
+- Owner (16 Nov): "ওয়েবসাইট থেকে গাড়ি ফাংশান ডিলেট করে দেও — আমি যেটা চাই সেইটা আলাদা". Removed `pages/vehicles/Vehicles.tsx`, `lib/vehicles.ts`,
+  the "গাড়ি" menu part, "আমার গাড়ি", the vehicle quick actions and the settings link. `/app/vehicles/*` now goes to the home page.
+- **Database not touched:** vehicle tables, functions and data (migrations `0900`–`1100`) are still on Supabase. The vehicle picker in
+  sorting (route / fuel / trips) and in daily accounts (expense for a vehicle, "আমার নামে থাকা গাড়ি") still read the `vehicles` list.
+  The owner will describe the vehicle feature he wants instead.

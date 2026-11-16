@@ -335,6 +335,9 @@ try {
     check(await page.locator('.da-actionbar button').count() === 0 && (await page.locator('.da-actionbar').innerText()).includes('ডেইলি হিসাবের খাতা'), `${size}: the final "send to accounts" button waits until the daily sheet is opened`)
     await fits('accounts sheet')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
+    // the vehicle pages are off the website: no menu entries, and an old link goes to the home page
+    await page.goto(`${BASE}/app/vehicles/logs`); await page.waitForURL(/\/app$/, { timeout: 8000 }).catch(() => {})
+    check(/\/app$/.test(page.url()) && await page.locator('a[href^="/app/vehicles"]').count() === 0, `${size}: the vehicle pages are gone and an old link goes home`)
     // staff gave their own attendance: the manager approves it (as present or late) or returns it with a reason
     await page.goto(`${BASE}/app/hub/attendance`); await page.waitForSelector('.self-marks .nv-row', { timeout: 10000 }).catch(() => {})
     check(await page.locator('.self-marks .nv-row').count() === 2 && (await page.locator('.self-marks').innerText()).includes('জ্বর'), `${size}: the hub attendance page lists the attendance staff gave themselves`)
@@ -396,7 +399,7 @@ try {
         `${size}: the Super Admin's menu is three panels (staff, manager, zonal manager)`)
       check(!links.includes('/app/hub/accounts') && !links.includes('/app/hr') && !links.includes('/app/issues?tab=orders') && new Set(links).size === links.length,
         `${size}: pages that repeat another page are off the menu, and no page is listed twice`)
-      check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 7 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel is split into headed parts`)
+      check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel is split into headed parts`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-super.png` })
       const extras = async () => [await page.locator('.side a.nl[href="/app/training"]').count(), await page.locator('.nodi-fab').count(), await page.locator('.side a.nl[href="/app/nodi/chat"]').count()].join()
       asEmployee = true
