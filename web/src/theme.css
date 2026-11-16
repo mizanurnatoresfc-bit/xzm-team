@@ -1619,3 +1619,43 @@ button.nv-row:disabled{opacity:1}
 /* ---------- Menu: sub-headings inside the three panels ---------- */
 .nsec{margin:8px 0 2px;padding:0 10px;font-size:11.5px;font-weight:700;letter-spacing:.03em;color:var(--muted);text-transform:none}
 .ngi>.nsec:first-child{margin-top:2px}
+
+/* ============ স্টাফ প্যানেল (/app/staff): one phone screen for a staff member's own day ============ */
+.sp{display:flex;flex-direction:column;gap:12px;max-width:720px;margin:0 auto;width:100%}
+.sp .sd-h{margin-top:10px;font-size:14px}
+.sp-hero{display:flex;align-items:center;gap:14px;padding:18px 16px;border-radius:24px;text-decoration:none;color:#fff;
+  background:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 60%,#14b8a6))}
+.sp-hero:active,.sp-tile:active,.sp-cta:active,.sp .nv-row:active{transform:scale(.985)}
+.sp-hero .nv-av{width:54px;height:54px;font-size:22px;background:rgba(255,255,255,.2);color:#fff}
+.sp-hero .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.sp-hero .tx small{opacity:.85;font-size:12.5px}
+.sp-hero .tx b{font-size:19px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-hero .tx span{font-size:12.5px;opacity:.9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-att{flex:none;display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:999px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.2);color:#fff;white-space:nowrap}
+.sp-att.t-w{background:#fff;color:#92400E}.sp-att.t-r{background:#fff;color:#B91C1C}
+.sp-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.sp-tile{position:relative;display:flex;flex-direction:column;gap:2px;padding:14px;border-radius:20px;text-decoration:none;color:var(--text);min-width:0;transition:transform .12s}
+.sp-tile .i{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--surface);margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.sp-tile b{font-size:22px;line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sp-tile small{font-size:12.5px;color:var(--muted)}
+.sp-tile.t-g{background:var(--t-g)}.sp-tile.t-g .i{color:var(--t-g-fg)}.sp-tile.t-b{background:var(--t-b)}.sp-tile.t-b .i{color:var(--t-b-fg)}
+.sp-tile.t-o{background:var(--t-o)}.sp-tile.t-o .i{color:var(--t-o-fg)}.sp-tile.t-p{background:var(--t-p)}.sp-tile.t-p .i{color:var(--t-p-fg)}
+.sp-tile.off b{color:var(--muted)}.sp-tile .sp-soon{position:absolute;top:12px;right:12px}
+.sp-soon{flex:none;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--canvas);color:var(--muted);border:1px solid var(--border);white-space:nowrap}
+.sp .nv-row{transition:transform .12s}
+.sp .nv-row.none{opacity:.75}.sp .nv-row.none .tx b{color:var(--muted)}
+.sp-card{display:flex;align-items:center;gap:14px;padding:16px;border-radius:20px;background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow)}
+.sp-card .i{flex:none;width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:var(--warn-bg);color:var(--warn-fg)}
+.sp-card.t-g .i{background:var(--ok-bg);color:var(--ok-fg)}.sp-card.t-r .i{background:var(--bad-bg);color:var(--bad-fg)}
+.sp-card.t-b .i,.sp-card.t-p .i{background:var(--info-bg);color:var(--info-fg)}
+.sp-card .tx{min-width:0;display:flex;flex-direction:column;gap:2px}.sp-card .tx b{font-size:17px}.sp-card .tx span{font-size:13px;color:var(--muted)}
+.sp-cta{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;border-radius:18px;background:var(--primary);color:#fff;font-weight:700;font-size:16px;text-decoration:none;transition:transform .12s}
+.sp-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sp-box{border-radius:20px;background:var(--surface);border:1px solid var(--border);padding:14px;box-shadow:var(--shadow);min-width:0}
+.sp-box h3{display:flex;align-items:center;gap:6px;font-size:14px;margin:0 0 8px}.sp-box h3 .cnt{margin-left:auto;font-size:12px;color:var(--muted)}
+.sp-box ul{margin:0;padding-left:18px;font-size:13.5px;display:flex;flex-direction:column;gap:4px}
+.sp-box .myday-chips span{background:var(--canvas)}
+.sp .nodi-gaps{margin:0}
+@media (max-width:700px){.sp-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sp-two{grid-template-columns:1fr}}
+@media (max-width:380px){.sp-att{display:none}}
+@media (prefers-reduced-motion:reduce){.sp-hero,.sp-tile,.sp-cta,.sp .nv-row{transition:none;transform:none!important}}

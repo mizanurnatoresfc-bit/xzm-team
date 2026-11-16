@@ -34,7 +34,8 @@ process.on('exit', stop)
 for (let i = 0; i < 40; i++) { try { if ((await fetch(BASE)).ok) break } catch { /* not up yet */ } await new Promise(r => setTimeout(r, 250)) }
 
 const daSettings = JSON.parse(readFileSync(new URL('./fixtures/da_settings.json', import.meta.url), 'utf8'))
-const browser = await chromium.launch()
+// CHROME=/path/to/chrome uses a browser already on the machine instead of Playwright's own download.
+const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {})
 try {
   for (const [size, viewport] of [['pc', { width: 1366, height: 800 }], ['phone', { width: 390, height: 800 }]]) {
     // --- not signed in: every app page goes to the login screen
@@ -626,6 +627,19 @@ try {
     await fits('my profile')
     // staff desk: someone who acts only for themselves gets plain words instead of format names
     plainStaff = true
+    // staff panel: one screen with the person's whole day, in the owner's order
+    await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
+    await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
+    { const sp = await page.locator('.sp').innerText()
+      const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
+      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
+        `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
+      check(await page.locator('.sp a.nv-row[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
+    await fits('staff panel home')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-panel.png`, fullPage: true })
+    await page.locator('.sp-cta').click(); await page.waitForSelector('.da-modal', { timeout: 8000 }).catch(() => {})
+    check(await page.locator('.da-modal input[type=number]').count() === 1 && !page.url().includes('bill='), `${size}: "put up today's bill" opens the bill form at once`)
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-bill.png` })
     await page.goto(`${BASE}/app/hr/requests`); await page.waitForSelector('.sd .nv-row')
     await page.waitForFunction(() => document.querySelector('.sd')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
     { const desk = await page.locator('.sd').innerText()
