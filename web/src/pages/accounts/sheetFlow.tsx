@@ -185,7 +185,8 @@ export function MainSheet() {
   const { node } = useToast()
   const raw = sheet.data
   // the daily sheet adds up the accepted khatas only
-  const s = useMemo(() => raw ? onlyOf(raw, new Set((raw.collectors ?? []).filter(c => c.accepted_at).map(c => c.user_id))) : null, [raw])
+  // (a sheet opened before "Accept" existed has no accepted khata: everything on it counts, as it did then)
+  const s = useMemo(() => { if (!raw) return null; const ok = (raw.collectors ?? []).filter(c => c.accepted_at).map(c => c.user_id); return ok.length ? onlyOf(raw, new Set(ok)) : raw }, [raw])
   const cats = useMemo(() => new Map(((settings.data?.['da.expense_categories'] ?? []) as Category[]).map(c => [c.code, c.bn || c.en])), [settings.data])
 
   if (sheet.error) return <AccountsShell title="ডেইলি হিসাবের খাতা"><ErrorNote error={sheet.error} /><Link to="/app/accounts/daily">← তালিকায় ফিরুন</Link></AccountsShell>
