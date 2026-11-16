@@ -220,3 +220,22 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Note: the live database has migrations the repo does not (`manager_ledgers_rider_submit`, `cash_payments_refs_approvals_requests`,
   `fix_collector_trigger_generic`, `_2`), and live `da_save_expense`, `vehicle_assign`, `vehicle_day_save`, `vehicle_log_save` differ from the repo's.
   The fleet migration only calls them. Bring those into the repo when convenient.
+
+## 2026-11-16 — Sorting routes: locations, crew (name + number), hub → sorting reports
+- Owner (16 Nov): route panel takes locations and riders; driver / helper / manager for the hubs a route serves; hub managers and staff see those
+  people's names and numbers in their hub panel; "রিপোর্ট টু শটিং" with a parcel photo or text shows at the center as "হাব টু শটিং রিপোর্ট";
+  the center adds routes as instructions for every hub (Natore → Savar, → Rajshahi/Chapai, → Bogura/Rangpur).
+- Migration `20261116000800_sorting_route_crew.sql`: `sorting_routes.kind` (hub | linehaul), `return_time`, `instructions`; `sorting_route_hubs`
+  becomes the route's stops — a hub of ANY area or a free place (`place`, `latitude/longitude`, `arrive_time`, `instructions`; `hub_id` nullable).
+  New `sorting_route_crew` (driver/helper/manager/rider/supervisor/other, name + phone required, by Employee ID or typed, whole route or one stop,
+  ended with a reason) and `sorting_hub_reports` (kind, text, tracking, count, up to 6 photos in private bucket `sorting-reports`, open → seen → solved
+  with a reply). Both tables are read only through functions. Perms `sorting.hub_report.view` / `.reply` (zone roles for the area; hub roles count
+  only at the center's own hub). Functions: `sorting_route_save` (route + stops in one call), `sorting_crew_save` / `_end` (route driver follows the
+  crew), `sorting_routes_full`, `sorting_panel_hubs`, `sorting_hub_panel` (staff by their employee hub, managers by permission), `sorting_hub_report_submit`
+  (notifies the center), `sorting_hub_reports`, `sorting_hub_report_reply` (notifies the reporter; on "solved" the hub's staff), `sorting_hub_reports_open`.
+- UI: `/app/sorting/routes` rebuilt (cards with people per route / per stop, map with a coloured line per route, diagram, route editor with ready-made
+  routes, place list with approximate GPS in `lib/places.ts`, tap-on-map; "লোক এসাইন" modal; "স্মার্ট বিশ্লেষণ" = distance/time/ETA and missing
+  driver/helper/manager/GPS — computed in the browser, no outside AI). New tab `/app/sorting/hubreports`. New page `/app/hub-sorting` (always in the
+  menu, linked from the staff panel): the hub's routes, people with call links, instructions, report form with photos (shrunk to 1600 px), reports + replies.
+- Tests: `supabase/tests/99zzzzzz_sorting_route_crew.sql` (35); smoke test menu count 6 → 7.
+- **To go live:** apply the migration on Supabase, then merge to `main`.

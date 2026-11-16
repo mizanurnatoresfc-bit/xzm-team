@@ -6,19 +6,23 @@ import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { RouteViz } from '../../components/RouteViz'
+import { OsmMap } from '../../components/OsmMap'
+import { findPlace, PLACES, TEMPLATES } from '../../lib/places'
+import { AnalysisBox, CrewList, RoutesMap, startPoint } from './routeParts'
 import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly, type Hub } from '../../lib/hr'
 import { taka } from '../../lib/dailyAccounts'
 import { useOrg } from '../hr/common'
 import {
-  FUEL_KIND, FUEL_STATUS, HO_STATUS, ROLE, sorting, TRIP_STATUS,
-  type Center, type DriverReport, type EmpLite, type Fuel, type Handover, type Route, type RouteHub, type RouteReport, type StaffRow,
+  CREW_ROLE, FUEL_KIND, FUEL_STATUS, HO_STATUS, REPORT_KIND, REPORT_STATUS, ROLE, ROUTE_KIND, sorting, TRIP_STATUS,
+  type Center, type Crew, type CrewRole, type DriverReport, type EmpLite, type Fuel, type FullRoute, type Handover, type HubReport, type RouteHub, type RouteReport, type StaffRow,
 } from '../../lib/sorting'
 
-type Sec = 'dashboard' | 'routes' | 'staff' | 'fuel' | 'parcels' | 'drivers' | 'reports' | 'centers'
+type Sec = 'dashboard' | 'routes' | 'hubreports' | 'staff' | 'fuel' | 'parcels' | 'drivers' | 'reports' | 'centers'
 export const SORTING_SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: string; perms: string[] }> = [
   { key: 'dashboard', icon: 'dash', bn: 'শটিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
   { key: 'routes', icon: 'map', bn: 'শটিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
+  { key: 'hubreports', icon: 'alert', bn: 'হাব টু শটিং রিপোর্ট', en: 'Hub to sorting reports', perms: ['sorting.hub_report.view', 'sorting.hub_report.reply'] },
   { key: 'staff', icon: 'users', bn: 'শটিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
   { key: 'fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
   { key: 'parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
@@ -32,7 +36,7 @@ const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dha
 const monthStart = () => today().slice(0, 8) + '01'
 const num = (s: string) => { const v = Number(s); return s.trim() === '' || Number.isNaN(v) ? null : v }
 
-type Ctx = { center: Center; hubs: Hub[]; hubName: Record<string, string>; from: string; to: string }
+type Ctx = { center: Center; hubs: Hub[]; allHubs: Hub[]; hubName: Record<string, string>; from: string; to: string }
 
 export function Sorting() {
   const { section } = useParams()
@@ -53,7 +57,8 @@ export function Sorting() {
   const assigned = center ? zoneHubs.filter(h => h.sorting_center_id === center.id) : []
   const hubs = assigned.length ? assigned : zoneHubs
   const hubName = o.names.hub
-  const dated = ['dashboard', 'fuel', 'parcels', 'drivers', 'reports'].includes(sec.key)
+  const dated = ['dashboard', 'hubreports', 'fuel', 'parcels', 'drivers', 'reports'].includes(sec.key)
+  const allHubs = (o.data?.hubs ?? []).filter(h => !h.archived_at)
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={center ? center.name : undefined}>
     <section className="da-filters panel no-print hub-top">
@@ -73,7 +78,7 @@ export function Sorting() {
       : sec.key === 'centers' ? <Centers onChange={() => void centers.reload()} />
       : centers.data && !list.length ? <p className="notice">{L('এখনো কোনো শটিং সেন্টার নেই।', 'No sorting center yet.')} {can('sorting.center.create') && <Link to="/app/sorting/centers">{L('সেন্টার যোগ করুন →', 'Add one →')}</Link>}</p>
       : !center ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
-      : <Body sec={sec.key} ctx={{ center, hubs, hubName, from, to }} />}
+      : <Body sec={sec.key} ctx={{ center, hubs, allHubs, hubName, from, to }} />}
   </AppShell>
 }
 
@@ -81,6 +86,7 @@ function Body({ sec, ctx }: { sec: Sec; ctx: Ctx }) {
   switch (sec) {
     case 'dashboard': return <Dashboard ctx={ctx} />
     case 'routes': return <Routes ctx={ctx} />
+    case 'hubreports': return <HubReports ctx={ctx} />
     case 'staff': return <Staff ctx={ctx} />
     case 'fuel': return <FuelPage ctx={ctx} />
     case 'parcels': return <Parcels ctx={ctx} />
@@ -124,6 +130,7 @@ function Dashboard({ ctx }: { ctx: Ctx }) {
   const { L, n } = usePrefs()
   const d = useLoad(() => sorting.dashboard(ctx.center.id, ctx.from, ctx.to), [ctx.center.id, ctx.from, ctx.to])
   const rep = useLoad(() => sorting.report(ctx.center.id, ctx.from, ctx.to), [ctx.center.id, ctx.from, ctx.to])
+  const openRep = useLoad(() => sorting.openReports(ctx.center.id).catch(() => 0), [ctx.center.id])
   const v = d.data
   const g = (k: string) => Number(v?.[k] ?? 0)
   if (d.error) return <p className="da-error">{hrFriendly(d.error)}</p>
@@ -147,6 +154,8 @@ function Dashboard({ ctx }: { ctx: Ctx }) {
       <Stat icon="truck" label={L('ট্রিপ', 'Trips')} value={n(g('trips'))} sub={`${n(g('km'))} ${L('কিমি', 'km')} · ${L('সমস্যা', 'issues')} ${n(g('trips_late'))}`} />
       <Stat icon="map" label={L('রুট / হাব', 'Routes / hubs')} value={`${n(g('routes'))} / ${n(g('hubs'))}`} />
     </div>
+    {(openRep.data ?? 0) > 0 && <Link to="/app/sorting/hubreports" className="notice rep-alert"><Icon name="alert" size={16} />
+      {L(`হাব থেকে ${n(openRep.data ?? 0)}টি নতুন রিপোর্ট এসেছে — দেখুন`, `${openRep.data} new hub reports — open`)}</Link>}
     <div className="da-grid2" style={{ marginTop: 14 }}>
       <section className="panel"><h2>{L('রুট অনুযায়ী', 'By route')}</h2>
         {!byRoute.size ? <p className="muted">{L('এই সময়ে কিছু নেই।', 'Nothing in this period.')}</p> :
@@ -243,79 +252,284 @@ function Centers({ onChange }: { onChange: () => void }) {
 }
 
 // ---------------------------------------------------------------- routes
+type StopF = { key: string; id?: string; hub_id: string; place: string; lat: string; lng: string; arrive: string; instructions: string; can_charge: boolean }
+type RouteF = { id?: string; code: string; name: string; kind: 'hub' | 'linehaul'; vehicle_id: string; depart: string; ret: string; note: string; instructions: string; stops: StopF[] }
+const skey = () => Math.random().toString(36).slice(2, 9)
+
 function Routes({ ctx }: { ctx: Ctx }) {
   const { can } = useAuth()
   const { L, n } = usePrefs()
   const { toast, node } = useToast()
-  const routesQ = useLoad(() => sorting.routes(ctx.center.id), [ctx.center.id])
-  const rh = useLoad(() => sorting.routeHubs((routesQ.data ?? []).map(r => r.id)), [routesQ.data])
+  const q = useLoad(() => sorting.routesFull(ctx.center.id), [ctx.center.id])
   const vehicles = useLoad(() => sorting.vehicles().catch(() => []), [])
-  const drivers = useLoad(() => sorting.employeesByIds((routesQ.data ?? []).map(r => r.driver_id ?? '')).catch(() => [] as EmpLite[]), [routesQ.data])
-  const dName = Object.fromEntries((drivers.data ?? []).map(e => [e.id, e])) as Record<string, EmpLite>
-  const vName = Object.fromEntries((vehicles.data ?? []).map(v => [v.id, v.name])) as Record<string, string>
-  const hubsOf = (id: string) => (rh.data ?? []).filter(x => x.route_id === id)
-  type F = { id?: string; code: string; name: string; vehicle_id: string; driver: EmpLite | null; depart_time: string; note: string; hubs: Array<{ hub_id: string; can_charge: boolean }> }
-  const [f, setF] = useState<F | null>(null)
+  const routes = q.data?.routes ?? []
+  const start = startPoint(q.data?.center, routes)
+  const [f, setF] = useState<RouteF | null>(null)
+  const [crewFor, setCrewFor] = useState<string | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const [view, setView] = useState<'cards' | 'map' | 'lanes'>('cards')
+  const [pickFor, setPickFor] = useState<string | null>(null)
   const edit = can('sorting.center.edit')
+  const hubLabel = (id: string) => ctx.hubName[id] ?? ctx.allHubs.find(h => h.id === id)?.name ?? '—'
+
+  function openForm(r?: FullRoute) {
+    setErr(''); setPickFor(null)
+    setF(r ? { id: r.id, code: r.code, name: r.name, kind: r.kind, vehicle_id: r.vehicle_id ?? '', depart: r.depart_time?.slice(0, 5) ?? '', ret: r.return_time?.slice(0, 5) ?? '',
+      note: r.note ?? '', instructions: r.instructions ?? '',
+      stops: r.stops.map(s => ({ key: s.id, id: s.id, hub_id: s.hub_id ?? '', place: s.place ?? '', lat: s.hub_id ? '' : s.latitude?.toString() ?? '',
+        lng: s.hub_id ? '' : s.longitude?.toString() ?? '', arrive: s.arrive_time?.slice(0, 5) ?? '', instructions: s.instructions ?? '', can_charge: s.can_charge })) }
+      : { code: '', name: '', kind: 'hub', vehicle_id: '', depart: '', ret: '', note: '', instructions: '', stops: [] })
+  }
+  function applyTemplate(key: string) {
+    const t = TEMPLATES.find(x => x.key === key); if (!t || !f) return
+    setF({ ...f, name: f.name || L(t.bn, t.en).replace(/^নাটোর শটিং|^Natore sorting/, ctx.center.name), kind: t.kind, depart: f.depart || t.depart || '',
+      stops: t.stops.map(p => { const g = findPlace(p); return { key: skey(), hub_id: '', place: p, lat: g ? String(g.lat) : '', lng: g ? String(g.lng) : '', arrive: '', instructions: '', can_charge: false } }) })
+  }
+  const setStop = (key: string, patch: Partial<StopF>) => f && setF({ ...f, stops: f.stops.map(s => s.key === key ? { ...s, ...patch } : s) })
+  const moveStop = (key: string, d: -1 | 1) => {
+    if (!f) return
+    const i = f.stops.findIndex(s => s.key === key), j = i + d
+    if (j < 0 || j >= f.stops.length) return
+    const a = [...f.stops]; [a[i], a[j]] = [a[j], a[i]]; setF({ ...f, stops: a })
+  }
+  function placeBlur(s: StopF) {
+    if (s.lat || s.lng || !s.place.trim()) return
+    const g = findPlace(s.place); if (g) setStop(s.key, { lat: String(g.lat), lng: String(g.lng) })
+  }
   async function save() {
     if (!f) return
     if (f.name.trim().length < 2) return setErr(L('রুটের নাম দিন', 'Give the route name'))
-    if (!f.hubs.length) return setErr(L('অন্তত একটা হাব বেছে নিন', 'Choose at least one hub'))
+    if (!f.stops.length) return setErr(L('অন্তত একটা হাব বা লোকেশন দিন', 'Add at least one hub or location'))
+    if (f.stops.some(s => !s.hub_id && s.place.trim().length < 2)) return setErr(L('প্রতিটা লোকেশনের নাম দিন', 'Name every location'))
     setBusy(true); setErr('')
     try {
-      await sorting.saveRoute({ center_id: ctx.center.id, zone_id: ctx.center.zone_id, code: f.code.trim() || autoCode(f.name), name: f.name.trim(), vehicle_id: f.vehicle_id || null,
-        driver_id: f.driver?.id ?? null, depart_time: f.depart_time || null, note: f.note.trim() || null }, f.hubs, f.id)
-      setF(null); await routesQ.reload(); toast(L('রুট সেভ হয়েছে', 'Route saved'))
+      await sorting.saveRouteFull(ctx.center.id, { code: f.code.trim() || autoCode(f.name), name: f.name.trim(), kind: f.kind, vehicle_id: f.vehicle_id || null,
+        depart_time: f.depart || null, return_time: f.ret || null, note: f.note.trim() || null, instructions: f.instructions.trim() || null },
+        f.stops.map(s => ({ id: s.id, hub_id: s.hub_id || null, place: s.hub_id ? null : s.place.trim(), latitude: num(s.lat), longitude: num(s.lng),
+          arrive_time: s.arrive || null, instructions: s.instructions.trim() || null, can_charge: !!s.hub_id && s.can_charge })), f.id)
+      setF(null); await q.reload(); toast(L('রুট সেভ হয়েছে', 'Route saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
-  async function remove(r: Route) {
+  async function remove(r: FullRoute) {
     const why = window.prompt(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`)) ?? ''
     if (!why.trim()) return
-    try { await sorting.archiveRoute(r.id, why.trim()); await routesQ.reload() } catch (e) { setErr(hrFriendly(e)) }
+    try { await sorting.archiveRoute(r.id, why.trim()); await q.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
-  const [view, setView] = useState<'map' | 'list'>('map')
-  const toggleHub = (id: string) => f && setF({ ...f, hubs: f.hubs.some(h => h.hub_id === id) ? f.hubs.filter(h => h.hub_id !== id) : [...f.hubs, { hub_id: id, can_charge: false }] })
+  const times = (r: FullRoute) => [r.depart_time && `${L('ছাড়ে', 'Leaves')} ${r.depart_time.slice(0, 5)}`, r.return_time && `${L('ফেরে', 'Back')} ${r.return_time.slice(0, 5)}`].filter(Boolean).join(' · ')
+  const crewRoute = routes.find(r => r.id === crewFor) ?? null
+  const otherHubs = ctx.allHubs.filter(h => !ctx.hubs.some(x => x.id === h.id))
+  const pickStop = f?.stops.find(s => s.key === pickFor) ?? null
+
   return <>{node}
     <section className="panel">
-      <div className="da-bar"><h2>{L('শটিং টু হাব রুট', 'Sorting to hub routes')} <span className="count-pill">{n(routesQ.data?.length ?? 0)}</span></h2>
-        <span className="row-acts"><span className="da-seg"><button className={view === 'map' ? 'sm' : 'secondary sm'} onClick={() => setView('map')}><Icon name="map" size={14} />{L('ছবি', 'Map')}</button>
-          <button className={view === 'list' ? 'sm' : 'secondary sm'} onClick={() => setView('list')}><Icon name="table" size={14} />{L('তালিকা', 'List')}</button></span>
-        {edit && <button onClick={() => { setErr(''); setF({ code: '', name: '', vehicle_id: '', driver: null, depart_time: '', note: '', hubs: [] }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
-      {err && !f && <p className="da-error">{err}</p>}
-      {routesQ.data && !routesQ.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই।', 'No routes yet.')}</p> : view === 'map' ?
-        <RouteViz start={ctx.center.name} lanes={(routesQ.data ?? []).map(r => ({ id: r.id, code: r.code, name: r.name,
-          sub: [r.vehicle_id && vName[r.vehicle_id], r.driver_id && empLabel(dName[r.driver_id]), r.depart_time && `${L('ছাড়ে', 'Leaves')} ${r.depart_time.slice(0, 5)}`].filter(Boolean).join(' · '),
-          stops: hubsOf(r.id).map(h => ({ id: h.id, label: ctx.hubName[h.hub_id] ?? '—', flag: h.can_charge ? L('৳ খরচ হাব থেকে', '৳ cost from hub') : undefined })) }))} /> :
-        <div className="route-cards">{routesQ.data?.map(r => <article key={r.id} className="route-card">
-          <header><span className="ti"><Icon name="map" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.name}</b>
-            <div className="muted small">{[r.vehicle_id && vName[r.vehicle_id], r.driver_id && empLabel(dName[r.driver_id]), r.depart_time && `${L('ছাড়ে', 'Leaves')} ${r.depart_time.slice(0, 5)}`].filter(Boolean).join(' · ') || '—'}</div></div>
-            {edit && <span className="row-acts">
-              <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, code: r.code, name: r.name, vehicle_id: r.vehicle_id ?? '', driver: r.driver_id ? dName[r.driver_id] ?? null : null,
-                depart_time: r.depart_time?.slice(0, 5) ?? '', note: r.note ?? '', hubs: hubsOf(r.id).map(h => ({ hub_id: h.hub_id, can_charge: h.can_charge })) }) }}><Icon name="edit" size={14} /></button>
-              {can('sorting.center.archive') && <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span>}
-          </header>
-          <ol className="route-hubs">{hubsOf(r.id).map((h: RouteHub) => <li key={h.id}><span>{ctx.hubName[h.hub_id] ?? '—'}</span>
-            {h.can_charge && <Badge tone="info">{L('গাড়ি খরচ হাবের খাতা থেকে', 'Cost from hub sheet')}</Badge>}</li>)}</ol>
-        </article>)}</div>}
+      <div className="da-bar"><h2>{L('শটিং রুট', 'Sorting routes')} <span className="count-pill">{n(routes.length)}</span></h2>
+        <span className="row-acts"><span className="da-seg">
+          {([['cards', 'table', 'রুট ও লোক', 'Routes & people'], ['map', 'map', 'ম্যাপ', 'Map'], ['lanes', 'chart', 'ছবি', 'Diagram']] as const).map(([k, ic, b, e]) =>
+            <button key={k} className={view === k ? 'sm' : 'secondary sm'} onClick={() => setView(k)}><Icon name={ic} size={14} />{L(b, e)}</button>)}</span>
+        {edit && <button onClick={() => openForm()}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
+      <p className="muted small">{L('প্রতিটা রুটে হাব বা যেকোনো লোকেশন (যেমন সাভার, রাজশাহী) ক্রম অনুযায়ী। ড্রাইভার, হেল্পার, ম্যানেজার, রাইডার — পুরো রুটের জন্য বা নির্দিষ্ট স্টপের জন্য। রুটের হাবগুলোর ম্যানেজার ও স্টাফরা তাদের প্যানেলে নাম ও নাম্বার দেখতে পান।',
+        'Each route has hubs or any location (e.g. Savar, Rajshahi) in order. Driver, helper, manager, rider — for the whole route or one stop. Hub managers and staff on the route see the names and numbers in their panel.')}</p>
+      {err && !f && !crewFor && <p className="da-error">{err}</p>}
+      {q.error ? <p className="da-error">{hrFriendly(q.error)}</p> : !q.data ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
+      : !routes.length ? <p className="muted">{L('এখনো কোনো রুট নেই।', 'No routes yet.')} {edit && L('“নতুন রুট” চেপে তৈরি তালিকা (নাটোর → সাভার ইত্যাদি) থেকে শুরু করতে পারেন।', 'Tap “New route” to start from a ready-made one (Natore → Savar etc.).')}</p>
+      : view === 'map' ? <RoutesMap center={q.data.center} routes={routes} />
+      : view === 'lanes' ? <RouteViz start={ctx.center.name} lanes={routes.map(r => ({ id: r.id, code: r.code, name: r.name,
+          sub: [L(ROUTE_KIND[r.kind][0], ROUTE_KIND[r.kind][1]), r.vehicle, times(r), r.crew.filter(c => !c.stop_id).map(c => `${L(CREW_ROLE[c.role][0], CREW_ROLE[c.role][1])}: ${c.name}`).join(', ')].filter(Boolean).join(' · '),
+          stops: r.stops.map(s => ({ id: s.id, label: s.label, tone: s.hub_id ? undefined : 'warn' as const,
+            flag: [s.arrive_time?.slice(0, 5), r.crew.filter(c => c.stop_id === s.id).map(c => c.name).join(', ')].filter(Boolean).join(' · ') || undefined })) }))} />
+      : <div className="route-cards wide">{routes.map(r => {
+          const wide = r.crew.filter(c => !c.stop_id)
+          return <article key={r.id} className="route-card">
+            <header><span className="ti"><Icon name={r.kind === 'linehaul' ? 'truck' : 'map'} size={18} /></span>
+              <div style={{ flex: 1, minWidth: 0 }}><b>{r.name}</b>
+                <div className="muted small">{[L(ROUTE_KIND[r.kind][0], ROUTE_KIND[r.kind][1]), r.vehicle, times(r)].filter(Boolean).join(' · ')}</div></div>
+              {edit && <span className="row-acts">
+                <button className="sm" onClick={() => { setErr(''); setCrewFor(r.id) }}><Icon name="users" size={14} />{L('লোক এসাইন', 'Assign people')}</button>
+                <button className="secondary sm" aria-label={L('এডিট', 'Edit')} onClick={() => openForm(r)}><Icon name="edit" size={14} /></button>
+                {can('sorting.center.archive') && <button className="secondary sm" aria-label={L('ডিলিট', 'Delete')} onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span>}
+            </header>
+            {r.instructions && <p className="route-note"><Icon name="note" size={14} />{r.instructions}</p>}
+            <div><small className="muted">{L('পুরো রুটের লোক', 'Route crew')}</small><CrewList crew={wide} /></div>
+            <ol className="route-stops">{r.stops.map(s => <li key={s.id}>
+              <div className="rs-top"><b>{s.label}</b>
+                {!s.hub_id && <Badge tone="neutral">{L('লোকেশন', 'Location')}</Badge>}
+                {s.other_zone && <Badge tone="info">{L('অন্য এরিয়া', 'Other area')}</Badge>}
+                {s.can_charge && <Badge tone="info">{L('৳ হাবের খাতা থেকে', '৳ from hub sheet')}</Badge>}
+                {s.arrive_time && <span className="muted small">{L('পৌঁছায়', 'Arrives')} {s.arrive_time.slice(0, 5)}</span>}</div>
+              {s.instructions && <div className="muted small">{s.instructions}</div>}
+              {r.crew.some(c => c.stop_id === s.id) && <CrewList crew={r.crew.filter(c => c.stop_id === s.id)} />}
+            </li>)}</ol>
+            <AnalysisBox route={r} start={start} compact />
+          </article> })}</div>}
     </section>
+    {view === 'cards' && routes.length > 0 && <section className="panel"><h2>{L('রুট বিশ্লেষণ', 'Route check')}</h2>
+      <div className="route-cards wide">{routes.map(r => <div key={r.id} className="route-card"><b>{r.name}</b><AnalysisBox route={r} start={start} /></div>)}</div></section>}
+
+    {crewRoute && <CrewModal route={crewRoute} onClose={() => setCrewFor(null)} onChanged={() => void q.reload()} />}
+
     {f && <Modal wide title={f.id ? L('রুট এডিট', 'Edit route') : L('নতুন রুট', 'New route')} onClose={() => setF(null)}
-      actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
+      actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('সেভ', 'Save')}</button></>}>
+      {!f.id && <div className="tpl-row"><span className="muted small">{L('তৈরি রুট:', 'Ready-made:')}</span>
+        {TEMPLATES.map(t => <button key={t.key} type="button" className="secondary sm" onClick={() => applyTemplate(t.key)}><Icon name="map" size={13} />{L(t.bn, t.en)}</button>)}</div>}
       <div className="hr-form">
-        <Field label={L('রুটের নাম', 'Route name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={L('যেমন নাটোর → সিংড়া', 'e.g. Natore → Singra')} /></Field>
-        <Field label={L('ছাড়ার সময়', 'Leaves at')}><input type="time" value={f.depart_time} onChange={e => setF({ ...f, depart_time: e.target.value })} /></Field>
+        <Field label={L('রুটের নাম', 'Route name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={L('যেমন নাটোর → বগুড়া → রংপুর', 'e.g. Natore → Bogura → Rangpur')} /></Field>
+        <Field label={L('ধরন', 'Kind')}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as RouteF['kind'] })}>
+          {(Object.keys(ROUTE_KIND) as Array<RouteF['kind']>).map(k => <option key={k} value={k}>{L(ROUTE_KIND[k][0], ROUTE_KIND[k][1])}</option>)}</select></Field>
+        <Field label={L('ছাড়ার সময়', 'Leaves at')}><input type="time" value={f.depart} onChange={e => setF({ ...f, depart: e.target.value })} /></Field>
+        <Field label={L('ফেরার সময়', 'Back at')}><input type="time" value={f.ret} onChange={e => setF({ ...f, ret: e.target.value })} /></Field>
         <Field label={L('গাড়ি', 'Vehicle')}><select value={f.vehicle_id} onChange={e => setF({ ...f, vehicle_id: e.target.value })}><option value="">—</option>
           {vehicles.data?.map(v => <option key={v.id} value={v.id}>{v.name}{v.reg_no ? ` (${v.reg_no})` : ''}</option>)}</select></Field>
-        <EmpPicker label={L('ড্রাইভার (আইডি)', 'Driver (ID)')} value={f.driver} onPick={e => setF({ ...f, driver: e })} />
         <Field label={L('নোট', 'Note')}><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Field>
+        <Field label={L('সব হাবের জন্য নির্দেশনা', 'Instructions for every hub')} wide><textarea rows={3} value={f.instructions} onChange={e => setF({ ...f, instructions: e.target.value })}
+          placeholder={L('যেমন: রাত ৮টার মধ্যে ব্যাগ সিল করে রাখবেন; ভুল পার্সেল আলাদা ব্যাগে ফেরত দেবেন', 'e.g. seal bags by 8 pm; send wrong parcels back in a separate bag')} /></Field>
       </div>
-      <h3>{L('রুটের হাব (ক্রম অনুযায়ী টিক দিন)', 'Hubs on the route (tick in order)')}</h3>
-      <div className="pick-list">{ctx.hubs.map(h => { const on = f.hubs.find(x => x.hub_id === h.id); const i = f.hubs.findIndex(x => x.hub_id === h.id)
-        return <div key={h.id} className={`pick-row${on ? ' on' : ''}`}>
-          <label><input type="checkbox" checked={!!on} onChange={() => toggleHub(h.id)} /> {on ? <b>{n(i + 1)}.</b> : null} {h.name}</label>
-          {on && <label className="small"><input type="checkbox" checked={on.can_charge}
-            onChange={e => setF({ ...f, hubs: f.hubs.map(x => x.hub_id === h.id ? { ...x, can_charge: e.target.checked } : x) })} /> {L('গাড়ি খরচ এই হাবের খাতা থেকে নেওয়া যাবে', 'Vehicle cost may come from this hub’s sheet')}</label>}
-        </div> })}</div>
+
+      <h3>{L('স্টপ — হাব বা লোকেশন (ক্রম অনুযায়ী)', 'Stops — hub or location (in order)')}</h3>
+      <datalist id="sort-places">{PLACES.map(p => <option key={p.en} value={p.bn}>{p.en}</option>)}</datalist>
+      <div className="stop-edit">{f.stops.map((s, i) => <div key={s.key} className="stop-row">
+        <div className="stop-main"><b className="stop-no">{n(i + 1)}</b>
+          {s.hub_id ? <select value={s.hub_id} onChange={e => setStop(s.key, { hub_id: e.target.value })}>
+              <optgroup label={L('এই সেন্টারের হাব', 'This center’s hubs')}>{ctx.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</optgroup>
+              {otherHubs.length > 0 && <optgroup label={L('অন্য হাব', 'Other hubs')}>{otherHubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</optgroup>}
+              {!ctx.allHubs.some(h => h.id === s.hub_id) && s.hub_id && <option value={s.hub_id}>{hubLabel(s.hub_id)}</option>}</select>
+            : <input list="sort-places" value={s.place} placeholder={L('লোকেশনের নাম (যেমন সাভার)', 'Location (e.g. Savar)')} onChange={e => setStop(s.key, { place: e.target.value })} onBlur={() => placeBlur(s)} />}
+          <span className="row-acts">
+            <button type="button" className="secondary sm" disabled={i === 0} aria-label={L('উপরে', 'Up')} onClick={() => moveStop(s.key, -1)}>↑</button>
+            <button type="button" className="secondary sm" disabled={i === f.stops.length - 1} aria-label={L('নিচে', 'Down')} onClick={() => moveStop(s.key, 1)}>↓</button>
+            <button type="button" className="secondary sm" aria-label={L('সরান', 'Remove')} onClick={() => setF({ ...f, stops: f.stops.filter(x => x.key !== s.key) })}><Icon name="trash" size={13} /></button></span></div>
+        <div className="stop-more">
+          <Field label={L('পৌঁছানোর সময়', 'Arrives')}><input type="time" value={s.arrive} onChange={e => setStop(s.key, { arrive: e.target.value })} /></Field>
+          {!s.hub_id && <><Field label={L('অক্ষাংশ', 'Lat')}><input inputMode="decimal" value={s.lat} onChange={e => setStop(s.key, { lat: e.target.value })} /></Field>
+            <Field label={L('দ্রাঘিমাংশ', 'Lng')}><input inputMode="decimal" value={s.lng} onChange={e => setStop(s.key, { lng: e.target.value })} /></Field>
+            <button type="button" className={pickFor === s.key ? 'sm' : 'secondary sm'} style={{ alignSelf: 'flex-end' }} onClick={() => setPickFor(pickFor === s.key ? null : s.key)}><Icon name="map" size={13} />{L('ম্যাপে বসান', 'Pick on map')}</button></>}
+          {s.hub_id && <label className="small stop-chk"><input type="checkbox" checked={s.can_charge} onChange={e => setStop(s.key, { can_charge: e.target.checked })} /> {L('গাড়ি খরচ এই হাবের খাতা থেকে', 'Vehicle cost from this hub’s sheet')}</label>}
+          <Field label={L('এই স্টপের নির্দেশনা', 'Instructions at this stop')} wide><input value={s.instructions} onChange={e => setStop(s.key, { instructions: e.target.value })} /></Field>
+        </div>
+      </div>)}</div>
+      {pickStop && <div style={{ marginTop: 8 }}><p className="muted small">{L(`ম্যাপে চাপ দিয়ে “${pickStop.place || '—'}”-এর জায়গা বসান`, `Tap the map to place “${pickStop.place || '—'}”`)}</p>
+        <OsmMap height={280} pins={num(pickStop.lat) !== null && num(pickStop.lng) !== null ? [{ id: 'p', lat: num(pickStop.lat)!, lng: num(pickStop.lng)!, label: pickStop.place, tone: 'sel' }] : []}
+          onPick={(la, lo) => setStop(pickStop.key, { lat: String(la), lng: String(lo) })} /></div>}
+      <div className="row-acts" style={{ marginTop: 8 }}>
+        <select value="" onChange={e => { if (e.target.value) setF({ ...f, stops: [...f.stops, { key: skey(), hub_id: e.target.value, place: '', lat: '', lng: '', arrive: '', instructions: '', can_charge: false }] }) }}>
+          <option value="">{L('+ হাব যোগ করুন…', '+ Add a hub…')}</option>
+          <optgroup label={L('এই সেন্টারের হাব', 'This center’s hubs')}>{ctx.hubs.filter(h => !f.stops.some(s => s.hub_id === h.id)).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</optgroup>
+          {otherHubs.length > 0 && <optgroup label={L('অন্য হাব', 'Other hubs')}>{otherHubs.filter(h => !f.stops.some(s => s.hub_id === h.id)).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</optgroup>}
+        </select>
+        <button type="button" className="secondary" onClick={() => setF({ ...f, stops: [...f.stops, { key: skey(), hub_id: '', place: '', lat: '', lng: '', arrive: '', instructions: '', can_charge: false }] })}>
+          <Icon name="plus" size={14} />{L('লোকেশন যোগ করুন', 'Add a location')}</button>
+      </div>
+      <p className="muted small">{L('লোকেশনের নাম লিখলে চেনা জায়গার জিপিএস নিজে বসে (আনুমানিক) — দরকার হলে ম্যাপে চেপে ঠিক করুন। হাবের জিপিএস হাবের তালিকা থেকে আসে।',
+        'Known places fill their GPS (approximate) — adjust on the map if needed. A hub’s GPS comes from the hub list.')}</p>
+      {err && <p className="da-error">{err}</p>}
+    </Modal>}
+  </>
+}
+
+/** Assign driver / helper / manager / rider to a route or one stop — by employee ID or by name + number. */
+function CrewModal({ route, onClose, onChanged }: { route: FullRoute; onClose: () => void; onChanged: () => void }) {
+  const { L } = usePrefs()
+  const { toast, node } = useToast()
+  type F = { role: CrewRole; stop: string; emp: EmpLite | null; name: string; phone: string; note: string }
+  const blank = (): F => ({ role: 'driver', stop: '', emp: null, name: '', phone: '', note: '' })
+  const [f, setF] = useState<F>(blank)
+  const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  async function add() {
+    if (!f.emp && f.name.trim().length < 2) return setErr(L('এমপ্লয়ি আইডি অথবা নাম দিন', 'Give an employee ID or a name'))
+    if (!f.emp?.mobile && f.phone.replace(/\D/g, '').length < 6) return setErr(L('মোবাইল নাম্বার দিন', 'Give the mobile number'))
+    setBusy(true); setErr('')
+    try {
+      await sorting.saveCrew({ route: route.id, role: f.role, name: f.name.trim() || null, phone: f.phone.trim() || null, employeeCode: f.emp?.employee_code ?? null,
+        stop: f.stop || null, note: f.note.trim() || null })
+      setF({ ...blank(), role: f.role, stop: f.stop }); onChanged(); toast(L('এসাইন হয়েছে', 'Assigned'))
+    } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
+  async function end(c: Crew) {
+    const why = window.prompt(L(`${c.name} — কেন সরাচ্ছেন?`, `${c.name} — why remove?`))
+    if (why === null) return
+    try { await sorting.endCrew(c.id, why.trim() || null); onChanged() } catch (e) { setErr(hrFriendly(e)) }
+  }
+  return <Modal wide title={L(`লোক এসাইন — ${route.name}`, `Assign people — ${route.name}`)} onClose={onClose}
+    actions={<button className="secondary" onClick={onClose}>{L('বন্ধ', 'Close')}</button>}>{node}
+    <div className="crew-groups">
+      <div><h3>{L('পুরো রুট', 'Whole route')}</h3><CrewList crew={route.crew.filter(c => !c.stop_id)} onEnd={c => void end(c)} /></div>
+      {route.stops.map(s => <div key={s.id}><h3>{s.label}</h3><CrewList crew={route.crew.filter(c => c.stop_id === s.id)} empty={L('এই স্টপে আলাদা কেউ নেই', 'Nobody just for this stop')} onEnd={c => void end(c)} /></div>)}
+    </div>
+    <h3>{L('নতুন এসাইন', 'Assign someone')}</h3>
+    <div className="hr-form">
+      <Field label={L('কাজ', 'Role')}><select value={f.role} onChange={e => setF({ ...f, role: e.target.value as CrewRole })}>
+        {(Object.keys(CREW_ROLE) as CrewRole[]).map(k => <option key={k} value={k}>{L(CREW_ROLE[k][0], CREW_ROLE[k][1])}</option>)}</select></Field>
+      <Field label={L('কোথায়', 'Where')}><select value={f.stop} onChange={e => setF({ ...f, stop: e.target.value })}>
+        <option value="">{L('পুরো রুট', 'Whole route')}</option>{route.stops.map(s => <option key={s.id} value={s.id}>{L('শুধু', 'Only')} {s.label}</option>)}</select></Field>
+      <EmpPicker label={L('এমপ্লয়ি আইডি (থাকলে)', 'Employee ID (if any)')} value={f.emp} onPick={e => setF({ ...f, emp: e, name: e?.full_name ?? f.name, phone: e?.mobile ?? f.phone })}
+        hint={L('আইডি না থাকলে নিচে নাম ও নাম্বার লিখুন', 'No ID? Type the name and number below')} />
+      <Field label={L('নাম', 'Name')} required><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
+      <Field label={L('মোবাইল নাম্বার', 'Mobile number')} required><input inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="01XXXXXXXXX" /></Field>
+      <Field label={L('নোট', 'Note')}><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder={L('যেমন রাতের শিফট', 'e.g. night shift')} /></Field>
+    </div>
+    {err && <p className="da-error">{err}</p>}
+    <div className="row-acts" style={{ marginTop: 8 }}><button disabled={busy} onClick={() => void add()}><Icon name="plus" size={14} />{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('এসাইন করুন', 'Assign')}</button></div>
+  </Modal>
+}
+
+// ---------------------------------------------------------------- hub → sorting reports
+function HubReports({ ctx }: { ctx: Ctx }) {
+  const { can } = useAuth()
+  const { L, n, lang } = usePrefs()
+  const { toast, node } = useToast()
+  const [status, setStatus] = useState<'' | HubReport['status']>('')
+  const q = useLoad(() => sorting.hubReports(ctx.center.id, ctx.from, ctx.to, status || null), [ctx.center.id, ctx.from, ctx.to, status])
+  const rows = q.data ?? []
+  const urls = useLoad(() => sorting.reportPhotoUrls(rows.flatMap(r => r.photos)).catch(() => ({} as Record<string, string>)), [q.data])
+  const [rp, setRp] = useState<{ row: HubReport; status: HubReport['status']; reply: string } | null>(null)
+  const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const focus = new URLSearchParams(window.location.search).get('id')
+  async function send() {
+    if (!rp) return
+    setBusy(true); setErr('')
+    try { await sorting.replyReport(rp.row.id, rp.status, rp.reply.trim() || null); setRp(null); await q.reload(); toast(L('জানানো হয়েছে', 'Sent')) }
+    catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
+  const when = (t: string) => new Date(t).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
+  const cnt = (s: HubReport['status']) => rows.filter(r => r.status === s).length
+  const replier = can('sorting.hub_report.reply') || can('sorting.parcel.create')
+  return <>{node}
+    <div className="da-stats">
+      <Stat icon="alert" tone={cnt('open') ? 'warn' : undefined} label={L('নতুন রিপোর্ট', 'New reports')} value={n(cnt('open'))} />
+      <Stat icon="eye" label={L('দেখা হয়েছে', 'Seen')} value={n(cnt('seen'))} />
+      <Stat icon="check" tone="ok" label={L('সমাধান', 'Solved')} value={n(cnt('solved'))} />
+      <Stat icon="hub" label={L('হাব', 'Hubs')} value={n(new Set(rows.map(r => r.hub_id)).size)} />
+    </div>
+    <section className="panel">
+      <div className="da-bar"><h2>{L('হাব টু শটিং রিপোর্ট', 'Hub to sorting reports')}</h2>
+        <span className="da-seg">{([['', 'সব', 'All'], ['open', 'নতুন', 'New'], ['seen', 'দেখা', 'Seen'], ['solved', 'সমাধান', 'Solved']] as const).map(([k, b, e]) =>
+          <button key={k} className={status === k ? 'sm' : 'secondary sm'} onClick={() => setStatus(k)}>{L(b, e)}</button>)}</span></div>
+      <p className="muted small">{L('হাবের ম্যানেজার ও স্টাফরা পার্সেলের ছবি বা লিখে যা জানিয়েছেন। নতুনগুলো তারিখ যা-ই হোক সবসময় দেখায়।', 'What hub managers and staff sent with photos or text. New ones always show, whatever the dates.')}</p>
+      {err && !rp && <p className="da-error">{err}</p>}
+      {q.error ? <p className="da-error">{hrFriendly(q.error)}</p> : !q.data ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
+      : !rows.length ? <p className="muted">{L('কোনো রিপোর্ট নেই।', 'No reports.')}</p>
+      : <div className="rep-list">{rows.map(r => <article key={r.id} className={`rep-card${focus === r.id ? ' on' : ''}`}>
+          <header><span className={`rep-ic k-${r.kind}`}><Icon name={REPORT_KIND[r.kind][2]} size={16} /></span>
+            <div className="rep-h"><b>{r.hub_name} · {L(REPORT_KIND[r.kind][0], REPORT_KIND[r.kind][1])}</b>
+              <small className="muted">#{r.no} · {when(r.created_at)}{r.reporter_name ? ` · ${r.reporter_name}` : ''}{r.route_name ? ` · ${r.route_name}` : ''}</small></div>
+            <Badge tone={REPORT_STATUS[r.status][2]}>{L(REPORT_STATUS[r.status][0], REPORT_STATUS[r.status][1])}</Badge></header>
+          {r.body && <p className="pre-wrap">{r.body}</p>}
+          {(r.tracking || r.parcel_count != null) && <p className="muted small">{[r.parcel_count != null && `${L('পার্সেল', 'Parcels')}: ${n(r.parcel_count)}`, r.tracking && `${L('ট্র্যাকিং', 'Tracking')}: ${r.tracking}`].filter(Boolean).join(' · ')}</p>}
+          {r.photos.length > 0 && <div className="rep-photos">{r.photos.map(p => urls.data?.[p] ? <a key={p} href={urls.data[p]} target="_blank" rel="noreferrer"><img src={urls.data[p]} alt={L('পার্সেলের ছবি', 'Parcel photo')} loading="lazy" /></a>
+            : <span key={p} className="rep-ph-wait"><Icon name="eye" size={16} /></span>)}</div>}
+          {r.reply && <p className="rep-reply"><b>{L('শটিংয়ের উত্তর', 'Sorting replied')}{r.replied_by_name ? ` (${r.replied_by_name})` : ''}:</b> {r.reply}</p>}
+          {replier && <div className="row-acts">
+            {r.status === 'open' && <button className="secondary sm" onClick={() => { setErr(''); setRp({ row: r, status: 'seen', reply: '' }) }}><Icon name="eye" size={14} />{L('দেখেছি', 'Seen')}</button>}
+            {r.status !== 'solved' && <button className="sm" onClick={() => { setErr(''); setRp({ row: r, status: 'solved', reply: '' }) }}><Icon name="check" size={14} />{L('সমাধান করেছি', 'Solved')}</button>}
+            {r.status === 'solved' && <button className="secondary sm" onClick={() => { setErr(''); setRp({ row: r, status: 'open', reply: '' }) }}>{L('আবার খুলুন', 'Reopen')}</button>}
+          </div>}
+        </article>)}</div>}
+    </section>
+    {rp && <Modal title={L(`${rp.row.hub_name} — উত্তর দিন`, `${rp.row.hub_name} — reply`)} onClose={() => setRp(null)}
+      actions={<><button className="secondary" onClick={() => setRp(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void send()}>{L('পাঠান', 'Send')}</button></>}>
+      <Field label={L('অবস্থা', 'Status')}><select value={rp.status} onChange={e => setRp({ ...rp, status: e.target.value as HubReport['status'] })}>
+        {(Object.keys(REPORT_STATUS) as Array<HubReport['status']>).map(k => <option key={k} value={k}>{L(REPORT_STATUS[k][0], REPORT_STATUS[k][1])}</option>)}</select></Field>
+      <Field label={L('উত্তর (হাব দেখবে)', 'Reply (the hub sees it)')}><textarea rows={3} value={rp.reply} onChange={e => setRp({ ...rp, reply: e.target.value })}
+        placeholder={L('যেমন: কাল সকালের গাড়িতে বদলে পাঠানো হবে', 'e.g. a replacement goes with tomorrow morning’s vehicle')} /></Field>
       {err && <p className="da-error">{err}</p>}
     </Modal>}
   </>

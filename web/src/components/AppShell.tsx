@@ -37,6 +37,7 @@ export const GROUPS: Group[] = [
       { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
       { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
       { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
+      { to: '/app/hub-sorting', icon: 'map', bn: 'শটিং রুট ও রিপোর্ট টু শটিং', en: 'Sorting routes & report to sorting', perms: null },
     ] },
   ]),
   panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
@@ -86,6 +87,7 @@ export const GROUPS: Group[] = [
     { bn: 'শটিং সেন্টার', en: 'Sorting centre', items: [
       { to: '/app/sorting/dashboard', icon: 'dash', bn: 'শটিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
       { to: '/app/sorting/routes', icon: 'map', bn: 'শটিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
+      { to: '/app/sorting/hubreports', icon: 'alert', bn: 'হাব টু শটিং রিপোর্ট', en: 'Hub to sorting reports', perms: ['sorting.hub_report.view', 'sorting.hub_report.reply'] },
       { to: '/app/sorting/staff', icon: 'users', bn: 'শটিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
       { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
       { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },

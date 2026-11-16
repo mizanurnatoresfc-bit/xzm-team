@@ -180,6 +180,9 @@ export function StaffPanel() {
             : <p className="muted small">{L('কোনো দায়িত্ব লেখা নেই', 'No duties written')}</p>}</div>
       </div>
 
+      <div className="nv-rows">{row('/app/hub-sorting', 'b', 'truck', L('শটিং রুট ও রিপোর্ট টু শটিং', 'Sorting routes & report to sorting'),
+        L('শটিংয়ের গাড়ির ড্রাইভার, হেল্পার, ম্যানেজারের নাম ও নাম্বার · পার্সেলের ছবি দিয়ে শটিংকে জানান', 'Names and numbers of the sorting vehicle’s driver, helper, manager · tell sorting with a parcel photo'))}</div>
+
       {(v?.car?.vehicles.length ?? 0) > 0 && <div className="nv-rows">{row('/app/fleet/mine', 'o', 'truck', `${L('আমার গাড়ি', 'My vehicle')} — ${v!.car!.vehicles[0].name}`,
         L('হাব রিপোর্ট, তেল/স্লিপ, সার্ভিস রিকুইজিশন, গ্যারেজ বিল ও খরচ', 'Hub report, fuel slip, service request, garage bills and costs'))}</div>}
 

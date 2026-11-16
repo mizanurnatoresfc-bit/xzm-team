@@ -58,6 +58,7 @@ const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ de
 const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.RoleEditor })))
 const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.Roles })))
 const Fleet = lazy(() => import('./pages/fleet/Fleet').then(m => ({ default: m.Fleet })))
+const HubSorting = lazy(() => import('./pages/sorting/HubSorting').then(m => ({ default: m.HubSorting })))
 const FleetMine = lazy(() => import('./pages/fleet/FleetMine').then(m => ({ default: m.FleetMine })))
 const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ default: m.StaffPanel })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
@@ -106,6 +107,7 @@ export default function App() {
       <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
+      <Route path="/app/hub-sorting" element={<HubSorting />} />
       <Route path="/app/hr/requests" element={<Requests />} />
       <Route path="/app/hr/duties" element={<Duties />} />
       <Route path="/app/hr/profile-gaps" element={<ProfileGaps />} />

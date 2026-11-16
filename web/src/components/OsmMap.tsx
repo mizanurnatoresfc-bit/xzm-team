@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEven
 
 /** A small OpenStreetMap view without any library: tiles, pins, zoom, drag, tap-to-pick. */
 export type MapPin = { id: string; lat: number; lng: number; label: string; tone?: 'ok' | 'off' | 'wait' | 'sel' }
+/** A drawn line through points in order (e.g. a sorting route: center → stop → stop). */
+export type MapLine = { id: string; color: string; points: Array<[number, number]>; dashed?: boolean; label?: string }
 
 const T = 256
 const wx = (lng: number, z: number) => ((lng + 180) / 360) * T * 2 ** z
@@ -15,9 +17,9 @@ const latOf = (y: number, z: number) => {
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))
 }
 
-export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus }: {
+export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus, lines }: {
   pins: MapPin[]; height?: number; selected?: string | null; onSelect?: (id: string) => void
-  onPick?: (lat: number, lng: number) => void; focus?: { lat: number; lng: number } | null
+  onPick?: (lat: number, lng: number) => void; focus?: { lat: number; lng: number } | null; lines?: MapLine[]
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(360)
@@ -82,6 +84,11 @@ export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus }
     {tiles.map(t => <img key={`${z}/${t.x}/${t.y}`} alt="" draggable={false} className="osm-tile"
       src={`https://tile.openstreetmap.org/${z}/${((t.x % n) + n) % n}/${t.y}.png`}
       style={{ left: t.x * T - left, top: t.y * T - top }} />)}
+    {lines?.length ? <svg className="osm-lines" width={w} height={height} aria-hidden="true">
+      {lines.map(l => <polyline key={l.id} fill="none" stroke={l.color} strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" opacity=".85"
+        strokeDasharray={l.dashed ? '8 7' : undefined} points={l.points.map(([la, lo]) => `${wx(lo, z) - left},${wy(la, z) - top}`).join(' ')}>
+        {l.label && <title>{l.label}</title>}</polyline>)}
+    </svg> : null}
     {groups.map(g => {
       const p = g[0]; const sel = g.some(x => x.id === selected)
       return <button key={p.id} type="button" className={`osm-pin t-${sel ? 'sel' : p.tone ?? 'ok'}`} title={g.map(x => x.label).join(', ')}

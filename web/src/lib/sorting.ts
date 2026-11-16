@@ -30,6 +30,44 @@ export type Dash = Record<string, number> & { staff_by_role: Record<string, numb
 export type RouteReport = { route_id: string | null; route_name: string; hub_id: string; hub_name: string; to_sorting: number; to_hub: number
   wrong: number; returned: number; damaged: number; not_received: number; disputed: number; fuel: number; trips: number; km: number }
 export type Vehicle = { id: string; code: string; name: string; reg_no: string | null }
+
+// ---- Routes with locations and crew; hub ↔ sorting panel; hub → sorting reports
+export type CrewRole = 'driver' | 'helper' | 'manager' | 'rider' | 'supervisor' | 'other'
+export type Stop = { id: string; seq: number; hub_id: string | null; hub_name: string | null; place: string | null; label: string
+  latitude: number | null; longitude: number | null; arrive_time: string | null; instructions: string | null; can_charge: boolean; other_zone: boolean }
+export type Crew = { id: string; role: CrewRole; name: string; phone: string; note: string | null; stop_id: string | null
+  employee_id: string | null; employee_code: string | null; since: string }
+export type FullRoute = { id: string; center_id: string; zone_id: string; code: string; name: string; kind: 'hub' | 'linehaul'
+  vehicle_id: string | null; vehicle: string | null; driver_id: string | null; depart_time: string | null; return_time: string | null
+  note: string | null; instructions: string | null; status: string; stops: Stop[]; crew: Crew[]; mine?: boolean }
+export type CenterInfo = { id: string; name: string; phone: string | null; address: string | null; home_hub_id?: string | null; latitude: number | null; longitude: number | null }
+export type RoutesFull = { center: CenterInfo; routes: FullRoute[] }
+export type StopInput = { id?: string; hub_id: string | null; place: string | null; latitude: number | null; longitude: number | null
+  arrive_time: string | null; instructions: string | null; can_charge: boolean }
+export type ReportKind = 'wrong' | 'damaged' | 'missing' | 'late' | 'extra' | 'other'
+export type HubReport = { id: string; no: number; hub_id?: string; hub_name?: string; route_id: string | null; route_name: string | null; kind: ReportKind
+  body: string | null; tracking: string | null; parcel_count: number | null; photos: string[]; status: 'open' | 'seen' | 'solved'
+  reply: string | null; replied_by_name: string | null; replied_at: string | null; reporter_name: string | null; created_at: string; mine?: boolean }
+export type HubPanel = { hub: { id: string; name: string; latitude: number | null; longitude: number | null }; center: CenterInfo | null
+  routes: FullRoute[]; reports: HubReport[] }
+export type PanelHub = { hub_id: string; hub_name: string; center_id: string | null; center_name: string | null; mine: boolean }
+
+export const CREW_ROLE: Record<CrewRole, [string, string, string]> = {
+  manager: ['ম্যানেজার', 'Manager', 'shield'], supervisor: ['সুপারভাইজার', 'Supervisor', 'shield'], driver: ['ড্রাইভার', 'Driver', 'truck'],
+  helper: ['হেল্পার', 'Helper', 'users'], rider: ['রাইডার', 'Rider', 'user'], other: ['অন্যান্য', 'Other', 'user'],
+}
+export const ROUTE_KIND: Record<FullRoute['kind'], [string, string]> = {
+  hub: ['হাব রুট (কাছের)', 'Hub route (local)'], linehaul: ['দূরের রুট (লাইনহল)', 'Long route (linehaul)'],
+}
+export const REPORT_KIND: Record<ReportKind, [string, string, string]> = {
+  wrong: ['ভুল পার্সেল', 'Wrong parcel', 'alert'], damaged: ['ড্যামেজ', 'Damaged', 'x'], missing: ['মিসিং / কম এসেছে', 'Missing / short', 'search'],
+  late: ['দেরিতে এসেছে', 'Came late', 'clock'], extra: ['বেশি এসেছে', 'Extra came', 'plus'], other: ['অন্যান্য', 'Other', 'note'],
+}
+export const REPORT_STATUS: Record<HubReport['status'], [string, string, 'warn' | 'info' | 'ok']> = {
+  open: ['নতুন', 'New', 'warn'], seen: ['শটিং দেখেছে', 'Seen by sorting', 'info'], solved: ['সমাধান হয়েছে', 'Solved', 'ok'],
+}
+/** A number people can tap to call (keeps + and digits). */
+export const telHref = (p: string) => `tel:${p.replace(/[^\d+]/g, '')}`
 export type EmpLite = { id: string; employee_code: string | null; full_name: string; mobile: string | null; position_id: string | null }
 
 export const ROLE: Record<string, [string, string, string]> = {
@@ -141,6 +179,34 @@ export const sorting = {
   },
   dashboard: (center: string, from: string, to: string) => rpc<Dash>('sorting_dashboard', { p_center: center, p_from: from, p_to: to }),
   report: (center: string, from: string, to: string) => rpc<RouteReport[]>('sorting_route_report', { p_center: center, p_from: from, p_to: to }),
+  routesFull: (center: string) => rpc<RoutesFull>('sorting_routes_full', { p_center: center }),
+  saveRouteFull: (center: string, route: { code: string; name: string; kind: string; vehicle_id: string | null; depart_time: string | null
+    return_time: string | null; note: string | null; instructions: string | null }, stops: StopInput[], id?: string) =>
+    rpc<string>('sorting_route_save', { p_center: center, p_route: route, p_stops: stops, p_id: id ?? null }),
+  saveCrew: (a: { route: string; role: CrewRole; name: string | null; phone: string | null; employeeCode: string | null; stop: string | null; note: string | null; id?: string }) =>
+    rpc<string>('sorting_crew_save', { p_route: a.route, p_role: a.role, p_name: a.name, p_phone: a.phone, p_employee_code: a.employeeCode,
+      p_stop: a.stop, p_note: a.note, p_id: a.id ?? null }),
+  endCrew: (id: string, reason: string | null) => rpc<void>('sorting_crew_end', { p_id: id, p_reason: reason }),
+  panelHubs: () => rpc<PanelHub[]>('sorting_panel_hubs'),
+  hubPanel: (hub: string | null) => rpc<HubPanel>('sorting_hub_panel', { p_hub: hub }),
+  uploadReportPhoto: async (file: File) => {
+    const { data: u } = await supabase.auth.getUser()
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `hubreport/${u.user?.id}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`
+    const { error } = await supabase.storage.from('sorting-reports').upload(path, file, { contentType: file.type || 'image/jpeg', upsert: false }); fail(error)
+    return path
+  },
+  reportPhotoUrls: async (paths: string[]) => {
+    if (!paths.length) return {} as Record<string, string>
+    const { data, error } = await supabase.storage.from('sorting-reports').createSignedUrls(paths, 600); fail(error)
+    return Object.fromEntries((data ?? []).filter(x => x.signedUrl).map(x => [x.path ?? '', x.signedUrl])) as Record<string, string>
+  },
+  submitReport: (a: { hub: string; kind: ReportKind; body: string | null; photos: string[]; tracking: string | null; parcels: number | null; route: string | null }) =>
+    rpc<string>('sorting_hub_report_submit', { p_hub: a.hub, p_kind: a.kind, p_body: a.body, p_photos: a.photos, p_tracking: a.tracking, p_parcels: a.parcels, p_route: a.route }),
+  hubReports: (center: string, from: string, to: string, status: string | null) =>
+    rpc<HubReport[]>('sorting_hub_reports', { p_center: center, p_from: from, p_to: to, p_status: status }),
+  replyReport: (id: string, status: HubReport['status'], reply: string | null) => rpc<void>('sorting_hub_report_reply', { p_id: id, p_status: status, p_reply: reply }),
+  openReports: (center: string) => rpc<number>('sorting_hub_reports_open', { p_center: center }),
   vehicles: async () => {
     const { data, error } = await supabase.from('vehicles').select('id, code, name, reg_no').is('archived_at', null).eq('status', 'active').order('name'); fail(error)
     return (data ?? []) as Vehicle[]
