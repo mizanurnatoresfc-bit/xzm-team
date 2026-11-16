@@ -252,8 +252,8 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   On a phone the login button sits in a fixed bar at the bottom. The dashboard's greeting card carries the motto too. All earlier wording is kept.
 - Fix found on the way: with the phone in dark mode and the theme on "system", the page background stayed light everywhere (a light-only rule was not limited to light).
 - **17 Nov — live:** office operations and fleet applied to Supabase (recorded as `office_operations`, `fleet`), `nodi-ai` v4 deployed, PR #33 merged.
-  The three kind-check swaps (vehicles, vehicle_logs, office_properties) need a DROP CONSTRAINT, which the MCP client stops for approval; they were given to the
-  owner as a small SQL to run in the SQL Editor. Until then: no auto / covered van vehicles, no খোরাকি lines, no garage / auto garage places.
+  The three kind-check swaps (vehicles, vehicle_logs, office_properties) were applied afterwards as migration `fleet_office_kinds` (owner approved).
+  Live and repo now match for fleet and office operations.
 
 ## 2026-11-17 — HR requests: native-style new request and a report builder
 - Owner (with a screenshot of the format cards): ID create / transfer / inactive→active / remove, modern Android look, easy and smart, reports in any format and style.
@@ -264,3 +264,10 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   rows and columns by kind, format, hub, status, month, day, sender, reference, decided or not; filters by hub, kind, status; list columns include the formats' own fields.
   "সেভ" keeps a named report on that device (localStorage). Table and list export to Excel / PDF / print. `hrReq.between(from, to)` reads up to 5000 rows.
 - No database change.
+
+## 2026-11-17 — Phone check of every page
+- Owner: "ওয়েব এর সকল কিছু মোবাইল ফ্রেন্ডলি করো". Every route (≈85, including each hub / sorting / office section and the request tabs) was opened at 360 px
+  with sample data and measured: sideways overflow, tap targets under 32 px, text under 11.5 px. No page overflowed sideways.
+- Fixed (`theme.css`, "phone polish" block): the নদী AI bubble moves to the bottom-left and shrinks on phones (it sat on pages' own "+ new" buttons);
+  attendance choices show as a 3 × 2 grid instead of a hidden sideways scroll; small ghost / link / icon buttons get 36–40 px height; 11 px labels become 12 px.
+- Not covered by the check: pages with large real data sets (only sample rows), and dialogs opened one by one beyond the office and request ones.
