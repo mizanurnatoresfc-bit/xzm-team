@@ -28,3 +28,13 @@ export const menuApi = {
   roles: async (): Promise<RoleMenu[]> => { const { data, error } = await supabase.rpc('role_menu_list'); if (error) throw error; return (data ?? []) as RoleMenu[] },
   save: async (role: string, menu: string[] | null) => { const { error } = await supabase.rpc('role_menu_save', { p_role: role, p_menu: menu }); if (error) throw error },
 }
+
+/**
+ * Which of the three panels a person belongs to, from what their role may do: 0 = staff, 1 = manager, 2 = zonal manager.
+ * The menu shows the panels up to this level; a few things (training centre, the AI helper, the first-steps box) are for level 2 only.
+ */
+export const panelLevel = (can: (p: string) => boolean): 0 | 1 | 2 =>
+  can('zonal.dashboard.view') || can('system.user.view') || can('hr.request.approve') ? 2
+    : can('hr.employee.view') || can('hr.attendance.create') || can('da.sheet.approve') ? 1 : 0
+/** Pages only the zonal manager's level gets in the menu (the owner asked for them to be off the manager's and staff's screens). */
+export const ZONE_ONLY = ['/app/training', '/app/nodi/chat']

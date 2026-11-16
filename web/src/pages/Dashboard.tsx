@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { hrReq } from '../lib/hrreq'
 import { NodiGaps } from '../components/NodiGaps'
 import { Link } from 'react-router-dom'
+import { panelLevel } from '../lib/menu'
 import { useAuth } from '../auth/AuthProvider'
 import { AppShell, useMyPhoto } from '../components/AppShell'
 import { Icon } from '../components/Icon'
@@ -71,7 +72,7 @@ export function Dashboard() {
     subtitle={d?.me?.employee_code ? `${L('আইডি', 'ID')} ${d.me.employee_code}${where ? ` — ${where}` : ''}` : L('আপনার রোল অনুযায়ী আজকের চিত্র', 'Today at a glance, for your role')}>
     {grants.length === 0 && <p className="notice">{L('আপনার অ্যাকাউন্টে এখনো কোনো রোল দেওয়া হয়নি। সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।', 'No role has been given to your account yet. Contact your system administrator.')}</p>}
     {home.error ? <p className="da-error">{dashboardFriendly(home.error)}</p> : null}
-    <FirstSteps photo={photo} />
+    {panelLevel(can) === 2 && <FirstSteps photo={photo} />}
     <NodiGaps />
     {home.loading && !d ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : null}
 
