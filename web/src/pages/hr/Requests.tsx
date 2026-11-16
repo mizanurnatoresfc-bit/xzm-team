@@ -6,7 +6,7 @@ import { AppShell, refreshShellCounts } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { hr, hrFriendly } from '../../lib/hr'
-import { FIELD_TYPES, KINDS, PREFILL, STATUS, hrReq, slugKey, type EmpRow, type FieldType, type HrRequest, type ReqField,
+import { FIELD_TYPES, KIND_HINT, KINDS, PREFILL, STATUS, hrReq, slugKey, type EmpRow, type FieldType, type HrRequest, type ReqField,
   type ReqFormat, type ReqKind, type ReqStatus } from '../../lib/hrreq'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { NewApplication, useOrg } from './common'
@@ -39,26 +39,42 @@ export function Requests() {
 }
 
 // ------------------------------------------------------------------ new request
+const HUB_KEY = 'xzm_rq_hub'
+const readHub = () => { try { return localStorage.getItem(HUB_KEY) || '' } catch { return '' } }
+/** Who a kind of request is for: active staff for transfer / inactive, the others for active again. */
+const fitsKind = (k: ReqKind | undefined, e: EmpRow) =>
+  k === 'id_active' ? e.status !== 'active' : k === 'id_transfer' || k === 'id_inactive' ? e.status === 'active' : true
+const EMP_ST: Record<string, [string, 'ok' | 'warn' | 'bad' | 'neutral']> = {
+  active: ['সক্রিয়', 'ok'], inactive: ['নিষ্ক্রিয়', 'warn'], suspended: ['সাসপেন্ড', 'warn'], resigned: ['চাকরি ছেড়েছেন', 'neutral'], terminated: ['অব্যাহতি', 'bad'],
+  pending: ['আইডির অপেক্ষায়', 'warn'], draft: ['খসড়া', 'neutral'],
+}
+
 function NewRequest({ onDone }: { onDone: (id: string) => void }) {
   const { can } = useAuth()
   const canOthers = can('hr.request.create')
   const o = useOrg()
-  const base = useLoad(async () => ({ formats: await hrReq.formats(), me: await hrReq.myEmployee().catch(() => null) }), [])
-  const [hub, setHub] = useState('')
+  const base = useLoad(async () => ({ formats: await hrReq.formats(), me: await hrReq.myEmployee().catch(() => null),
+    open: canOthers ? (await hrReq.list().catch(() => [] as HrRequest[])).filter(r => r.status === 'submitted' || r.status === 'processing') : [] }), [])
+  const [hub, setHubRaw] = useState(readHub)
+  const setHub = (v: string) => { setHubRaw(v); try { if (v) localStorage.setItem(HUB_KEY, v) } catch { /* private mode */ } }
   const [emp, setEmp] = useState<EmpRow | null>(null)
   const [fmtId, setFmtId] = useState('')
   const [data, setData] = useState<Record<string, string>>({})
   const [note, setNote] = useState('')
   const [ref, setRef] = useState<RefPerson | null>(null)
+  const [everyone, setEveryone] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const me = base.data?.me ?? null
   const formats = (base.data?.formats ?? []).filter(f => canOthers || f.self_service)
   const fmt = formats.find(f => f.id === fmtId) ?? null
   const staff = useLoad(() => (canOthers && hub ? hrReq.hubStaff(hub) : Promise.resolve([] as EmpRow[])), [hub, canOthers])
+  const hubs = o.data?.hubs ?? []
 
-  // Staff without "create" rights can only act for themselves.
-  useEffect(() => { if (!canOthers && me) { setEmp(me); setHub(me.hub_id ?? '') } }, [canOthers, me])
+  useEffect(() => { if (!canOthers && me) { setEmp(me); setHubRaw(me.hub_id ?? '') } }, [canOthers, me])
+  // A remembered hub that is gone, or none yet: start at one's own hub, or the only hub there is.
+  useEffect(() => { if (!canOthers || !hubs.length) return
+    if (!hubs.some(h => h.id === hub)) setHubRaw(me?.hub_id && hubs.some(h => h.id === me.hub_id) ? me.hub_id : hubs.length === 1 ? hubs[0].id : '') }, [hubs.length, me?.id])
   const hubName = (id: string | null) => o.names.hub[id ?? ''] ?? ''
   const posName = (id: string | null) => o.names.pos[id ?? ''] ?? ''
 
@@ -72,7 +88,6 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
       default: return String((e as unknown as Record<string, unknown>)[key] ?? '')
     }
   }
-  // Fill earlier data whenever the person or the format changes.
   useEffect(() => {
     if (!fmt) return
     const d: Record<string, string> = {}
@@ -81,12 +96,19 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fmtId, emp?.id, o.data])
 
+  const openByKind = (k: ReqKind) => (base.data?.open ?? []).filter(r => r.kind === k).length
+  const pending = emp ? (base.data?.open ?? []).filter(r => r.employee_id === emp.id) : []
+  const pick = (f: ReqFormat) => { setFmtId(f.id); setErr(''); if (emp && f.needs_employee && !fitsKind(f.kind, emp)) setEmp(null) }
+  const list = (staff.data ?? []).filter(x => x.id !== me?.id && (everyone || !fmt || fitsKind(fmt.kind, x)))
+  const hidden = (staff.data ?? []).length - list.length - (me && staff.data?.some(x => x.id === me.id) ? 1 : 0)
+
   async function submit() {
     if (!fmt) return
     setErr('')
     if (fmt.needs_employee && !emp) { setErr('স্টাফ বেছে নিন'); return }
     if (!fmt.needs_employee && !hub) { setErr('হাব বেছে নিন'); return }
     for (const f of fmt.fields) if (f.required && !String(data[f.key] ?? '').trim()) { setErr(`"${f.label}" ঘরটি পূরণ করুন`); return }
+    if (fmt.kind === 'id_transfer' && emp && data.to_hub && data.to_hub === emp.hub_id) { setErr('একই হাবে বদলি হয় না — নতুন হাব বেছে নিন'); return }
     setBusy(true)
     try {
       const id = await hrReq.submit({ format: fmt.id, employee: fmt.needs_employee ? emp!.id : null, hub: fmt.needs_employee ? emp!.hub_id : hub, data, note,
@@ -101,47 +123,66 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
   if (!canOthers && !me) return <section className="panel"><p className="notice">আপনার লগইনের সাথে কোনো কর্মী প্রোফাইল যুক্ত নেই। HR-কে বলুন।</p></section>
   if (!canOthers && me) return <StaffDesk me={me} formats={formats} onSent={onDone} />
 
-  return <div className="rq-new">
-    <section className="panel">
-      <h2 className="rq-h"><span className="rq-step">১</span>{canOthers ? 'হাব ও স্টাফ' : 'আমি'}</h2>
-      {canOthers ? <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label="হাব"><Combo value={hub} onChange={v => { setHub(v); setEmp(null) }} options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
-        <Field label="স্টাফ" hint={fmt && !fmt.needs_employee ? 'নতুন আইডির জন্য স্টাফ লাগবে না' : undefined}>
-          <Combo value={emp?.id ?? ''} disabled={!hub || (fmt ? !fmt.needs_employee : false)}
-            onChange={v => setEmp(v === me?.id ? me : staff.data?.find(x => x.id === v) ?? null)}
-            placeholder={hub ? (staff.loading ? 'লোড হচ্ছে…' : 'নাম, আইডি বা মোবাইল লিখে খুঁজুন…') : 'আগে হাব বাছুন'}
-            options={[...(me && me.hub_id === hub ? [{ value: me.id, label: `★ আমি — ${me.full_name}`, sub: me.employee_code ? `#${me.employee_code}` : '' }] : []),
-              ...(staff.data ?? []).filter(x => x.id !== me?.id).map(x => ({ value: x.id, label: x.full_name, keywords: x.mobile ?? '',
-                sub: [x.employee_code && `#${x.employee_code}`, posName(x.position_id), x.status !== 'active' ? x.status : ''].filter(Boolean).join(' · ') }))]} /></Field>
-      </div> : me && <div className="rq-me"><span className="rq-av">{me.full_name.slice(0, 1)}</span><div><b>{me.full_name}</b>
-        <div className="muted small">{me.employee_code ? `আইডি ${me.employee_code} · ` : ''}{hubName(me.hub_id)} · {posName(me.position_id)}</div></div></div>}
-    </section>
+  const kindOf = (f: ReqFormat) => KINDS[f.kind] ?? KINDS.custom
+  const st = emp ? EMP_ST[emp.status] ?? [emp.status, 'neutral' as const] : null
+  const summary = fmt ? [fmt.name, emp?.full_name, fmt.kind === 'id_transfer' && data.to_hub ? `→ ${hubName(data.to_hub)}` : null, !fmt.needs_employee ? hubName(hub) : null].filter(Boolean).join(' · ') : ''
 
-    <section className="panel">
-      <h2 className="rq-h"><span className="rq-step">২</span>ফরম্যাট</h2>
-      <div className="rq-formats">{formats.map(f => <button key={f.id} type="button" className={`rq-fmt t-${KINDS[f.kind]?.tone ?? 'o'}${fmtId === f.id ? ' on' : ''}`} onClick={() => setFmtId(f.id)}>
-        <span className="qi"><Icon name={KINDS[f.kind]?.icon ?? 'form'} size={20} /></span><b>{f.name}</b><small>{f.name_bn || f.description}</small></button>)}</div>
+  return <div className="rq-new">
+    <section className="panel rq-card">
+      <h2 className="rq-h"><span className="rq-step">১</span>কী করবেন?</h2>
+      <div className="rq-tiles">{formats.map(f => { const n = openByKind(f.kind)
+        return <button key={f.id} type="button" className={`rq-tile t-${kindOf(f).tone}${fmtId === f.id ? ' on' : ''}`} aria-pressed={fmtId === f.id} onClick={() => pick(f)}>
+          <span className="qi"><Icon name={kindOf(f).icon} size={20} /></span>
+          <span className="rq-tile-t"><b>{f.name}</b><small>{f.name_bn || KIND_HINT[f.kind] || f.description}</small></span>
+          {n > 0 && <span className="rq-tile-n" title="অপেক্ষমাণ">{n}</span>}
+          {fmtId === f.id && <span className="rq-tile-ok"><Icon name="check" size={14} /></span>}
+        </button> })}</div>
       {!formats.length && <p className="muted">কোনো ফরম্যাট নেই।</p>}
     </section>
 
-    {fmt && <section className="panel">
-      <h2 className="rq-h"><span className="rq-step">৩</span>{fmt.name} — তথ্য</h2>
-      {fmt.needs_employee && !emp ? <p className="notice">আগে স্টাফ বেছে নিন — তার আগের তথ্য নিজে বসে যাবে।</p> :
-        <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          {fmt.fields.map(f => <FieldInput key={f.key} f={f} value={data[f.key] ?? ''} locked={!!f.prefill && !!prefillOf(f.prefill, emp)}
-            hubs={o.data?.hubs ?? []} positions={o.data?.positions ?? []} onChange={v => setData(d => ({ ...d, [f.key]: v }))} />)}
-          <Field label="নোট (ঐচ্ছিক)" wide><textarea rows={2} value={note} onChange={e => setNote(e.target.value)} /></Field>
+    {fmt && <section className="panel rq-card">
+      <h2 className="rq-h"><span className="rq-step">২</span>{fmt.needs_employee ? 'কার জন্য?' : 'কোন হাবে?'}</h2>
+      <Field label="হাব"><Combo value={hub} onChange={v => { setHub(v); setEmp(null) }} options={hubs.map(h => ({ value: h.id, label: h.name }))} /></Field>
+      {fmt.needs_employee && <>
+        <Field label="স্টাফ" hint={hub && hidden > 0 && !everyone
+          ? <span>{fmt.kind === 'id_active' ? 'শুধু বন্ধ আইডি দেখাচ্ছে' : 'শুধু সক্রিয় আইডি দেখাচ্ছে'} · <button type="button" className="link-btn" onClick={() => setEveryone(true)}>সবাই দেখান ({hidden})</button></span> : undefined}>
+          <Combo value={emp?.id ?? ''} disabled={!hub}
+            onChange={v => setEmp(v === me?.id ? me : staff.data?.find(x => x.id === v) ?? null)}
+            placeholder={hub ? (staff.loading ? 'লোড হচ্ছে…' : 'নাম, আইডি বা মোবাইল লিখে খুঁজুন…') : 'আগে হাব বাছুন'}
+            options={[...(me && me.hub_id === hub ? [{ value: me.id, label: `★ আমি — ${me.full_name}`, sub: me.employee_code ? `#${me.employee_code}` : '' }] : []),
+              ...list.map(x => ({ value: x.id, label: x.full_name, keywords: x.mobile ?? '',
+                sub: [x.employee_code && `#${x.employee_code}`, posName(x.position_id), x.status !== 'active' ? EMP_ST[x.status]?.[0] ?? x.status : ''].filter(Boolean).join(' · ') }))]} /></Field>
+        {emp && st && <div className="rq-pcard">
+          <span className="rq-av">{emp.full_name.slice(0, 1)}</span>
+          <div className="rq-pcard-t"><b>{emp.full_name}</b>
+            <span className="muted small">{[emp.employee_code && `আইডি ${emp.employee_code}`, posName(emp.position_id), hubName(emp.hub_id)].filter(Boolean).join(' · ')}</span>
+            {emp.mobile && <a className="small" href={`tel:${emp.mobile}`}>{emp.mobile}</a>}</div>
+          <Badge tone={st[1]}>{st[0]}</Badge>
+          <button type="button" className="icon-btn" aria-label="বদলান" onClick={() => setEmp(null)}><Icon name="x" size={16} /></button>
         </div>}
+        {pending.length > 0 && <p className="notice small">এই কর্মীর {pending.map(p => p.request_no).join(', ')} আগেই অপেক্ষায় আছে — আবার পাঠানোর আগে দেখে নিন।</p>}
+        {emp && !fitsKind(fmt.kind, emp) && <p className="notice small">{fmt.kind === 'id_active' ? 'এই আইডি এখনই সক্রিয় আছে।' : 'এই আইডি এখন সক্রিয় নয়।'}</p>}
+      </>}
     </section>}
 
-    {fmt && <section className="panel">
-      <h2 className="rq-h"><span className="rq-step">৪</span>রেফারেন্স <span className="muted small">(ঐচ্ছিক — তাকে নোটিফিকেশন যাবে)</span></h2>
-      <PersonPicker value={ref} onChange={setRef} exclude={emp?.id} />
+    {fmt && (!fmt.needs_employee || emp) && <section className="panel rq-card">
+      <h2 className="rq-h"><span className="rq-step">৩</span>তথ্য <span className="muted small">— তালা চিহ্নের ঘর আগের তথ্য থেকে বসেছে</span></h2>
+      <div className="hr-form rq-form">
+        {fmt.fields.map(f => <FieldInput key={f.key} f={f} value={data[f.key] ?? ''} locked={!!f.prefill && !!prefillOf(f.prefill, emp)}
+          hubs={(o.data?.hubs ?? []).filter(h => !(f.key === 'to_hub' && emp && h.id === emp.hub_id))} positions={o.data?.positions ?? []} onChange={v => setData(d => ({ ...d, [f.key]: v }))} />)}
+        <Field label="নোট (ঐচ্ছিক)" wide><textarea rows={2} value={note} onChange={e => setNote(e.target.value)} /></Field>
+      </div>
     </section>}
+
+    {fmt && (!fmt.needs_employee || emp) && <details className="panel rq-card rq-more">
+      <summary><span className="rq-step sm">৪</span>রেফারেন্স যোগ করুন <span className="muted small">(ঐচ্ছিক — তাকে নোটিফিকেশন যাবে)</span>{ref && <Badge tone="ok">{ref.name}</Badge>}</summary>
+      <PersonPicker value={ref} onChange={setRef} exclude={emp?.id} />
+    </details>}
 
     {fmt && <div className="rq-submit">
       {err && <p className="da-error">{err}</p>}
-      <button disabled={busy || (fmt.needs_employee && !emp)} onClick={() => void submit()}><Icon name="check" size={18} />{busy ? 'পাঠানো হচ্ছে…' : 'সাবমিট করুন'}</button>
+      <div className="rq-submit-bar"><span className="rq-sum">{summary}</span>
+        <button disabled={busy || (fmt.needs_employee && !emp)} onClick={() => void submit()}><Icon name="check" size={18} />{busy ? 'পাঠানো হচ্ছে…' : 'সাবমিট করুন'}</button></div>
     </div>}
   </div>
 }
@@ -307,34 +348,182 @@ function RequestDetail({ r, format, people, hubName, onClose, onChanged }: { r: 
   </Modal>
 }
 
-// ------------------------------------------------------------------ report
+// ------------------------------------------------------------------ report: a builder — any rows × any columns, table / bars / list, saved presets
+type Dim = 'kind' | 'format' | 'hub' | 'status' | 'month' | 'day' | 'by' | 'ref' | 'decider'
+type Range = 'today' | '7d' | 'month' | 'lastmonth' | '90d' | 'all' | 'custom'
+type View = 'table' | 'bar' | 'list'
+type RepCfg = { name: string; range: Range; from: string; to: string; hub: string; kinds: ReqKind[]; statuses: ReqStatus[]; rows: Dim; cols: Dim | 'none'; view: View; fields: string[] }
+const DIMS: Record<Dim, string> = { kind: 'ধরন', format: 'ফরম্যাট', hub: 'হাব', status: 'অবস্থা', month: 'মাস', day: 'তারিখ', by: 'যিনি পাঠিয়েছেন', ref: 'রেফারেন্স', decider: 'সিদ্ধান্ত হয়েছে কি' }
+const RANGES: Record<Range, string> = { today: 'আজ', '7d': '৭ দিন', month: 'এই মাস', lastmonth: 'গত মাস', '90d': '৯০ দিন', all: 'সব সময়', custom: 'তারিখ বেছে' }
+const VIEWS: Record<View, [string, string]> = { table: ['টেবিল', 'table'], bar: ['বার চার্ট', 'chart'], list: ['তালিকা', 'log'] }
+const BASE_FIELDS: Record<string, string> = { no: 'নং', kind: 'ধরন', person: 'নাম', code: 'আইডি', hub: 'হাব', by: 'পাঠিয়েছেন', ref: 'রেফারেন্স', at: 'তারিখ', status: 'অবস্থা', result: 'ফলাফল', decision: 'সিদ্ধান্তের নোট' }
+const DEF_FIELDS = ['no', 'kind', 'person', 'code', 'hub', 'at', 'status']
+const PRESETS: RepCfg[] = [
+  { name: 'এই মাস: হাব × ধরন', range: 'month', from: '', to: '', hub: '', kinds: [], statuses: [], rows: 'hub', cols: 'kind', view: 'table', fields: DEF_FIELDS },
+  { name: 'অপেক্ষমাণ — কোন হাবে কত', range: 'all', from: '', to: '', hub: '', kinds: [], statuses: ['submitted', 'processing'], rows: 'hub', cols: 'status', view: 'bar', fields: DEF_FIELDS },
+  { name: 'মাস অনুযায়ী ধরন', range: '90d', from: '', to: '', hub: '', kinds: [], statuses: [], rows: 'month', cols: 'kind', view: 'table', fields: DEF_FIELDS },
+  { name: 'আজকের সব রিকুয়েস্ট', range: 'today', from: '', to: '', hub: '', kinds: [], statuses: [], rows: 'kind', cols: 'status', view: 'list', fields: DEF_FIELDS },
+  { name: 'কে কত পাঠিয়েছেন', range: 'month', from: '', to: '', hub: '', kinds: [], statuses: [], rows: 'by', cols: 'status', view: 'bar', fields: DEF_FIELDS },
+]
+const REP_KEY = 'xzm_rq_reports'
+const loadSaved = (): RepCfg[] => { try { return JSON.parse(localStorage.getItem(REP_KEY) || '[]') as RepCfg[] } catch { return [] } }
+const storeSaved = (l: RepCfg[]) => { try { localStorage.setItem(REP_KEY, JSON.stringify(l)) } catch { /* private mode */ } }
+const ymd = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
+function rangeDates(c: RepCfg): [string | null, string | null] {
+  const t = today(); const d = new Date(t + 'T00:00:00')
+  switch (c.range) {
+    case 'today': return [t, t]
+    case '7d': d.setDate(d.getDate() - 6); return [ymd(d), t]
+    case '90d': d.setDate(d.getDate() - 89); return [ymd(d), t]
+    case 'month': return [t.slice(0, 8) + '01', t]
+    case 'lastmonth': { const s = new Date(d.getFullYear(), d.getMonth() - 1, 1); const e = new Date(d.getFullYear(), d.getMonth(), 0); return [ymd(s), ymd(e)] }
+    case 'custom': return [c.from || null, c.to || null]
+    default: return [null, null]
+  }
+}
+const BAR_TONE = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
+
 function Report() {
   const { can } = useAuth()
+  const o = useOrg()
   const s = useLoad(() => hrReq.summary(), [])
-  const [scope, setScope] = useState<'mine' | 'decided' | 'all'>('mine')
-  if (s.error) return <p className="da-error">{hrFriendly(s.error)}</p>
-  const d = s.data
-  if (!d) return <p className="muted">লোড হচ্ছে…</p>
-  const sum = (m: Record<string, number>, f: (k: string) => boolean = () => true) => Object.entries(m).filter(([k]) => f(k)).reduce((a, [, v]) => a + v, 0)
-  const m = d[scope]
-  const cols: ReqStatus[] = ['submitted', 'processing', 'done', 'rejected', 'cancelled']
+  const [cfg, setCfg] = useState<RepCfg>(PRESETS[0])
+  const [saved, setSaved] = useState<RepCfg[]>(loadSaved)
+  const [edit, setEdit] = useState(false)
+  const [from, to] = rangeDates(cfg)
+  const q = useLoad(async () => {
+    const [rows, formats] = await Promise.all([hrReq.between(from, to), hrReq.formats(true)])
+    const ids = [...new Set(rows.flatMap(r => [r.employee_id, r.submitter_employee_id]).filter(Boolean) as string[])]
+    const people = await hrReq.employeesByIds(ids).catch(() => [] as EmpRow[])
+    return { rows, formats, people: Object.fromEntries(people.map(p => [p.id, p])) as Record<string, EmpRow> }
+  }, [from, to])
+  const set = (p: Partial<RepCfg>) => setCfg(c => ({ ...c, ...p }))
+  const d = q.data
+  const fmtById = useMemo(() => Object.fromEntries((d?.formats ?? []).map(f => [f.id, f])) as Record<string, ReqFormat>, [d])
+  const rows = (d?.rows ?? []).filter(r => (!cfg.hub || r.hub_id === cfg.hub) && (!cfg.kinds.length || cfg.kinds.includes(r.kind)) && (!cfg.statuses.length || cfg.statuses.includes(r.status)))
+  const person = (r: HrRequest) => r.data.full_name || d?.people[r.employee_id ?? '']?.full_name || '—'
+  const keyOf = (r: HrRequest, dim: Dim): string => {
+    switch (dim) {
+      case 'kind': return KINDS[r.kind]?.bn ?? r.kind
+      case 'format': return fmtById[r.format_id]?.name ?? r.kind
+      case 'hub': return o.names.hub[r.hub_id ?? ''] || '—'
+      case 'status': return STATUS[r.status].bn
+      case 'month': return new Date(r.created_at).toLocaleDateString('bn-BD', { timeZone: 'Asia/Dhaka', month: 'long', year: 'numeric' })
+      case 'day': return new Date(r.created_at).toLocaleDateString('bn-BD', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', year: 'numeric' })
+      case 'by': return d?.people[r.submitter_employee_id ?? '']?.full_name || '—'
+      case 'ref': return r.ref_name || '—'
+      case 'decider': return r.decided_at ? 'সিদ্ধান্ত হয়েছে' : 'এখনো হয়নি'
+    }
+  }
+  // Rows in a sensible order: time keys by time, the rest by count.
+  const sortKey = (r: HrRequest, dim: Dim) => dim === 'month' ? r.created_at.slice(0, 7) : dim === 'day' ? r.created_at.slice(0, 10) : ''
+  const pivot = useMemo(() => {
+    const rk = new Map<string, { label: string; sort: string; n: number }>(); const ck = new Map<string, number>(); const cell = new Map<string, number>()
+    for (const r of rows) {
+      const a = keyOf(r, cfg.rows); const b = cfg.cols === 'none' ? 'মোট' : keyOf(r, cfg.cols)
+      const x = rk.get(a) ?? { label: a, sort: sortKey(r, cfg.rows), n: 0 }; x.n++; rk.set(a, x)
+      ck.set(b, (ck.get(b) ?? 0) + 1); cell.set(a + '\u0001' + b, (cell.get(a + '\u0001' + b) ?? 0) + 1)
+    }
+    const timeDim = cfg.rows === 'month' || cfg.rows === 'day'
+    const rl = [...rk.values()].sort((x, y) => timeDim ? y.sort.localeCompare(x.sort) : y.n - x.n)
+    const cl = [...ck.entries()].sort((x, y) => y[1] - x[1]).map(([k]) => k)
+    return { rl, cl, at: (a: string, b: string) => cell.get(a + '\u0001' + b) ?? 0, colTotal: (b: string) => ck.get(b) ?? 0 }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, cfg.rows, cfg.cols, d, o.names])
+  const fieldOpts = useMemo(() => {
+    const m: Record<string, string> = { ...BASE_FIELDS }
+    const seen = new Set(Object.values(m))
+    for (const f of d?.formats ?? []) for (const x of f.fields) if (!m['f:' + x.key] && !x.prefill && !seen.has(x.label)) { m['f:' + x.key] = x.label; seen.add(x.label) }
+    return m
+  }, [d])
+  const cellText = (r: HrRequest, k: string): string => {
+    if (k.startsWith('f:')) { const key = k.slice(2); const v = r.data[key] ?? ''; return /hub$/.test(key) ? o.names.hub[v] || v : v }
+    switch (k) {
+      case 'no': return r.request_no
+      case 'kind': return fmtById[r.format_id]?.name ?? KINDS[r.kind]?.bn ?? r.kind
+      case 'person': return person(r)
+      case 'code': return d?.people[r.employee_id ?? '']?.employee_code ?? r.data.employee_code ?? ''
+      case 'hub': return o.names.hub[r.hub_id ?? ''] ?? ''
+      case 'by': return d?.people[r.submitter_employee_id ?? '']?.full_name ?? ''
+      case 'ref': return r.ref_name ?? ''
+      case 'at': return when(r.created_at)
+      case 'status': return STATUS[r.status].bn
+      case 'result': return r.result ?? ''
+      case 'decision': return r.decision_note ?? ''
+      default: return ''
+    }
+  }
+  const title = `${cfg.name} — ${from ? `${from}${to && to !== from ? ` থেকে ${to}` : ''}` : RANGES.all}`
+  function saveAs() {
+    const name = (window.prompt('রিপোর্টের নাম', cfg.name) ?? '').trim(); if (!name) return
+    const next = [...saved.filter(x => x.name !== name), { ...cfg, name }]; setSaved(next); storeSaved(next); set({ name })
+  }
+  function remove(name: string) { const next = saved.filter(x => x.name !== name); setSaved(next); storeSaved(next) }
+  const toggle = <T,>(l: T[], v: T) => l.includes(v) ? l.filter(x => x !== v) : [...l, v]
+  const sm = s.data; const sum = (m: Record<string, number>, f: (k: string) => boolean = () => true) => Object.entries(m).filter(([k]) => f(k)).reduce((a, [, v]) => a + v, 0)
+  const max = Math.max(1, ...pivot.rl.map(x => x.n))
+
+  type MRow = { label: string; n: number }
   return <>
-    <div className="net-kpis rq-kpis">
-      <div className="nk"><span className="nk-i b"><Icon name="form" size={20} /></span><b>{sum(d.mine)}</b><small>আমি পাঠিয়েছি</small></div>
-      <div className="nk"><span className="nk-i g"><Icon name="check" size={20} /></span><b>{sum(d.mine, k => k.endsWith(':done'))}</b><small>আমার — সম্পন্ন</small></div>
-      {can('hr.request.approve') && <div className="nk"><span className="nk-i o"><Icon name="clock" size={20} /></span><b>{d.open}</b><small>অপেক্ষমাণ (আমার এলাকা)</small></div>}
-      {can('hr.request.approve') && <div className="nk"><span className="nk-i p"><Icon name="shield" size={20} /></span><b>{sum(d.decided)}</b><small>আমি সিদ্ধান্ত দিয়েছি</small></div>}
-      <div className="nk"><span className="nk-i r"><Icon name="users" size={20} /></span><b>{d.as_ref}</b><small>আমি রেফারেন্স</small></div>
-    </div>
-    <section className="panel">
-      <div className="da-bar"><strong>ধরন অনুযায়ী হিসাব</strong>
-        <div className="seg">{([['mine', 'আমি পাঠিয়েছি'], ...(can('hr.request.approve') ? [['decided', 'আমার সিদ্ধান্ত'], ['all', 'সব']] : [])] as Array<[typeof scope, string]>).map(([k, l]) =>
-          <button key={k} type="button" className={scope === k ? 'on' : ''} onClick={() => setScope(k)}>{l}</button>)}</div></div>
-      <div className="da-table-wrap rq-matrix-wrap"><table className="da-table rq-matrix"><thead><tr><th>ধরন</th>{cols.map(c => <th key={c} className="r">{STATUS[c].bn}</th>)}<th className="r">মোট</th></tr></thead>
-        <tbody>{(Object.keys(KINDS) as ReqKind[]).map(k => <tr key={k}><td><span className={`rq-kind-tag t-${KINDS[k].tone}`}>{KINDS[k].bn}</span></td>
-          {cols.map(c => <td key={c} className="r">{m[`${k}:${c}`] ?? 0}</td>)}<td className="r"><b>{sum(m, x => x.startsWith(k + ':'))}</b></td></tr>)}</tbody>
-        <tfoot><tr><th>মোট</th>{cols.map(c => <th key={c} className="r">{sum(m, x => x.endsWith(':' + c))}</th>)}<th className="r">{sum(m)}</th></tr></tfoot></table></div>
+    {sm && <div className="net-kpis rq-kpis">
+      <div className="nk"><span className="nk-i b"><Icon name="form" size={20} /></span><b>{sum(sm.mine)}</b><small>আমি পাঠিয়েছি</small></div>
+      <div className="nk"><span className="nk-i g"><Icon name="check" size={20} /></span><b>{sum(sm.mine, k => k.endsWith(':done'))}</b><small>আমার — সম্পন্ন</small></div>
+      {can('hr.request.approve') && <div className="nk"><span className="nk-i o"><Icon name="clock" size={20} /></span><b>{sm.open}</b><small>অপেক্ষমাণ (আমার এলাকা)</small></div>}
+      {can('hr.request.approve') && <div className="nk"><span className="nk-i p"><Icon name="shield" size={20} /></span><b>{sum(sm.decided)}</b><small>আমি সিদ্ধান্ত দিয়েছি</small></div>}
+      <div className="nk"><span className="nk-i r"><Icon name="users" size={20} /></span><b>{sm.as_ref}</b><small>আমি রেফারেন্স</small></div>
+    </div>}
+
+    <section className="panel rp-panel">
+      <div className="rp-presets" role="tablist" aria-label="রিপোর্ট">
+        {[...PRESETS, ...saved].map(p => <span key={p.name} className={`rp-chip${cfg.name === p.name ? ' on' : ''}`}>
+          <button type="button" onClick={() => setCfg({ ...p })}>{p.name}</button>
+          {saved.some(x => x.name === p.name) && <button type="button" className="rp-x" aria-label={`${p.name} মুছুন`} onClick={() => remove(p.name)}><Icon name="x" size={12} /></button>}</span>)}
+      </div>
+      <div className="rp-quick">
+        <div className="rp-seg">{(Object.keys(RANGES) as Range[]).map(k => <button key={k} type="button" className={cfg.range === k ? 'on' : ''} onClick={() => set({ range: k })}>{RANGES[k]}</button>)}</div>
+        <div className="rp-seg">{(Object.keys(VIEWS) as View[]).map(k => <button key={k} type="button" className={cfg.view === k ? 'on' : ''} onClick={() => set({ view: k })}><Icon name={VIEWS[k][1]} size={14} />{VIEWS[k][0]}</button>)}</div>
+        <button type="button" className={`secondary sm${edit ? ' on' : ''}`} onClick={() => setEdit(x => !x)}><Icon name="gear" size={14} />সাজান</button>
+        <button type="button" className="sm" onClick={saveAs}><Icon name="save" size={14} />সেভ</button>
+      </div>
+      {cfg.range === 'custom' && <div className="rp-dates"><Field label="থেকে"><input type="date" value={cfg.from} max={today()} onChange={e => set({ from: e.target.value })} /></Field>
+        <Field label="পর্যন্ত"><input type="date" value={cfg.to} max={today()} onChange={e => set({ to: e.target.value })} /></Field></div>}
+      {edit && <div className="rp-edit">
+        <div className="hr-form rq-form">
+          <Field label="সারিতে (কী অনুযায়ী ভাগ)"><select value={cfg.rows} onChange={e => set({ rows: e.target.value as Dim })}>{(Object.keys(DIMS) as Dim[]).map(k => <option key={k} value={k}>{DIMS[k]}</option>)}</select></Field>
+          <Field label="কলামে"><select value={cfg.cols} onChange={e => set({ cols: e.target.value as Dim | 'none' })}><option value="none">শুধু মোট</option>
+            {(Object.keys(DIMS) as Dim[]).filter(k => k !== cfg.rows).map(k => <option key={k} value={k}>{DIMS[k]}</option>)}</select></Field>
+          <Field label="হাব"><Combo value={cfg.hub} onChange={v => set({ hub: v })} placeholder="সব হাব" options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
+        </div>
+        <div className="rp-row"><span className="muted small">ধরন:</span>{(Object.keys(KINDS) as ReqKind[]).map(k => <label key={k} className={`chip-toggle${cfg.kinds.includes(k) ? ' on' : ''}`}>
+          <input type="checkbox" checked={cfg.kinds.includes(k)} onChange={() => set({ kinds: toggle(cfg.kinds, k) })} />{KINDS[k].bn}</label>)}</div>
+        <div className="rp-row"><span className="muted small">অবস্থা:</span>{(Object.keys(STATUS) as ReqStatus[]).map(k => <label key={k} className={`chip-toggle${cfg.statuses.includes(k) ? ' on' : ''}`}>
+          <input type="checkbox" checked={cfg.statuses.includes(k)} onChange={() => set({ statuses: toggle(cfg.statuses, k) })} />{STATUS[k].bn}</label>)}</div>
+        {cfg.view === 'list' && <div className="rp-row"><span className="muted small">কলাম:</span>{Object.entries(fieldOpts).map(([k, l]) => <label key={k} className={`chip-toggle${cfg.fields.includes(k) ? ' on' : ''}`}>
+          <input type="checkbox" checked={cfg.fields.includes(k)} onChange={() => set({ fields: toggle(cfg.fields, k) })} />{l}</label>)}</div>}
+        <p className="muted small">যেভাবে খুশি সাজান, তারপর "সেভ" — উপরের তালিকায় নিজের নামে থেকে যাবে (এই ফোন/কম্পিউটারে)। নিচের টেবিল থেকে Excel, PDF বা প্রিন্ট।</p>
+      </div>}
     </section>
+
+    {q.error ? <p className="da-error">{hrFriendly(q.error)}</p> : !d ? <p className="muted">লোড হচ্ছে…</p> : <section className="panel">
+      <div className="da-bar"><h2>{cfg.name} <span className="count-pill">{rows.length}</span></h2>
+        <span className="muted small">{from ? `${from}${to && to !== from ? ` → ${to}` : ''}` : RANGES.all}{cfg.hub ? ` · ${o.names.hub[cfg.hub] ?? ''}` : ''}</span></div>
+      {!rows.length ? <p className="muted">এই বাছাইয়ে কোনো রিকুয়েস্ট নেই।</p>
+        : cfg.view === 'list' ? <DataTable<HrRequest> title={title} file="hr-request-report" prefKey="hr-request-report-list" rows={rows} rowKey={r => r.id}
+            cols={(cfg.fields.length ? cfg.fields : DEF_FIELDS).filter(k => fieldOpts[k]).map(k => ({ key: k, label: fieldOpts[k], value: (r: HrRequest) => cellText(r, k),
+              ...(k === 'status' ? { render: (r: HrRequest) => <Badge tone={STATUS[r.status].tone}>{STATUS[r.status].bn}</Badge> } : {}) }))} />
+        : cfg.view === 'bar' ? <div className="rp-bars">
+            {cfg.cols !== 'none' && <div className="rp-legend">{pivot.cl.map((c, i) => <span key={c}><i style={{ background: BAR_TONE[i % BAR_TONE.length] }} />{c} <b>{pivot.colTotal(c)}</b></span>)}</div>}
+            {pivot.rl.map(x => <div key={x.label} className="rp-bar"><span className="rp-bar-l" title={x.label}>{x.label}</span>
+              <span className="rp-bar-t" style={{ width: `${Math.max(4, x.n / max * 100)}%` }}>{pivot.cl.map((c, i) => { const v = pivot.at(x.label, c)
+                return v ? <i key={c} title={`${c}: ${v}`} style={{ flex: v, background: cfg.cols === 'none' ? 'var(--primary)' : BAR_TONE[i % BAR_TONE.length] }} /> : null })}</span>
+              <b className="rp-bar-v">{x.n}</b></div>)}
+          </div>
+        : <DataTable<MRow> title={title} file="hr-request-report" prefKey="hr-request-report-matrix" views={['table', 'card']} search={false}
+            rows={[...pivot.rl.map(x => ({ label: x.label, n: x.n })), { label: 'মোট', n: rows.length }]} rowKey={r => r.label}
+            cols={[{ key: 'label', label: DIMS[cfg.rows], value: r => r.label, render: r => r.label === 'মোট' ? <b>মোট</b> : r.label },
+              ...(cfg.cols === 'none' ? [] : pivot.cl.map(c => ({ key: 'c:' + c, label: c, className: 'r', value: (r: MRow) => r.label === 'মোট' ? pivot.colTotal(c) : pivot.at(r.label, c) }))),
+              { key: 'n', label: 'মোট', className: 'r', value: r => r.n, render: r => <b>{r.n}</b> }]} />}
+    </section>}
   </>
 }
 
