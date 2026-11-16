@@ -43,7 +43,7 @@ Tesseract.js in the browser (loaded from cdn.jsdelivr.net on first use). It read
 Private bucket `da-evidence`, path `da/<session_id>/<uuid>-<file>`; read = can see the sheet, upload = can edit the sheet. Created by the migration only on Supabase (storage schema).
 
 ## ডেইলি রিপোর্ট ইম্পোর্ট (step 1, 16 Nov 2026)
-Page `/app/accounts/report-import` (`web/src/pages/accounts/ReportImport.tsx`) · migration `20261116000700_report_import.sql` · tests `supabase/tests/99zzzzz_report_import.sql` and `web/tests/reportParser.test.mjs` (`npm run test:parser`).
+Page `/app/accounts/report-import` (`web/src/pages/accounts/ReportImport.tsx`) · migration `20261116000800_report_import.sql` · tests `supabase/tests/99zzzzz_report_import.sql` and `web/tests/reportParser.test.mjs` (`npm run test:parser`).
 
 The whole text of the courier panel's "Update Report" page is pasted. `web/src/lib/reportParser.ts` (pure functions) reads the report ID, manager ID and name, date-time, Collected, delivery charge, declared lists / parcels and every list (8-digit list ID, rider ID, name, parcels, money) — with line breaks, tabs or as one line. `da_import_save` then checks again and saves.
 

@@ -202,10 +202,29 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   sorting (route / fuel / trips) and in daily accounts (expense for a vehicle, "আমার নামে থাকা গাড়ি") still read the `vehicles` list.
   The owner will describe the vehicle feature he wants instead.
 
+## 2026-11-16 — গাড়ি (fleet), rebuilt the way the owner asked
+- Owner's spec (16 Nov): zone's vehicles with name and number, given to a hub; crew by kind (driver + helper, or auto driver only);
+  daily allowance (খোরাকি) per person that reaches accounts with a voucher; the manager records whether the auto was charged at the garage;
+  drivers/helpers report hubs to the zonal manager (loaded on time / late to unload / no trip); service requisition in a set format with photos;
+  fuel with the slip; settings to switch functions on and edit formats; permissions/approvals; an assign log.
+- Migration `20261116000700_fleet.sql` builds on the existing vehicle tables (data kept). New: kinds `covered_van`, `auto`; `vehicle_assignments.daily_allowance`;
+  `vehicle_logs` kind `khoraki` (once per person per day); `vehicle_requests.photos`; setting `vehicle.fleet` (functions, kinds + crew, default allowance);
+  `vehicle_events` (assign log, filled by triggers); `vehicle_hub_reports`; permissions `vehicle.report.view`, `vehicle.khoraki.post`.
+  Functions: `fleet_vehicle_save`, `fleet_set_crew` (vehicle stays at its hub), `fleet_khoraki_post`, `fleet_garage_save`, `fleet_approve` / `fleet_post`
+  (approve → the vehicle hub's daily sheet + voucher when there is no bill; if the sheet cannot take it the line stays approved and is posted later),
+  `fleet_request` / `fleet_request_done`, `fleet_hub_report` / `fleet_hub_reports`, `fleet_board`, `fleet_waiting`, `fleet_events`, `fleet_mine`, `fleet_approvers`.
+  A crew member who is not a member of the vehicle's hub goes on the sheet by name (the sheet takes an Employee ID only for its own hub's people).
+  Notification links to `/app/vehicles…` are rewritten to `/app/fleet…`.
+- Pages: `/app/fleet` (managers: গাড়ি ও দায়িত্ব · আজ: খোরাকি ও গ্যারেজ · অনুমোদন · হাব রিপোর্ট · এস্যাইন লগ · সেটিং) and `/app/fleet/mine` (crew).
+- Tests: `supabase/tests/99zzzzz_fleet.sql` (38), browser smoke checks for both pages.
+- Note: the live database has migrations the repo does not (`manager_ledgers_rider_submit`, `cash_payments_refs_approvals_requests`,
+  `fix_collector_trigger_generic`, `_2`), and live `da_save_expense`, `vehicle_assign`, `vehicle_day_save`, `vehicle_log_save` differ from the repo's.
+  The fleet migration only calls them. Bring those into the repo when convenient.
+
 ## 2026-11-16 — ডেইলি রিপোর্ট ইম্পোর্ট (ধাপ ১)
 - Page `/app/accounts/report-import`: paste the courier panel's "Update Report"; it is read (`web/src/lib/reportParser.ts`), the three checks
   must pass, and it lands in the manager's khata for the picked date, rider by rider. Details: `docs/DAILY_ACCOUNTS.md` (last section).
-- Migration `20261116000700_report_import.sql` (live on `xzm-team-erp-dev`): tables `da_import_reports`, `da_import_lists`,
+- Migration `20261116000800_report_import.sql` (live on `xzm-team-erp-dev`): tables `da_import_reports`, `da_import_lists`,
   `da_import_rider_map`; permission `da.import.create`; functions `da_import_save / day / status / map_rider`. Additive only.
 - Also: home card "রিপোর্ট আপলোড", menu entry, zonal dashboard tab "আজকের রিপোর্ট" (`pages/accounts/ReportStatus.tsx`).
 - Tests: `npm run test:parser` (11), `supabase/tests/99zzzzz_report_import.sql` (38), smoke checks for the page (PC + phone).

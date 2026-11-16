@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { NodiGaps } from '../../components/NodiGaps'
@@ -12,6 +13,7 @@ import { hrReq } from '../../lib/hrreq'
 import { issues } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
+import { fleet } from '../../lib/fleet'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
@@ -33,11 +35,13 @@ const quiet = <T,>(p: PromiseLike<T>, or: T): Promise<T> => Promise.resolve(p).t
 
 export function StaffPanel() {
   const { L, n, lang } = usePrefs()
-  const { can, session } = useAuth()
+  const { can, session, menu } = useAuth()
+  // A role limited to a list of pages: rows that lead off the list are left out.
+  const ok = (to: string) => pageAllowed(menu, to)
   const today = todayDhaka()
   const d = useLoad(async () => {
     const [home, me] = await Promise.all([quiet(dashboard.home(), null), quiet(hrReq.myEmployee(), null)])
-    const [acc, claims, panels, groups, att, duties, routes, hand, brought] = await Promise.all([
+    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car] = await Promise.all([
       quiet(da.myAccounts(addDays(today, -30), today), null),
       quiet(da.myClaims(30), [] as Claim[]),
       quiet(issues.panels(), null),
@@ -48,8 +52,9 @@ export function StaffPanel() {
         .then(r => ((r.data ?? []) as unknown as Array<{ hub_routes: { name: string; areas: string[] } | null }>).map(x => x.hub_routes).filter(Boolean) as Array<{ name: string; areas: string[] }>), []) : [],
       me ? quiet(referrals.prospects(me.id).then(x => x.length), 0) : 0,
       me ? quiet(referrals.brought(me.id).then(x => x.length), 0) : 0,
+      quiet(fleet.mine(), null),
     ])
-    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought }
+    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car }
   }, [])
   const v = d.data
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
@@ -96,6 +101,7 @@ export function StaffPanel() {
   const canLeave = can('hr.leave.create') || can('hr.leave.view')
 
   const row = (to: string | null, tone: string, icon: string, title: string, sub: string, end?: ReactNode) => {
+    if (to && !ok(to)) return null
     const body = <><span className={`nv-av sd-i ${tone}`}><Icon name={icon} size={22} /></span>
       <span className="tx"><b>{title}</b><span>{sub}</span></span>
       {end ?? (to ? <Icon name="chev" size={18} /> : <span className="sp-soon">{L('শীঘ্রই', 'Soon')}</span>)}</>
@@ -141,7 +147,7 @@ export function StaffPanel() {
         {act('p', 'log', L('আজ আসব না — কারণ জানাই', 'Not coming — give the reason'), L('কারণ লিখুন, হাব ম্যানেজার দেখবেন', 'Write the reason for your hub manager'),
           () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
       </div>}
-      {canLeave && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
+      {canLeave && ok('/app/hr/leave') && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
       {absent !== null && <Modal title={L('আজ আসব না', 'Not coming today')} onClose={() => setAbsent(null)}
         actions={<><button className="secondary" onClick={() => setAbsent(null)}>{L('বাতিল', 'Cancel')}</button>
           <button disabled={busy || !absent.trim()} onClick={() => void give('absent', absent.trim())}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('জানিয়ে দিন', 'Send')}</button></>}>
@@ -174,11 +180,16 @@ export function StaffPanel() {
             : <p className="muted small">{L('কোনো দায়িত্ব লেখা নেই', 'No duties written')}</p>}</div>
       </div>
 
+      {(v?.car?.vehicles.length ?? 0) > 0 && <div className="nv-rows">{row('/app/fleet/mine', 'o', 'truck', `${L('আমার গাড়ি', 'My vehicle')} — ${v!.car!.vehicles[0].name}`,
+        L('হাব রিপোর্ট, তেল/স্লিপ, সার্ভিস রিকুইজিশন, গ্যারেজ বিল ও খরচ', 'Hub report, fuel slip, service request, garage bills and costs'))}</div>}
+
+      {ok('/app/issues') && <>
       <h2 className="sd-h">{L('আমার অভিযোগ', 'My complaint')}</h2>
       <div className="nv-rows">
         {row('/app/issues?new=1', 'r', 'alert', L('অভিযোগ জানান', 'Make a complaint'), L('লিখে বা ছবি দিয়ে — হাবের ইস্যু হিসেবে যাবে', 'Write it or add a photo — it goes in as a hub issue'))}
         {row('/app/issues?tab=given', 'b', 'eye', L('আমি যা জানিয়েছি', 'What I reported'), given.length ? L(`${n(given.length)}টি চলছে`, `${given.length} open`) : L('এখন কিছু চলছে না', 'Nothing open now'))}
       </div>
+      </>}
 
       <h2 className="sd-h">{L('ইস্যু ও যোগাযোগ', 'Issues & contact')}</h2>
       <div className="nv-rows">
@@ -188,11 +199,13 @@ export function StaffPanel() {
         {row(null, 'p', 'phone', L('জোনাল ম্যানেজার', 'Zonal manager'), L('সরাসরি জোনাল ম্যানেজারকে জানান', 'Reach the zonal manager directly'))}
       </div>
 
+      {ok(desk ? desk + 'hand' : '/app/me') && <>
       <h2 className="sd-h">{L('আমার লোক', 'My people')}</h2>
       <div className="nv-rows">
         {row(desk ? desk + 'hand' : '/app/me', 'b', 'plus', L('আমার হাতে লোক আছে', 'I have people in hand'), `${L('কাজ করতে চায় এমন কারো নাম দিন', 'Add someone who wants work')} · ${people(v?.hand ?? 0)}`)}
         {row(desk ? desk + 'brought' : '/app/me', 'g', 'users', L('আমি যাদের দিয়েছি', 'People I brought'), `${L('আমার আনা লোকের তালিকা', 'Who joined through me')} · ${people(v?.brought ?? 0)}`)}
       </div>
+      </>}
     </div>
   </AppShell>
 }

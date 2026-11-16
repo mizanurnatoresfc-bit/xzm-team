@@ -119,6 +119,33 @@ try {
       if (u.includes('rpc/my_menu')) return j(menuNow)
       if (u.includes('rpc/role_menu_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, menu: null, user_count: 4 }])
       if (u.includes('rpc/role_menu_save')) { flowCalls.push({ fn: 'role_menu_save', ...r.request().postDataJSON() }); return j(null) }
+      if (/rpc\/(fleet_set_crew|fleet_garage_save|fleet_approve|fleet_hub_report|fleet_request|vehicle_log_save|vehicle_configure|fleet_vehicle_save)(\?|$)/.test(u)) {
+        flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j({ posted: true, voucher: 'V-2611-00007' }) }
+      if (u.includes('rpc/fleet_khoraki_post')) { flowCalls.push({ fn: 'fleet_khoraki_post', ...r.request().postDataJSON() }); return j([{ name: 'Rahim', role: 'driver', amount: 150, posted: true, voucher: 'V-2611-00008' }]) }
+      if (u.includes('rpc/vehicle_settings')) return j({ fleet: { functions: {}, khoraki: { driver: 150, helper: 100 }, kinds: [{ code: 'truck', bn: 'ট্রাক', crew: ['driver', 'helper'] }, { code: 'auto', bn: 'অটো', crew: ['driver'] }] },
+        request_formats: { service: [{ key: 'what', label: 'কী সার্ভিসিং', type: 'select', required: true, options: ['ব্রেক', 'ইঞ্জিন অয়েল'] }] } })
+      if (u.includes('rpc/fleet_board')) return j([
+        { id: 'v1', code: 'G-0001', name: 'নাটোর ট্রাক', reg_no: 'ঢাকা মেট্রো ট ১১-২২৩৩', kind: 'truck', status: 'active', hub_id: 'h1', hub_name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore', roles: ['driver', 'helper'],
+          crew: [{ role: 'driver', employee_id: 'e02', code: '7982', name: 'Alamin Sarker', mobile: '01711000002', allowance: 150, since: '2026-11-01' }], khoraki_today: [], garage_today: null,
+          pending: 1, unposted: 0, requests_open: 1, can_edit: true, can_crew: true, can_approve: true, can_khoraki: true, can_garage: true },
+        { id: 'v2', code: 'G-0002', name: 'লালপুর অটো', reg_no: null, kind: 'auto', status: 'active', hub_id: 'h1', hub_name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore', roles: ['driver'],
+          crew: [{ role: 'driver', employee_id: 'e03', code: '6799', name: 'Md Mahin', mobile: null, allowance: 120, since: '2026-11-01' }], khoraki_today: [], garage_today: null,
+          pending: 0, unposted: 0, requests_open: 0, can_edit: true, can_crew: true, can_approve: true, can_khoraki: true, can_garage: true }])
+      if (u.includes('rpc/fleet_waiting')) return j({ logs: [{ id: 'l1', vehicle_id: 'v1', vehicle: 'নাটোর ট্রাক', hub_name: 'Natore Sadar', kind: 'fuel', log_date: '2026-11-16', amount: 1050, litres: 10, vendor: 'Padma Pump', bill_no: null,
+          slip_path: null, note: null, status: 'submitted', by_name: 'Alamin Sarker', by_code: '7982', created_at: '2026-11-16T04:00:00Z' }],
+        requests: [{ id: 'q1', no: 'VQ-00001', vehicle_id: 'v2', vehicle: 'লালপুর অটো', hub_name: 'Natore Sadar', kind: 'service', title: 'ব্রেক কাজ করছে না', data: { what: 'ব্রেক' }, photos: [], priority: 'urgent',
+          status: 'open', by_name: 'Md Mahin', by_code: '6799', created_at: '2026-11-16T05:00:00Z' }] })
+      if (u.includes('rpc/fleet_hub_reports')) return j([{ id: 'hr1', report_date: '2026-11-16', status: 'unload_late', late_minutes: 45, note: 'লোক ছিল না', photo_path: null, hub_id: 'h2', hub_name: 'Lalpur',
+        vehicle_id: 'v1', vehicle: 'নাটোর ট্রাক', by_name: 'Alamin Sarker', by_code: '7982', created_at: '2026-11-16T06:00:00Z', updated_at: '2026-11-16T06:00:00Z' }])
+      if (u.includes('rpc/fleet_events')) return j([{ id: 'ev1', at: '2026-11-16T03:00:00Z', action: 'crew_set', role: 'driver', detail: 'খোরাকি ৳150', vehicle_id: 'v1', vehicle: 'নাটোর ট্রাক', employee: 'Alamin Sarker', employee_code: '7982', by_name: 'Owner' }])
+      if (u.includes('rpc/fleet_approvers')) return j([{ code: 'vehicle.log.approve', description: null, roles: ['হাব ম্যানেজার', 'জোনাল ম্যানেজার'] }])
+      if (u.includes('rpc/fleet_mine')) return j({ functions: {}, formats: { service: [{ key: 'what', label: 'কী সার্ভিসিং', type: 'select', required: true, options: ['ব্রেক', 'ইঞ্জিন অয়েল'] }] },
+        vehicles: [{ id: 'v2', name: 'লালপুর অটো', reg_no: null, kind: 'auto', status: 'active', hub_id: 'h1', hub_name: 'Natore Sadar', zone_id: 'z1', role: 'driver', allowance: 120, since: '2026-11-01', crew: [],
+          zone_hubs: [{ id: 'h1', name: 'Natore Sadar' }, { id: 'h2', name: 'Lalpur' }],
+          garage: [{ date: '2026-11-15', charged: true, cost: 80, place: 'রহিম গ্যারেজ', note: null }],
+          costs: [{ id: 'c1', kind: 'charge', date: '2026-11-15', amount: 80, litres: null, status: 'approved', note: null, posted: true, voucher: 'V-2611-00003', mine: true },
+                  { id: 'c2', kind: 'khoraki', date: '2026-11-15', amount: 120, litres: null, status: 'approved', note: null, posted: true, voucher: 'V-2611-00004', mine: true }],
+          requests: [], reports: [] }] })
       if (/rpc\/(att_self_mark|att_self_decide)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j(1) }
       if (u.includes('rpc/my_att_today')) return j({ work_date: '2026-11-16', record: null, mark: null })
       if (u.includes('rpc/att_self_list')) return j([
@@ -350,8 +377,36 @@ try {
     await fits('accounts sheet')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
     // the vehicle pages are off the website: no menu entries, and an old link goes to the home page
-    await page.goto(`${BASE}/app/vehicles/logs`); await page.waitForURL(/\/app$/, { timeout: 8000 }).catch(() => {})
-    check(/\/app$/.test(page.url()) && await page.locator('a[href^="/app/vehicles"]').count() === 0, `${size}: the vehicle pages are gone and an old link goes home`)
+    await page.goto(`${BASE}/app/vehicles/logs`); await page.waitForURL(/\/app\/fleet/, { timeout: 8000 }).catch(() => {})
+    check(/\/app\/fleet$/.test(page.url()) && await page.locator('a[href^="/app/vehicles"]').count() === 0, `${size}: the old vehicle pages are gone and an old link opens the new one`)
+    // গাড়ি for managers: vehicles with crew, set the missing helper (allowance from the settings), allowance and garage today, approvals, reports, log
+    await page.waitForSelector('.fl-card', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.fl-card').count() === 2 && await page.locator('.fl-crew-row.empty').count() === 1, `${size}: the vehicle list shows each vehicle's crew and the empty helper place`)
+    await fits('vehicle list')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-fleet.png`, fullPage: true })
+    await page.locator('.fl-crew-row.empty').click(); await page.waitForSelector('#fl-c-code')
+    check(await page.locator('#fl-c-amt').inputValue() === '100', `${size}: a new helper starts with the helper allowance from the settings`)
+    await page.locator('#fl-c-code').fill('802'); await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
+    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'fleet_set_crew' && c.p_role === 'helper' && c.p_employee_code === '802' && c.p_allowance === 100, `${size}: the manager sets the helper with the allowance`) }
+    await page.goto(`${BASE}/app/fleet?tab=today`); await page.waitForSelector('.fl-today', { timeout: 10000 }).catch(() => {})
+    await page.locator('.fl-today', { hasText: 'নাটোর ট্রাক' }).getByRole('button').click(); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.fn === 'fleet_khoraki_post' && flowCalls.at(-1)?.p_vehicle === 'v1', `${size}: the manager posts today's allowance`)
+    await page.locator('.fl button.nv-row', { hasText: 'লালপুর অটো' }).click(); await page.waitForSelector('.fl-status')
+    await page.locator('.fl-st', { hasText: 'হ্যাঁ' }).click(); await page.locator('#fl-g-cost').fill('80'); await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
+    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'fleet_garage_save' && c.p_charged === true && c.p_cost === 80, `${size}: the manager writes the auto's garage charge`) }
+    await fits('vehicles today')
+    await page.goto(`${BASE}/app/fleet?tab=approve`); await page.waitForSelector('.fl-wait', { timeout: 10000 }).catch(() => {})
+    await page.locator('.fl-wait', { hasText: 'Padma Pump' }).getByRole('button', { name: 'অনুমোদন' }).click(); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.fn === 'fleet_approve' && flowCalls.at(-1)?.p_log === 'l1', `${size}: approving fuel sends it to the sheet`)
+    await fits('vehicle approvals')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-fleet-approve.png`, fullPage: true })
+    await page.goto(`${BASE}/app/fleet?tab=reports`); await page.waitForSelector('.fl .da-table td', { timeout: 10000 }).catch(() => {})
+    check((await page.locator('.fl').innerText()).includes('Lalpur') && (await page.locator('.fl').innerText()).includes('লোক ছিল না'), `${size}: the zonal manager sees the hub reports by hub`)
+    await fits('hub reports')
+    await page.goto(`${BASE}/app/fleet?tab=settings`); await page.waitForSelector('.fl-toggle', { timeout: 10000 }).catch(() => {})
+    await page.locator('.da-actionbar button').click(); await page.waitForTimeout(300)
+    check(flowCalls.slice(-2).map(c => c.fn).join() === 'vehicle_configure,vehicle_configure' && flowCalls.at(-2)?.p_key === 'fleet', `${size}: vehicle settings are saved`)
+    await fits('vehicle settings')
     // staff gave their own attendance: the manager approves it (as present or late) or returns it with a reason
     await page.goto(`${BASE}/app/hub/attendance`); await page.waitForSelector('.self-marks .nv-row', { timeout: 10000 }).catch(() => {})
     check(await page.locator('.self-marks .nv-row').count() === 2 && (await page.locator('.self-marks').innerText()).includes('জ্বর'), `${size}: the hub attendance page lists the attendance staff gave themselves`)
@@ -427,8 +482,8 @@ try {
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
-      await page.waitForSelector('.home-tiles')
-      check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen`)
+      await page.waitForSelector('.sp-hero')
+      check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
       check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
         `${size}: a rider gets one panel only, with everything they may open inside it`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
@@ -465,7 +520,8 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 3 && sideLinks.includes('/app/accounts/khata'), `${size}: a limited role has only its pages in the menu (${sideLinks.length})`)
+    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 6 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine'].every(x => sideLinks.includes(x)),
+      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts and vehicle (${sideLinks.length})`)
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
@@ -660,6 +716,9 @@ try {
     await fits('my profile')
     // staff desk: someone who acts only for themselves gets plain words instead of format names
     plainStaff = true
+    // a staff member's home page is the staff panel
+    await page.goto(`${BASE}/app`); await page.waitForSelector('.sp .nv-row', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.sp-hero').count() === 1 && await page.locator('.bottom-nav a[href="/app/staff"]').count() === 0, `${size}: a staff member's home is the staff panel`)
     // staff panel: one screen with the person's whole day, in the owner's order
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
@@ -676,6 +735,25 @@ try {
       await page.locator('#sp-absent').fill('জ্বর'); await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(400)
       check(flowCalls.at(-1)?.fn === 'att_self_mark' && flowCalls.at(-1)?.p_kind === 'absent' && flowCalls.at(-1)?.p_note === 'জ্বর', `${size}: "not coming" is sent with the reason`) }
     await fits('staff panel home')
+    // আমার গাড়ি: the auto driver reports a hub, puts up fuel, asks for service in the set format, and sees the garage bill
+    await page.goto(`${BASE}/app/fleet/mine`); await page.waitForSelector('.fl-act', { timeout: 10000 }).catch(() => {})
+    check((await page.locator('.fl').innerText()).includes('রহিম গ্যারেজ') && (await page.locator('.fl').innerText()).includes('V-2611-00004'), `${size}: the driver sees the garage bill and the allowance voucher`)
+    await fits('my vehicle')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-fleet-mine.png`, fullPage: true })
+    await page.locator('.fl-act', { hasText: 'হাব রিপোর্ট' }).click(); await page.waitForSelector('#fl-hub')
+    await page.locator('#fl-hub').selectOption('h2'); await page.locator('.fl-st', { hasText: 'আনলোডে দেরি' }).click(); await page.locator('.da-modal input[type=number]').fill('30')
+    await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
+    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'fleet_hub_report' && c.p_hub === 'h2' && c.p_status === 'unload_late' && c.p_minutes === 30, `${size}: the driver reports late unloading at a hub`) }
+    await page.locator('.fl-act', { hasText: 'তেল' }).click(); await page.waitForSelector('#fl-amount')
+    await page.locator('#fl-amount').fill('1050'); await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
+    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'vehicle_log_save' && c.p_kind === 'fuel' && c.p_amount === 1050, `${size}: the driver puts up fuel for approval`) }
+    { const before = flowCalls.length
+      await page.locator('.fl-act', { hasText: 'সার্ভিস' }).click(); await page.waitForSelector('#fl-title')
+      await page.locator('.da-modal-acts button').last().click(); await page.waitForSelector('.da-modal .da-error')
+      check(flowCalls.length === before, `${size}: a request is not sent without the required box`)
+      await page.locator('.da-modal .nv-chip', { hasText: 'ব্রেক' }).click(); await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
+      const c = flowCalls.at(-1) ?? {}; check(c.fn === 'fleet_request' && c.p_kind === 'service' && c.p_data?.what === 'ব্রেক', `${size}: the driver asks for service in the set format`) }
+    await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-panel.png`, fullPage: true })
     await page.locator('.sp-cta').click(); await page.waitForSelector('.da-modal', { timeout: 8000 }).catch(() => {})
     check(await page.locator('.da-modal input[type=number]').count() === 1 && !page.url().includes('bill='), `${size}: "put up today's bill" opens the bill form at once`)
