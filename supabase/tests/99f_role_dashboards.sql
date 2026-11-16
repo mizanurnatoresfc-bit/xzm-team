@@ -10,10 +10,12 @@ update public.employees set profile_id = tests.id('rider_login') where id = test
 select tests.grant_role(tests.id('rider_login'), 'rider', 'hub', null, tests.id('hub_a1'));
 
 -- ---------- the catalogue and the seeded layouts ----------
-select tests.ok((select count(*) from private.dashboard_catalogue()) = 9, 'nine panels exist');
-select tests.ok((select count(*) from public.role_dashboards) = 13, 'every shipped role starts with a layout');
+-- 9 panels at first; dashboard_views (15 Nov) added my_day, my_requests, hub_today, approvals, network
+select tests.ok((select count(*) from private.dashboard_catalogue()) = 14, 'fourteen panels exist');
+-- 13 roles at first; staff (staff_logins_rollout) and zonal_assistant (attendance_gaps) came later
+select tests.ok((select count(*) from public.role_dashboards) = (select count(*) from public.roles where is_system), 'every shipped role starts with a layout');
 select tests.ok((select panels from public.role_dashboards d join public.roles r on r.id = d.role_id where r.code = 'rider')
-                = '["my_work","quick_links"]'::jsonb, 'a rider starts with their own work only');
+                = '["my_day","my_requests","my_work","quick_links"]'::jsonb, 'a rider starts with their own day and work only');
 
 -- ---------- each role gets its own dashboard ----------
 select tests.login(tests.id('super'));
@@ -31,7 +33,7 @@ select tests.ok('ops_today' = any (public.dashboard_panels()), 'a hub manager se
 select tests.ok(not ('hr_pending' = any (public.dashboard_panels())), 'a hub manager does not get HR approvals');
 
 select tests.login(tests.id('rider_login'));
-select tests.ok(public.dashboard_panels() = array['my_work','quick_links'], 'a rider sees only their own work');
+select tests.ok(public.dashboard_panels() = array['my_day','my_requests','my_work','quick_links'], 'a rider sees only their own day and work');
 
 -- a role may ask for a panel, but the permissions still decide
 select tests.logout();
@@ -55,7 +57,7 @@ select id, '["hr_overview","hr_pending","hub_staff","my_work","quick_links"]'::j
 
 -- someone with no role at all still gets a usable page
 select tests.login(tests.id('noroles'));
-select tests.ok(public.dashboard_panels() = array['my_work','quick_links'], 'a user with no role still has a home page');
+select tests.ok(public.dashboard_panels() = array['my_day','my_requests','my_work','quick_links'], 'a user with no role still has a home page (the panels that need no permission)');
 
 -- ---------- the numbers ----------
 select tests.login(tests.id('hr'));
@@ -93,7 +95,7 @@ select tests.login(tests.id('super'));
 select public.role_dashboard_save((select id from public.roles where code = 'rider'), array['my_work','ops_today','quick_links']);
 select tests.ok((select panels from public.role_dashboards d join public.roles r on r.id = d.role_id where r.code = 'rider')
                 = '["my_work","ops_today","quick_links"]'::jsonb, 'super admin sets what a role sees');
-select tests.ok((select count(*) from public.role_dashboard_list()) = 13, 'the layout list shows every role');
+select tests.ok((select count(*) from public.role_dashboard_list()) = (select count(*) from public.roles where archived_at is null), 'the layout list shows every role');
 select tests.throws($$select public.role_dashboard_save((select id from public.roles where code = 'rider'), array['no_such_panel'])$$,
   'an unknown panel is refused', '22023');
 select tests.throws($$update public.role_dashboards set panels = '["my_work","my_work"]'::jsonb

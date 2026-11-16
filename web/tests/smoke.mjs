@@ -156,6 +156,11 @@ try {
         { employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position_name: 'Commission Rider', site_days: 0, online_days: null, register_days: null, note: null, submitted_by_name: null, submitted_at: null },
         { employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', position_name: 'Commission Rider', site_days: 0, online_days: 15, register_days: 15, note: null, submitted_by_name: 'Owner', submitted_at: '2026-11-16T05:00:00Z' }])
       if (u.includes('rpc/da_settings')) return j(daSettings)
+      if (u.includes('rpc/zm_dashboard')) return j({ period: { from: '2026-11-01', to: '2026-11-16' },
+        workforce: { total: 30, active: 28, inactive: 2, new_joining: 1, resigned: 0, transferred: 0, employee_id_issued: 1, pending_applications: 0 },
+        hubs: { hub_count: 2, pickups: 0, deliveries: 0, merchants: 0, rider_capacity: 0, cash_collected: 0, expenses: 0, pending_parcels: 0, unverified_days: 0 },
+        data_completion: { employees: 30, incomplete: 0, average_pct: 100 }, tasks: { open: 0, overdue: 0, pending_submissions: 0, awaiting_confirmation: 0, completed: 0 },
+        travel: { visits: 0, total_km: 0, fuel: 0, meal: 0, transport: 0, other: 0, total: 0, unclaimed: 0 }, claims_pending: 0 })
       if (u.includes('rpc/da_import_status')) return j([
         { hub_id: 'h5', hub_name: 'Gurudaspur (Natore)', zone_id: 'z1', zone_name: 'Natore', can_upload: true, reports: imported.length ? 1 : 0, managers: imported.length ? 1 : 0, lists: imported.length ? 8 : 0, parcels: imported.length ? 190 : 0,
           amount: imported.length ? 332438 : 0, delivery_charge: imported.length ? 230 : 0, unknown_riders: imported.length ? 1 : 0, last_at: imported.length ? '2026-11-16T14:40:00Z' : null },
@@ -827,6 +832,15 @@ try {
     await page.locator('.ri-map').click(); await page.waitForSelector('.ri-people button')
     await page.locator('.ri-people button').first().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
     check(flowCalls.some(c => c.fn === 'da_import_map_rider' && c.p_code === '44174'), `${size}: an unknown ID is mapped with one tap on a person`)
+    // zonal dashboard: every hub's report status for the day; a hub opens its upload page
+    await page.goto(`${BASE}/app/zonal`); await page.getByRole('tab', { name: 'আজকের রিপোর্ট' }).click(); await page.waitForSelector('.ri-hub')
+    const hubCards = await page.locator('.ri-hub').allInnerTexts()
+    check(hubCards.length === 2 && hubCards.some(t => t.includes('Gurudaspur') && t.includes('১টি রিপোর্ট') && t.includes('অচেনা')) && hubCards.some(t => t.includes('Lalpur') && t.includes('রিপোর্ট আসেনি')),
+      `${size}: the zonal tab shows each hub's report status, with unknown IDs and hubs that sent none`)
+    await fits('zonal report status')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-zonal-reports.png`, fullPage: true })
+    await page.locator('.ri-hub', { hasText: 'Lalpur' }).click(); await page.waitForURL(/report-import\?hub=h2/)
+    check(/hub=h2/.test(page.url()), `${size}: a hub on the zonal tab opens that hub's upload page`)
     await page.goto(`${BASE}/app`); await page.waitForSelector('.ri-home')
     check((await page.locator('.ri-home').innerText()).includes('রিপোর্ট আপলোড') && (await page.locator('.ri-home-n b').innerText()).trim() === '১', `${size}: the home card shows how many reports came today`)
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
