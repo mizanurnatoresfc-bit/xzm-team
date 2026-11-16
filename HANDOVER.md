@@ -220,3 +220,16 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Note: the live database has migrations the repo does not (`manager_ledgers_rider_submit`, `cash_payments_refs_approvals_requests`,
   `fix_collector_trigger_generic`, `_2`), and live `da_save_expense`, `vehicle_assign`, `vehicle_day_save`, `vehicle_log_save` differ from the repo's.
   The fleet migration only calls them. Bring those into the repo when convenient.
+
+## 2026-11-16 — Repository brought in line with the live database (clean-up step 1)
+- Four migrations applied on the live database from another chat on 15 Nov were missing here. Copied unchanged (checksums match
+  `supabase_migrations.schema_migrations`): `20261115195659_manager_ledgers_rider_submit`, `20261115200204_cash_payments_refs_approvals_requests`
+  (cash payments, payees, reference people, `da_approval_rules`, `da_request_expense` = a bill to a chosen manager with a breakdown,
+  a pg_cron reminder every 15 min), `20261115200607/200709_fix_collector_trigger_generic(_2)`. The local test shim now has a pg_cron stand-in.
+- Two live bugs found that way, fixed in `20261116000900_khata_collector_fixes.sql`: rider lines written by a manager had no
+  `collector_user` (set in an AFTER trigger) so they were missing from that manager's own khata; and writing again on one's own closed
+  khata no longer reopened it (so an accepted khata could change and stay accepted). Plus 17 missing foreign-key indexes.
+- Tests updated to the live rules since 15 Nov (the hub's report goes in only when every khata is closed; a rider reads own lines through
+  `da_my_rider_lines`, not the hub's sheet) and the stale dashboard counts. All SQL tests pass: 1,190 assertions, 0 failing files.
+- Not merged on purpose: branch `claude/blissful-maxwell-7kkfd6` adds a second approval system (`approval_rules`, approve/auto/view for
+  khatas) next to the live `da_approval_rules` (expense limits). Decide one design before merging. PR #31 (report import) left open.

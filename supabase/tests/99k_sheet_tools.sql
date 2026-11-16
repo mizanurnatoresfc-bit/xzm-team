@@ -96,6 +96,9 @@ select tests.ok(not exists (select 1 from public.da_deposits), 'and cannot read 
 -- ---------- once submitted, nothing changes ----------
 select tests.login(tests.id('hub_mgr'));
 select public.da_save_merchant_payment((select v::uuid from t where k = 's1'), null, '101001', null, 1500, null);
+select tests.logout();
+update public.da_sheet_collectors set closed_at = now() where session_id = (select v::uuid from t where k = 's1');
+select tests.login(tests.id('hub_mgr'));
 select public.da_submit((select v::uuid from t where k = 's1'));
 select tests.throws(format($$select public.da_deposit_save(%L, 5)$$, (select v from t where k = 's1')),
   'a submitted sheet takes no new deposit', '42501');
