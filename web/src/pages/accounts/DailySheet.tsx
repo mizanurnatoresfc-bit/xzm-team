@@ -10,11 +10,11 @@ import { printVoucher } from '../../lib/voucher'
 import { printArea } from '../../lib/xlsx'
 import { AccountsShell, Stat, StatusBadge, Badge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
 import { QuickGrid, type GCol, type Vals } from './QuickGrid'
-import { FlowPanel } from './sheetFlow'
+import { FlowPanel, onlyOf } from './sheetFlow'
 import { SectionMenu, ExtraHeads, ExtraCells, ExtraBlanks, BankPanel, useApplyLayout, isOff } from './sheetTools'
 
 const EMPTY_LAYOUT = {}
-type LS = (m: string) => Promise<void>
+export type LS = (m: string) => Promise<void>
 
 export function DailySheet() {
   const { id = '' } = useParams()
@@ -24,6 +24,7 @@ export function DailySheet() {
   const { toast, node } = useToast()
   const s = sheet.data
   const [tab, setTab] = useState('riders')
+  const [viewing, setViewing] = useState<string | null>(null)
   const area = useRef<HTMLDivElement>(null)
   useApplyLayout(area, settings.data?.['da.layout'] ?? EMPTY_LAYOUT, s ? `${tab}-${s.session.id}` : null)
 
@@ -43,6 +44,8 @@ export function DailySheet() {
   const reload = async (msg?: string) => { await sheet.reload(); if (msg) toast(msg) }
   const layoutSaved: LS = async (msg) => { await settings.reload(); await sheet.reload(); toast(msg) }
   const st = settings.data
+  // "check" one khata: only that person's lines are shown in the three parts they write
+  const shown = viewing ? onlyOf(s, new Set([viewing])) : s
 
   const allTabs: Array<[string, string, number | null]> = [
     ['riders', 'রাইডার', s.riders.length],
@@ -72,7 +75,9 @@ export function DailySheet() {
       <Stat label="মোট খরচ" value={taka(t.transport_expense + t.employee_expense)} />
     </section>}
 
-    <FlowPanel s={s} settings={st} reload={reload} />
+    <FlowPanel s={s} settings={st} reload={reload} viewing={viewing} onView={u => { setViewing(u); if (u) setTab('riders') }} />
+    {viewing && <p className="notice no-print" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>শুধু <b>{(s.collectors ?? []).find(c => c.user_id === viewing)?.name ?? '—'}</b>-এর খাতা দেখাচ্ছে (রাইডার, পেমেন্ট, খরচ)।
+      <button type="button" className="secondary sm" onClick={() => setViewing(null)}>সবার খাতা দেখুন</button></p>}
 
     <nav className="da-tabs no-print" aria-label="হিসাবের অংশ">
       {tabs.map(([key, label, count]) => <button key={key} data-tab={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}>
@@ -80,9 +85,9 @@ export function DailySheet() {
     </nav>
 
     <div className="print-area" ref={area}>
-      {tab === 'riders' && <RidersTab s={s} settings={st} reload={reload} ls={layoutSaved} />}
-      {tab === 'payment' && <MerchantTab s={s} settings={st} reload={reload} ls={layoutSaved} />}
-      {tab === 'expense' && <ExpenseTab s={s} settings={st} templates={templates.data ?? []} reload={reload} ls={layoutSaved} />}
+      {tab === 'riders' && <RidersTab s={shown} settings={st} reload={reload} ls={layoutSaved} />}
+      {tab === 'payment' && <MerchantTab s={shown} settings={st} reload={reload} ls={layoutSaved} />}
+      {tab === 'expense' && <ExpenseTab s={shown} settings={st} templates={templates.data ?? []} reload={reload} ls={layoutSaved} />}
       {tab === 'claims' && <ClaimsPanel s={s} settings={st} cats={st['da.expense_categories']} reload={reload} ls={layoutSaved} />}
       {tab === 'notes' && <NotesPanel s={s} settings={st} reload={reload} ls={layoutSaved} />}
       {tab === 'bank' && <BankPanel s={s} settings={st} reload={reload} onLayoutSaved={layoutSaved} />}
@@ -101,7 +106,7 @@ type RiderDraft = { line?: string; code: string; name?: string; mobile?: string 
   delivery: string; pickup: string; amount: string; paid: string; due: string; mb: string; remarks: string }
 const emptyRider: RiderDraft = { code: '', delivery: '', pickup: '', amount: '', paid: '', due: '', mb: '', remarks: '' }
 
-function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void>; ls: LS }) {
+export function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void>; ls: LS }) {
   const fields = settings['da.rider_fields']
   const manualDue = settings['da.due_rule'] === 'manual'
   const [d, setD] = useState<RiderDraft | null>(null)
@@ -268,7 +273,7 @@ type MDraft = { line?: string; merchantQ: string; merchant?: string; merchantNam
   path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string
   /** What the hub's own record says about this Payment ID: found, or not found. */
   match?: string; matched?: boolean; byHand?: boolean }
-function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void>; ls: LS }) {
+export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: DaSettings; reload: (m?: string) => Promise<void>; ls: LS }) {
   const [d, setD] = useState<MDraft | null>(null)
   const [opts, setOpts] = useState<Array<{ merchant_id: string; code: string; name: string }>>([])
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false)
@@ -392,7 +397,7 @@ function FileLink({ path }: { path: string }) {
 type XDraft = { line?: string; kind: 'transport' | 'employee'; employee: string; employeeName?: string; template: string; name: string; category: string; amount: string
   date: string; billNo: string; ref: string; paidBy: string; path?: string | null; ocr: OcrResult | null; verified: boolean; remarks: string
   vehicle: string; refName: string; refPhone: string; refPosition: string }
-function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; settings: DaSettings; templates: Template[]; reload: (m?: string) => Promise<void>; ls: LS }) {
+export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; settings: DaSettings; templates: Template[]; reload: (m?: string) => Promise<void>; ls: LS }) {
   const cats = settings['da.expense_categories']
   const catL = (c: string) => cats.find(x => x.code === c)?.bn ?? c
   const refCfg = settings['da.reference_setup']; const billCfg = settings['da.bill_upload']
