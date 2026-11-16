@@ -4,6 +4,7 @@ import {
 } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { menuApi } from '../lib/menu'
 
 export type PermissionGrant = {
   permission_code: string
@@ -15,7 +16,9 @@ export type PermissionGrant = {
 
 /** A Super Admin looking at the app the way one role sees it. Only menus, buttons and pages change on this
  *  device — the database still answers as the Super Admin, so this is a preview, not a login. */
-export type ViewAs = { id: string; name: string; permissions: string[]; is_super: boolean; panels: string[] | null; view: 'self' | 'hub' | 'zone' | null }
+export type ViewAs = { id: string; name: string; permissions: string[]; is_super: boolean; panels: string[] | null; view: 'self' | 'hub' | 'zone' | null
+  /** The pages this role is limited to (null = no limit). */
+  menu?: string[] | null }
 const VIEW_AS_KEY = 'xzm_viewas'
 function readViewAs(): ViewAs | null {
   try {
@@ -40,6 +43,8 @@ type AuthContextValue = {
   /** True for a real Super Admin, also while previewing another role. */
   isSuperAdmin: boolean
   /** The role being previewed, or null. */
+  /** The pages this person is limited to, from their roles (null = no limit). */
+  menu: string[] | null
   viewAs: ViewAs | null
   setViewAs: (role: ViewAs | null) => void
 }
@@ -69,6 +74,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [grants, setGrants] = useState<PermissionGrant[]>([])
   const [loading, setLoading] = useState(true)
   const [mustChangePassword, setMustChange] = useState(false)
+  const [ownMenu, setOwnMenu] = useState<string[] | null>(null)
   const [viewAsPick, setViewAsPick] = useState<ViewAs | null>(readViewAs)
   const setViewAs = useCallback((role: ViewAs | null) => {
     setViewAsPick(role)
@@ -80,6 +86,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (!current) {
       setGrants([])
       setMustChange(false)
+      setOwnMenu(null)
       return
     }
     const [{ data, error }, prof] = await Promise.all([
@@ -89,6 +96,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (error) throw error
     setMustChange(Boolean((prof.data as { must_change_password?: boolean } | null)?.must_change_password))
     setGrants((data ?? []) as PermissionGrant[])
+    setOwnMenu(await menuApi.mine().catch(() => null))
   }, [])
 
   useEffect(() => {
@@ -148,7 +156,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(() => ({
     session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword: mustChangePassword || (recovering && !!session), recovering: recovering && !!session, endRecovery, isSuperAdmin, viewAs, setViewAs,
-  }), [session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, viewAs, setViewAs])
+    menu: viewAs ? (viewAs.is_super ? null : viewAs.menu ?? null) : ownMenu,
+  }), [ownMenu, session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, viewAs, setViewAs])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

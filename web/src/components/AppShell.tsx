@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import { inMenu } from '../lib/menu'
 import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
 import { NodiAvatar } from './NodiAvatar'
@@ -14,11 +15,11 @@ type Item = { to: string; icon: string; bn: string; en: string; perms: string[] 
 type Group = { key: string; icon: string; bn: string; en: string; items: Item[] }
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 
-const HOME: Item[] = [
+export const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
   { to: '/app/training', icon: 'book', bn: 'ট্রেনিং সেন্টার', en: 'Training centre', perms: null },
 ]
-const GROUPS: Group[] = [
+export const GROUPS: Group[] = [
   { key: 'hub', icon: 'hub', bn: 'হাব ম্যানেজমেন্ট', en: 'Hub Management', items: [
     { to: '/app/hub/attendance', icon: 'cal', bn: 'আজকের হাজিরা খাতা', en: "Today's attendance", perms: ['hr.attendance.view', 'hr.attendance.create'] },
     { to: '/app/hub/late', icon: 'clock', bn: 'আজকের দেরিতে হাজিরা', en: 'Late today', perms: ['hr.attendance.view', 'hr.attendance.create'] },
@@ -27,6 +28,7 @@ const GROUPS: Group[] = [
     { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
     { to: '/app/hub/accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
     { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
+    { to: '/app/hub/days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
     { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
   ] },
   { key: 'sorting', icon: 'box', bn: 'শটিং সেন্টার ম্যানেজমেন্ট', en: 'Sorting Center Management', items: [
@@ -220,7 +222,7 @@ function roleClass(code: string) {
 
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  const { can, signOut, session, isSuperAdmin } = useAuth()
+  const { can, signOut, session, isSuperAdmin, menu } = useAuth()
   const { L, n, lang, setLang, theme, setTheme } = usePrefs()
   const [asRole, setAsRole] = useState(false)
   const nav = useNavigate()
@@ -313,9 +315,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
-      {HOME.filter(i => allowed(i.perms) && hit(i)).map(link)}
+      {HOME.filter(i => allowed(i.perms) && inMenu(menu, i.to) && hit(i)).map(link)}
       {GROUPS.map(g => {
-        const vis = g.items.filter(i => allowed(i.perms) && (hit(i) || `${g.bn} ${g.en}`.toLowerCase().includes(mq)))
+        const vis = g.items.filter(i => allowed(i.perms) && inMenu(menu, i.to) && (hit(i) || `${g.bn} ${g.en}`.toLowerCase().includes(mq)))
         if (!vis.length) return null
         const has = vis.some(i => i.to === here)
         const isOpen = groupOpen[g.key] ?? true
@@ -380,7 +382,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     </div>
     {can('nodi.assistant.view') && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
-      {(dview ? VIEW_TABS[dview] : TABS).filter(t => allowed(t.perms)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
+      {(dview ? VIEW_TABS[dview] : TABS).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}
       <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => setOpen(true)}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
     </nav>
@@ -388,7 +390,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     {quick && <div className="sheet-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={L('দ্রুত যোগ করুন', 'Quick add')}>
         <div className="sheet-grab" /><div className="sheet-hd"><b>{L('দ্রুত কাজ', 'Quick actions')}</b><button className="icon" aria-label={L('বন্ধ', 'Close')} onClick={() => setQuick(false)}><Icon name="x" /></button></div>
-        <div className="quick-grid">{QUICK.filter(x => allowed(x.perms)).map(x => <Link key={x.to + x.bn} to={x.to} className={`quick-tile t-${x.tone}`} onClick={() => setQuick(false)}>
+        <div className="quick-grid">{QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to)).map(x => <Link key={x.to + x.bn} to={x.to} className={`quick-tile t-${x.tone}`} onClick={() => setQuick(false)}>
           <span className="qi"><Icon name={x.icon} size={24} /></span><span>{L(x.bn, x.en)}</span></Link>)}</div>
       </div>
     </div>}

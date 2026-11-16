@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { inMenu } from '../../lib/menu'
+import { AttendanceDays } from './AttendanceDays'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
@@ -13,7 +15,7 @@ import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 
-export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'routes'
+export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'days' | 'routes'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
@@ -24,6 +26,7 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
   { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
   { key: 'team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'] },
+  { key: 'days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
   { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
 ]
 
@@ -33,7 +36,7 @@ function storeHub(id: string) { try { sessionStorage.setItem(HUB_KEY, id) } catc
 
 export function HubManagement() {
   const { section } = useParams()
-  const { can } = useAuth()
+  const { can, menu } = useAuth()
   const { L } = usePrefs()
   const o = useOrg()
   const [hub, setHubS] = useState(storedHub())
@@ -47,7 +50,7 @@ export function HubManagement() {
   if (!sec) return <Navigate to="/app/hub/team" replace />
   const allowed = sec.perms.some(p => can(p))
   const current = hubs.find(h => h.id === hub) ?? null
-  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)))
+  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
     <section className="da-filters panel no-print hub-top">
@@ -73,6 +76,7 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
     case 'ops': return <OpsToday hub={hub} />
     case 'accounts': return <AccountsToday hub={hub} />
     case 'team': return <HubTeam hub={hub} />
+    case 'days': return <AttendanceDays hub={hub} />
     case 'routes': return <RiderRoutes hub={hub} />
   }
 }
@@ -549,29 +553,28 @@ function HubTeam({ hub }: { hub: Hub }) {
             <option value="active">{L('সক্রিয়', 'Active')}</option><option value="inactive">{L('নিষ্ক্রিয়', 'Inactive')}</option>
             <option value="applicant">{L('আইডির অপেক্ষায়', 'Waiting for ID')}</option><option value="">{L('সব', 'All')}</option></select>
           {can('hr.application.create') && <button onClick={() => setNewApp(true)}><Icon name="plus" size={15} />{L('নতুন কর্মী', 'New staff')}</button>}</span></div>
-      <div className="team-cards">
-        <button type="button" className={`team-card all${post === null ? ' on' : ''}`} onClick={() => setPost(null)}>
-          <span className="ti"><Icon name="users" size={22} /></span><span className="tn">{L('সবাই', 'Everyone')}</span><span className="tc">{n(team.data?.length ?? 0)} {L('জন', '')}</span></button>
-        {groups.map(g => <button key={g.key} type="button" className={`team-card${post === g.key ? ' on' : ''}`} onClick={() => setPost(post === g.key ? null : g.key)}>
-          <span className="ti"><Icon name={g.icon} size={22} /></span><span className="tn">{g.name}</span><span className="tc">{n(g.count)} {L('জন', '')}</span></button>)}
+      <div className="eb-chips" role="group" aria-label={L('পদ অনুযায়ী', 'By post')}>
+        <button type="button" className={`chip-toggle${post === null ? ' on' : ''}`} aria-pressed={post === null} onClick={() => setPost(null)}>{L('সবাই', 'All')} <b>{n(team.data?.length ?? 0)}</b></button>
+        {groups.map(g => <button key={g.key} type="button" className={`chip-toggle${post === g.key ? ' on' : ''}`} aria-pressed={post === g.key} onClick={() => setPost(post === g.key ? null : g.key)}>{g.name} <b>{n(g.count)}</b></button>)}
       </div>
     </section>
-    <section className="panel">
+    <section className="panel emp-board">
       <div className="da-bar"><h3 style={{ margin: 0 }}>{post ? groups.find(g => g.key === post)?.name : L('সবার তালিকা', 'Everyone')}</h3>
         <input type="search" className="team-search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('নাম, আইডি বা মোবাইল…', 'Name, ID or mobile…')} /></div>
-      {team.error ? <p className="da-error">{hrFriendly(team.error)}</p> : <DataTable<Employee> title={`${L('হাব টিম', 'Hub team')} — ${hub.name}`} file={`team-${hub.code}`} rows={team.data ? rows : null} rowKey={r => r.id}
+      {team.error ? <p className="da-error">{hrFriendly(team.error)}</p> : <DataTable<Employee> title={`${L('হাব টিম', 'Hub team')} — ${hub.name}`} file={`team-${hub.code}`} rows={team.data ? rows : null} rowKey={r => r.id} phoneView="list" onRowClick={r => nav(`/app/hr/employees/${r.id}`)}
         empty={<p className="muted">{L('এখানে কেউ নেই।', 'Nobody here.')}</p>}
         cols={[
-          { key: 'icon', label: '', noExport: true, render: r => <span className="team-av"><Icon name={postIcon(posName(r)).icon} size={16} /></span> },
-          { key: 'code', label: L('আইডি', 'ID'), value: r => r.employee_code ?? '', render: r => <strong>{r.employee_code ?? '—'}</strong> },
-          { key: 'name', label: L('নাম', 'Name'), value: r => r.full_name },
-          { key: 'post', label: L('পদবি', 'Post'), value: r => posName(r) },
-          { key: 'mobile', label: L('মোবাইল', 'Mobile'), value: r => r.mobile ?? '', render: r => r.mobile ? <a href={`tel:${r.mobile}`} onClick={e => e.stopPropagation()}>{r.mobile}</a> : '—' },
+          { key: 'name', label: L('নাম', 'Name'), primary: true, value: r => r.full_name, render: r => <span className="emp-tname"><span className="ec-av sm">{r.full_name.slice(0, 2).toUpperCase()}</span>
+            <span><b>{r.full_name}</b><span className="sec">{r.employee_code ? `ID ${r.employee_code}` : L('আইডি বাকি', 'ID pending')}</span></span></span> },
+          { key: 'code', label: L('আইডি', 'ID'), hidden: true, value: r => r.employee_code ?? '' },
+          { key: 'mobile', label: L('ফোন', 'Phone'), value: r => r.mobile ?? '', render: r => r.mobile ? <a href={`tel:${r.mobile}`} onClick={e => e.stopPropagation()}>{r.mobile}</a> : <span className="warn-text">{L('নম্বর নেই', 'No number')}</span> },
+          { key: 'post', label: L('পদ', 'Role'), value: r => posName(r), render: r => <Badge tone={r.position_id ? 'ok' : 'neutral'}>{posName(r)}</Badge> },
+          { key: 'hub', label: L('হাব', 'Hub'), value: () => hub.name },
           { key: 'status', label: L('অবস্থা', 'Status'), value: r => r.status, render: r => <EmpBadge status={r.status} /> },
           { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
-            <button className="secondary sm" title={L('দেখুন', 'View')} onClick={() => nav(`/app/hr/employees/${r.id}`)}><Icon name="eye" size={14} /></button>
-            {can('hr.employee.edit') && <button className="secondary sm" title={L('এডিট', 'Edit')} onClick={() => nav(`/app/hr/employees/${r.id}`)}><Icon name="edit" size={14} /></button>}
-            {can('hr.employee.archive') && <button className="secondary sm" title={L('ডিলিট', 'Delete')} onClick={() => { setErr(''); setReason(''); setDel(r) }}><Icon name="trash" size={14} /></button>}
+            {can('hr.employee.edit') && r.status !== 'applicant' && <button className="secondary sm" onClick={e => { e.stopPropagation(); nav(`/app/hr/employees/${r.id}?edit=1`) }}>{L('এডিট', 'Edit')}</button>}
+            <button className="sm" onClick={e => { e.stopPropagation(); nav(`/app/hr/employees/${r.id}`) }}>{L('দেখুন', 'View')}</button>
+            {can('hr.employee.archive') && <button className="secondary sm" title={L('ডিলিট', 'Delete')} onClick={e => { e.stopPropagation(); setErr(''); setReason(''); setDel(r) }}><Icon name="trash" size={14} /></button>}
           </span> },
         ]} />}
     </section>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, type ViewAs } from '../auth/AuthProvider'
+import { menuApi } from '../lib/menu'
 import { Badge, Modal, useLoad } from '../pages/accounts/ui'
 import { dashboard, type RoleDashboard } from '../lib/dashboard'
 import { roles, type RoleRow } from '../lib/roles'
@@ -14,14 +15,15 @@ export function ViewAsPicker({ onClose }: { onClose: () => void }) {
   const nav = useNavigate()
   const [q, setQ] = useState('')
   const list = useLoad(async () => {
-    const [rs, layouts] = await Promise.all([roles.list(), dashboard.roleLayouts().catch(() => [] as RoleDashboard[])])
-    return { rs: rs.filter(r => !r.archived_at), layouts: Object.fromEntries(layouts.map(l => [l.role_id, l])) as Record<string, RoleDashboard> }
+    const [rs, layouts, menus] = await Promise.all([roles.list(), dashboard.roleLayouts().catch(() => [] as RoleDashboard[]), menuApi.roles().catch(() => [])])
+    return { rs: rs.filter(r => !r.archived_at), layouts: Object.fromEntries(layouts.map(l => [l.role_id, l])) as Record<string, RoleDashboard>,
+      menus: Object.fromEntries(menus.map(m => [m.role_id, m.menu])) as Record<string, string[] | null> }
   }, [])
   const label = (r: RoleRow) => lang === 'bn' && r.name_bn ? r.name_bn : r.name
   const shown = (list.data?.rs ?? []).filter(r => !q.trim() || `${r.name} ${r.name_bn ?? ''} ${r.code}`.toLowerCase().includes(q.trim().toLowerCase()))
   function pick(r: RoleRow) {
     const lay = list.data?.layouts[r.id]
-    const next: ViewAs = { id: r.id, name: label(r), permissions: r.permissions ?? [], is_super: r.is_super, panels: lay ? lay.panels : null, view: lay?.default_view ?? null }
+    const next: ViewAs = { id: r.id, name: label(r), permissions: r.permissions ?? [], is_super: r.is_super, panels: lay ? lay.panels : null, view: lay?.default_view ?? null, menu: list.data?.menus[r.id] ?? null }
     setViewAs(next); onClose(); nav('/app')
   }
   return <Modal title={L('রোল হিসেবে দেখুন', 'View as a role')} onClose={onClose}

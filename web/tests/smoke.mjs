@@ -67,7 +67,7 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
@@ -91,6 +91,13 @@ try {
           created_at: '2026-11-15T05:00:00Z', solved_at: null, reopen_count: 0, assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: true }, { id: 'o1', issue_no: 'IS-00009', title: 'স্টোর অর্ডার: টেপ', kind: 'store',
         priority: 'normal', status: 'open', hub_id: 'h1', hub: 'Natore Sadar', parcel_ref: null, due_at: null, created_at: '2026-11-15T04:00:00Z', solved_at: null, reopen_count: 0,
         assigned_by_name: 'Hub Manager', assigned_by_nodi: false, assignee: 'Owner', assignee_code: '1', is_mine: true, is_giver: false, overdue: false }] })
+      if (u.includes('rpc/my_menu')) return j(menuNow)
+      if (u.includes('rpc/role_menu_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, menu: null, user_count: 4 }])
+      if (u.includes('rpc/role_menu_save')) { flowCalls.push({ fn: 'role_menu_save', ...r.request().postDataJSON() }); return j(null) }
+      if (u.includes('rpc/att_days_save')) { flowCalls.push({ fn: 'att_days_save', ...r.request().postDataJSON() }); return j(2) }
+      if (u.includes('rpc/att_days_list')) return j([
+        { employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position_name: 'Commission Rider', site_days: 0, online_days: null, register_days: null, note: null, submitted_by_name: null, submitted_at: null },
+        { employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', position_name: 'Commission Rider', site_days: 0, online_days: 15, register_days: 15, note: null, submitted_by_name: 'Owner', submitted_at: '2026-11-16T05:00:00Z' }])
       if (u.includes('rpc/da_settings')) return j(daSettings)
       if (u.includes('rpc/da_flow_list')) return j([{ session_id: 's1', hub_id: 'h1', needed: 2, people: 2, submitted: 2, accepted: 2, checked_at: '2026-11-15T13:00:00Z', report_ok_at: null, report_diff: null, bank_done_at: null },
         { session_id: 's2', hub_id: 'h2', needed: 1, people: 2, submitted: 2, accepted: 1, checked_at: null, report_ok_at: null, report_diff: null, bank_done_at: null }])
@@ -298,6 +305,32 @@ try {
     check(flowCalls.at(-1)?.fn === 'da_check' && flowCalls.at(-1)?.p_note === 'একজন ছুটিতে', `${size}: the daily sheet is opened with its reason`)
     await fits('accounts sheet')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
+    // attendance days to compare: two numbers per person, a difference is pointed out, then submit
+    await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
+    const adRow = page.locator('.ad-rows .nv-row', { hasText: 'Alamin Sarker' })
+    await adRow.locator('.ad-in input').nth(0).fill('১৩'); await adRow.locator('.ad-in input').nth(1).fill('15')
+    check(await page.locator('.ad-rows .nv-row:not(.ad-head)').count() === 2 && (await adRow.innerText()).includes('পার্থক্য ২ দিন'), `${size}: attendance days take two numbers per person and point out a difference`)
+    await page.locator('.ad .da-actionbar button').click(); await page.waitForTimeout(300)
+    { const c = flowCalls.at(-1) ?? {}
+      check(c.fn === 'att_days_save' && c.p_rows?.length === 2 && c.p_rows[0].online_days === 13 && c.p_rows[0].register_days === 15 && /^\d{4}-\d\d-(01|16)$/.test(c.p_from), `${size}: the hub submits the attendance days for the half month`) }
+    await fits('attendance days')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-days.png` })
+    // which pages a role sees: the Super Admin ticks them; a limited role gets nothing else
+    await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
+    await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')
+    await page.locator('.da-modal .da-seg button').last().click()
+    await page.locator('.pg-pick label', { hasText: 'আমার হাব টিম' }).locator('input').check(); await page.locator('.pg-pick label', { hasText: 'হাজিরার দিন মেলানো' }).locator('input').check()
+    await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_menu?.join() === '/app/hub/team,/app/hub/days', `${size}: the Super Admin picks the pages of a role`)
+    menuNow = ['/app/hub/team', '/app/hub/days', '/app/accounts/khata']
+    await page.goto(`${BASE}/app/hub/team`); await page.waitForSelector('.hub-tabs a', { timeout: 10000 }).catch(() => {})
+    const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
+    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 3 && sideLinks.includes('/app/accounts/khata'), `${size}: a limited role has only its pages in the menu (${sideLinks.length})`)
+    await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
+    check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
+    await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
+    check(await page.locator('.emp-head').count() === 1, `${size}: a person's profile still opens from the team page`)
+    menuNow = null
     // my own khata: three parts only, then Submit
     mineOpen = true
     await page.goto(`${BASE}/app/accounts/khata`); await page.waitForSelector('.kh .da-tabs', { timeout: 10000 }).catch(() => {})
