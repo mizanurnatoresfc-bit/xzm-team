@@ -15,7 +15,7 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
 // https://localhost = the Android app (Capacitor), capacitor://localhost = a future iPhone app.
-const DEFAULT_ORIGINS = ['https://xzm-team-erp.netlify.app', 'https://localhost', 'capacitor://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173']
+const DEFAULT_ORIGINS = ['https://xzm-team-erp.netlify.app', 'https://xzmteam.com', 'https://www.xzmteam.com', 'https://localhost', 'capacitor://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173']
 const ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map(s => s.trim()).filter(Boolean)
 const allowed = ORIGINS.length ? ORIGINS : DEFAULT_ORIGINS
 
