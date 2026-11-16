@@ -87,3 +87,10 @@ export const NOTICE_KIND: Record<string, [string, string, string]> = {
   da_reminder: ['হিসাব খাতা', 'Daily sheet', 'ledger'], nodi: ['নদী AI', 'Nodi AI', 'bell'],
 }
 export const kindOf = (k: string | null) => NOTICE_KIND[k ?? ''] ?? ['অন্যান্য', 'Other', 'bell']
+
+/** Phone push: save this phone for the signed-in person (the app calls it after sign-in). */
+export const savePushDevice = async (token: string) => {
+  const v = (window as unknown as { __APP_VERSION__?: string }).__APP_VERSION__ ?? null
+  const { error } = await supabase.rpc('push_device_save', { p_token: token, p_platform: 'android', p_version: v }); if (error) throw error
+}
+export const removePushDevice = async (token: string | null) => { if (token) await supabase.rpc('push_device_remove', { p_token: token }) }

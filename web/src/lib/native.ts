@@ -71,3 +71,34 @@ function fitStatusBar(): void {
   if (document.body) check(); else window.addEventListener('DOMContentLoaded', check, { once: true })
   window.addEventListener('orientationchange', () => window.setTimeout(check, 300))
 }
+
+// ---------------------------------------------------------------- phone push (Firebase Cloud Messaging)
+// Works only in an APK built with the push plugin and the Firebase file; anywhere else this quietly does nothing.
+type PushPlugin = {
+  checkPermissions: () => Promise<{ receive: string }>
+  requestPermissions: () => Promise<{ receive: string }>
+  register: () => Promise<void>
+  createChannel?: (c: { id: string; name: string; importance: number; sound?: string; vibration?: boolean; visibility?: number }) => Promise<void>
+  addListener: (e: string, cb: (x: { value?: string; notification?: { data?: Record<string, string> } }) => void) => Promise<Listener> | Listener
+}
+const PUSH_KEY = 'xzm_push_token'
+let pushStarted = false
+export const pushToken = (): string | null => { try { return localStorage.getItem(PUSH_KEY) } catch { return null } }
+export const pushAvailable = (): boolean => isNativeApp() && !!(cap()?.Plugins as unknown as { PushNotifications?: PushPlugin } | undefined)?.PushNotifications
+
+/** Ask once for permission, register with Firebase, hand the token to `save`, and open `link` when a push is tapped. */
+export async function setupPush(save: (token: string) => Promise<void>, open: (link: string) => void): Promise<'on' | 'denied' | 'unavailable'> {
+  const p = (cap()?.Plugins as unknown as { PushNotifications?: PushPlugin } | undefined)?.PushNotifications
+  if (!isNativeApp() || !p) return 'unavailable'
+  if (!pushStarted) {
+    pushStarted = true
+    void p.addListener('registration', t => { if (t.value) { try { localStorage.setItem(PUSH_KEY, t.value) } catch { /* ignore */ } void save(t.value).catch(() => undefined) } })
+    void p.addListener('pushNotificationActionPerformed', a => { const l = a.notification?.data?.link; if (l && l.startsWith('/')) open(l) })
+    void p.createChannel?.({ id: 'xzm', name: 'XZM-TEAM', importance: 5, sound: 'default', vibration: true, visibility: 1 }).catch(() => undefined)
+  }
+  let st = (await p.checkPermissions().catch(() => ({ receive: 'denied' }))).receive
+  if (st === 'prompt' || st === 'prompt-with-rationale') st = (await p.requestPermissions().catch(() => ({ receive: 'denied' }))).receive
+  if (st !== 'granted') return 'denied'
+  await p.register().catch(() => undefined)
+  return 'on'
+}

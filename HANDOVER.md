@@ -281,3 +281,18 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Page `/app/notifications` (always open, like the profile): all / unread, filter by kind, grouped by day (আজ, গতকাল, …), tap opens and marks read,
   "সব পড়া হয়েছে", "আরও দেখুন" in pages of 40. Kinds known: hr_request, issue, vehicle, office, attendance, manpower, da_reminder, nodi.
 - Not tested end-to-end with a real login (the browser check used sample rows; Realtime needs a signed-in session). Phone push (FCM) is the next step.
+
+## 2026-11-17 — Phone push (Firebase Cloud Messaging), ready and waiting for Firebase
+- Migration `20261117000200_phone_push.sql` (applied live as `phone_push`): `push_devices` (one row per phone token; a token moves to whoever signed
+  in last on that phone; sign-out switches it off), `notifications.pushed_at`, `push_device_save/remove` for the app, `push_claim` / `push_device_dead`
+  for the sender (service role only; `push_claim` takes each row once with SKIP LOCKED, rows older than 2 h are never pushed). A trigger on a new
+  notification calls the Edge Function `push-send` through pg_net (only when that person has a phone saved); pg_cron job `push-send` runs every 2 minutes
+  for anything missed. Tests: `supabase/tests/99zzzzzzz_push.sql` (12).
+- Edge Function `push-send` (deployed, verify_jwt off, no secret in the call — it reads the queue itself): signs a Google token from the secret
+  `FCM_SERVICE_ACCOUNT` (service-account JSON) and sends FCM HTTP v1 messages (channel `xzm`, high priority, data.link = the page to open);
+  dead tokens are switched off. Without the secret it answers `{configured:false}` and claims nothing (checked live through pg_net).
+- App: `@capacitor/push-notifications@7.0.6`; `lib/native.ts` `setupPush()` asks permission once after sign-in, saves the token, opens data.link when a push
+  is tapped. The APK build writes `android/app/google-services.json` from the GitHub secret `GOOGLE_SERVICES_JSON` and adds POST_NOTIFICATIONS; without
+  that secret the plugin is uninstalled for the build (the app would crash calling Firebase uninitialised), so APKs build exactly as before.
+- **Owner steps left:** create the Firebase project and Android app `com.xzmteam.erp`; put `google-services.json` in the GitHub secret `GOOGLE_SERVICES_JSON`;
+  put the service-account JSON in the Supabase secret `FCM_SERVICE_ACCOUNT`; build a new APK (Actions → Run workflow) and install it.
