@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
@@ -12,7 +12,8 @@ import { hrReq } from '../../lib/hrreq'
 import { issues } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
-import { Badge, useLoad } from '../accounts/ui'
+import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
+import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
 /**
  * স্টাফ প্যানেল — one phone screen for a staff member's own day, in the order the owner asked for:
@@ -41,8 +42,7 @@ export function StaffPanel() {
       quiet(da.myClaims(30), [] as Claim[]),
       quiet(issues.panels(), null),
       quiet(issues.groupHubs(), []),
-      me ? quiet(supabase.from('attendance_records').select('status, check_in').eq('employee_id', me.id).eq('work_date', today).maybeSingle()
-        .then(r => r.data as { status: string; check_in: string | null } | null), null) : null,
+      quiet(selfAtt.mine(), null as MyAttToday | null),
       me ? quiet(dutiesApi.mine(me.id), []) : [],
       me ? quiet(supabase.from('rider_routes').select('hub_routes(name, areas)').eq('employee_id', me.id).is('effective_to', null)
         .then(r => ((r.data ?? []) as unknown as Array<{ hub_routes: { name: string; areas: string[] } | null }>).map(x => x.hub_routes).filter(Boolean) as Array<{ name: string; areas: string[] }>), []) : [],
@@ -62,7 +62,30 @@ export function StaffPanel() {
   const mine = lines.filter(l => l.account_date === today)
   const sum = (f: (l: (typeof lines)[number]) => number, rows = mine) => rows.reduce((a, l) => a + f(l), 0)
   const due = sum(l => Number(l.line.due), lines)
-  const a = v?.att ? ATT[v.att.status] : null
+  // Today's attendance: on the register (approved or marked by the manager), or my own input waiting / returned.
+  const rec = v?.att?.record ?? null, mark = v?.att?.mark ?? null
+  const a = rec ? ATT[rec.status] ?? null : null
+  const waiting = !rec && mark?.status === 'waiting' ? mark : null
+  const returned = !rec && mark?.status === 'rejected' ? mark : null
+  const clock = (t: string) => new Date(t).toLocaleTimeString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' })
+  const attTitle = a ? L(a[0], a[1]) : waiting ? (waiting.kind === 'present' ? L('হাবে এসেছেন — অনুমোদন বাকি', 'At the hub — waiting for approval') : L('আজ আসবেন না — অনুমোদন বাকি', 'Not coming — waiting for approval'))
+    : returned ? L('হাজিরা ফেরত দেওয়া হয়েছে', 'Attendance was returned') : L('আজকের হাজিরা এখনো দেননি', 'Not given yet today')
+  const attSub = rec ? [rec.check_in && `${L('হাবে এসেছেন', 'Arrived')} ${clock(rec.check_in)}`,
+      rec.source === 'self' ? `${L('অনুমোদন দিয়েছেন', 'Approved by')} ${mark?.decided_by_name ?? L('ম্যানেজার', 'manager')}` : L('হাব ম্যানেজার তুলেছেন', 'Marked by the hub manager')].filter(Boolean).join(' · ')
+    : waiting ? (waiting.kind === 'present' ? `${L('দিয়েছেন', 'Given at')} ${clock(waiting.marked_at)} · ${L('হাব ম্যানেজার অনুমোদন দিলে খাতায় উঠবে', 'it counts once the hub manager approves')}` : `${L('কারণ', 'Reason')}: ${waiting.note ?? ''}`)
+    : returned ? `${L('কারণ', 'Reason')}: ${returned.decide_note ?? ''} · ${L('আবার দিন', 'give it again')}` : L('হাবে এসে নিচের বোতাম চাপুন', 'Tap the button below when you reach the hub')
+  const attTone = a?.[2] ?? (waiting ? 'w' : returned ? 'r' : 'w')
+  const { toast, node } = useToast()
+  const [busy, setBusy] = useState(false)
+  const [absent, setAbsent] = useState<string | null>(null)
+  const [attErr, setAttErr] = useState('')
+  async function give(kind: 'present' | 'absent', note?: string) {
+    setBusy(true); setAttErr('')
+    try {
+      await selfAtt.mark(kind, note); setAbsent(null); await d.reload()
+      toast(kind === 'present' ? L('হাজিরা দেওয়া হয়েছে — ম্যানেজারের অনুমোদনের অপেক্ষায়', 'Given — waiting for the manager') : L('হাব ম্যানেজারকে জানানো হয়েছে', 'Your hub manager has been told'))
+    } catch (e) { setAttErr(selfAttFriendly(e)) } finally { setBusy(false) }
+  }
   const claims = v?.claims ?? []
   const waitingBills = claims.filter(c => (c.status ?? 'submitted') === 'submitted')
   const myIssues = (v?.panels?.mine ?? []).filter(i => i.status === 'open' || i.status === 'in_progress')
@@ -80,12 +103,17 @@ export function StaffPanel() {
   }
   const cnt = (c: number, tone: 'warn' | 'bad' | 'info' = 'warn') => c > 0 ? <span className="end"><Badge tone={tone}>{n(c)}</Badge></span> : undefined
 
+  const act = (tone: string, icon: string, title: string, sub: string, onClick: () => void, disabled = false) =>
+    <button type="button" className="nv-row" disabled={disabled} onClick={onClick}><span className={`nv-av sd-i ${tone}`}><Icon name={icon} size={22} /></span>
+      <span className="tx"><b>{title}</b><span>{sub}</span></span><Icon name="chev" size={18} /></button>
+
   return <AppShell title={L('স্টাফ প্যানেল', 'Staff panel')} subtitle={who || L('আমার আজকের সব কাজ এক জায়গায়', 'My whole day in one place')}>
     <div className="sd sp">
+      {node}
       <Link to="/app/me" className="sp-hero">
         <span className="nv-av">{String(name).slice(0, 1).toUpperCase()}</span>
         <span className="tx"><small>{day}</small><b>{name}</b>{who && <span>{who}</span>}</span>
-        <span className={`sp-att t-${a?.[2] ?? 'w'}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : L('হাজিরা বাকি', 'Not marked')}</span>
+        <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>
       </Link>
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
 
@@ -102,17 +130,25 @@ export function StaffPanel() {
       </div>
 
       <h2 className="sd-h">{L('আজকের হাজিরা', "Today's attendance")}</h2>
-      <div className={`sp-card t-${a?.[2] ?? 'w'}`}>
-        <span className="i"><Icon name={a ? 'check' : 'clock'} size={24} /></span>
-        <div className="tx"><b>{a ? L(a[0], a[1]) : L('আজকের হাজিরা এখনো ওঠেনি', 'Not marked yet today')}</b>
-          <span>{v?.att?.check_in ? `${L('হাবে এসেছেন', 'Arrived')} · ${new Date(v.att.check_in).toLocaleTimeString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' })}`
-            : a ? L('হাব ম্যানেজার হাজিরা তুলেছেন', 'Marked by the hub manager') : L('হাবে এলে হাব ম্যানেজার হাজিরা তুলবেন', 'The hub manager marks it when you arrive')}</span></div>
+      <div className={`sp-card t-${attTone}`} id="sp-att">
+        <span className="i"><Icon name={a ? 'check' : returned ? 'alert' : 'clock'} size={24} /></span>
+        <div className="tx"><b>{attTitle}</b><span>{attSub}</span></div>
       </div>
-      <div className="nv-rows">
-        {row(null, 'g', 'check', L('হাবে এসেছি — হাজিরা দিই', 'I am at the hub — mark me'), L('নিজে হাজিরা দেওয়া এখনো চালু হয়নি', 'Marking yourself is not switched on yet'))}
-        {canLeave ? row('/app/hr/leave', 'p', 'log', L('আজ আসিনি — ছুটির আবেদন', 'Not coming — ask for leave'), L('কারণ লিখে ছুটির আবেদন দিন', 'Write the reason and apply for leave'))
-          : row(null, 'p', 'log', L('আজ আসিনি — কারণ জানাই', 'Not coming — give the reason'), L('হাব ম্যানেজারকে জানান', 'Tell your hub manager'), <span />)}
-      </div>
+      {attErr && <p className="da-error">{attErr}</p>}
+      {!rec && <div className="nv-rows">
+        {act('g', 'check', waiting?.kind === 'present' ? L('হাজিরা আবার দিন', 'Give it again') : L('হাবে এসেছি — হাজিরা দিই', 'I am at the hub — mark me'),
+          L('চাপলেই হাজিরা যাবে, হাব ম্যানেজার অনুমোদন দেবেন', 'One tap; your hub manager approves it'), () => void give('present'), busy || !v?.me)}
+        {act('p', 'log', L('আজ আসব না — কারণ জানাই', 'Not coming — give the reason'), L('কারণ লিখুন, হাব ম্যানেজার দেখবেন', 'Write the reason for your hub manager'),
+          () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
+      </div>}
+      {canLeave && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
+      {absent !== null && <Modal title={L('আজ আসব না', 'Not coming today')} onClose={() => setAbsent(null)}
+        actions={<><button className="secondary" onClick={() => setAbsent(null)}>{L('বাতিল', 'Cancel')}</button>
+          <button disabled={busy || !absent.trim()} onClick={() => void give('absent', absent.trim())}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('জানিয়ে দিন', 'Send')}</button></>}>
+        <Field label={L('কেন আসছেন না *', 'Why are you not coming *')}><textarea id="sp-absent" rows={3} autoFocus value={absent} placeholder={L('যেমন: জ্বর, ডাক্তার দেখাতে যাচ্ছি', 'e.g. fever, going to the doctor')} onChange={e => setAbsent(e.target.value)} /></Field>
+        <p className="muted small">{L('হাব ম্যানেজার অনুমোদন দিলে আজ "অনুপস্থিত" হিসেবে খাতায় উঠবে।', 'Once your hub manager approves, today goes on the register as absent.')}</p>
+        {attErr && <p className="da-error">{attErr}</p>}
+      </Modal>}
       <NodiGaps />
 
       <h2 className="sd-h">{L('আমার বিল', 'My bill')}</h2>

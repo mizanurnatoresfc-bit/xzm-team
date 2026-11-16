@@ -182,3 +182,15 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `vehicle_request_update` notifies the driver. `vehicle_request_list(hub, vehicle, open_only)`.
 - UI: "আমার গাড়ি" shows big tiles per vehicle — তেল তুলেছি · পার্টস লাগবে · সার্ভিসিং লাগবে · সমস্যা জানান · দিনের খাতা — plus "আমার অনুরোধ".
   Requisitions tab has a "ড্রাইভারদের অনুরোধ" section (accept / done with cost / reject); overview shows the open ones. Settings: a format editor per kind.
+
+## 2026-11-16 — Staff panel (`/app/staff`) and staff giving their own attendance
+- Page `web/src/pages/staff/StaffPanel.tsx`: the staff member's whole day on one phone screen, in the owner's order — আমার হিসাব · আজকের হাজিরা ·
+  আমার বিল · রুট ও দায়িত্ব · অভিযোগ · ইস্যু ও যোগাযোগ · আমার লোক. It reads what the person may already see and links to the working pages.
+  Rows with nothing behind them yet are marked "শীঘ্রই": today's returns, zone group, zonal manager contact. `/app/accounts/mine?bill=1` opens the bill form.
+- Migration `20261116000600_self_attendance.sql` — decision (owner, 16 Nov): staff input is enough, no location check; every staff input counts
+  only once a manager approves it. `att_self_mark('present' | 'absent', reason)` for today (Dhaka) → `attendance_self_marks` (waiting); the hub's
+  managers with `hr.attendance.create` are notified. `att_self_list(hub, date)` / `att_self_decide(ids, ok, as, note)`: approve as present / late /
+  half day / absent writes `attendance_records` (source `self`); return needs a reason; the staff member is notified. Nobody approves their own.
+  `my_att_today()` feeds the staff panel. UI: hub page "আজকের হাজিরা খাতা" has a "স্টাফের দেওয়া হাজিরা" box above the register.
+- Tests: `supabase/tests/99zzzz_self_attendance.sql` (19). `99f_role_dashboards.sql` already fails on its "nine panels" count (the catalogue grew); not touched.
+- **To go live:** apply the migration on Supabase, then merge to `main` (site deploys itself; APK by hand from Actions).

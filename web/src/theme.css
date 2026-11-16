@@ -1659,3 +1659,12 @@ button.nv-row:disabled{opacity:1}
 @media (max-width:700px){.sp-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sp-two{grid-template-columns:1fr}}
 @media (max-width:380px){.sp-att{display:none}}
 @media (prefers-reduced-motion:reduce){.sp-hero,.sp-tile,.sp-cta,.sp .nv-row{transition:none;transform:none!important}}
+.sp button.nv-row{width:100%;min-height:72px;padding:12px 16px;gap:14px;justify-content:flex-start;border:0;border-radius:0;background:transparent;color:var(--text);text-align:left;font-weight:400}
+.sp button.nv-row:hover:not(:disabled){background:var(--row-hover);border:0}
+.sp button.nv-row+.nv-row,.sp .nv-row+button.nv-row{border-top:1px solid var(--border)}
+.sp-card.t-w .i{background:var(--warn-bg);color:var(--warn-fg)}
+.self-marks .nv-rows{box-shadow:none}
+.self-marks .nv-row{flex-wrap:wrap;min-height:64px}
+.self-marks .nv-row .tx span{white-space:normal}
+.self-acts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+@media (max-width:560px){.self-acts{width:100%;padding-left:58px}.self-acts button{flex:1}}
