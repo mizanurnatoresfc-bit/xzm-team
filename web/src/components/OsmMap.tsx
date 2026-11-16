@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 
 /** A small OpenStreetMap view without any library: tiles, pins, zoom, drag, tap-to-pick. */
-export type MapPin = { id: string; lat: number; lng: number; label: string; tone?: 'ok' | 'off' | 'wait' | 'sel' }
+export type MapPin = { id: string; lat: number; lng: number; label: string; tone?: 'ok' | 'off' | 'wait' | 'sel' | 'bad' }
 /** A drawn line through points in order (e.g. a sorting route: center → stop → stop). */
 export type MapLine = { id: string; color: string; points: Array<[number, number]>; dashed?: boolean; label?: string }
 

@@ -44,3 +44,19 @@ export const presence = {
   setGps: (hub: string, f: Fix | null, radius: number | null) =>
     rpc<HubPlace>('hub_place_save', { p_hub: hub, p_lat: f?.lat ?? null, p_lng: f?.lng ?? null, p_radius: radius }),
 }
+
+// ---- Hourly location while the app is open (zonal manager sees it)
+export type LocNeed = { track: boolean; duty_now?: boolean; from?: string; to?: string; last_at?: string | null }
+export type StaffLoc = { employee_id: string; employee_code: string | null; full_name: string; mobile: string | null; position: string | null
+  hub_id: string; hub_name: string | null; hub_code: string | null; zone_id: string; zone_name: string; hub_lat: number | null; hub_lng: number | null
+  last_at: string | null; latitude: number | null; longitude: number | null; accuracy_m: number | null; distance_m: number | null
+  place_status: Exclude<PlaceStatus, 'no_gps'> | null; wifi_match: boolean | null; today_count: number }
+export type LocPing = { at: string; latitude: number; longitude: number; accuracy_m: number | null; distance_m: number | null
+  place_status: Exclude<PlaceStatus, 'no_gps'> | null; wifi_match: boolean }
+
+export const tracking = {
+  need: () => rpc<LocNeed>('my_location_need'),
+  ping: (f: Fix) => rpc<{ saved: boolean; why?: string }>('staff_location_ping', { p_lat: f.lat, p_lng: f.lng, p_accuracy: f.accuracy }),
+  zone: (zone: string | null) => rpc<StaffLoc[]>('zonal_staff_locations', { p_zone: zone }),
+  day: (employee: string, date: string) => rpc<LocPing[]>('zonal_staff_location_day', { p_employee: employee, p_date: date }),
+}

@@ -253,3 +253,15 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Android: the APK build now adds ACCESS_COARSE/FINE_LOCATION to the manifest (workflow + make-android.bat) — **a new APK is needed** for the app;
   the website works already. Tests: `supabase/tests/99zzzzzzz_hub_presence.sql` (17).
 - **To go live:** apply both migrations (`0800`, `0900`) on Supabase, merge to `main`, then build a new APK by hand from Actions.
+
+## 2026-11-16 — "স্টাফ কোথায় আছেন": hourly location while the app is open (zonal manager only)
+- Owner (16 Nov) chose option 1: only while the app is open, only the zonal manager sees it. Builds on `0900` (hub GPS, hub Wi-Fi).
+- Migration `20261116001000_staff_location_pings.sql`: `staff_location_pings` (no direct access; 30-day keep), permission `zonal.location.view`
+  (Zonal Manager for their zone; also Admin, because a role can only be given by someone holding all its rights — without it an Admin
+  could no longer assign Zonal Managers; Super Admin sees all). Duty hours 08:00–20:00 Dhaka (`private.location_duty_now()`).
+  `my_location_need()`, `staff_location_ping(lat, lng, acc)` (≥50 min apart, duty hours only, distance + verdict + Wi-Fi via `private.hub_place`),
+  `zonal_staff_locations(zone)` (every active staff member with the latest ping), `zonal_staff_location_day(employee, date)` (the trail).
+- UI: `components/LocationPinger.tsx` in every app page — a one-time notice for staff; after "ঠিক আছে" the phone sends at most once an hour
+  while the page is open/visible. Page `/app/zonal/locations` (menu: জোনাল প্যানেল → জোন ও হাব): counts, list (distance in km, last seen,
+  today's count, call), map, the day's trail. A role with a fixed page list needs the page added in "রোল ও মেনু".
+- Tests: `supabase/tests/99zzzzzzzz_staff_locations.sql` (13). **To go live:** apply `0800`, `0900`, `1000`, merge, new APK.

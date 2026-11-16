@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { LocationNotice } from './LocationPinger'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
@@ -67,6 +68,7 @@ export const GROUPS: Group[] = [
     { bn: 'জোন ও হাব', en: 'Zone & hubs', items: [
       { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
+      { to: '/app/zonal/locations', icon: 'map', bn: 'স্টাফ কোথায় (হাব থেকে দূরত্ব)', en: 'Where staff are (distance from hub)', perms: ['zonal.location.view'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
     { bn: 'কর্মী ও HR', en: 'Staff & HR', items: [
@@ -405,6 +407,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       </header>
       <div className="scope-bar no-print"><strong>{L('কাজ করছেন:', 'Acting as:')}</strong> {scopeText} <span className="muted">— {L('এর বাইরের তথ্য দেখানো হয় না', 'data outside this scope is not shown')}</span></div>
       <main className="da-main">
+        <LocationNotice user={user} />
         <div className="da-head"><div><h1>{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div>
           {actions && <div className="da-actions no-print">{actions}</div>}</div>
         {children}

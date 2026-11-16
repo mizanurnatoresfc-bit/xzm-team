@@ -51,6 +51,7 @@ const ProfileGaps = lazy(() => import('./pages/hr/ProfileGaps').then(m => ({ def
 const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
 const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
+const StaffLocations = lazy(() => import('./pages/zonal/StaffLocations').then(m => ({ default: m.StaffLocations })))
 const ZonalAssistant = lazy(() => import('./pages/zonal/ZonalAssistant').then(m => ({ default: m.ZonalAssistant })))
 const Training = lazy(() => import('./pages/Training').then(m => ({ default: m.Training })))
 const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default: m.Rollout })))
@@ -101,6 +102,7 @@ export default function App() {
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />
       <Route path="/app/zonal/staff" element={<ZonalStaff />} />
+      <Route path="/app/zonal/locations" element={<StaffLocations />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       <Route path="/app/manpower" element={<Manpower />} />
       <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />

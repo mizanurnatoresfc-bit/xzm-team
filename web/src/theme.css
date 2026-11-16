@@ -1809,3 +1809,11 @@ button.nv-row:disabled{opacity:1}
 .place-chip.t-bad{background:var(--bad-bg);color:var(--bad-fg)}.place-chip.t-neutral{background:color-mix(in srgb,var(--muted) 16%,transparent);color:var(--muted)}
 .hub-place-rows{display:flex;flex-direction:column;gap:8px}
 .hub-place-rows .nv-row{flex-wrap:wrap}
+.loc-notice{display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:12px;border-radius:12px;background:var(--info-bg);color:var(--info-fg);font-size:13.5px}
+.loc-notice svg{flex:none}.loc-notice span{flex:1}.loc-notice button{flex:none}
+.osm-pin.t-bad .dot{background:#dc2626}
+.loc-stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.loc-stat{all:unset;cursor:pointer;display:block;border-radius:16px}.loc-stat:focus-visible{outline:2px solid var(--primary)}
+.loc-stat.on .da-stat{box-shadow:0 0 0 2px var(--primary)}
+.loc-trail{margin:10px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.loc-trail li{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
