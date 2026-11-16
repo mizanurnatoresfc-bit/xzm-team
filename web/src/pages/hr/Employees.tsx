@@ -63,7 +63,7 @@ export function Employees() {
         <div className="eb-chips" role="group" aria-label="পদ অনুযায়ী">
           <button type="button" className={`chip-toggle${post === '' ? ' on' : ''}`} aria-pressed={post === ''} onClick={() => setPost('')}>সব <b>{bn(scoped.length)}</b></button>
           {posts.map(({ p, count }) => <button key={p.id} type="button" className={`chip-toggle${post === p.id ? ' on' : ''}`} aria-pressed={post === p.id} onClick={() => setPost(post === p.id ? '' : p.id)}>
-            {p.name} <b>{bn(count)}</b></button>)}
+            {o.names.pos[p.id] ?? p.name} <b>{bn(count)}</b></button>)}
           <button type="button" className={`chip-toggle${post === 'leave' ? ' on' : ''}`} aria-pressed={post === 'leave'} onClick={() => setPost(post === 'leave' ? '' : 'leave')}>আজ ছুটিতে <b>{bn(leaveCount)}</b></button>
         </div>
         <label className="emp-search"><Icon name="search" size={18} />
