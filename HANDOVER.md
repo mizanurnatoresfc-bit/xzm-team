@@ -315,3 +315,14 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   dashboard catalogue 14 panels / 15 role layouts. All SQL tests pass: 1246 assertions, 0 failing files.
 - **Open question for the owner:** on live, a khata that was closed and accepted stays closed when its person writes another line (the khata-accept
   design expected it to reopen). The assertion is commented out in `99y_sheet_check_flow.sql` until decided.
+
+## 2026-11-17 — রেফারেন্স তালিকা with HR approval
+- Owner: "রেফারেন্স এ লোক এড করা যাবে হাব জোন হাব সিলেক্ট করে, ম্যানুয়ালি ইনপুট, নাম পদবি নাম্বার হাবের নাম! সবাই করতে পারবে এড; ইডিট রিমুভ HR আপ্রুভাল দিলে শো করবে তার আগে ওয়েটিং".
+- Migration `20261117000500_reference_people_approval.sql` (applied live): on `da_reference_people` — approval / pending_action (add · edit · remove) /
+  pending_data / requester / decision columns and `hub_name`; read rule changed with ALTER POLICY: everyone reads the approved list, own requests, approvers all.
+  New permission `hr.reference.approve` (admin, head office, HR manager). Functions `ref_request_add/edit/remove`, `ref_decide(ids, ok, note)`,
+  `ref_hub_people(hub)` (name, ID, post, mobile of a hub's active staff, for anyone signed in). HR is notified of each request; the asker of each answer.
+  A new person stays `inactive` until approved; a change keeps the old values until approved. Tests: `99zzzzzzzz_references.sql` (21).
+- Page `/app/references` (menu "রেফারেন্স তালিকা", open to everyone): তালিকা (search, zone, call/SMS/WhatsApp), আমার অনুরোধ, অনুমোদন (HR; one or many).
+  Add by জোন → হাব → লোক or by hand (name, post, number, hub name). The expense forms' "রেফারেন্স" dropdown now reads the approved list (the old
+  `da.reference_people` setting stays as a fallback).

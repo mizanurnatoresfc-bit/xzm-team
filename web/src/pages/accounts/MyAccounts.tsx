@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { refs } from '../../lib/refs'
 import { Link, useSearchParams } from 'react-router-dom'
 import { da, num, taka, dateBn, timeBn, todayDhaka, addDays, EVENT_LABEL,
   type SheetEvent, type Claim, type Category, type Handover, NOTE_METHOD } from '../../lib/dailyAccounts'
@@ -114,7 +115,8 @@ function MyClaims() {
   const [drop, setDrop] = useState<Claim | null>(null)
   const [reason, setReason] = useState('')
   const cats: Category[] = settings.data?.['da.expense_categories'] ?? []
-  const refPeople = settings.data?.['da.reference_people'] ?? []
+  const refList = useLoad(() => refs.approved(), [])
+  const refPeople = refList.data?.length ? refList.data.map(r => ({ name: r.name, phone: r.phone ?? undefined, position: [r.position, r.hub_name].filter(Boolean).join(' · ') || undefined })) : settings.data?.['da.reference_people'] ?? []
   const list = claims.data ?? []
   const blank = (): CDraft => ({ kind: 'employee', name: '', category: cats[0]?.code ?? 'other', amount: '', date: today,
     billNo: '', refName: '', refPhone: '', refPosition: '', vehicle: '', remarks: '' })
