@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { refs } from '../../lib/refs'
 import { Link, useParams } from 'react-router-dom'
 import {
   da, num, taka, dateBn, timeBn, duration, todayDhaka, EVENT_LABEL,
@@ -408,7 +409,9 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
   const up = useOcrUpload(s.session.id, settings)
   const active = templates.filter(t => t.status === 'active')
   const vehicles = useLoad(() => s.can_edit ? da.vehicles(s.hub.id).catch(() => [] as Vehicle[]) : Promise.resolve([] as Vehicle[]), [s.hub.id, s.can_edit])
-  const refPeople = settings['da.reference_people'] ?? []
+  // the approved reference list (রেফারেন্স তালিকা); the old saved list in settings is kept as a fallback
+  const refList = useLoad(() => refs.approved(), [])
+  const refPeople = refList.data?.length ? refList.data.map(r => ({ name: r.name, phone: r.phone ?? undefined, position: [r.position, r.hub_name].filter(Boolean).join(' · ') || undefined })) : settings['da.reference_people'] ?? []
   const blank = (kind: 'transport' | 'employee'): XDraft => ({ kind, employee: '', template: '', name: '', category: cats[0]?.code ?? 'other', amount: '', date: s.session.account_date,
     vehicle: '', refName: '', refPhone: '', refPosition: '',
     billNo: '', ref: '', paidBy: '', ocr: null, verified: false, remarks: '' })
@@ -517,7 +520,7 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
           <input inputMode="numeric" value={d.employee} onChange={e => { setD({ ...d, employee: e.target.value, employeeName: '' }); void lookup(e.target.value) }} /></Field>
         <Field label="খাত *" wide><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.bn} ({c.en})</option>)}</select>
           <CatHelp cat={cats.find(c => c.code === d.category)} amount={+d.amount || 0} /></Field>
-        {refPeople.length > 0 && <Field label="রেফারেন্স (সেভ করা)" hint="বাছলে নাম, নম্বর ও পদবি এক ক্লিকে বসবে">
+        {refPeople.length > 0 && <Field label="রেফারেন্স (তালিকা থেকে)" hint={<>বাছলে নাম, নম্বর ও পদবি এক ক্লিকে বসবে · <a href="/app/references" target="_self">নতুন নাম যোগ</a></>}>
           <select value="" onChange={e => { const r = refPeople[+e.target.value]; if (r) setD({ ...d, refName: r.name, refPhone: r.phone ?? '', refPosition: r.position ?? '' }) }}>
             <option value="">— বেছে নিন —</option>
             {refPeople.map((r, i) => <option key={`${r.name}-${i}`} value={i}>{r.name}{r.position ? ` · ${r.position}` : ''}</option>)}

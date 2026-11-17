@@ -74,10 +74,26 @@ jobs:
       # numbered with the run number, and published with the site under /download/, where the app finds it.
       - name: Android project
         if: github.event_name == 'workflow_dispatch'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
+          # Without the Firebase file the push plugin is left out, so the app never calls Firebase uninitialised (that would crash it).
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then npm uninstall --no-audit --no-fund @capacitor/push-notifications; fi
           if [ ! -d android ]; then npx cap add android; fi
           npx -y @capacitor/assets generate --android || echo "icons skipped"
           npx cap sync android
+          # Phone push: the Firebase file comes from the repository secret GOOGLE_SERVICES_JSON (set once by the owner).
+          # Without it the app builds as before, just without push.
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            node -e "JSON.parse(require('fs').readFileSync('android/app/google-services.json','utf8'))" || { echo "::error::GOOGLE_SERVICES_JSON is not valid JSON"; exit 1; }
+            echo "push: Firebase file added"
+          else
+            echo "push: no GOOGLE_SERVICES_JSON secret — building without push"
+          fi
+          # Android 13+: the app must declare that it may show notifications.
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q POST_NOTIFICATIONS "$M" || sed -i 's#<application#<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application#' "$M"
           # location for "হাবে আছেন কিনা" (the page asks the phone for its location on Wi-Fi or mobile data)
           M=android/app/src/main/AndroidManifest.xml
           grep -q ACCESS_FINE_LOCATION "$M" || sed -i 's|</manifest>|    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n</manifest>|' "$M"
@@ -135,4 +151,5 @@ jobs:
             echo "::notice::No NETLIFY_AUTH_TOKEN secret, so the website was not published. Download the site-dist artifact and drop it on Netlify instead."
             exit 0
           fi
-          npx -y netlify-cli@latest deploy --prod --dir dist --site "$NETLIFY_SITE_ID" --message "GitHub build ${GITHUB_SHA:0:7}"
+          # --no-build: upload dist exactly as made above. Without it the CLI reads netlify.toml, runs the build again and drops dist/download (the APK).
+          npx -y netlify-cli@latest deploy --prod --no-build --dir dist --site "$NETLIFY_SITE_ID" --message "GitHub build ${GITHUB_SHA:0:7}"

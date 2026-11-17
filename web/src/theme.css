@@ -1004,6 +1004,8 @@ button.sm{min-height:32px;border-radius:8px}
 .pp-av{width:42px;height:42px;border-radius:14px;background:var(--surface);color:var(--primary);display:grid;place-items:center;font-weight:800;flex:none;font-size:17px}
 .pp-av.m{color:var(--t-o-fg)}
 .pp-who{flex:1;min-width:0}.pp-who b,.ref-who b{display:block}.pp-who small,.ref-who small{display:block;color:var(--muted);font-size:12.5px}
+.ref-wait{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;border-radius:12px;border:1px dashed var(--warn-fg);margin:-4px 0 12px;font-size:14px}.ref-wait>span{flex:1;min-width:0}.ref-wait>.badge,.ref-wait>span:first-child{flex:none}.ref-wait .btn-link{text-decoration:none}
+.ref-note{display:grid;gap:4px;margin-top:10px}
 .pp-tag{display:inline-block;margin-top:3px;background:var(--surface);color:var(--t-o-fg);border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:700}
 .ec-call.static{position:static}
 @media (max-width:520px){.pp-form{grid-template-columns:1fr}}
@@ -1962,6 +1964,45 @@ button.link-btn{background:none!important;border:0!important;padding:0!important
 .nf-empty{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;padding:36px 16px}
 .nf-big{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:var(--primary-50);color:var(--primary);margin-bottom:6px}
 .nf-more{display:flex;justify-content:center;margin:14px 0}
+
+/* ---- call / SMS / WhatsApp buttons next to a number ---- */
+.ct{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ct-num{font-variant-numeric:tabular-nums;margin-right:2px}
+.ct-b{width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;text-decoration:none;flex:none}
+.ct-b.call{background:#E7F6EC;color:#15803D}.ct-b.sms{background:#E8EEFF;color:#1D4ED8}.ct-b.wa{background:#DCFCE7;color:#128C7E}
+:root[data-theme="dark"] .ct-b{background:color-mix(in srgb,currentColor 18%,transparent)}
+.ct-b:active{transform:scale(.92)}
+@media (max-width:700px){.ct-b{width:36px;height:36px}}
+
+/* ---- reference list ---- */
+.rf-n{margin-left:6px;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--primary-50);color:var(--primary);font-size:11px;display:inline-grid;place-items:center}
+.rq-tab.on .rf-n{background:rgba(255,255,255,.25);color:#fff}.rf-n.warn{background:var(--warn-bg);color:var(--warn-fg)}
+.rf-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.rf-bar input[type=search]{flex:1;min-width:200px}.rf-bar select{width:auto}.rf-bar .spacer{flex:1}
+.rf-all{display:inline-flex;align-items:center;gap:6px;margin:0}.rf-all input{width:auto;margin:0}
+.rf-list{display:flex;flex-direction:column;gap:8px}
+.rf-card{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;padding:12px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.rf-av{flex:none;width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--primary-50);color:var(--primary);font-weight:800;font-size:17px}
+.rf-t{flex:1;min-width:180px;display:flex;flex-direction:column;gap:4px}
+.rf-t b{font-size:15px}
+.rf-wait{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:12.5px;font-weight:600;color:var(--warn-fg);background:var(--warn-bg);border-radius:8px;padding:3px 8px;align-self:flex-start}
+.rf-st{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right}
+.rf-st .row-acts input{width:auto;margin:0}
+@media (max-width:560px){.rf-st{flex-basis:100%;align-items:flex-start;text-align:left}}
+/* যাঁদের এনেছেন — many at once */
+.br-wait{display:grid;gap:6px;margin:6px 0 10px}.br-wait .ref-wait{margin:0}
+.br-list{max-height:min(46vh,380px);overflow:auto;border:1px solid var(--border);border-radius:12px;margin:10px 0}
+.br-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+.br-row:last-child{border-bottom:0}.br-row.all{position:sticky;top:0;background:var(--surface);z-index:1}
+.br-row input{width:20px;height:20px;flex:none}.br-row span{min-width:0}
+.br-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.br-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 6px 4px 10px;border-radius:999px;background:var(--t-g);font-size:13px}
+.br-chip button{background:none;border:0;padding:2px;min-height:0;color:inherit;cursor:pointer}
+.da-table tr.sel td{background:var(--t-g)}
+.br-cards{border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.br-row.sel{background:var(--t-g)}.br-who{flex:1;min-width:0}.br-who small:last-child{display:block}
+.br-acts{display:flex;gap:4px;flex:none}
+.br-row{margin:0;font-weight:400}.br-row input{margin:0}.ref-note{margin:10px 0 0;font-weight:400}
 .osm-lines{position:absolute;left:0;top:0;pointer-events:none;z-index:1}
 /* Sorting routes: people (tap to call), stops, smart check; hub ↔ sorting reports */
 .route-cards.wide{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}

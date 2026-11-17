@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Field } from '../pages/accounts/ui'
 import { useOrg } from '../pages/hr/common'
 import { referrals } from '../lib/extra'
-import { supabase } from '../lib/supabase'
+import { refs } from '../lib/refs'
 import { Icon } from './Icon'
 import { Combo } from './inputs'
 
@@ -11,7 +11,7 @@ export type RefPerson =
   | { kind: 'employee'; id: string; code: string | null; name: string; hub: string; position: string; mobile?: string | null }
   | { kind: 'manual'; name: string; code: string; hub: string; position: string; mobile: string }
 type Mode = 'list' | 'id' | 'manual'
-type Emp = { id: string; employee_code: string | null; full_name: string; hub_id: string | null; position_id: string | null; mobile: string | null }
+type Emp = { id: string; employee_code: string | null; full_name: string; post: string | null; mobile: string | null }
 
 /** Pick a person three ways: হাব → পদ → নাম, by Employee ID, or write it by hand. */
 export function PersonPicker({ value, onChange, exclude }: { value: RefPerson | null; onChange: (v: RefPerson | null) => void; exclude?: string }) {
@@ -29,8 +29,8 @@ export function PersonPicker({ value, onChange, exclude }: { value: RefPerson | 
   useEffect(() => {
     if (mode !== 'list' || !hub) { setPeople(null); return }
     setPeople(null)
-    void supabase.from('employees').select('id,employee_code,full_name,hub_id,position_id,mobile').eq('hub_id', hub).is('archived_at', null).order('full_name').limit(1000)
-      .then(r => setPeople(((r.data ?? []) as Emp[]).filter(e => e.id !== exclude)))
+    // Read through ref_hub_people so staff (whose own access is one profile) can pick too.
+    void refs.hubPeople(hub).then(r => setPeople(((r ?? []) as Emp[]).filter(e => e.id !== exclude))).catch(() => setPeople([]))
   }, [mode, hub, exclude])
   // By ID: look the code up as it is typed.
   useEffect(() => {
@@ -45,11 +45,10 @@ export function PersonPicker({ value, onChange, exclude }: { value: RefPerson | 
   }, [code, mode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const hubName = (id: string | null) => o.names.hub[id ?? ''] ?? ''
-  const posName = (id: string | null) => o.names.pos[id ?? ''] ?? ''
-  const pick = (e: Emp) => onChange({ kind: 'employee', id: e.id, code: e.employee_code, name: e.full_name, hub: hubName(e.hub_id), position: posName(e.position_id), mobile: e.mobile })
+  const pick = (e: Emp) => onChange({ kind: 'employee', id: e.id, code: e.employee_code, name: e.full_name, hub: hubName(hub), position: e.post ?? '', mobile: e.mobile })
   const setManual = (k: keyof typeof m, v: string) => { const n = { ...m, [k]: v }; setM(n); onChange(n.name.trim() ? { kind: 'manual', ...n } : null) }
-  const posInHub = people ? new Set(people.map(p => p.position_id)) : null
-  const shown = (people ?? []).filter(p => !pos || p.position_id === pos)
+  const posts = [...new Set((people ?? []).map(p => p.post ?? '—'))].sort()
+  const shown = (people ?? []).filter(p => !pos || (p.post ?? '—') === pos)
 
   return <div className="pp">
     {value && <div className={`pp-card${value.kind === 'manual' ? ' manual' : ''}`}>
@@ -67,12 +66,12 @@ export function PersonPicker({ value, onChange, exclude }: { value: RefPerson | 
     {mode === 'list' && <div className="hr-form pp-form">
       <Field label="হাব"><Combo value={hub} onChange={v => { setHub(v); setPos('') }} options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
       <Field label="পদ"><select value={pos} disabled={!hub} onChange={e => setPos(e.target.value)}><option value="">সব পদ</option>
-        {o.data?.positions.filter(p => !posInHub || p.id === pos || posInHub.has(p.id)).map(p => <option key={p.id} value={p.id}>{p.name} ({people?.filter(x => x.position_id === p.id).length ?? 0})</option>)}</select></Field>
+        {posts.map(p => <option key={p} value={p}>{p} ({people?.filter(x => (x.post ?? '—') === p).length ?? 0})</option>)}</select></Field>
       <Field label="নাম" wide><Combo value={value?.kind === 'employee' ? value.id : ''} disabled={!hub || !people} clearable={false}
         onChange={v => { const p = people?.find(x => x.id === v); if (p) pick(p) }}
         placeholder={!hub ? 'আগে হাব বাছুন' : !people ? 'লোড হচ্ছে…' : shown.length ? `নাম, আইডি বা মোবাইল লিখে খুঁজুন… (${shown.length} জন)` : 'কাউকে পাওয়া যায়নি'}
         options={shown.map(p => ({ value: p.id, label: p.full_name, keywords: p.mobile ?? '',
-          sub: [p.employee_code && `#${p.employee_code}`, !pos && p.position_id ? posName(p.position_id) : ''].filter(Boolean).join(' · ') }))} /></Field>
+          sub: [p.employee_code && `#${p.employee_code}`, !pos && p.post ? p.post : ''].filter(Boolean).join(' · ') }))} /></Field>
     </div>}
     {mode === 'id' && <Field label="এমপ্লয়ি আইডি" hint={found === 'none' ? <span className="bad">এই আইডির কাউকে পাওয়া যায়নি</span> : 'আইডি লিখলে নিজে খুঁজে নেবে'}>
       <input inputMode="numeric" value={code} onChange={e => setCode(e.target.value)} placeholder="যেমন 10086" /></Field>}

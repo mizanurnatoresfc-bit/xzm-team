@@ -219,9 +219,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   Notification links to `/app/vehicles…` are rewritten to `/app/fleet…`.
 - Pages: `/app/fleet` (managers: গাড়ি ও দায়িত্ব · আজ: খোরাকি ও গ্যারেজ · অনুমোদন · হাব রিপোর্ট · এস্যাইন লগ · সেটিং) and `/app/fleet/mine` (crew).
 - Tests: `supabase/tests/99zzzzz_fleet.sql` (38), browser smoke checks for both pages.
-- Note: the live database has migrations the repo does not (`manager_ledgers_rider_submit`, `cash_payments_refs_approvals_requests`,
-  `fix_collector_trigger_generic`, `_2`), and live `da_save_expense`, `vehicle_assign`, `vehicle_day_save`, `vehicle_log_save` differ from the repo's.
-  The fleet migration only calls them. Bring those into the repo when convenient.
+- (17 Nov: the live-only migrations and functions mentioned here were brought into the repo — see the 17 Nov entry and docs/MIGRATIONS_LIVE_MAP.md.)
 
 ## 2026-11-17 — অফিস অপারেশন (office operations)
 - Owner's spec (16 Nov): office rent with room split, running rent from the accounts' expense categories, advance, landlord, number, contract term and photo,
@@ -281,11 +279,69 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Page `/app/notifications` (always open, like the profile): all / unread, filter by kind, grouped by day (আজ, গতকাল, …), tap opens and marks read,
   "সব পড়া হয়েছে", "আরও দেখুন" in pages of 40. Kinds known: hr_request, issue, vehicle, office, attendance, manpower, da_reminder, nodi.
 - Not tested end-to-end with a real login (the browser check used sample rows; Realtime needs a signed-in session). Phone push (FCM) is the next step.
+
+## 2026-11-17 — Phone push (Firebase Cloud Messaging), ready and waiting for Firebase
+- Migration `20261117000200_phone_push.sql` (applied live as `phone_push`): `push_devices` (one row per phone token; a token moves to whoever signed
+  in last on that phone; sign-out switches it off), `notifications.pushed_at`, `push_device_save/remove` for the app, `push_claim` / `push_device_dead`
+  for the sender (service role only; `push_claim` takes each row once with SKIP LOCKED, rows older than 2 h are never pushed). A trigger on a new
+  notification calls the Edge Function `push-send` through pg_net (only when that person has a phone saved); pg_cron job `push-send` runs every 2 minutes
+  for anything missed. Tests: `supabase/tests/99zzzzzzz_push.sql` (12).
+- Edge Function `push-send` (deployed, verify_jwt off, no secret in the call — it reads the queue itself): signs a Google token from the secret
+  `FCM_SERVICE_ACCOUNT` (service-account JSON) and sends FCM HTTP v1 messages (channel `xzm`, high priority, data.link = the page to open);
+  dead tokens are switched off. Without the secret it answers `{configured:false}` and claims nothing (checked live through pg_net).
+- App: `@capacitor/push-notifications@7.0.6`; `lib/native.ts` `setupPush()` asks permission once after sign-in, saves the token, opens data.link when a push
+  is tapped. The APK build writes `android/app/google-services.json` from the GitHub secret `GOOGLE_SERVICES_JSON` and adds POST_NOTIFICATIONS; without
+  that secret the plugin is uninstalled for the build (the app would crash calling Firebase uninitialised), so APKs build exactly as before.
+- **Owner steps left:** create the Firebase project and Android app `com.xzmteam.erp`; put `google-services.json` in the GitHub secret `GOOGLE_SERVICES_JSON`;
+  put the service-account JSON in the Supabase secret `FCM_SERVICE_ACCOUNT`; build a new APK (Actions → Run workflow) and install it.
+
+## 2026-11-17 — Call, SMS and WhatsApp from the app
+- `components/Contact.tsx`: a number with three round buttons (কল · SMS · WhatsApp, the last as wa.me/880…). Used in the staff list, hub team, zonal staff,
+  vehicle crew (manager and crew pages), office landlord and the HR request person card; the employee profile already had its own.
+- `lib/native.ts` `handOutsideLinks()`: inside the Android app, a tap on tel: / sms: / mailto: / whatsapp: or on a link to another site or with target=_blank
+  becomes a top-level navigation, which Capacitor hands to the phone (dialer, SMS app, WhatsApp, browser). In the web view such links could do nothing.
+  Not checked on a real phone yet.
+
+## 2026-11-17 — Live and repository made the same
+- Brought in, word for word from `supabase_migrations.schema_migrations` (cron parts wrapped so a database without pg_cron skips them):
+  `20261115001350_nodi_followup_schedule`, `20261115002410_manager_ledgers_rider_submit`, `20261115002420_cash_payments_refs_approvals_requests`,
+  `20261115002430/2440_fix_collector_trigger_generic(_2)`, `20261116000650_report_import` — numbered so they run in the same order as on live.
+- `20261117000300_sync_live_functions.sql`: the live text of 19 functions changed outside the files (vehicle_assign, vehicle_day_save, vehicle_log_save,
+  login_resolve, role_admin_save, hr_validate/commit_import, hub_import_apply, …). Recorded on live as applied (nothing to run there).
+- `20261117000400_foreign_key_indexes_2.sql`: 17 indexes the daily-accounts migrations left out (applied live).
+- Fingerprint check (functions, columns, policies, constraints, triggers, indexes, permissions, settings): live = repo, except Supabase's own triggers.
+  Map of files to live versions: `docs/MIGRATIONS_LIVE_MAP.md`.
+- Tests now follow live behaviour: a hub sheet is submitted only after every khata is closed (`da_close_my_part`); a rider cannot open the hub sheet;
+  dashboard catalogue 14 panels / 15 role layouts. All SQL tests pass: 1246 assertions, 0 failing files.
+- **Open question for the owner:** on live, a khata that was closed and accepted stays closed when its person writes another line (the khata-accept
+  design expected it to reopen). The assertion is commented out in `99y_sheet_check_flow.sql` until decided.
+
+## 2026-11-17 — রেফারেন্স তালিকা with HR approval
+- Owner: "রেফারেন্স এ লোক এড করা যাবে হাব জোন হাব সিলেক্ট করে, ম্যানুয়ালি ইনপুট, নাম পদবি নাম্বার হাবের নাম! সবাই করতে পারবে এড; ইডিট রিমুভ HR আপ্রুভাল দিলে শো করবে তার আগে ওয়েটিং".
+- Migration `20261117000500_reference_people_approval.sql` (applied live): on `da_reference_people` — approval / pending_action (add · edit · remove) /
+  pending_data / requester / decision columns and `hub_name`; read rule changed with ALTER POLICY: everyone reads the approved list, own requests, approvers all.
+  New permission `hr.reference.approve` (admin, head office, HR manager). Functions `ref_request_add/edit/remove`, `ref_decide(ids, ok, note)`,
+  `ref_hub_people(hub)` (name, ID, post, mobile of a hub's active staff, for anyone signed in). HR is notified of each request; the asker of each answer.
+  A new person stays `inactive` until approved; a change keeps the old values until approved. Tests: `99zzzzzzzz_references.sql` (21).
+- Page `/app/references` (menu "রেফারেন্স তালিকা", open to everyone): তালিকা (search, zone, call/SMS/WhatsApp), আমার অনুরোধ, অনুমোদন (HR; one or many).
+  Add by জোন → হাব → লোক or by hand (name, post, number, hub name). The expense forms' "রেফারেন্স" dropdown now reads the approved list (the old
+  `da.reference_people` setting stays as a fallback).
+
+## 2026-11-17 — প্রোফাইল থেকে "যিনি এনেছেন" (স্টাফ ও ম্যানেজার দেন, HR অনুমোদন দেয়)
+- Migration `20261117000600_employee_reference_requests.sql` (applied live): table `employee_reference_requests` (one waiting per employee; no direct access), RPCs `hr_reference_request`, `hr_reference_pending`, `hr_reference_requests`, `hr_reference_decide`.
+- Who may ask: the staff member on their own profile, or anyone with `hr.employee.view` for that employee (hub/zonal managers). Who decides: `hr.reference.approve` or `hr.referral.edit` for that employee. HR still sets directly (old `hr_set_reference`).
+- UI: profile রেফারেন্স panel shows "রেফারেন্স দিন" for staff/managers → sends to HR; a dashed "অপেক্ষায়" line shows the waiting name. `/app/references?tab=staff` (যিনি এনেছেন) lists them for HR with approve / "হবে না". `PersonPicker` hub list now reads `ref_hub_people` so staff can pick people too.
+- Tests: `supabase/tests/99zzzzzzzzz_employee_reference.sql`. Full suite 1282 pass.
+
+## 2026-11-17 — "যাঁদের এনেছেন": যোগ / বদল / সরানো, একসাথে অনেকজন
+- Migration `20261117000700_brought_people_many.sql` (applied live): `employee_reference_requests.action` ('set' | 'remove'), `hr_reference_many(p_employees[], p_action, p_referrer, p_note)` → `{applied, waiting}` (HR applies at once, others wait), `hr_reference_brought_pending(p_referrer)`, `private.ref_apply`. `ref_can_ask` now also lets the current referrer ask about the people they brought.
+- Profile: brought list is a compact card list with checkboxes, "সব বাছুন", "সরান (n)", per-row বদলান / সরান, "+ যোগ করুন" (hub → tick many, or paste many Employee IDs). Waiting adds/removals show as dashed "অপেক্ষায়" lines. HR's "যিনি এনেছেন" tab shows removal requests.
+- Tests: `99zzzzzzzzzz_brought_many.sql`. Full suite 1293 pass.
 ## 2026-11-16 — Sorting routes: locations, crew (name + number), hub → sorting reports
 - Owner (16 Nov): route panel takes locations and riders; driver / helper / manager for the hubs a route serves; hub managers and staff see those
   people's names and numbers in their hub panel; "রিপোর্ট টু শটিং" with a parcel photo or text shows at the center as "হাব টু শটিং রিপোর্ট";
   the center adds routes as instructions for every hub (Natore → Savar, → Rajshahi/Chapai, → Bogura/Rangpur).
-- Migration `20261117000200_sorting_route_crew.sql`: `sorting_routes.kind` (hub | linehaul), `return_time`, `instructions`; `sorting_route_hubs`
+- Migration `20261117002000_sorting_route_crew.sql`: `sorting_routes.kind` (hub | linehaul), `return_time`, `instructions`; `sorting_route_hubs`
   becomes the route's stops — a hub of ANY area or a free place (`place`, `latitude/longitude`, `arrive_time`, `instructions`; `hub_id` nullable).
   New `sorting_route_crew` (driver/helper/manager/rider/supervisor/other, name + phone required, by Employee ID or typed, whole route or one stop,
   ended with a reason) and `sorting_hub_reports` (kind, text, tracking, count, up to 6 photos in private bucket `sorting-reports`, open → seen → solved
@@ -302,7 +358,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 
 ## 2026-11-16 — "হাবে আছেন কিনা": location + hub Wi-Fi (information only)
 - Owner (16 Nov): "ওয়াইফাই বা ডাটা যেভাবেই হোক, হাবের কাছে বা হাবে আছেন — এই ইনফো পাওয়া যাবে।" It never blocks; the manager still approves.
-- Migration `20261117000300_hub_presence.sql`: `hubs.geo_radius_m` (default 150 m), `hubs.wifi_ips`; `attendance_self_marks` keeps
+- Migration `20261117002100_hub_presence.sql`: `hubs.geo_radius_m` (default 150 m), `hubs.wifi_ips`; `attendance_self_marks` keeps
   latitude/longitude/accuracy, `distance_m`, `place_status` (at_hub | near ≤1 km | far | no_gps | hub_no_gps), `client_ip`, `wifi_match`.
   Wi-Fi = the public internet address the request came from (`private.client_ip()` from `x-forwarded-for`); a page cannot read the Wi-Fi name.
   `att_self_mark(kind, note, lat, lng, accuracy)` replaces the two-argument form (old calls still work); `my_att_today` / `att_self_list` return the place
@@ -312,11 +368,11 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   "লোকেশন ও ওয়াইফাই" box ("এই ওয়াইফাই হাবের", "এখানেই হাব", radius).
 - Android: the APK build now adds ACCESS_COARSE/FINE_LOCATION to the manifest (workflow + make-android.bat) — **a new APK is needed** for the app;
   the website works already. Tests: `supabase/tests/99zzzzzzz_hub_presence.sql` (17).
-- **To go live:** apply both migrations (`20261117000200`, `…0300`) on Supabase, merge to `main`, then build a new APK by hand from Actions.
+- **To go live:** apply both migrations (`20261117002000`, `…2100`) on Supabase, merge to `main`, then build a new APK by hand from Actions.
 
 ## 2026-11-16 — "স্টাফ কোথায় আছেন": hourly location while the app is open (zonal manager only)
-- Owner (16 Nov) chose option 1: only while the app is open, only the zonal manager sees it. Builds on `20261117000300_hub_presence` (hub GPS, hub Wi-Fi).
-- Migration `20261117000400_staff_location_pings.sql`: `staff_location_pings` (no direct access; 30-day keep), permission `zonal.location.view`
+- Owner (16 Nov) chose option 1: only while the app is open, only the zonal manager sees it. Builds on `20261117002100_hub_presence` (hub GPS, hub Wi-Fi).
+- Migration `20261117002200_staff_location_pings.sql`: `staff_location_pings` (no direct access; 30-day keep), permission `zonal.location.view`
   (Zonal Manager for their zone; also Admin, because a role can only be given by someone holding all its rights — without it an Admin
   could no longer assign Zonal Managers; Super Admin sees all). Duty hours 08:00–20:00 Dhaka (`private.location_duty_now()`).
   `my_location_need()`, `staff_location_ping(lat, lng, acc)` (≥50 min apart, duty hours only, distance + verdict + Wi-Fi via `private.hub_place`),
@@ -324,12 +380,12 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - UI: `components/LocationPinger.tsx` in every app page — a one-time notice for staff; after "ঠিক আছে" the phone sends at most once an hour
   while the page is open/visible. Page `/app/zonal/locations` (menu: জোনাল প্যানেল → জোন ও হাব): counts, list (distance in km, last seen,
   today's count, call), map, the day's trail. A role with a fixed page list needs the page added in "রোল ও মেনু".
-- Tests: `supabase/tests/99zzzzzzzz_staff_locations.sql` (13). **To go live:** apply `20261117000200`–`…0400`, merge, new APK.
+- Tests: `supabase/tests/99zzzzzzzz_staff_locations.sql` (13). **To go live:** apply `20261117002000`–`…2200`, merge, new APK.
 
 ## 2026-11-16 — Absent list by 11 am, route cover with hourly reminders, staff day notes, zonal midnight report
 - Owner (16 Nov) + decisions: keep staff self-marking (the manager's list is final for the day); the midnight report goes to the zonal
   manager; staff report = system day summary + the staff member's own note and suggestion.
-- Migration `20261117000500_absence_cover_reports.sql`: attendance source `absence_list`; tables `hub_absence_submissions`,
+- Migration `20261117002300_absence_cover_reports.sql`: attendance source `absence_list`; tables `hub_absence_submissions`,
   `attendance_corrections`, `route_covers`, `staff_day_notes` (all function-only); permission `zonal.daily_report.view` (Zonal Manager + Admin).
   `hub_absence_sheet` / `hub_absence_submit` (only absent / late / half day are sent; every other working staff member of the hub becomes
   present; approved leave stays; waiting self-marks close with it; after 11:00 it is marked late; absent staff are told), `att_correct`
@@ -343,4 +399,4 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   hub routes tab — "ছুটিতে / অনুপস্থিত রাইডারের রুট" (assign cover by ID, delivery update); staff panel — today's extra route with
   "ডেলিভারি জানান", and "আজকের কাজ ও পরামর্শ"; page `/app/zonal/daily-report` (problems, hubs, route covers, suggestions, staff table).
 - Not decided yet: whether the 11:05 chase should skip Fridays / holidays (it runs every day now). Reminders are in-app only (no phone push yet).
-- Tests: `supabase/tests/99zzzzzzzzz_absence_cover.sql` (27). **To go live:** apply `20261117000200`–`…0500` in order, merge, new APK.
+- Tests: `supabase/tests/99zzzzzzzzz_absence_cover.sql` (27). **To go live:** apply `20261117002000`–`…2300` in order, merge, new APK.

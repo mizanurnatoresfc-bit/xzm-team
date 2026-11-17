@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Contact } from '../../components/Contact'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { COST_KIND, COST_STATUS, REPORT_STATUS, REQ_KIND, REQ_STATUS, ROLE_BN, fleet, fleetFriendly, fnOn,
@@ -46,7 +47,7 @@ function Hero({ v }: { v: MyVehicle }) {
   return <div className="sp-hero fl-hero">
     <span className="nv-av"><Icon name="truck" size={26} /></span>
     <span className="tx"><small>{ROLE_BN[v.role]} · {v.hub_name ?? '—'}</small><b>{v.name}</b><span>{v.reg_no ?? 'নম্বর লেখা নেই'}</span>
-      {v.crew.map(c => <span key={c.role}>{ROLE_BN[c.role]}: {c.name}{c.mobile ? ` · ${c.mobile}` : ''}</span>)}</span>
+      {v.crew.map(c => <span key={c.role}>{ROLE_BN[c.role]}: {c.name}{c.mobile && <> <Contact phone={c.mobile} showNumber={false} /></>}</span>)}</span>
     {v.allowance ? <span className="sp-att"><Icon name="wallet" size={15} />খোরাকি {tk(v.allowance)}</span> : null}
   </div>
 }

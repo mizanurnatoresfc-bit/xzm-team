@@ -53,6 +53,16 @@ export const referrals = {
   referenceOf: (employee: string) => rpc<null | { kind: 'employee' | 'manual'; id?: string; code?: string | null; name: string; hub?: string | null; hub_code?: string | null; position?: string | null; mobile?: string | null }>('hr_reference_of', { p_employee: employee }),
   setReference: (employee: string, referrer: string | null, manual: Record<string, string> | null) =>
     rpc<void>('hr_set_reference', { p_employee: employee, p_referrer: referrer, p_manual: manual }),
+  /** Staff / managers: ask HR to set who referred this employee; it waits until approved. */
+  requestReference: (employee: string, referrer: string | null, manual: Record<string, string> | null, note?: string) =>
+    rpc<string>('hr_reference_request', { p_employee: employee, p_referrer: referrer, p_manual: manual, p_note: note || null }),
+  pendingReference: (employee: string) => rpc<RefPending | null>('hr_reference_pending', { p_employee: employee }),
+  /** Many at once: 'set' = p_referrer brought all of them; 'remove' = clear their referrer. HR applies, others wait. */
+  referenceMany: (employees: string[], action: 'set' | 'remove', referrer: string | null, note?: string) =>
+    rpc<{ applied: number; waiting: number }>('hr_reference_many', { p_employees: employees, p_action: action, p_referrer: referrer, p_note: note || null }),
+  broughtPending: (referrer: string) => rpc<BroughtPending[]>('hr_reference_brought_pending', { p_referrer: referrer }),
+  referenceRequests: () => rpc<RefRequest[]>('hr_reference_requests'),
+  decideReference: (ids: string[], ok: boolean, note?: string) => rpc<number>('hr_reference_decide', { p_ids: ids, p_ok: ok, p_note: note || null }),
   referrerOf: async (employee: string) => (await rpc<Array<{ id: string; employee_code: string; full_name: string }>>('hr_referrer_of', { p_employee: employee }))?.[0] ?? null,
   brought: (employee: string | null) => rpc<Referral[]>('hr_referrals', { p_employee: employee }),
   myEmployeeId: () => rpc<string | null>('my_employee_id'),
@@ -110,3 +120,10 @@ export function extraFriendly(err: unknown): string {
   if (/duplicate key|unique/i.test(m)) return 'এই নামে আগেই আছে'
   return m
 }
+
+export type RefWho = { kind: 'employee' | 'manual'; id?: string; name: string; code?: string | null; position?: string | null; hub?: string | null; mobile?: string | null }
+export type RefPending = { id: string; action?: 'set' | 'remove'; at: string; by: string | null; note: string | null; person: RefWho; can_decide: boolean }
+export type RefRequest = RefPending & { status: 'pending' | 'approved' | 'rejected' | 'cancelled'; mine: boolean; decided_by: string | null; decided_at: string | null; decision_note: string | null
+  employee: { id: string; name: string; code: string | null; hub: string | null } }
+export type BroughtPending = { id: string; action: 'set' | 'remove'; at: string; by: string | null; can_decide: boolean
+  employee: { id: string; name: string; code: string | null; position: string | null; hub: string | null } }

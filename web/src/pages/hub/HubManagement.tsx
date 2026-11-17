@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Contact } from '../../components/Contact'
 import { inMenu } from '../../lib/menu'
 import { AttendanceDays } from './AttendanceDays'
 import { HubLogins } from './HubLogins'
@@ -688,7 +689,7 @@ function HubTeam({ hub }: { hub: Hub }) {
           { key: 'name', label: L('নাম', 'Name'), primary: true, value: r => r.full_name, render: r => <span className="emp-tname"><span className="ec-av sm">{r.full_name.slice(0, 2).toUpperCase()}</span>
             <span><b>{r.full_name}</b><span className="sec">{r.employee_code ? `ID ${r.employee_code}` : L('আইডি বাকি', 'ID pending')}</span></span></span> },
           { key: 'code', label: L('আইডি', 'ID'), hidden: true, value: r => r.employee_code ?? '' },
-          { key: 'mobile', label: L('ফোন', 'Phone'), value: r => r.mobile ?? '', render: r => r.mobile ? <a href={`tel:${r.mobile}`} onClick={e => e.stopPropagation()}>{r.mobile}</a> : <span className="warn-text">{L('নম্বর নেই', 'No number')}</span> },
+          { key: 'mobile', label: L('ফোন', 'Phone'), value: r => r.mobile ?? '', render: r => r.mobile ? <Contact phone={r.mobile} /> : <span className="warn-text">{L('নম্বর নেই', 'No number')}</span> },
           { key: 'post', label: L('পদ', 'Role'), value: r => posName(r), render: r => <Badge tone={r.position_id ? 'ok' : 'neutral'}>{posName(r)}</Badge> },
           { key: 'hub', label: L('হাব', 'Hub'), value: () => hub.name },
           { key: 'status', label: L('অবস্থা', 'Status'), value: r => r.status, render: r => <EmpBadge status={r.status} /> },
