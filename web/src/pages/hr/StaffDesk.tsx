@@ -146,7 +146,7 @@ function Back({ title, sub, onBack, action }: { title: string; sub: string; onBa
     <div className="tx"><b>{title}</b><span className="muted small">{sub}</span></div>{action}</div>
 }
 
-function InHand({ me, onBack, onChanged }: { me: EmpRow; onBack: () => void; onChanged: () => void }) {
+export function InHand({ me, onBack, onChanged }: { me: EmpRow; onBack: () => void; onChanged: () => void }) {
   const { toast, node } = useToast()
   const d = useLoad(async () => {
     const [list, cols, pos] = await Promise.all([referrals.prospects(me.id), referrals.columns().catch(() => [] as PCol[]), org.positions().catch(() => [] as Position[])])
@@ -171,7 +171,7 @@ function InHand({ me, onBack, onChanged }: { me: EmpRow; onBack: () => void; onC
   </div>
 }
 
-function Brought({ me, onBack }: { me: EmpRow; onBack: () => void }) {
+export function Brought({ me, onBack }: { me: EmpRow; onBack: () => void }) {
   const d = useLoad(() => referrals.brought(me.id), [me.id])
   const st = (s: string): [string, 'ok' | 'info' | 'neutral'] => s === 'active' ? ['কাজে আছেন', 'ok'] : s === 'applicant' ? ['আবেদন চলছে', 'info'] : ['এখন নেই', 'neutral']
   return <div className="sd">
