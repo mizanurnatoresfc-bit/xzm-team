@@ -1,5 +1,7 @@
 # XZM-TEAM ERP — Approved Production Roadmap
 
+> ⚠️ পুরোনো (১৩ নভেম্বর)। এখনকার রোডম্যাপ: `docs/ROADMAP.md`, অডিট: `docs/AUDIT_REPORT_2026-11-17.md`।
+
 **Owner decision (2026-11-13):** React + Supabase; phased release.
 
 ## Architecture decision
