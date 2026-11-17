@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { AppShell } from '../components/AppShell'
 import { Icon } from '../components/Icon'
 import { ViewAsPicker } from '../components/ViewAs'
-import { isNativeApp } from '../lib/native'
+import { advancedAccessHere, isNativeApp } from '../lib/native'
 import { FONTS, usePrefs, type Theme } from '../lib/prefs'
 import { AppUpdate } from '../components/AppUpdate'
 
@@ -43,7 +43,9 @@ export function Settings() {
   const [asRole, setAsRole] = useState(false)
   const [copied, setCopied] = useState(false)
   const themes: Array<[Theme, string, string]> = [['light', 'লাইট', 'Light'], ['dark', 'ডার্ক', 'Dark'], ['system', 'ফোনের মতো', 'Same as device']]
-  const groups = ADMIN.map(([bn, en, rows]) => [bn, en, rows.filter(r => r[4].some(p => can(p)))] as const).filter(g => g[2].length)
+  // on the website the role page is the advanced one (inside the Android app the older page stays)
+  const here = (r: Row): Row => (r[0] === '/app/roles' && advancedAccessHere() ? ['/app/access', r[1], 'অ্যাডভান্সড রোল ও পারমিশন', 'Advanced roles & permissions', r[4]] : r)
+  const groups = ADMIN.map(([bn, en, rows]) => [bn, en, rows.filter(r => r[4].some(p => can(p))).map(here)] as const).filter(g => g[2].length)
   const loginUrl = `${location.origin}/staff/login`
   async function share() {
     try {

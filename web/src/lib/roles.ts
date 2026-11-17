@@ -5,7 +5,7 @@ import { HrError } from './hr'
 export type RoleRow = { id: string; code: string; name: string; name_bn: string | null; description: string | null
   is_system: boolean; is_super: boolean; status: string; archived_at: string | null
   permission_count: number; user_count: number; permissions: string[] }
-export type Permission = { code: string; module: string; resource: string; action: string; description: string | null }
+export type Permission = { id?: string; code: string; module: string; resource: string; action: string; description: string | null }
 
 async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
   const { data, error } = await supabase.rpc(fn, args)
@@ -16,13 +16,19 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 export const roles = {
   list: () => rpc<RoleRow[]>('role_admin_list'),
   permissions: async (): Promise<Permission[]> => {
-    const { data, error } = await supabase.from('permissions').select('code, module, resource, action, description').order('code')
+    const { data, error } = await supabase.from('permissions').select('id, code, module, resource, action, description').order('code')
     if (error) throw new HrError(error.message, error.code)
     return (data ?? []) as Permission[]
   },
   save: (id: string | null, name: string, nameBn: string, description: string, permissions: string[]) =>
     rpc<string>('role_admin_save', { p_id: id, p_name: name, p_name_bn: nameBn, p_description: description, p_permissions: permissions }),
   archive: (id: string, reason: string) => rpc<void>('role_admin_archive', { p_id: id, p_reason: reason }),
+  /** Switch a role off for a while (its holders lose what it gives) or back on. The database refuses this for the built-in roles. */
+  setStatus: async (id: string, active: boolean): Promise<void> => {
+    const { data, error } = await supabase.from('roles').update({ status: active ? 'active' : 'inactive' }).eq('id', id).select('id')
+    if (error) throw new HrError(error.message, error.code)
+    if (!data?.length) throw new HrError('Not authorised to change this role.', '42501')
+  },
 }
 
 export const MODULE_LABEL: Record<string, [string, string]> = {
@@ -34,6 +40,9 @@ export const MODULE_LABEL: Record<string, [string, string]> = {
   system: ['সিস্টেম ও ইউজার', 'System & users'],
   sorting: ['শটিং সেন্টার', 'Sorting center'],
   office: ['অফিস ম্যানেজমেন্ট', 'Office management'],
+  vehicle: ['গাড়ি', 'Vehicles'],
+  issue: ['ইস্যু ও হাব গ্রুপ', 'Issues & hub group'],
+  nodi: ['নদী AI', 'Nodi AI'],
 }
 export const ACTION_LABEL: Record<string, [string, string]> = {
   view: ['দেখা', 'View'], create: ['তৈরি / জমা', 'Create'], edit: ['সম্পাদনা', 'Edit'], archive: ['আর্কাইভ', 'Archive'],
@@ -61,4 +70,11 @@ export const RESOURCE_LABEL: Record<string, string> = {
   'office.property': 'অফিস, রুম ও ডেস্ক', 'office.asset': 'অফিসের রিসোর্স',
   'hr.duty': 'কাজের দায়িত্ব', 'ops.route': 'রাইডার রুট',
   'zonal.report': 'জোনাল রিপোর্ট', 'zonal.task': 'কাজ (টাস্ক)', 'zonal.visit': 'হাব ভিজিট',
+  'da.import': 'আপডেট রিপোর্ট আপলোড', 'hr.attendance_gap': 'হাজিরার ফাঁকা দিন', 'hr.employee_profile': 'কর্মীর প্রোফাইল পূরণ',
+  'hr.reference': 'রেফারেন্স তালিকার অনুমোদন', 'hr.request': 'এইচআর রিকুয়েস্ট', 'hr.transfer': 'হাব বদলি',
+  'issue.group': 'হাব গ্রুপ', 'issue.issue': 'ইস্যু', 'nodi.assistant': 'নদী AI-র সাথে কথা', 'nodi.settings': 'নদী AI সেটিংস',
+  'office.bill': 'ভাড়া, বিদ্যুৎ ও ওয়াইফাই বিল', 'office.notice': 'নষ্ট / লাগবে রিপোর্ট', 'office.secret': 'সিসি / রাউটার পাসওয়ার্ড',
+  'org.region': 'রিজিওন', 'system.user_hub': 'নিজের হাবের লগইন', 'zonal.pulse': 'পপআপ প্রশ্ন',
+  'vehicle.vehicle': 'গাড়ি', 'vehicle.holder': 'গাড়ি কার দায়িত্বে', 'vehicle.log': 'তেল ও গাড়ির খরচ', 'vehicle.khoraki': 'খোরাকি',
+  'vehicle.report': 'হাব রিপোর্ট (ড্রাইভার)', 'vehicle.requisition': 'গাড়ি লাগবে', 'vehicle.document': 'গাড়ির কাগজপত্র', 'vehicle.settings': 'গাড়ির সেটিংস',
 }

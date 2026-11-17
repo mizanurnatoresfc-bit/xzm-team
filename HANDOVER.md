@@ -378,3 +378,43 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - UI: page `/app/me/complete` (always open: how full, what is missing, the hub profile form for oneself, photo / NID uploads shrunk to 1600 px);
   staff panel card "আমার প্রোফাইল X% পূর্ণ"; My Profile button. `components/PulsePopup.tsx` in AppShell (once per session);
   `pages/zonal/PulsePanel.tsx` on the zonal dashboard (new question with whole zone / hubs / posts, cards with counts, answers table, close).
+
+## 2026-11-17 — Advanced Role & Permission Management (website)
+- Owner: "Advanced Role & Permission Management — Dynamic Role Creation, Custom Permission Builder, Module-wise Permission, Sub-menu Permission,
+  View / Create / Edit / Delete / Approve / Export Access, Hub-wise Data Restriction, Zone-wise Data Restriction, Individual User Override,
+  Permission Change History, Super Admin Full Control — শুধু ওয়েব সাইট এ করো এখনো".
+- **Website only for now:** menu "অ্যাডভান্সড রোল ও পারমিশন" → `/app/access`. Inside the Android app the older "রোল ও অনুমতি" page stays exactly as it was
+  (`advancedAccessHere()` in `web/src/lib/native.ts`; make it return `true` to open the new pages in the app too). On the website `/app/roles…` leads to the new pages.
+- Pages (`web/src/pages/access/*`, `lib/access.ts`, `lib/accessCatalog.ts`):
+  - `/app/access` সারসংক্ষেপ: numbers, "নজর দিন" (worked out by itself: accounts without a role, only one Super Admin, people who see the whole company,
+    unused / switched-off / empty roles, things ending within 7 days) and "কোন কাজ কোথায়" (the ten functions, each with its link).
+  - `/app/access/roles` + `/app/access/role/:id` (`new`, `?copy=<role>`): role cards; the builder is **module → sub-menu → পাতা + দেখা / তৈরি / এডিট / ডিলিট /
+    অনুমোদন / এক্সপোর্ট**. The six columns hold the database actions (edit = edit + configure, delete = archive + delete, approve = approve + reject,
+    export = export + print + share). Whole role or whole module in one tap (সব / শুধু দেখা / কাজ করবে / কিছুই না), "অন্য রোলের মতো করুন", page limit
+    ("সব পাতা" or "শুধু টিক দেওয়া পাতা" — an unticked page is neither in the menu nor opens by its address), second view "সব অনুমতি (বিস্তারিত)" for every
+    single permission, unsaved boxes marked + / −, a review dialog before saving, switch a company-made role off / on, archive, copy.
+    The catalogue (`accessCatalog.ts`) maps each menu page to permission codes; a permission used by several sub-menus sits in each (underlined box) and
+    changes together; anything no sub-menu claims is added under its module by itself, so permissions from later migrations show up without code changes.
+  - `/app/access/users` + `/app/access/user/:id`: roles with their **data limit** — whole company, zone-wise (whole zones) and hub-wise (single hubs) on one
+    dialog; saving adds the new places first, then takes the removed ones back with a reason. "এই ইউজার যা করতে পারেন": the end result as the same grid,
+    "কোথায় ও কোথা থেকে" list (place + which role / personal), "এই ইউজার যেভাবে দেখে" preview, and **personal permissions**: tick a box the roles do not give
+    = বাড়তি (+) at the roles' places or one zone / hub, with an end date; untick a box the roles give = বন্ধ (−) for this person, everywhere. Reason required.
+  - `/app/access/scope`: by hub or by zone — who is limited to it, who gets it through the zone, who sees the whole company.
+  - `/app/access/history`: who changed what for whom, when and why (role created / changed / switched off / archived, permissions +/−, roles given /
+    removed, page lists, personal permissions) from `audit_logs`; filters, Excel / PDF / print. Needs `system.audit.view`.
+  - `/app/access/super`: what full control guarantees, who holds it (add / remove — the database keeps the last one), view as a role,
+    roles × permissions matrix as Excel, every personal permission in one list.
+- Migration `20261117004000_advanced_permissions.sql` — **not applied to live yet** (waiting for the owner's go-ahead; until then the personal-permission
+  part says "ডাটাবেস আপডেট বাকি" and everything else works on the live database as it is):
+  `user_permission_overrides` (grant at role places / company / zone / hub, or deny everywhere; never deleted, taken back with a reason; audited),
+  `private.grants_of(user, live)` = the single place that works out what a person may do, `private.my_grants()` now calls it (so every RLS rule follows
+  personal permissions; a Super Admin is never touched). Both are PL/pgSQL now, so the plan is kept between calls: measured on the test database one
+  permission check went from about 0.36–0.39 ms to about 0.12 ms, and reading 400 staff through RLS from about 190 ms to about 55 ms. `access_overrides`, `access_overrides_save`
+  (whole list of one person in one step, Super Admin only), `access_user_grants`. `can_manage_user` / `user_admin_can_manage`: nobody resets or switches
+  off an account that was personally given more than they hold themselves. `roles_status_guard`: switching a role on / off is Super Admin only.
+- Tests: `supabase/tests/99zzzzzzzzzzzzz_advanced_permissions.sql` (69); full SQL suite 1426 pass. `web/tests/smoke.mjs` +42 checks (471 pass).
+  The pages were also driven in a real browser against the local test database through a small stand-in for the REST API (not in the repository):
+  every step was checked in the database itself (role saved, page list, hub → zone limit, personal permissions and what `has_permission` then answers).
+- **To go live:** apply the migration on Supabase, then merge to `main` (the site deploys itself; no new APK needed).
+- Limits to know: a personal "বন্ধ" is for every place (not one hub); notifications that pick people by role permission do not look at personal permissions
+  (what a person may do always does); parts of one page listed separately in the menu (accounts centre) cannot be switched off one by one.

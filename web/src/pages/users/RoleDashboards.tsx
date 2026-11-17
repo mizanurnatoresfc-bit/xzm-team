@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Badge, Modal, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
+import { advancedAccessHere } from '../../lib/native'
 import { dashboard, dashboardFriendly, PANELS, VIEWS, VIEW_OF, panelLabel, panelNote, type DashView, type PanelCode, type RoleDashboard } from '../../lib/dashboard'
 
 const isSuper = (grants: { is_super: boolean; scope_type: string }[]) => grants.some(g => g.is_super && g.scope_type === 'global')
@@ -91,7 +92,7 @@ function PagesEditor({ role, onClose, onDone }: { role: RoleMenu; onClose: () =>
       'Home, own profile and password are always open. A ticked page shows only when the role also has the permission for it.')}</p>
       <div className="pg-pick">{groups.map(g => <fieldset key={g.key}><legend>{L(g.bn, g.en)}
         <button type="button" className="link small" onClick={() => { const all = g.items.map(i => i.to); setPicked(p => all.every(t => p.includes(t)) ? p.filter(t => !all.includes(t)) : [...new Set([...p, ...all])]) }}>{L('সব', 'all')}</button></legend>
-        {g.items.map(i => <label key={i.to} className="da-check"><input type="checkbox" checked={picked.includes(i.to)} onChange={() => toggle(i.to)} /> {L(i.bn, i.en)}</label>)}</fieldset>)}</div>
+        {g.items.filter(i => !i.only || (i.only === 'web') === advancedAccessHere()).map(i => <label key={i.to} className="da-check"><input type="checkbox" checked={picked.includes(i.to)} onChange={() => toggle(i.to)} /> {L(i.bn, i.en)}</label>)}</fieldset>)}</div>
       <p className="muted small">{L(`${picked.length}টি পাতা বাছা হয়েছে`, `${picked.length} pages chosen`)}</p></>}
     {err && <p className="da-error" role="alert">{err}</p>}
   </Modal>

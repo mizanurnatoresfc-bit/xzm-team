@@ -5,15 +5,22 @@ import { supabase } from './supabase'
 /** Always open: the home page, the staff panel and one's own profile, accounts, vehicle, password and device settings.
  *  These show only the person's own things; a role's page list limits the work pages. */
 const ALWAYS = ['/app', '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/me', '/app/me/complete', '/app/me/permissions', '/app/notifications', '/app/references', '/app/password', '/app/settings']
+/** The same list, for pages that explain which pages a role can be limited to. */
+export const ALWAYS_OPEN: readonly string[] = ALWAYS
 /** Pages that belong to a listed page (opened from it, not from the menu). */
 const WITH: Record<string, string[]> = {
   '/app/hub/team': ['/app/hr/employees'],
   '/app/hr/employees': ['/app/hr/applications'],
+  '/app/roles': ['/app/access'],
+  '/app/access': ['/app/roles'],
 }
+/** "রোল ও অনুমতি" (inside the Android app) and "অ্যাডভান্সড রোল ও পারমিশন" (website) are one sub-menu: a list that has either has both. */
+const TWIN: Record<string, string> = { '/app/roles': '/app/access', '/app/access': '/app/roles' }
+const withTwins = (menu: string[]) => [...new Set([...menu, ...menu.map(p => TWIN[p.split('?')[0]]).filter(Boolean)])]
 const bare = (p: string) => p.split('?')[0].replace(/\/+$/, '') || '/app'
 
 /** A menu entry is shown when it is on the list. */
-export const inMenu = (menu: string[] | null, to: string) => !menu || ALWAYS.includes(bare(to)) || menu.includes(to) || menu.map(bare).includes(bare(to))
+export const inMenu = (menu: string[] | null, to: string) => !menu || ALWAYS.includes(bare(to)) || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))
 /** A page may be opened when it is on the list, under a listed page, or belongs to one. */
 export function pageAllowed(menu: string[] | null, pathname: string): boolean {
   if (!menu) return true
@@ -27,7 +34,7 @@ export type RoleMenu = { role_id: string; code: string; name: string; name_bn: s
 export const menuApi = {
   mine: async (): Promise<string[] | null> => { const { data, error } = await supabase.rpc('my_menu'); if (error) return null; return (data as string[] | null) ?? null },
   roles: async (): Promise<RoleMenu[]> => { const { data, error } = await supabase.rpc('role_menu_list'); if (error) throw error; return (data ?? []) as RoleMenu[] },
-  save: async (role: string, menu: string[] | null) => { const { error } = await supabase.rpc('role_menu_save', { p_role: role, p_menu: menu }); if (error) throw error },
+  save: async (role: string, menu: string[] | null) => { const { error } = await supabase.rpc('role_menu_save', { p_role: role, p_menu: menu ? withTwins(menu) : null }); if (error) throw error },
 }
 
 /**

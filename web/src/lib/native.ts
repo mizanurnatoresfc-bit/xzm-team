@@ -20,6 +20,13 @@ const cap = (): CapacitorGlobal | undefined => (typeof window !== 'undefined' ? 
 export const isNativeApp = (): boolean => Boolean(cap()?.isNativePlatform?.())
 
 /**
+ * The advanced role & permission pages (/app/access) are on the website only for now (owner, 17 Nov 2026:
+ * "শুধু ওয়েব সাইট এ করো এখনো"). Inside the Android app the older "রোল ও অনুমতি" page stays as it was.
+ * To open them in the app too, make this return true always.
+ */
+export const advancedAccessHere = (): boolean => !isNativeApp()
+
+/**
  * Android back button: close an open dialog first, then go back a page;
  * on the first page, send the app to the background instead of closing it.
  */
