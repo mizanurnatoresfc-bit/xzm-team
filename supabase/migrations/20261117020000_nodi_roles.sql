@@ -47,3 +47,7 @@ begin
     execute format('grant execute on function %s to authenticated', f);
   end loop;
 end $$;
+
+-- Keep নদী AI switched OFF for now; turn it on later from নদী AI সেটিংস (চালু).
+select set_config('app.change_reason', 'নদী AI আপাতত বন্ধ', true);
+update public.system_settings set value = 'false'::jsonb where key = 'nodi.enabled';

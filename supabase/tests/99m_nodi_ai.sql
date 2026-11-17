@@ -3,6 +3,10 @@ begin;
 select tests.fixture();
 select tests.hr_fixture();
 
+-- the migration ships with নদী AI switched off; the tests switch it on first
+select tests.login(tests.id('admin'));
+select public.nodi_configure(true, 'claude-sonnet-5-5', 50, 1024);
+
 select tests.login(tests.id('noroles'));
 select tests.throws($$select public.nodi_gate()$$, 'a person with no role cannot use it', '42501');
 select tests.throws($$select public.nodi_settings()$$, 'nor read the settings', '42501');
