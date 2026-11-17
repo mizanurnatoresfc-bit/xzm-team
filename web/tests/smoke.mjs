@@ -90,6 +90,7 @@ try {
           { key: 'last_date', label: 'শেষ কর্মদিবস', type: 'date', required: true },
           { key: 'reason_type', label: 'ধরন', type: 'select', required: true, options: ['চাকরি ছেড়ে দিচ্ছি', 'আইডি সাময়িক বন্ধ', 'অফিস থেকে বাদ', 'অন্য কারণ'] },
           { key: 'reason', label: 'বিস্তারিত কারণ', type: 'textarea', required: true }] }])
+      if (u.includes('rpc/ref_hub_people')) return j(staffRows.map(e => ({ id: e.id, employee_code: e.employee_code, full_name: e.full_name, post: 'Rider', mobile: e.mobile ?? null })))
       if (u.includes('rpc/hr_referrals')) return j([{ id: 'e07', employee_code: '1007', full_name: 'Karim Mia', position_name: 'Rider', hub_name: 'Lalpur', zone_name: 'Natore', status: 'active', joining_date: '2026-10-01' }])
       if (u.includes('/rest/v1/referral_prospects') && r.request().method() === 'POST') { prospects.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('rpc/role_admin_list')) return j(roles)
@@ -517,8 +518,8 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 6 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine'].every(x => sideLinks.includes(x)),
-      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts and vehicle (${sideLinks.length})`)
+    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 7 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].every(x => sideLinks.includes(x)),
+      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length})`)
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
