@@ -94,8 +94,8 @@ function readCsv(text: string): string[][] {
 export async function readSheet(file: File): Promise<string[][]> {
   if (/\.csv$/i.test(file.name)) return readCsv((await file.text()).replace(/^﻿/, ''))
   if (!/\.xlsx$/i.test(file.name)) throw new Error('শুধু .xlsx বা .csv ফাইল দিন (পুরনো .xls হলে Excel-এ "Save As → .xlsx" করে নিন)')
-  if (typeof DecompressionStream === 'undefined') throw new Error('এই ব্রাউজারে Excel পড়া যাচ্ছে না — Chrome আপডেট করুন অথবা CSV দিন')
-  try { return await readXlsx(file) } catch { throw new Error('ফাইলটা পড়া যায়নি — Excel-এ খুলে .xlsx হিসেবে আবার সেভ করে দিন') }
+  if (typeof DecompressionStream === 'undefined') throw new Error('এই ব্রাউজারে এক্সেল পড়া যাচ্ছে না — Chrome আপডেট করুন অথবা CSV দিন')
+  try { return await readXlsx(file) } catch { throw new Error('ফাইলটা পড়া যায়নি — এক্সেলে খুলে .xlsx হিসেবে আবার সেভ করে দিন') }
 }
 
 /** Excel stores dates as day numbers (1 = 1900-01-01). Converts "45231" to "2023-11-01"; other text unchanged. */

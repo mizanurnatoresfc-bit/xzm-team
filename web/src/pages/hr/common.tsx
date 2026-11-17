@@ -63,7 +63,7 @@ export function NewApplication({ onClose, onDone, prefill }: { onClose: () => vo
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   return <Modal title="নতুন এমপ্লয়ি আইডি আবেদন" onClose={onClose} actions={<><button className="secondary" onClick={onClose}>বাতিল</button><button disabled={busy} onClick={() => void go()}>আবেদন খুলুন</button></>}>
-    <p className="muted small">প্রথম ধাপ: মূল তথ্য। পরের পাতায় NID, জরুরি যোগাযোগ ইত্যাদি দিয়ে সাবমিট করবেন। অনুমোদনের সময় এমপ্লয়ি আইডি দেওয়া হবে।</p>
+    <p className="muted small">প্রথম ধাপ: মূল তথ্য। পরের পাতায় এনআইডি, জরুরি যোগাযোগ ইত্যাদি দিয়ে সাবমিট করবেন। অনুমোদনের সময় এমপ্লয়ি আইডি দেওয়া হবে।</p>
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
       <Field label="পূর্ণ নাম" required><input placeholder="যেমন: Md. Rahim Uddin" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
       <Field label="মোবাইল" required><TextInput kind="phone" value={f.mobile} onChange={v => setF({ ...f, mobile: v })} placeholder="01XXXXXXXXX" rules={[rules.required('মোবাইল নম্বর'), rules.mobile()]} showError={tried}

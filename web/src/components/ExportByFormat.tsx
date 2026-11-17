@@ -47,14 +47,14 @@ function ExportModal({ zone, hub, status, q, title, onClose, L, n, lang }: {
 
   return <Modal title={L('ফরম্যাটে এক্সপোর্ট', 'Export by format')} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বন্ধ', 'Close')}</button>
-      <button disabled={busy || !chosen} onClick={() => void go()}>{busy ? L('তৈরি হচ্ছে…', 'Preparing…') : L('Excel নামান', 'Download Excel')}</button></>}>
+      <button disabled={busy || !chosen} onClick={() => void go()}>{busy ? L('তৈরি হচ্ছে…', 'Preparing…') : L('এক্সেল নামান', 'Download Excel')}</button></>}>
     {!list.length ? <p className="muted">{L('কোনো ফরম্যাট নেই। “প্রোফাইলের ঘর ও কলাম” পাতায় একটা বানিয়ে নিন।', 'No formats yet. Create one on “Profile fields & columns”.')}</p> : <>
       <Field label={L('ফরম্যাট', 'Format')} hint={L('কোন কলামগুলো, কোন ক্রমে আর কী নামে যাবে — ফরম্যাটেই ঠিক করা থাকে।', 'A format decides which columns go out, in which order and under which heading.')}>
         <select value={chosen?.id ?? ''} onChange={e => setPick(e.target.value)}>
           {list.map(f => <option key={f.id} value={f.id}>{lang === 'bn' && f.name_bn ? f.name_bn : f.name}{f.is_default ? L(' (ডিফল্ট)', ' (default)') : ''}{f.zone_id ? L(' · জোন', ' · zone') : ''}</option>)}
         </select></Field>
       {chosen && <p className="muted small">{L('কলাম:', 'Columns:')} {chosen.columns.map(c => colLabel(c, lang)).join(' · ')}</p>}
-      <p className="muted small">{L('যে কর্মীদের আপনি দেখতে পান শুধু তাঁরাই যাবেন। NID বা বেতনের কলাম থাকলেও অনুমতি না থাকলে ঘর খালি আসবে, আর NID এক্সপোর্ট করলে সেটা লগে থেকে যায়।',
+      <p className="muted small">{L('যে কর্মীদের আপনি দেখতে পান শুধু তাঁরাই যাবেন। এনআইডি বা বেতনের কলাম থাকলেও অনুমতি না থাকলে ঘর খালি আসবে, আর এনআইডি এক্সপোর্ট করলে সেটা লগে থেকে যায়।',
         'Only staff you may see are included. NID or salary columns come out blank without the right permission, and exporting NIDs is recorded in the log.')}</p>
     </>}
     {err && <p className="da-error">{err}</p>}

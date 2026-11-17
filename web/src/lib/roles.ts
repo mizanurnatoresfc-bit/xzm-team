@@ -27,7 +27,7 @@ export const roles = {
 
 export const MODULE_LABEL: Record<string, [string, string]> = {
   org: ['প্রতিষ্ঠান ও জোন/হাব', 'Organisation, zones & hubs'],
-  hr: ['স্টাফ / HR', 'Staff / HR'],
+  hr: ['স্টাফ / এইচআর', 'Staff / HR'],
   da: ['দৈনিক হিসাব', 'Daily accounts'],
   ops: ['কুরিয়ার অপারেশন', 'Courier operations'],
   zonal: ['জোনাল ম্যানেজমেন্ট', 'Zonal management'],
@@ -44,7 +44,7 @@ export const ACTIONS = ['view', 'create', 'edit', 'approve', 'reject', 'archive'
 export const RESOURCE_LABEL: Record<string, string> = {
   'org.organization': 'কোম্পানির তথ্য', 'org.zone': 'জোন', 'org.hub': 'হাব', 'org.department': 'বিভাগ', 'org.position': 'পদবি',
   'hr.application': 'আইডি আবেদন', 'hr.attendance': 'হাজিরা', 'hr.compensation': 'বেতন / ভাতা', 'hr.document': 'কর্মীর ডকুমেন্ট',
-  'hr.employee': 'কর্মী', 'hr.employee_sensitive': 'NID ও গোপন তথ্য', 'hr.import': 'কর্মী ইমপোর্ট (Excel)', 'hr.leave': 'ছুটি',
+  'hr.employee': 'কর্মী', 'hr.employee_sensitive': 'এনআইডি ও গোপন তথ্য', 'hr.import': 'কর্মী ইমপোর্ট (এক্সেল)', 'hr.leave': 'ছুটি',
   'hr.profile_field': 'প্রোফাইলের ঘর (কাস্টম)', 'hr.salary_sheet': 'বেতন শিট', 'hr.referral': 'রেফারেন্স',
   'da.correction': 'হিসাব সংশোধনে খোলা', 'da.report': 'হিসাবের রিপোর্ট', 'da.settings': 'হিসাব সেটিংস', 'da.sheet': 'দৈনিক হিসাব খাতা',
   'ops.assignment': 'হাব/জোন দায়িত্ব বণ্টন', 'ops.cash': 'হাবের নগদ টাকা', 'ops.delivery': 'ডেলিভারি', 'ops.expense': 'অপারেশন খরচ',

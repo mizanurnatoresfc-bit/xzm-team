@@ -104,7 +104,7 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
     try {
       const r = await referrals.referenceMany(ids, 'remove', employee, why)
       setPick([]); void brought.reload(); void bPend.reload()
-      onSaved?.(r.waiting ? L(`${n(r.waiting)} জন সরানোর অনুরোধ HR-এ গেছে`, `${r.waiting} sent to HR`) : L(`${n(r.applied)} জন সরানো হয়েছে`, `${r.applied} removed`))
+      onSaved?.(r.waiting ? L(`${n(r.waiting)} জন সরানোর অনুরোধ এইচআর-এ গেছে`, `${r.waiting} sent to HR`) : L(`${n(r.applied)} জন সরানো হয়েছে`, `${r.applied} removed`))
     } catch (e) { onSaved?.(e instanceof Error && /[ঀ-৿]/.test(e.message) ? e.message : extraFriendly(e)) }
   }
   const posName = (id: string | null) => pros.data?.pos.find(p => p.id === id)?.name ?? '—'
@@ -127,7 +127,7 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
       : <span className="muted">{L('যিনি এনেছেন: দেওয়া নেই', 'Referred by: not set')}</span>}</div>
     {pending.data && <div className="ref-wait"><Badge tone={pending.data.action === 'remove' ? 'bad' : 'warn'}>{pending.data.action === 'remove' ? L('সরানো — অপেক্ষায়', 'Removal waiting') : L('অপেক্ষায়', 'Waiting')}</Badge>
       <span><b>{pending.data.person.name}</b> {[pending.data.person.position, pending.data.person.hub].filter(Boolean).join(' · ')}
-        <small className="muted"> — {L('HR অনুমোদন দিলে বসবে', 'shows once HR approves')}{pending.data.by ? ` · ${pending.data.by}` : ''}</small></span>
+        <small className="muted"> — {L('এইচআর অনুমোদন দিলে বসবে', 'shows once HR approves')}{pending.data.by ? ` · ${pending.data.by}` : ''}</small></span>
       {pending.data.can_decide && <Link className="soft sm btn-link" to="/app/references?tab=staff">{L('দেখুন', 'Review')}</Link>}</div>}
 
     <div className="da-bar" style={{ marginTop: 6 }}><h3 style={{ margin: 0 }}>{self ? L('আমি যাঁদের এনেছি', 'People I brought') : L('যাঁদের এনেছেন', 'People they brought')} <span className="muted small">({n(brought.data?.length ?? 0)})</span></h3>
@@ -164,11 +164,11 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
     {setting && <SetReferrer employee={employee} ask={canAsk} current={ref.data ? (ref.data.kind === 'employee' ? { kind: 'employee', id: ref.data.id!, code: ref.data.code ?? null, name: ref.data.name, hub: ref.data.hub ?? '', position: ref.data.position ?? '', mobile: ref.data.mobile }
         : { kind: 'manual', name: ref.data.name, code: ref.data.code ?? '', hub: ref.data.hub ?? '', position: ref.data.position ?? '', mobile: ref.data.mobile ?? '' }) : null} onClose={() => setSetting(false)}
       onDone={() => { setSetting(false); void ref.reload(); void pending.reload()
-        onSaved?.(canAsk ? L('পাঠানো হয়েছে — HR অনুমোদন দিলে দেখাবে', 'Sent — shows once HR approves') : L('রেফারেন্স সেভ হয়েছে', 'Referrer saved')) }} />}
+        onSaved?.(canAsk ? L('পাঠানো হয়েছে — এইচআর অনুমোদন দিলে দেখাবে', 'Sent — shows once HR approves') : L('রেফারেন্স সেভ হয়েছে', 'Referrer saved')) }} />}
     {adding && <AddBrought referrer={employee} onClose={() => setAdding(false)} onDone={m => { setAdding(false); void brought.reload(); void bPend.reload(); onSaved?.(m) }} />}
     {changeOf && <SetReferrer employee={changeOf} ask={!canSetRef} current={{ kind: 'employee', id: employee, code: null, name: L('এই প্রোফাইল', 'This profile'), hub: '', position: '' }}
       onClose={() => setChangeOf(null)} onDone={() => { setChangeOf(null); void brought.reload(); void bPend.reload()
-        onSaved?.(canSetRef ? L('রেফারেন্স বদলানো হয়েছে', 'Referrer changed') : L('পাঠানো হয়েছে — HR অনুমোদন দিলে বদলাবে', 'Sent — changes once HR approves')) }} />}
+        onSaved?.(canSetRef ? L('রেফারেন্স বদলানো হয়েছে', 'Referrer changed') : L('পাঠানো হয়েছে — এইচআর অনুমোদন দিলে বদলাবে', 'Sent — changes once HR approves')) }} />}
     {editP && pros.data && <ProspectForm p={editP} cols={pros.data.cols} positions={pros.data.pos} onClose={() => setEditP(null)}
       onDone={m => { setEditP(null); void pros.reload(); onSaved?.(m) }} />}
   </section>
@@ -192,13 +192,13 @@ function SetReferrer({ employee, current, ask = false, onClose, onDone }: { empl
   return <Modal title={L('কে এনেছেন (রেফারেন্স)', 'Who referred (reference)')} onClose={onClose}
     actions={<>{current && !ask && <button className="danger" disabled={busy} onClick={() => void go(true)}>{L('রেফারেন্স মুছুন', 'Remove')}</button>}
       <button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button>
-      <button disabled={busy || !v} onClick={() => void go()}>{ask ? L('HR-এ পাঠান', 'Send to HR') : L('সেভ করুন', 'Save')}</button></>}>
-    {ask ? <p className="muted small">{L('যিনি আপনাকে এনেছেন তাঁকে বাছুন: সিস্টেমের লোক হলে হাব → পদ → নাম বা আইডি দিয়ে; বাইরের লোক হলে নাম, পদবি, নম্বর, হাবের নাম নিজে লিখুন। HR অনুমোদন দিলে প্রোফাইলে দেখাবে, তার আগে "অপেক্ষায়"।',
+      <button disabled={busy || !v} onClick={() => void go()}>{ask ? L('এইচআর-এ পাঠান', 'Send to HR') : L('সেভ করুন', 'Save')}</button></>}>
+    {ask ? <p className="muted small">{L('যিনি আপনাকে এনেছেন তাঁকে বাছুন: সিস্টেমের লোক হলে হাব → পদ → নাম বা আইডি দিয়ে; বাইরের লোক হলে নাম, পদবি, নম্বর, হাবের নাম নিজে লিখুন। এইচআর অনুমোদন দিলে প্রোফাইলে দেখাবে, তার আগে "অপেক্ষায়"।',
       'Pick who referred: a person in the system, or write an outside person by hand. It shows once HR approves; until then it is waiting.')}</p> :
     <p className="muted small">{L('ভুল রেফারেন্স থাকলে এখান থেকে ঠিক করুন। সিস্টেমের লোক হলে হাব → পদ → নাম বা আইডি দিয়ে বাছুন; বাইরের লোক হলে নিজে লিখুন।',
       'Fix a wrong reference here. Pick a person in the system, or write an outside person by hand.')}</p>}
     <PersonPicker value={v} onChange={setV} exclude={employee} />
-    {ask && <label className="ref-note"><span className="muted small">{L('HR-এর জন্য নোট (ইচ্ছা হলে)', 'Note for HR (optional)')}</span>
+    {ask && <label className="ref-note"><span className="muted small">{L('এইচআর-এর জন্য নোট (ইচ্ছা হলে)', 'Note for HR (optional)')}</span>
       <input value={note} onChange={e => setNote(e.target.value)} placeholder={L('যেমন: কীভাবে চেনেন', 'e.g. how you know them')} /></label>}
     {err && <p className="da-error">{err}</p>}
   </Modal>
@@ -274,7 +274,7 @@ function AddBrought({ referrer, onClose, onDone }: { referrer: string; onClose: 
     setErr(''); setBusy(true)
     try {
       const r = await referrals.referenceMany(ids, 'set', referrer, note)
-      onDone([r.applied && L(`${n(r.applied)} জন যোগ হয়েছে`, `${r.applied} added`), r.waiting && L(`${n(r.waiting)} জন HR অনুমোদনের অপেক্ষায়`, `${r.waiting} waiting for HR`)].filter(Boolean).join(' · '))
+      onDone([r.applied && L(`${n(r.applied)} জন যোগ হয়েছে`, `${r.applied} added`), r.waiting && L(`${n(r.waiting)} জন এইচআর অনুমোদনের অপেক্ষায়`, `${r.waiting} waiting for HR`)].filter(Boolean).join(' · '))
     } catch (e) { setErr(e instanceof Error && /[ঀ-৿]/.test(e.message) ? e.message : extraFriendly(e)) } finally { setBusy(false) }
   }
   const count = Object.keys(sel).length
@@ -300,9 +300,9 @@ function AddBrought({ referrer, onClose, onDone }: { referrer: string; onClose: 
       <button type="button" className="soft sm" style={{ marginTop: 6 }} disabled={!codes.trim()} onClick={() => void addCodes()}>{L('খুঁজে যোগ করুন', 'Find and add')}</button></Field>}
     {count > 0 && <div className="br-chips">{Object.entries(sel).map(([id, label]) => <span key={id} className="br-chip">{label}
       <button type="button" aria-label={L('সরান', 'Remove')} onClick={() => setSel(s => { const x = { ...s }; delete x[id]; return x })}><Icon name="x" size={12} /></button></span>)}</div>}
-    <label className="ref-note"><span className="muted small">{L('HR-এর জন্য নোট (ইচ্ছা হলে)', 'Note for HR (optional)')}</span>
+    <label className="ref-note"><span className="muted small">{L('এইচআর-এর জন্য নোট (ইচ্ছা হলে)', 'Note for HR (optional)')}</span>
       <input value={note} onChange={e => setNote(e.target.value)} /></label>
-    <p className="muted small"><Icon name="clock" size={12} /> {L('HR ছাড়া অন্যরা দিলে HR অনুমোদন দিলে তালিকায় বসবে; ততক্ষণ "অপেক্ষায়"।', 'Unless you are HR, it waits for HR approval.')}</p>
+    <p className="muted small"><Icon name="clock" size={12} /> {L('এইচআর ছাড়া অন্যরা দিলে এইচআর অনুমোদন দিলে তালিকায় বসবে; ততক্ষণ "অপেক্ষায়"।', 'Unless you are HR, it waits for HR approval.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }

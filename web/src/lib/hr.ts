@@ -76,7 +76,7 @@ export const MISSING: Record<string, string> = {
   emergency_contact_name: 'জরুরি যোগাযোগের নাম', emergency_contact_phone: 'জরুরি যোগাযোগের নম্বর', present_address: 'বর্তমান ঠিকানা',
   permanent_address: 'স্থায়ী ঠিকানা', email: 'Gmail (অ্যাডমিন পদ)', reference: 'রেফারেন্স (নাম ও আইডি)', basic_salary: 'বেতন (Basic)',
   'field:alt_mobile': 'বিকল্প মোবাইল', 'field:blood_group': 'রক্তের গ্রুপ',
-  'document:photo': 'কর্মীর ছবি', 'document:nid_front': 'NID সামনের ছবি', 'document:nid_back': 'NID পেছনের ছবি',
+  'document:photo': 'কর্মীর ছবি', 'document:nid_front': 'এনআইডি সামনের ছবি', 'document:nid_back': 'এনআইডি পেছনের ছবি',
 }
 export type ProfileGap = { employee_id: string; employee_code: string | null; full_name: string; status: string; hub_id: string | null
   hub_name: string | null; position_name: string | null; position_name_bn: string | null; missing: string[]; total_checks: number }
@@ -237,7 +237,7 @@ export const hr = {
 // ---------- documents & salary ----------
 export type EmpDocument = { id: string; doc_type: string; title: string | null; storage_path: string; file_name: string; mime_type: string; size_bytes: number
   verified_at: string | null; archived_at: string | null; created_at: string }
-export const DOC_TYPE: Record<string, string> = { nid_front: 'NID (সামনে)', nid_back: 'NID (পেছনে)', photo: 'ছবি', signature: 'স্বাক্ষর', cv: 'সিভি',
+export const DOC_TYPE: Record<string, string> = { nid_front: 'এনআইডি (সামনে)', nid_back: 'এনআইডি (পেছনে)', photo: 'ছবি', signature: 'স্বাক্ষর', cv: 'সিভি',
   experience_certificate: 'অভিজ্ঞতার সনদ', education: 'শিক্ষাগত সনদ', other: 'অন্যান্য' }
 export type Compensation = { id: string; effective_from: string; effective_to: string | null; basic_salary: number; transport_allowance: number; commission: number
   status: string; reason: string | null }
@@ -251,7 +251,7 @@ export const docs = {
     fail(error); return (data ?? []) as EmpDocument[]
   },
   upload: async (employee: string, docType: string, file: File) => {
-    if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) throw new HrError('শুধু JPG, PNG, WEBP বা PDF ফাইল')
+    if (!['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(file.type)) throw new HrError('শুধু JPG, PNG, WEBP বা পিডিএফ ফাইল')
     if (file.size > 10 * 1024 * 1024) throw new HrError('ফাইল ১০ MB-এর বেশি')
     const safe = file.name.replace(/[^\w.\-]+/g, '_').slice(-80)
     const path = `employee/${employee}/${crypto.randomUUID()}-${safe}`

@@ -18,13 +18,13 @@ export function HrReqPanel() {
   const approve = can('hr.request.approve')
   if (!mine && !d.as_ref && !d.about_me && !(approve && (d.open || decided))) {
     return <section className="panel hrq-panel">
-      <div className="da-bar"><h2 style={{ margin: 0 }}>{L('HR রিকুয়েস্ট', 'HR requests')}</h2></div>
+      <div className="da-bar"><h2 style={{ margin: 0 }}>{L('এইচআর রিকুয়েস্ট', 'HR requests')}</h2></div>
       <div className="hrq-empty"><span className="muted">{L('এখনো কোনো রিকুয়েস্ট পাঠানো হয়নি।', 'No requests sent yet.')}</span>
         <Link to="/app/hr/requests" className="btn-cta"><Icon name="plus" size={16} />{L('নতুন রিকুয়েস্ট', 'New request')}</Link></div>
     </section>
   }
   return <section className="panel hrq-panel">
-    <div className="da-bar"><h2 style={{ margin: 0 }}>{L('HR রিকুয়েস্ট ও আমার দেওয়া লোক', 'HR requests & my referrals')}</h2>
+    <div className="da-bar"><h2 style={{ margin: 0 }}>{L('এইচআর রিকুয়েস্ট ও আমার দেওয়া লোক', 'HR requests & my referrals')}</h2>
       <Link to="/app/hr/requests?tab=report" className="small">{L('রিপোর্ট', 'Report')} →</Link></div>
     <div className="net-kpis">
       <Link to="/app/hr/requests?tab=list" className="nk"><span className="nk-i b"><Icon name="form" size={20} /></span><b>{n(mine)}</b><small>{L('আমি পাঠিয়েছি', 'I sent')}</small></Link>

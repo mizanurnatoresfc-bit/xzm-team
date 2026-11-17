@@ -63,7 +63,7 @@ export function Dashboard() {
     ['/app/hub/routes', 'map', 'রাইডার রুট', 'Rider routes', 'r', ['ops.route.view']],
     ['/app/accounts/mine', 'wallet', 'আমার হিসাব', 'My accounts', 'g', null],
     ['/app/hr/leave', 'log', 'ছুটি', 'Leave', 'b', ['hr.leave.view', 'hr.leave.create']],
-    ['/app/hr/requests', 'form', 'HR রিকুয়েস্ট', 'HR requests', 'o', null],
+    ['/app/hr/requests', 'form', 'এইচআর রিকুয়েস্ট', 'HR requests', 'o', null],
     ['/app/me', 'user', 'প্রোফাইল', 'Profile', 'p', null],
   ]
 
@@ -91,7 +91,7 @@ export function Dashboard() {
     {d?.my_work && d.my_work.tasks_due > 0 && <Link to="/app/hub/tasks" className="alert-card bad"><span className="ai"><Icon name="alert" size={20} /></span>
       <span>{L(`${n(d.my_work.tasks_due)}টা কাজের সময় পেরিয়ে গেছে`, `${d.my_work.tasks_due} tasks are overdue`)}</span></Link>}
     {d?.me && photo === null && <Link to="/app/me" className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span>
-      <span>{L('আপনার প্রোফাইলে ছবি নেই — HR-কে ছবি দিন', 'Your profile has no photo — give one to HR')}</span></Link>}
+      <span>{L('আপনার প্রোফাইলে ছবি নেই — এইচআর-কে ছবি দিন', 'Your profile has no photo — give one to HR')}</span></Link>}
     <div className="home-tiles">{tiles.slice(0, allTiles || tiles.length <= 8 ? tiles.length : 7).map(([to, ic, bn, en, tone]) =>
       <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}
       {tiles.length > 8 && <button type="button" className="quick-tile t-b more-tile" onClick={() => setAllTiles(v => !v)}>
@@ -220,7 +220,7 @@ function FirstSteps({ photo }: { photo: string | null | undefined }) {
   const steps: Array<[boolean, string, string | null]> = [
     [true, L('নিজের পাসওয়ার্ড বসানো হয়েছে', 'Your own password is set'), null],
     [!!e.mobile, e.mobile ? L('মোবাইল নম্বর দেওয়া আছে', 'Mobile number given') : L('মোবাইল নম্বর দিন — তারপর নম্বর দিয়েও লগইন হবে', 'Give your mobile number — then you can sign in with it too'), '/app/me'],
-    [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — HR-কে ছবি দিন', 'No profile photo — give one to HR'), '/app/me'],
+    [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — এইচআর-কে ছবি দিন', 'No profile photo — give one to HR'), '/app/me'],
   ]
   return <section className="panel first-steps">
     <h2>{L('শুরুর ধাপ', 'First steps')} <Link to="/app/training" className="link small">{L('ট্রেনিং সেন্টার →', 'Training centre →')}</Link></h2>

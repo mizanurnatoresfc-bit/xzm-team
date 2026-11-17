@@ -651,7 +651,7 @@ try {
     const staffRowsShown = () => page.locator(staffSel).count()
     check(await staffRowsShown() === 12 && (await page.locator('.eb-chips').innerText()).includes('Rider'), `${size}: the staff list shows everyone with a chip per post`)
     check(await page.locator(staffSel).first().locator('.row-acts button').count() === 2, `${size}: every row has Edit and View`)
-    { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), page.getByRole('button', { name: /ID Create/ }).click()])
+    { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), page.getByRole('button', { name: /আইডি তৈরির ফাইল/ }).click()])
       const sent = exported.at(-1)
       check(!!dl && /^New-Admin-Rider-ID-Creat-Information-.*\.xlsx$/.test(dl.suggestedFilename()) && sent?.p_status === 'active' && sent.p_fields.includes('nid_number'), `${size}: the staff page makes the company's ID Create sheet`)
       if (dl && process.env.KEEP_ID_FILE) await dl.saveAs(process.env.KEEP_ID_FILE) }

@@ -209,15 +209,15 @@ export class DaError extends Error {
 
 const BN: Array<[RegExp, string]> = [
   [/already exists/i, 'এই হাব ও তারিখের হিসাব আগে থেকেই আছে।'],
-  [/submitted twice|has been submitted/i, 'হিসাবটি Submit হয়ে গেছে। সংশোধনের অনুমতি ছাড়া বদলানো যাবে না।'],
+  [/submitted twice|has been submitted/i, 'হিসাবটি সাবমিট হয়ে গেছে। সংশোধনের অনুমতি ছাড়া বদলানো যাবে না।'],
   [/approved and final/i, 'হিসাবটি অনুমোদিত ও চূড়ান্ত — আর বদলানো যাবে না।'],
-  [/started or submitted a sheet cannot verify/i, 'যিনি হিসাব শুরু বা Submit করেছেন, তিনি যাচাই করতে পারবেন না।'],
+  [/started or submitted a sheet cannot verify/i, 'যিনি হিসাব শুরু বা সাবমিট করেছেন, তিনি যাচাই করতে পারবেন না।'],
   [/OCR and have not been checked/i, 'OCR থেকে পাওয়া কিছু তথ্য এখনো যাচাই করা হয়নি। আগে যাচাই করুন।'],
   [/Not authorised|permission/i, 'এই কাজের অনুমতি আপনার নেই।'],
   [/outside the allowed period/i, 'এই তারিখে হিসাব শুরু করা যাবে না।'],
   [/already on the sheet/i, 'এই রাইডার আগে থেকেই তালিকায় আছে।'],
-  [/is already recorded/i, 'এই Transaction ID আগে এন্ট্রি হয়েছে।'],
-  [/no record in this hub/i, 'এই Payment ID-র রেকর্ড এই হাবে নেই — মার্চেন্ট নিজে বেছে নিন।'],
+  [/is already recorded/i, 'এই ট্রানজেকশন আইডি আগে এন্ট্রি হয়েছে।'],
+  [/no record in this hub/i, 'এই পেমেন্ট আইডির রেকর্ড এই হাবে নেই — মার্চেন্ট নিজে বেছে নিন।'],
   [/already has a bill/i, 'এই খরচের বিল আছে, তাই ভাউচার লাগবে না।'],
   [/Expense line not found/i, 'খরচের লাইনটি পাওয়া যায়নি।'],
   [/amount must be greater than zero/i, 'টাকার অঙ্ক শূন্যের বেশি হতে হবে।'],
@@ -226,12 +226,12 @@ const BN: Array<[RegExp, string]> = [
   [/already used in this hub/i, 'এই রেফারেন্স নম্বর এই হাবে আগে ব্যবহার হয়েছে।'],
   [/was not found/i, 'এই আইডির কোনো কর্মী পাওয়া যায়নি।'],
   [/need a bill or memo attached/i, 'নির্ধারিত টাকার বেশি খরচে বিল বা মেমো সংযুক্ত করতে হবে।'],
-  [/sheet is empty/i, 'হিসাব খালি — Submit-এর আগে অন্তত একটি এন্ট্রি দিন।'],
+  [/sheet is empty/i, 'হিসাব খালি — সাবমিটের আগে অন্তত একটি এন্ট্রি দিন।'],
   [/not an active member/i, 'এই কর্মী এই হাবের সক্রিয় সদস্য নন।'],
   [/reason is required|Write what needs/i, 'কারণ / মন্তব্য লিখতে হবে।'],
   [/cannot be in the future/i, 'ভবিষ্যতের তারিখ দেওয়া যাবে না।'],
   [/can be started from/i, 'নির্ধারিত সময়ের আগে আজকের হিসাব শুরু করা যাবে না।'],
-  [/Only the Accounts Manager assigned/i, 'শুধু এই হাবে নির্ধারিত Accounts Manager যাচাই করতে পারবেন।'],
+  [/Only the Accounts Manager assigned/i, 'শুধু এই হাবে নির্ধারিত হিসাব ম্যানেজার যাচাই করতে পারবেন।'],
 ]
 export function friendly(err: unknown, lang: 'bn' | 'en' = 'bn'): string {
   const msg = err instanceof Error ? err.message : typeof err === 'object' && err && 'message' in err
@@ -385,7 +385,7 @@ export const da = {
   upload: async (session: string, file: File, settings?: DaSettings['da.bill_upload']) => {
     const max = (settings?.max_mb ?? 10) * 1024 * 1024
     const types = settings?.types ?? ['image/jpeg', 'image/png', 'application/pdf']
-    if (!types.includes(file.type)) throw new DaError('এই ধরনের ফাইল নেওয়া হয় না (JPG, PNG বা PDF দিন)।')
+    if (!types.includes(file.type)) throw new DaError('এই ধরনের ফাইল নেওয়া হয় না (JPG, PNG বা পিডিএফ দিন)।')
     if (file.size > max) throw new DaError(`ফাইলটি ${settings?.max_mb ?? 10} MB-এর বেশি।`)
     const safe = file.name.replace(/[^\w.\-ঀ-৿]+/g, '_').slice(-80)
     const path = `da/${session}/${crypto.randomUUID()}-${safe}`
@@ -441,6 +441,6 @@ export const STATUS_LABEL: Record<SheetStatus, string> = {
   open: 'চলমান', submitted: 'যাচাইয়ের অপেক্ষায়', correction: 'সংশোধন প্রয়োজন', approved: 'অনুমোদিত',
 }
 export const EVENT_LABEL: Record<SheetEvent['action'], string> = {
-  started: 'হিসাব শুরু', submitted: 'Submit', resubmitted: 'আবার Submit', approved: 'অনুমোদিত',
+  started: 'হিসাব শুরু', submitted: 'Submit', resubmitted: 'আবার সাবমিট', approved: 'অনুমোদিত',
   correction_required: 'সংশোধন প্রয়োজন', note: 'মন্তব্য', reopened: 'সংশোধনের জন্য খোলা',
 }

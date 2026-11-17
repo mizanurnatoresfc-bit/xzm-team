@@ -25,7 +25,7 @@ export function Formats({ toast }: { toast: (m: string) => void }) {
   return <section className="panel">
     <div className="da-bar"><h2 style={{ margin: 0 }}>{L('এক্সপোর্ট / ইমপোর্ট ফরম্যাট', 'Export / import formats')}</h2>
       {can('hr.profile_field.configure') && <button onClick={() => setEdit({ purpose: 'both', columns: [], zone_id: globalRight ? null : (o.data?.zones[0]?.id ?? null) })}>+ {L('নতুন ফরম্যাট', 'New format')}</button>}</div>
-    <p className="muted small">{L('কোন কলামগুলো, কোন ক্রমে আর কী নামে Excel-এ যাবে — সেটাই ফরম্যাট। একই ফরম্যাট ইমপোর্টেও কলাম মিলিয়ে নিতে কাজে লাগে।',
+    <p className="muted small">{L('কোন কলামগুলো, কোন ক্রমে আর কী নামে এক্সেলে যাবে — সেটাই ফরম্যাট। একই ফরম্যাট ইমপোর্টেও কলাম মিলিয়ে নিতে কাজে লাগে।',
       'A format is which columns go to Excel, in which order and under which heading. The same format also matches columns when importing.')}</p>
     {data.error ? <p className="da-error">{formatFriendly(data.error)}</p> : null}
     {!data.data?.list.length ? <p className="muted">{data.loading ? L('লোড হচ্ছে…', 'Loading…') : L('কোনো ফরম্যাট নেই।', 'No formats yet.')}</p> :
@@ -119,7 +119,7 @@ function FormatEditor({ f, custom, canGlobal, zones, onClose, onDone }: {
     <h3>{L('কলামগুলো', 'Columns')}</h3>
     {!cols.length ? <p className="muted">{L('এখনো কোনো কলাম নেই।', 'No columns yet.')}</p> :
       <div className="da-table-wrap"><table className="da-table">
-        <thead><tr><th>#</th><th>{L('কোন তথ্য', 'Field')}</th><th>{L('Excel-এ নাম (বাংলা)', 'Heading (Bangla)')}</th><th>{L('Excel-এ নাম (ইংরেজি)', 'Heading (English)')}</th><th /></tr></thead>
+        <thead><tr><th>#</th><th>{L('কোন তথ্য', 'Field')}</th><th>{L('এক্সেলে নাম (বাংলা)', 'Heading (Bangla)')}</th><th>{L('এক্সেলে নাম (ইংরেজি)', 'Heading (English)')}</th><th /></tr></thead>
         <tbody>{cols.map((c, i) => <tr key={c.field}>
           <td className="muted small">{i + 1}</td>
           <td>{fieldLabel(c.field, lang, custom)}</td>
@@ -135,7 +135,7 @@ function FormatEditor({ f, custom, canGlobal, zones, onClose, onDone }: {
         <option value="">{L('বেছে নিন…', 'Choose…')}</option>
         {available.map(([v, lbl]) => <option key={v} value={v}>{lbl}</option>)}
       </select></Field>
-    <p className="muted small">{L('“(গোপন)” লেখা কলামগুলো শুধু তাঁরাই দেখতে পাবেন যাঁদের NID দেখার অনুমতি আছে; বাকিদের ঘর খালি আসবে।',
+    <p className="muted small">{L('“(গোপন)” লেখা কলামগুলো শুধু তাঁরাই দেখতে পাবেন যাঁদের এনআইডি দেখার অনুমতি আছে; বাকিদের ঘর খালি আসবে।',
       'Columns marked “(private)” only fill in for people allowed to see NIDs; for others they come out blank.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>

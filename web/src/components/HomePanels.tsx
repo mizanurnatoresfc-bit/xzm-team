@@ -103,7 +103,7 @@ export function HubTodayPanel() {
         <Link to="/app/hub/attendance" className="ma t-g"><Icon name="cal" size={18} />{L('হাজিরা দিন', 'Attendance')}</Link>
         <Link to="/app/hub/late" className="ma t-o"><Icon name="clock" size={18} />{L('দেরি লিখুন', 'Late')}</Link>
         <Link to="/app/hub/pickup" className="ma t-b"><Icon name="box" size={18} />{L('পিকআপ', 'Pickup')}</Link>
-        <Link to="/app/hr/requests" className="ma t-p"><Icon name="form" size={18} />{L('HR রিকুয়েস্ট', 'HR request')}</Link>
+        <Link to="/app/hr/requests" className="ma t-p"><Icon name="form" size={18} />{L('এইচআর রিকুয়েস্ট', 'HR request')}</Link>
       </div>
     </>}
   </section>
@@ -120,7 +120,7 @@ export function ApprovalsPanel() {
     ['/app/hr/applications', v.apps, L('আইডি আবেদন', 'ID applications'), 'form', 'b'],
     ['/app/hr/leave', v.leave, L('ছুটির আবেদন', 'Leave requests'), 'log', 'p'],
     ['/app/accounts/daily', v.sheets, L('হিসাব খাতা যাচাই', 'Daily sheets to check'), 'ledger', 'g'],
-    ['/app/hr/requests?tab=list', v.hrreq, L('HR রিকুয়েস্ট', 'HR requests'), 'users', 'o'],
+    ['/app/hr/requests?tab=list', v.hrreq, L('এইচআর রিকুয়েস্ট', 'HR requests'), 'users', 'o'],
   ] as Array<[string, number, string, string, string]>).filter(r => r[1] >= 0)
   if (!rows.length) return null
   const total = rows.reduce((a, r) => a + r[1], 0)

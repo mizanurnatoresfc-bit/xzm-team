@@ -29,7 +29,7 @@ const SECTIONS: Array<[string, string, Array<[string, string]>]> = [
   ['কী তথ্য রাখা হয়', 'What is kept here', [
     ['কাজের প্রয়োজনে যা লাগে তাই: কর্মীর প্রোফাইল ও পদবি, হাজিরা ও ছুটি, বেতন-সংক্রান্ত হিসাব, পার্সেল ও পেমেন্টের রেকর্ড, দৈনিক হিসাবের লাইন এবং আপলোড করা বিল, ভাউচার ও স্ক্রিনশট।',
      'What the work needs: staff profiles and positions, attendance and leave, pay-related records, parcel and payment records, the daily account lines, and the bills, vouchers and screenshots uploaded with them.'],
-    ['ব্যক্তিগত তথ্য (যেমন NID, জন্মতারিখ, ঠিকানা) শুধু চাকরি-সংক্রান্ত প্রয়োজনে রাখা হয় এবং যাঁদের দেখার অনুমতি আছে তাঁরাই দেখতে পান।',
+    ['ব্যক্তিগত তথ্য (যেমন এনআইডি, জন্মতারিখ, ঠিকানা) শুধু চাকরি-সংক্রান্ত প্রয়োজনে রাখা হয় এবং যাঁদের দেখার অনুমতি আছে তাঁরাই দেখতে পান।',
      'Personal details such as NID, date of birth and address are kept only for employment purposes, and only people with permission to see them can.'],
   ]],
   ['কে কী দেখতে পাবেন', 'Who sees what', [
@@ -102,7 +102,7 @@ export function Terms() {
 
         <div className="row no-print" style={{ marginTop: 22 }}>
           <Link to="/staff/login"><button><Icon name="key" size={16} />{L('স্টাফ লগইন', 'Staff login')}</button></Link>
-          <button className="secondary" onClick={() => window.print()}><Icon name="print" size={16} />{L('প্রিন্ট / PDF', 'Print / PDF')}</button>
+          <button className="secondary" onClick={() => window.print()}><Icon name="print" size={16} />{L('প্রিন্ট / পিডিএফ', 'Print / PDF')}</button>
           <Link to="/"><button className="secondary">{L('হোম পেজ', 'Home')}</button></Link>
         </div>
       </article>

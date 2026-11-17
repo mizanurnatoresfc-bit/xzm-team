@@ -82,7 +82,7 @@ export const setView = (v: DashView, keep = true) => {
 export const PANELS: Array<[PanelCode, bn: string, en: string, note_bn: string, note_en: string]> = [
   ['my_work', 'আমার কাজ', 'My work', 'নিজের দায়িত্ব, ছুটি ও আজকের হাজিরা', 'Your own tasks, leave and today’s attendance'],
   ['hr_overview', 'কর্মীর হিসাব', 'Staff figures', 'মোট, সক্রিয়, নতুন যোগদান, বিদায়', 'Total, active, new joiners, leavers'],
-  ['hr_pending', 'HR-এ অপেক্ষায়', 'Waiting in HR', 'আবেদন, ছুটি, বেতন ও ডকুমেন্ট যাচাই', 'Applications, leave, salary and documents'],
+  ['hr_pending', 'এইচআর-এ অপেক্ষায়', 'Waiting in HR', 'আবেদন, ছুটি, বেতন ও ডকুমেন্ট যাচাই', 'Applications, leave, salary and documents'],
   ['hub_staff', 'হাব অনুযায়ী কর্মী', 'Staff by hub', 'প্রতি হাবে কতজন', 'How many in each hub'],
   ['ops_today', 'আজকের অপারেশন', 'Operations today', 'পার্সেল, পিকআপ, ডেলিভারি, সমস্যা', 'Parcels, pickups, deliveries, issues'],
   ['cash_today', 'টাকার হিসাব', 'Cash', 'হ্যান্ডওভার, খরচ, মার্চেন্ট পেমেন্ট', 'Handovers, expenses, merchant payments'],
@@ -90,9 +90,9 @@ export const PANELS: Array<[PanelCode, bn: string, en: string, note_bn: string, 
   ['zonal_overview', 'জোনের চিত্র', 'Zone overview', 'জোন, হাব, কর্মী, দায়িত্ব, দাবি', 'Zones, hubs, staff, tasks, claims'],
   ['quick_links', 'দ্রুত যাওয়া', 'Quick links', 'অনুমতি অনুযায়ী পাতার কার্ড', 'Cards for the pages you may open'],
   ['my_day', 'আমার আজকের দিন', 'My day', 'নিজের হাজিরা, দায়িত্ব, রুট ও দ্রুত কাজ', 'Own attendance, duties, route and quick actions'],
-  ['my_requests', 'HR রিকুয়েস্ট ও আমার দেওয়া লোক', 'HR requests & referrals', 'যা পাঠিয়েছি, যাদের রেফারেন্স, অবস্থা', 'What I sent, who I referred, status'],
+  ['my_requests', 'এইচআর রিকুয়েস্ট ও আমার দেওয়া লোক', 'HR requests & referrals', 'যা পাঠিয়েছি, যাদের রেফারেন্স, অবস্থা', 'What I sent, who I referred, status'],
   ['hub_today', 'আজ আমার হাব', 'My hub today', 'হাজিরা, দেরি, পিকআপ, হিসাব খাতা, টিম', 'Attendance, late, pickups, daily sheet, team'],
-  ['approvals', 'আমার অনুমোদন বাকি', 'Waiting for my approval', 'আইডি আবেদন, ছুটি, হিসাব খাতা, HR রিকুয়েস্ট', 'ID applications, leave, sheets, HR requests'],
+  ['approvals', 'আমার অনুমোদন বাকি', 'Waiting for my approval', 'আইডি আবেদন, ছুটি, হিসাব খাতা, এইচআর রিকুয়েস্ট', 'ID applications, leave, sheets, HR requests'],
   ['network', 'আমার নেটওয়ার্ক (ম্যাপ)', 'My network (map)', 'রিজিওন, এরিয়া, হাবের ম্যাপ ও আজকের হাজিরা', 'Regions, areas, hub map and today’s attendance'],
 ]
 

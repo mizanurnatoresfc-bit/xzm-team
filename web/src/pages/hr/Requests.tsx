@@ -30,7 +30,7 @@ export function Requests() {
   // Staff who act only for themselves get a plain desk instead of the format picker.
   const tabs: Array<[Tab, string, string]> = [['new', canOthers ? 'নতুন রিকুয়েস্ট' : 'আবেদন করুন', canOthers ? 'plus' : 'grid'], ['list', canDecide ? 'অনুমোদন প্যানেল' : canOthers ? 'আমার রিকুয়েস্ট' : 'আমার আবেদন', 'check'],
     ['report', 'রিপোর্ট', 'chart'], ...(canConfig ? [['settings', 'ফরম্যাট সেটিং', 'gear'] as [Tab, string, string]] : [])]
-  return <AppShell title={canOthers ? 'HR ও অপারেশন রিকুয়েস্ট' : 'আমার আবেদন ও আমার লোক'} subtitle={canOthers ? 'হাব → স্টাফ → ফরম্যাট বাছুন; আগের তথ্য নিজে বসে যায়' : 'আমার প্রোফাইল, আমার লোক আর অফিসে আবেদন'}>
+  return <AppShell title={canOthers ? 'এইচআর ও অপারেশন রিকুয়েস্ট' : 'আমার আবেদন ও আমার লোক'} subtitle={canOthers ? 'হাব → স্টাফ → ফরম্যাট বাছুন; আগের তথ্য নিজে বসে যায়' : 'আমার প্রোফাইল, আমার লোক আর অফিসে আবেদন'}>
     <div className="rq-tabs">{tabs.map(([k, l, ic]) => <button key={k} type="button" className={`rq-tab${tab === k ? ' on' : ''}`} onClick={() => setTab(k)}><Icon name={ic} size={16} />{l}</button>)}</div>
     {tab === 'new' && <NewRequest onDone={id => { const n = new URLSearchParams(); n.set('tab', 'list'); n.set('id', id); setSp(n) }} />}
     {tab === 'list' && <RequestList openId={sp.get('id')} onOpen={id => { const n = new URLSearchParams(sp); if (id) n.set('id', id); else n.delete('id'); setSp(n, { replace: true }) }} />}
@@ -127,7 +127,7 @@ function NewRequest({ onDone }: { onDone: (id: string) => void }) {
 
   if (base.error) return <p className="da-error">{hrFriendly(base.error)}</p>
   if (!base.data) return <p className="muted">লোড হচ্ছে…</p>
-  if (!canOthers && !me) return <section className="panel"><p className="notice">আপনার লগইনের সাথে কোনো কর্মী প্রোফাইল যুক্ত নেই। HR-কে বলুন।</p></section>
+  if (!canOthers && !me) return <section className="panel"><p className="notice">আপনার লগইনের সাথে কোনো কর্মী প্রোফাইল যুক্ত নেই। এইচআর-কে বলুন।</p></section>
   if (!canOthers && me) return <StaffDesk me={me} formats={formats} onSent={onDone} />
 
   const kindOf = (f: ReqFormat) => KINDS[f.kind] ?? KINDS.custom
@@ -507,7 +507,7 @@ function Report() {
           <input type="checkbox" checked={cfg.statuses.includes(k)} onChange={() => set({ statuses: toggle(cfg.statuses, k) })} />{STATUS[k].bn}</label>)}</div>
         {cfg.view === 'list' && <div className="rp-row"><span className="muted small">কলাম:</span>{Object.entries(fieldOpts).map(([k, l]) => <label key={k} className={`chip-toggle${cfg.fields.includes(k) ? ' on' : ''}`}>
           <input type="checkbox" checked={cfg.fields.includes(k)} onChange={() => set({ fields: toggle(cfg.fields, k) })} />{l}</label>)}</div>}
-        <p className="muted small">যেভাবে খুশি সাজান, তারপর "সেভ" — উপরের তালিকায় নিজের নামে থেকে যাবে (এই ফোন/কম্পিউটারে)। নিচের টেবিল থেকে Excel, PDF বা প্রিন্ট।</p>
+        <p className="muted small">যেভাবে খুশি সাজান, তারপর "সেভ" — উপরের তালিকায় নিজের নামে থেকে যাবে (এই ফোন/কম্পিউটারে)। নিচের টেবিল থেকে এক্সেল, পিডিএফ বা প্রিন্ট।</p>
       </div>}
     </section>
 

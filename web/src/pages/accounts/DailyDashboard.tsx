@@ -73,7 +73,7 @@ export function DailyDashboard() {
     ['correction', 'সংশোধন', count('correction'), count('correction') ? 'bad' : ''], ['approved', STATUS_LABEL.approved, count('approved'), ''], ...(oneDay ? [['none', 'শুরু হয়নি', missing.length, ''] as [SheetStatus | 'none' | '', string, number, string]] : [])]
   const loading = list.loading && !list.data
 
-  return <AccountsShell title="আজকের হাবের হিসাব খাতা" subtitle={`জমা পড়া খাতা Accept করুন, তারপর ডেইলি হিসাবের খাতা খুলুন · আজ ${dateBn(today)}`}
+  return <AccountsShell title="আজকের হাবের হিসাব খাতা" subtitle={`জমা পড়া খাতা গ্রহণ করুন, তারপর ডেইলি হিসাবের খাতা খুলুন · আজ ${dateBn(today)}`}
     actions={startable.length > 0 && <button className="nv-wide-only" onClick={() => begin()}>＋ হিসাব শুরু করুন</button>}>
     {node}
     <div className="nv">
@@ -113,7 +113,7 @@ export function DailyDashboard() {
           {startable.length > 0 && !q && <button type="button" onClick={() => begin()}>＋ হিসাব শুরু করুন</button>}</div>
         : view === 'table' && rows.length > 0 ? <section className="panel"><div className="da-table-wrap"><table className="da-table">
           <thead><tr><th>নং</th><th>তারিখ</th><th>হাব</th><th className="r">রাইডার</th><th className="r">ডেলিভারি</th><th className="r">পিকআপ</th>
-            <th className="r">টাকা</th><th className="r">বকেয়া</th><th className="r">মোবাইল ব্যাংকিং</th><th className="r">খরচ</th><th>অবস্থা</th><th>ধাপ</th><th>Submit করেছেন</th><th /></tr></thead>
+            <th className="r">টাকা</th><th className="r">বকেয়া</th><th className="r">মোবাইল ব্যাংকিং</th><th className="r">খরচ</th><th>অবস্থা</th><th>ধাপ</th><th>সাবমিট করেছেন</th><th /></tr></thead>
           <tbody>{rows.map(r => <SessionTr key={r.id} r={r} f={flowOf.get(r.id)} />)}</tbody></table></div>
           {gaps.length > 0 && <p className="muted small" style={{ margin: '10px 0 0' }}>শুরু হয়নি: {gaps.map(h => h.name).join(', ')}</p>}</section>
         : <div className="nv-rows">

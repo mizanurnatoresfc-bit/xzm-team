@@ -24,11 +24,11 @@ const ADMIN: Array<[bn: string, en: string, rows: Row[]]> = [
     ['/app/sorting/centers', 'hub', 'শটিং সেন্টার ও হাব', 'Sorting centers & hubs', ['sorting.center.view', 'sorting.center.create']],
     ['/app/office/places', 'home', 'অফিস ও আবাসিক', 'Offices & residences', ['office.property.view', 'office.property.create']],
   ]],
-  ['স্টাফ / HR', 'Staff / HR', [
+  ['স্টাফ / এইচআর', 'Staff / HR', [
     ['/app/hr/fields', 'form', 'প্রোফাইলের ঘর, কলাম ও ফরম্যাট', 'Profile fields, columns & formats', ['hr.profile_field.configure', 'hr.referral.configure']],
     ['/app/hr/duties', 'tasks', 'কাজের দায়িত্ব', 'Duties', ['hr.duty.view', 'hr.duty.edit']],
-    ['/app/hr/import', 'upload', 'কর্মী ইমপোর্ট (Excel)', 'Import employees', ['hr.import.create']],
-    ['/app/hr/requests?tab=settings', 'form', 'HR রিকুয়েস্টের ফরম্যাট', 'HR request formats', ['hr.request.configure']],
+    ['/app/hr/import', 'upload', 'কর্মী ইমপোর্ট (এক্সেল)', 'Import employees', ['hr.import.create']],
+    ['/app/hr/requests?tab=settings', 'form', 'এইচআর রিকুয়েস্টের ফরম্যাট', 'HR request formats', ['hr.request.configure']],
   ]],
   ['হিসাব ও গাড়ি', 'Accounts & vehicles', [
     ['/app/accounts/settings', 'gear', 'হিসাব সেটিংস (খাত, ব্যাংক চার্জ, ফিক্সড)', 'Accounts settings', ['da.settings.configure']],

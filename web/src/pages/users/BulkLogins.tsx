@@ -83,7 +83,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
 
   if (run) return <Modal wide title="সব কর্মীর লগইন তৈরি" onClose={() => { if (run.done) onClose() }}
     actions={run.done ? <><button type="button" className="secondary" onClick={onClose}>বন্ধ করুন</button>
-        {run.made.length > 0 && <button type="button" onClick={() => sheet(run.made)}><Icon name="xls" size={15} /> তালিকা (Excel) নামান</button>}</>
+        {run.made.length > 0 && <button type="button" onClick={() => sheet(run.made)}><Icon name="xls" size={15} /> তালিকা (এক্সেল) নামান</button>}</>
       : <button type="button" className="secondary" onClick={() => { stop.current = true }}>থামান</button>}>
     <p><b>{n(run.at)} / {n(run.total)}</b> — {run.done ? 'শেষ হয়েছে' : 'তৈরি হচ্ছে… এই পাতা বন্ধ করবেন না'}</p>
     <div className="bl-bar" role="progressbar" aria-valuemin={0} aria-valuemax={run.total} aria-valuenow={run.at}><span style={{ width: `${run.total ? (run.at / run.total) * 100 : 0}%` }} /></div>
@@ -123,7 +123,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
       <button type="button" className={mode === 'each' ? '' : 'secondary'} aria-pressed={mode === 'each'} onClick={() => setMode('each')}>প্রত্যেকের আলাদা</button></div>
     {mode === 'common' ? <Field label="সবার প্রথম পাসওয়ার্ড" required hint="কমপক্ষে ৮ অক্ষর, অক্ষর ও সংখ্যা দুটোই। এটা কোথাও জমা থাকে না — আপনি নিজে সবাইকে জানাবেন।">
         <input autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="যেমন: Natore2026" /></Field>
-      : <p className="muted small">প্রত্যেকের জন্য আলাদা পাসওয়ার্ড তৈরি হবে; শেষে Excel তালিকায় পাবেন। সেই তালিকা আর দেখানো হবে না।</p>}
+      : <p className="muted small">প্রত্যেকের জন্য আলাদা পাসওয়ার্ড তৈরি হবে; শেষে এক্সেল তালিকায় পাবেন। সেই তালিকা আর দেখানো হবে না।</p>}
     {mode === 'common' && <p className="notice">একই পাসওয়ার্ড সবার জানা থাকে, তাই কেউ অন্যের আইডি দিয়ে আগে ঢুকে পাসওয়ার্ড বদলে ফেলতে পারে। ঝুঁকি কমাতে হাব ধরে ধরে তৈরি করুন, আর সেদিনই সবাইকে একবার লগইন করিয়ে নিন।</p>}
 
     <p className="bl-sum"><b>{n(ready.length)} জনের</b> লগইন তৈরি হবে{noId ? ` · ${n(noId)} জনের এমপ্লয়ি আইডি নেই (বাদ)` : ''}{noRole ? ` · ${n(noRole)} জনের পদবির রোল ঠিক করা নেই (বাদ)` : ''}।

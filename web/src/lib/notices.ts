@@ -82,7 +82,7 @@ export function useNotices(): State {
 
 /** [বাংলা, English, icon] for each kind of notification. */
 export const NOTICE_KIND: Record<string, [string, string, string]> = {
-  hr_request: ['HR রিকুয়েস্ট', 'HR requests', 'form'], issue: ['ইস্যু ও কাজ', 'Issues & tasks', 'tasks'], vehicle: ['গাড়ি', 'Vehicles', 'truck'],
+  hr_request: ['এইচআর রিকুয়েস্ট', 'HR requests', 'form'], issue: ['ইস্যু ও কাজ', 'Issues & tasks', 'tasks'], vehicle: ['গাড়ি', 'Vehicles', 'truck'],
   office: ['অফিস', 'Office', 'home'], attendance: ['হাজিরা', 'Attendance', 'cal'], manpower: ['লোক লাগবে', 'Manpower', 'users'],
   da_reminder: ['হিসাব খাতা', 'Daily sheet', 'ledger'], nodi: ['নদী AI', 'Nodi AI', 'bell'],
 }

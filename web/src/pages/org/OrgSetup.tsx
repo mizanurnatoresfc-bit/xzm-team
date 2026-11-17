@@ -102,7 +102,7 @@ export function OrgSetup() {
         <Field label="ফোন"><input name="phone" inputMode="tel" /></Field>
         <div className="row" style={{ alignSelf: 'end' }}><button disabled={busy}>তৈরি করুন</button></div>
         {err && <p className="da-error">{err}</p>}
-      </form> : <p className="notice">প্রতিষ্ঠান তৈরির অনুমতি আপনার নেই। Super Admin-কে বলুন।</p>}
+      </form> : <p className="notice">প্রতিষ্ঠান তৈরির অনুমতি আপনার নেই। সুপার অ্যাডমিনকে বলুন।</p>}
     </section> : null}
     {d && orgRow ? <>
       <div className="da-stats org-kinds">
