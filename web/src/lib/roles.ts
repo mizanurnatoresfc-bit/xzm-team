@@ -43,7 +43,7 @@ export const ACTION_LABEL: Record<string, [string, string]> = {
 export const ACTIONS = ['view', 'create', 'edit', 'approve', 'reject', 'archive', 'export', 'print', 'configure', 'share', 'delete']
 export const RESOURCE_LABEL: Record<string, string> = {
   'org.organization': 'কোম্পানির তথ্য', 'org.zone': 'জোন', 'org.hub': 'হাব', 'org.department': 'বিভাগ', 'org.position': 'পদবি',
-  'hr.application': 'আইডি আবেদন', 'hr.attendance': 'হাজিরা', 'hr.compensation': 'বেতন / ভাতা', 'hr.document': 'কর্মীর ডকুমেন্ট',
+  'hr.application': 'আইডি আবেদন', 'hr.attendance': 'হাজিরা, হাজিরা বই ও অনুপস্থিতির আবেদন', 'hr.compensation': 'বেতন / ভাতা', 'hr.document': 'কর্মীর ডকুমেন্ট',
   'hr.employee': 'কর্মী', 'hr.employee_sensitive': 'এনআইডি ও গোপন তথ্য', 'hr.import': 'কর্মী ইমপোর্ট (এক্সেল)', 'hr.leave': 'ছুটি',
   'hr.profile_field': 'প্রোফাইলের ঘর (কাস্টম)', 'hr.salary_sheet': 'বেতন শিট', 'hr.referral': 'রেফারেন্স',
   'da.correction': 'হিসাব সংশোধনে খোলা', 'da.report': 'হিসাবের রিপোর্ট', 'da.settings': 'হিসাব সেটিংস', 'da.sheet': 'দৈনিক হিসাব খাতা',
@@ -60,5 +60,6 @@ export const RESOURCE_LABEL: Record<string, string> = {
   'sorting.hub_charge': 'গাড়ি খরচ হাবের খাতায়', 'sorting.parcel': 'পার্সেল আদান-প্রদান', 'sorting.driver': 'ড্রাইভার রিপোর্ট', 'sorting.report': 'শটিং রিপোর্ট',
   'office.property': 'অফিস, রুম ও ডেস্ক', 'office.asset': 'অফিসের রিসোর্স',
   'hr.duty': 'কাজের দায়িত্ব', 'ops.route': 'রাইডার রুট',
+  'ops.staff_daily': 'স্টাফের দৈনিক কাজের হিসাব (পিকআপ, রিটার্ন, ডেলিভারি)',
   'zonal.report': 'জোনাল রিপোর্ট', 'zonal.task': 'কাজ (টাস্ক)', 'zonal.visit': 'হাব ভিজিট',
 }

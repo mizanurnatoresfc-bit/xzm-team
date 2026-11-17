@@ -4,7 +4,9 @@ import { supabase } from './supabase'
 
 /** Always open: the home page, the staff panel and one's own profile, accounts, vehicle, password and device settings.
  *  These show only the person's own things; a role's page list limits the work pages. */
-const ALWAYS = ['/app', '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/me', '/app/me/complete', '/app/me/permissions', '/app/notifications', '/app/references', '/app/password', '/app/settings']
+const ALWAYS = ['/app', '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/me', '/app/me/complete', '/app/me/permissions', '/app/notifications', '/app/references', '/app/password', '/app/settings',
+  // My Workforce: a person's own people lists and attendance book (the hub and zone report pages follow the role's page list)
+  '/app/workforce', '/app/workforce/given', '/app/workforce/hand', '/app/workforce/attendance']
 /** Pages that belong to a listed page (opened from it, not from the menu). */
 const WITH: Record<string, string[]> = {
   '/app/hub/team': ['/app/hr/employees'],

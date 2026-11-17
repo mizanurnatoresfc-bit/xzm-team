@@ -23,6 +23,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 const BN: Array<[RegExp, string]> = [
   [/already on the register/i, 'আজকের হাজিরা আগেই খাতায় উঠেছে'],
   [/already approved/i, 'আজকের হাজিরা আগেই অনুমোদিত'],
+  [/already in an application/i, 'এই তারিখ একটি অনুপস্থিতির আবেদনে আছে — আগে আবেদন তুলে নিন'],
   [/reason for not coming/i, 'কেন আসছেন না, লিখুন'],
   [/turned down/i, 'কেন ফেরত দিচ্ছেন, লিখুন'],
   [/Your own attendance/i, 'নিজের হাজিরা অন্য ম্যানেজার অনুমোদন দেবেন'],

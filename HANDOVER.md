@@ -379,6 +379,23 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   staff panel card "আমার প্রোফাইল X% পূর্ণ"; My Profile button. `components/PulsePopup.tsx` in AppShell (once per session);
   `pages/zonal/PulsePanel.tsx` on the zonal dashboard (new question with whole zone / hubs / posts, cards with counts, answers table, close).
 
+## 2026-11-17 — আমার লোক ও উপস্থিতি (My Workforce & Attendance)
+- Owner's spec: a personal menu under every name card (আমার লোক দেওয়া · আমার হাতে লোক আছে · আমার উপস্থিতি); a monthly attendance book open on days 1–17 where each staff member / rider
+  gives each date on their own (উপস্থিত ছিলাম / উপস্থিত ছিলাম না → "ওয়েবসাইটে আবেদন করেছেন?" → হ্যাঁ/না; না = pick the absence dates and send an application); four direct inputs on the staff panel
+  (Today's Pickup / Pickup Return / Delivery / Delivery Return) saved by date, user, hub and zone; a manager panel (own hub) and a zonal panel (all hubs); role-based access from one shared database,
+  duplicate prevention, pending alerts, correction history, live updates, month archive, manager approval and application tracking.
+- **Nothing is stored twice.** A staff member's per-date input is a row of the existing `attendance_self_marks` (4 columns added: `zone_id`, `applied_on_site`, `application_id`, `via`); the manager approves it with the
+  existing, untouched `att_self_decide`, which writes the existing `attendance_records`. New tables only for what did not exist: `wf_absence_applications` (AB-00001…), `wf_daily_ops`, and the append-only `wf_att_history`, `wf_ops_history`.
+  "আমার লোক দেওয়া" / "আমার হাতে লোক আছে" reuse the existing referral features (`hr_referrals`, `referral_prospects`).
+- Migration `20261117010000_workforce_attendance.sql` (+ `supabase/tests/99zzzzzzzzzzzzz_workforce.sql`, 291 assertions; whole suite 1720 with the hub-operations migration, 1648 + 69 together with the live-only `advanced_permissions`). **Applied live on 17 Nov** (three parts, see `docs/MIGRATIONS_LIVE_MAP.md`); the pg_cron job `wf-remind` is active. Details, rules, rollback: `docs/WORKFORCE.md`.
+  Contract between database and screens: `web/src/lib/workforce.ts` (18 `wf_*` functions). Settings `workforce.book_from_day` (1), `workforce.book_to_day` (17), `workforce.ops_backdate_days` (1).
+  New permissions `ops.staff_daily.view` / `.edit`; everything else reuses `hr.attendance.view / create / edit`. pg_cron job `wf-remind` (16:00 Dhaka daily) sends the pending-attendance reminders (switch off: `select cron.unschedule('wf-remind')`).
+- Pages: `/app/workforce/attendance|given|hand` (personal; always open to a signed-in staff member), `/app/workforce/hub` (manager: আজ · হাজিরা বই · অনুমোদন · আবেদন · দৈনিক রিপোর্ট · ইতিহাস),
+  `/app/workforce/zone` (zonal, read only). The staff panel carries the four inputs ("আজকের কাজের হিসাব") and the alerts; the dashboard and the side menu carry the personal menu.
+- `web/tests/smoke.mjs`: the limited-role menu now counts 8 links (the always-open attendance entry). Known, older, not touched: `web/node_modules` is a symlink committed by mistake in `0fa563d` pointing at itself —
+  `npx tsc -b` / `npm run build` cannot run in a fresh clone until it is removed from git (CI still deploys, most likely because `npm ci` replaces it — not checked).
+- Known limits: `att_self_decide` (old) notifies once per date, so approving a long application sends one notice per date; zone-without-hub staff are visible only to company-wide roles.
+
 ## 2026-11-17 — হাব অপারেশন ড্যাশবোর্ড (Hub Operations Dashboard) in the Zonal Manager panel
 - Owner's spec (17 Nov): a hub-wise dashboard of the zonal manager's zone; each hub has its own input panel with staff by designation
   (Manager, Hub CC, Entry Man + configurable groups); total parcels, total pickups, remarks and operational reasons per hub; staff status
