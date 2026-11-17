@@ -33,7 +33,7 @@ export function WorkforceZone() {
   const setTab = (t: ZTab) => setSp(p => { const x = new URLSearchParams(p); x.set('tab', t); return x }, { replace: true })
   const setZone = (id: string) => setSp(p => { const x = new URLSearchParams(p); if (id) x.set('zone', id); else x.delete('zone'); return x }, { replace: true })
   const range = `${fmtDay(r.from, lang)}${r.from !== r.to ? ` – ${fmtDay(r.to, lang)}` : ''}`
-  const zoneName = d?.zone?.name ?? (zone ? zones.find(z => z.id === zone)?.name : null) ?? L('সব জোন', 'All zones')
+  const zoneName = d?.zone?.name ?? (zone ? zones.find(z => z.id === zone)?.name : null) ?? (zones.length === 1 ? zones[0].name : L('সব জোন', 'All zones'))
 
   const hasOps = !!d && (d.totals.ops !== null || d.hubs.some(h => h.ops))
   const openHub = (h: ZoneHubRow, t?: string) => { if (h.hub_id) nav(`/app/workforce/hub?hub=${h.hub_id}${t ? `&tab=${t}` : ''}`) }

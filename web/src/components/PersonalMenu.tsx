@@ -67,7 +67,7 @@ function useHasEmployee(need: boolean): boolean | null {
     if (!need || !user) return
     let live = true
     let p = empCache.get(user)
-    if (!p) { p = referrals.myEmployeeId().then(id => !!id, () => false); empCache.set(user, p) }
+    if (!p) { p = referrals.myEmployeeId().then(id => !!id, () => { empCache.delete(user); return false }); empCache.set(user, p) }
     void p.then(v => { if (live) setHas({ user, v }) })
     return () => { live = false }
   }, [need, user])

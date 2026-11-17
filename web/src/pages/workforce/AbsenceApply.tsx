@@ -20,7 +20,15 @@ export const longDate = (iso: string, lang: Lang) => dateText(iso, lang, { weekd
 export const shortDate = (iso: string, lang: Lang) => dateText(iso, lang, { day: 'numeric', month: 'long' })
 /** A moment (timestamp) on the Dhaka clock: "১৭ নভেম্বর, সকাল ১০:১৫". */
 export const stamp = (ts: string, lang: Lang) =>
-  new Date(ts).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })
+  `${new Date(ts).toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'long' })}, ${clock(ts, lang)}`
+/** The time of a timestamp on the Dhaka clock: "সকাল ১০:১৫" / "10:15 am" (no Latin AM / PM inside Bangla text). */
+export const clock = (ts: string, lang: Lang) => {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ts))
+  const h = Number(p.find(x => x.type === 'hour')?.value) % 24, m = p.find(x => x.type === 'minute')?.value ?? '00'
+  if (lang === 'en') return `${h % 12 || 12}:${m} ${h < 12 ? 'am' : 'pm'}`
+  const part = h >= 4 && h < 12 ? 'সকাল' : h < 16 ? 'দুপুর' : h < 18 ? 'বিকেল' : h < 20 ? 'সন্ধ্যা' : 'রাত'
+  return `${part} ${`${h % 12 || 12}:${m}`.replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[+d])}`
+}
 
 /** A date the person can still give (or change) by an application: the book is open and the date waits, was returned, or was changed before. */
 export const canApply = (book: MyBook, d: BookDay) =>

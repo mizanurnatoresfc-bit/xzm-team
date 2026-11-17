@@ -4,6 +4,7 @@ import { usePrefs, type Lang } from '../lib/prefs'
 import { toLatinDigits } from '../lib/validate'
 import { announceWfChange, useLiveLoad, wf, wfFriendly, type DailyOps, type OpsInput } from '../lib/workforce'
 import { Badge, Field, useToast } from '../pages/accounts/ui'
+import { clock } from '../pages/workforce/AbsenceApply'
 import { Icon } from './Icon'
 import '../workforce-book.css'
 
@@ -39,7 +40,6 @@ const parse = (f: Form): OpsInput | null => {
 const sameAs = (e: DailyOps, f: Form) => FIELDS.every(({ key }) => String(e[key]) === f[key]) && (e.note ?? '') === f.note.trim()
 const dateText = (iso: string, lang: Lang, o: Intl.DateTimeFormatOptions) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'UTC', ...o })
-const clock = (ts: string, lang: Lang) => new Date(ts).toLocaleTimeString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' })
 
 export function DailyOpsCard() {
   const { L, n, lang } = usePrefs()

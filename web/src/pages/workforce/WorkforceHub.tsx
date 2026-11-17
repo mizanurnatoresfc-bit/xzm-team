@@ -77,7 +77,7 @@ export function WorkforceHub() {
       {ov && can && <>
         {tab !== 'approve' && can.attendance && ov.pending.marks > 0 &&
           <button type="button" className="wm-alert" onClick={() => go('approve')}><Icon name="alert" size={20} />
-            <span><b>{L(`${n(ov.pending.marks)} জনের হাজিরা অনুমোদন বাকি`, `${ov.pending.marks} attendance inputs wait for approval`)}</b></span><Icon name="chev" size={18} /></button>}
+            <span><b>{L(`${n(ov.pending.marks)}টি হাজিরা অনুমোদনের অপেক্ষায়`, `${ov.pending.marks} attendance inputs wait for approval`)}</b></span><Icon name="chev" size={18} /></button>}
         {tab !== 'apps' && can.attendance && ov.pending.applications > 0 &&
           <button type="button" className="wm-alert" onClick={() => go('apps')}><Icon name="form" size={20} />
             <span><b>{L(`${n(ov.pending.applications)}টি অনুপস্থিতির আবেদন সিদ্ধান্তের অপেক্ষায়`, `${ov.pending.applications} absence applications wait for a decision`)}</b></span><Icon name="chev" size={18} /></button>}
@@ -494,7 +494,7 @@ function AppsTab({ hubId, can, onChanged }: { hubId: string; can: Can; onChanged
               <button type="button" disabled={busy === a.id} onClick={() => void approve(a)}><Icon name="check" size={16} />{L('অনুমোদন', 'Approve')}</button>
               <button type="button" className="danger" disabled={busy === a.id} onClick={() => setRej(a)}>{L('বাতিল করুন…', 'Reject…')}</button></div>}
           </li>)}</ul>}
-        {list.length > 0 && <div className="wm-after no-print"><button type="button" className="secondary sm" onClick={() => exportRows(L('অনুপস্থিতির আবেদন', 'Absence applications'), `${hubId}`,
+        {list.length > 0 && <div className="wm-after no-print"><button type="button" className="secondary sm" onClick={() => exportRows(L('অনুপস্থিতির আবেদন', 'Absence applications'), list[0]?.hub_name ?? '',
           [L('নম্বর', 'No'), L('আইডি', 'ID'), L('নাম', 'Name'), L('তারিখ', 'Dates'), L('কারণ', 'Reason'), L('অবস্থা', 'Status'), L('জমা', 'Sent'), L('সিদ্ধান্ত দিয়েছেন', 'Decided by'), L('সিদ্ধান্তের সময়', 'Decided at'), L('সিদ্ধান্তের কথা', 'Decision note')],
           list.map(a => [a.application_no, a.employee_code, a.employee_name, a.dates.join(', '), a.reason, APP_META[a.status].en, a.created_at.slice(0, 16).replace('T', ' '), a.decided_by_name, a.decided_at?.slice(0, 16).replace('T', ' ') ?? null, a.decision_note]),
           `applications-${month || 'all'}`)}><Icon name="xls" size={15} />{L('এক্সেল', 'Excel')}</button></div>}

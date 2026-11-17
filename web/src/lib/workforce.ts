@@ -222,13 +222,17 @@ const BN: Array<[RegExp, string]> = [
   [/already in an application/i, 'এই তারিখ আরেকটি আবেদনে আছে'],
   [/write the reason|reason is required/i, 'কারণ লিখুন'],
   [/No active staff profile/i, 'আপনার লগইনের সাথে সক্রিয় কর্মী প্রোফাইল যুক্ত নেই'],
+  [/Your own attendance is corrected/i, 'নিজের হাজিরা অন্য ম্যানেজার সংশোধন করবেন'],
   [/Your own attendance/i, 'নিজের হাজিরা অন্য ম্যানেজার অনুমোদন দেবেন'],
   [/Write why it is turned down/i, 'কেন ফেরত দিচ্ছেন, লিখুন'],
   [/correction note/i, 'সংশোধনের কারণ লিখুন'],
   [/too long/i, 'লেখা খুব বড় — সর্বোচ্চ ৫০০ অক্ষর'],
   [/four numbers/i, 'চারটি সংখ্যাই দিন (০ও চলবে)'],
   [/corrected them|already approved, so it can no longer/i, 'ম্যানেজার এটা সংশোধন করেছেন — বদলাতে ম্যানেজারকে বলুন'],
+  [/at most 100000/i, 'সংখ্যা এক লাখের বেশি হতে পারে না'],
   [/numbers must be|non-negative|negative/i, 'সংখ্যা ০ বা তার বেশি হতে হবে'],
+  [/schema cache|PGRST20\d|Could not find the function/i, 'এই সুবিধা এখনো চালু হয়নি — একটু পরে চেষ্টা করুন'],
+  [/JWT|Failed to fetch|NetworkError|timeout|upstream|Load failed/i, 'যোগাযোগে সমস্যা হয়েছে — আবার চেষ্টা করুন'],
 ]
 /** The database writes its own Bangla after a dash ("English — বাংলা"). When no rule above fits, show that Bangla part. */
 const banglaTail = (m: string): string | null => {

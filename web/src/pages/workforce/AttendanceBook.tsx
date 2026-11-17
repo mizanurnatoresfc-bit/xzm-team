@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
 import { usePrefs } from '../../lib/prefs'
 import { ACTION_META, APP_META, LIVE, RECORD_META, STATE_META, announceWfChange, dayLabel, monthLabel, monthOf, useLiveLoad, wf, wfFriendly,
@@ -32,6 +33,16 @@ export function AttendanceBook() {
   const [wdErr, setWdErr] = useState('')
   const [histOpen, setHistOpen] = useState(false)
   const rows = useRef<Record<string, HTMLElement | null>>({})
+  // The staff panel's "আজ আসব না" arrives as ?give=today: open today's sheet once (it asks the website question).
+  const [sp, setSp] = useSearchParams()
+  const giveToday = sp.get('give') === 'today'
+  useEffect(() => {
+    if (!giveToday || !book || book.month !== monthOf(book.today)) return
+    const t = book.days.find(d => d.date === book.today)
+    if (t && book.open && (t.state === 'missing' || t.state === 'returned' || (t.state === 'waiting' && !t.application_id))) setSheet(t.date)
+    const next = new URLSearchParams(sp); next.delete('give'); setSp(next, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giveToday, book])
 
   // ---- nothing to show yet
   if (!book) {
@@ -174,6 +185,8 @@ function DayRow({ day, book, first, onOpen, refFn }: { day: BookDay; book: MyBoo
   const locked = day.state === 'waiting' && !!day.application_id           // inside a pending application: change it through the application
   const open = book.open && (day.state === 'missing' || day.state === 'returned' || (day.state === 'waiting' && !locked))
   const rec = day.state === 'approved' ? day.record_status ?? day.decided_as : null
+  // a week-off, holiday or approved-leave day says what it is, not just "approved"
+  const shown = rec && ['leave', 'holiday', 'weekly_off'].includes(rec) && RECORD_META[rec] ? RECORD_META[rec] : meta
   const lines: Array<{ t: string; c?: string }> = []
   // an approved date that is simply "present" on the register needs no "you gave" line: the register line says it
   if (day.kind && !(rec && day.kind === 'present')) lines.push({ t: `${L('আপনি দিয়েছেন', 'You gave')}: ${kindText(day.kind, L)}${day.kind === 'absent' && day.applied_on_site ? ` · ${L(SITE_NOTE, 'applied on the website')}` : ''}` })
@@ -190,7 +203,7 @@ function DayRow({ day, book, first, onOpen, refFn }: { day: BookDay; book: MyBoo
     <span className="wf-bk-dn"><b>{n(day.day)}</b><small>{weekdayShort(day.dow, lang)}</small></span>
     <span className="wf-bk-tx">
       <span className="wf-bk-l1">
-        <Badge tone={meta.tone}>{L(meta.bn, meta.en)}</Badge>
+        <Badge tone={shown.tone}>{L(shown.bn, shown.en)}</Badge>
         {day.date === book.today && <em className="wf-bk-today">{L('আজ', 'Today')}</em>}
         {first && <em className="wf-bk-first">{L('এখান থেকে শুরু', 'Start here')}</em>}
       </span>
