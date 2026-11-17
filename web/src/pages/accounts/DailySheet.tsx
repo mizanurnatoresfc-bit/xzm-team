@@ -8,6 +8,11 @@ import {
 } from '../../lib/dailyAccounts'
 import { readImage, parsePayment, parseBill } from '../../lib/ocr'
 import { printVoucher } from '../../lib/voucher'
+import { LearnButton } from '../../components/Learn'
+import type { ModuleKey } from '../../lib/accountsGuide'
+
+/** Which lesson explains which part of the sheet. */
+export const SHEET_LESSON: Record<string, ModuleKey> = { riders: 'rider', payment: 'merchant_payment', expense: 'expense', claims: 'staff_expense', notes: 'hub_due', bank: 'bank', close: 'close' }
 import { printArea } from '../../lib/xlsx'
 import { AccountsShell, Stat, StatusBadge, Badge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
 import { QuickGrid, type GCol, type Vals } from './QuickGrid'
@@ -24,7 +29,8 @@ export function DailySheet() {
   const templates = useLoad(() => da.templates().catch(() => [] as Template[]), [])
   const { toast, node } = useToast()
   const s = sheet.data
-  const [tab, setTab] = useState('riders')
+  // ?tab=expense etc. opens a part directly (links from the accounts centre and the lessons)
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'riders')
   const [viewing, setViewing] = useState<string | null>(null)
   const area = useRef<HTMLDivElement>(null)
   useApplyLayout(area, settings.data?.['da.layout'] ?? EMPTY_LAYOUT, s ? `${tab}-${s.session.id}` : null)
@@ -84,6 +90,8 @@ export function DailySheet() {
       {tabs.map(([key, label, count]) => <button key={key} data-tab={key} className={tab === key ? 'on' : ''} onClick={() => setTab(key)}>
         {label}{count !== null ? ` (${num(count)})` : ''}</button>)}
     </nav>
+    <div className="lr-sec no-print"><LearnButton module={SHEET_LESSON[tab] ?? 'start'} label={`নির্দেশনা: ${tabs.find(t => t[0] === tab)?.[1] ?? ''}`} />
+      <Link className="btn-link small" to={`/app/accounts/learn?m=${SHEET_LESSON[tab] ?? 'start'}&p=practice`}>অনুশীলন করুন</Link></div>
 
     <div className="print-area" ref={area}>
       {tab === 'riders' && <RidersTab s={shown} settings={st} reload={reload} ls={layoutSaved} />}

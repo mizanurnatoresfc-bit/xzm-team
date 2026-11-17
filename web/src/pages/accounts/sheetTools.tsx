@@ -6,6 +6,9 @@ import {
   type Sheet, type DaSettings, type Layout, type SectionLayout, type BankCharge, type ReportId, type Deposit,
 } from '../../lib/dailyAccounts'
 import { xlsxBlob, download } from '../../lib/xlsx'
+import { MATCH_LABEL } from '../../lib/accountsGuide'
+import { findAmount, readImage } from '../../lib/ocr'
+import { LearnButton } from '../../components/Learn'
 import { Badge, Modal, Field, ErrorNote, Stat } from './ui'
 
 // ---------------------------------------------------------------------------- the parts of the sheet
@@ -240,7 +243,7 @@ export function chargeFor(cfg: BankCharge, amount: number, method: string, date:
 }
 
 // ---------------------------------------------------------------------------- the bank part
-type RDraft = { id?: string; no: string; amount: string; remarks: string }
+type RDraft = { id?: string; no: string; amount: string; remarks: string; text?: string; file?: File | null }
 type DDraft = { id?: string; amount: string; method: string; bank: string; ref: string; date: string; people: string
   transport: string; charge: string; byHand: boolean; slip: string | null; remarks: string }
 
@@ -255,6 +258,11 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
   const [why, setWhy] = useState('')
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [slipFile, setSlipFile] = useState<File | null>(null)
+  const [reading, setReading] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<Deposit | null>(null)
+  const [cNote, setCNote] = useState('')
+  const canConfirm = s.can_edit || s.can_verify
 
   const reportTotal = reports.reduce((a, x) => a + x.amount, 0)
   const merchant = s.merchant_payments.reduce((a, m) => a + m.amount, 0)
@@ -279,17 +287,58 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
   async function saveR() {
     if (!r) return
     setBusy(true); setErr(null)
-    try { await da.saveReport({ session: s.session.id, reportNo: r.no, amount: +r.amount || 0, remarks: r.remarks || null, id: r.id }); setR(null); await reload('রিপোর্ট আইডি সংরক্ষিত') }
+    try {
+      const id = await da.saveReport({ session: s.session.id, reportNo: r.no, amount: +r.amount || 0, remarks: r.remarks || null, id: r.id })
+      const rid = id || r.id
+      // the report's screenshot / PDF / text stays with its ID (saved under this hub and date, as this sheet is)
+      if (rid && (r.file || r.text?.trim())) {
+        const path = r.file ? await da.upload(s.session.id, r.file, settings['da.bill_upload']) : null
+        await da.reportAttach(rid, path, r.text?.trim() || null)
+      }
+      setR(null); await reload('রিপোর্ট আইডি সংরক্ষিত')
+    }
+    catch (e) { setErr(e) } finally { setBusy(false) }
+  }
+  /** Proposes the report ID and amount from the pasted text or a screenshot; the person checks them. */
+  async function readReport() {
+    if (!r) return
+    setReading('রিপোর্ট পড়া হচ্ছে…'); setErr(null)
+    try {
+      let text = r.text ?? ''
+      if (!text.trim() && r.file?.type.startsWith('image/')) text = (await readImage(r.file, 'eng')).text
+      if (!text.trim()) { setErr(new Error('পড়ার মতো লেখা নেই — রিপোর্টের লেখা পেস্ট করুন বা স্ক্রিনশট দিন (পিডিএফ থেকে নিজে লিখুন)।')); return }
+      const latin = text.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
+      const id = latin.match(/#\s?(\d{4,})/) ?? latin.match(/report\s*(?:id|no\.?)?\s*[:#]?\s*(\d{4,})/i)
+      const amount = findAmount(latin)
+      setR(x => x && ({ ...x, no: x.no || (id ? '#' + id[1] : ''), amount: x.amount || (amount !== null ? String(amount) : ''), text: x.text || text.slice(0, 20000) }))
+    } catch (e) { setErr(e) } finally { setReading(null) }
+  }
+  /** Reads the slip with OCR and records MATCH / NOT MATCH / NEEDS REVIEW — never a confirmation. */
+  async function readSlip(depId: string, f: File | null) {
+    setReading('স্লিপ পড়া হচ্ছে…')
+    try {
+      if (f && f.type.startsWith('image/')) {
+        const o = await readImage(f, 'eng')
+        await da.slipRead(depId, findAmount(o.text.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))), o.confidence)
+      } else await da.slipRead(depId, null, null)
+    } catch { await da.slipRead(depId, null, null).catch(() => undefined) } finally { setReading(null) }
+  }
+  async function doConfirm(undo = false) {
+    if (!confirm) return
+    setBusy(true); setErr(null)
+    try { await da.confirmDeposit(confirm.id, !undo, cNote || null); setConfirm(null); setCNote(''); await reload(undo ? 'নিশ্চয়তা তুলে নেওয়া হলো' : 'ব্যাংকে জমা নিশ্চিত হয়েছে') }
     catch (e) { setErr(e) } finally { setBusy(false) }
   }
   async function saveD() {
     if (!d) return
     setBusy(true); setErr(null)
     try {
-      await da.saveDeposit({ session: s.session.id, amount: +d.amount || 0, method: d.method, bank: d.bank || null, ref: d.ref || null,
+      const saved = da.saveDeposit({ session: s.session.id, amount: +d.amount || 0, method: d.method, bank: d.bank || null, ref: d.ref || null,
         slip: d.slip, date: d.date, transport: d.transport === '' ? null : +d.transport, charge: d.byHand ? +d.charge || 0 : null,
         people: d.people || null, remarks: d.remarks || null, id: d.id })
-      setD(null); await reload('ডিপোজিট সংরক্ষিত')
+      const id = await saved
+      if (slipFile && d.slip) await readSlip(id, slipFile)
+      setD(null); setSlipFile(null); await reload('ডিপোজিট সংরক্ষিত')
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }
   async function slip(f: File, dep?: Deposit) {
@@ -299,8 +348,9 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
       if (dep) {
         await da.saveDeposit({ session: s.session.id, amount: dep.amount, method: dep.method, bank: dep.bank_name, ref: dep.ref_no, slip: path,
           date: dep.deposited_on, transport: dep.transport, charge: dep.charge_auto ? null : dep.charge, people: dep.people, remarks: dep.remarks, id: dep.id })
-        await reload('স্লিপ আপলোড হয়েছে')
-      } else setD(x => x && ({ ...x, slip: path }))
+        await readSlip(dep.id, f)
+        await reload('স্লিপ আপলোড হয়েছে — মিলিয়ে দেখা হলো')
+      } else { setSlipFile(f); setD(x => x && ({ ...x, slip: path })) }
     } catch (e) { setErr(e) } finally { setUploading(false) }
   }
   async function finish() {
@@ -321,12 +371,12 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
   return <>
     <section className="panel" id="sec-reports">
       <div className="da-bar"><h2>আপডেট রিপোর্ট আইডি</h2>
-        <div className="row no-print">{s.can_edit && <button onClick={() => { setErr(null); setR({ no: '', amount: '', remarks: '' }) }}>＋ রিপোর্ট আইডি</button>}
+        <div className="row no-print"><LearnButton module="daily_report" />{s.can_edit && <button onClick={() => { setErr(null); setR({ no: '', amount: '', remarks: '' }) }}>＋ রিপোর্ট আইডি</button>}
           <SectionMenu sec="reports" title="আপডেট রিপোর্ট আইডি" s={s} settings={settings} onAdd={() => setR({ no: '', amount: '', remarks: '' })} addLabel="＋ রিপোর্ট আইডি" onLayoutSaved={onLayoutSaved} /></div></div>
       <div className="da-table-wrap"><table className="da-table" data-sec="reports">
         <thead><tr><th>S/L</th><th>রিপোর্ট আইডি</th><th className="r">টোটাল এমাউন্ট</th><th>মন্তব্য</th><ExtraHeads settings={settings} sec="reports" /><th className="no-print" /></tr></thead>
         <tbody>{reports.map((x, i) => <tr key={x.id}>
-          <td data-l="S/L">{num(i + 1)}</td><td data-l="রিপোর্ট আইডি"><b>{x.report_no}</b></td><td data-l="টাকা" className="r">{taka(x.amount)}</td><td data-l="মন্তব্য">{x.remarks ?? ''}</td>
+          <td data-l="S/L">{num(i + 1)}</td><td data-l="রিপোর্ট আইডি"><b>{x.report_no}</b></td><td data-l="টাকা" className="r">{taka(x.amount)}</td><td data-l="মন্তব্য">{x.remarks ?? ''}{x.file_path ? <> · <SlipLink path={x.file_path} /></> : null}{x.raw_text ? <span className="sec" title={x.raw_text.slice(0, 400)}>রিপোর্টের লেখা আছে</span> : null}</td>
           <ExtraCells s={s} settings={settings} sec="reports" row={x.id} reload={reload} />
           <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => editR(x)}>এডিট</button>
             <button className="danger sm" onClick={() => setDrop({ kind: 'report', id: x.id, what: `${x.report_no} · ${taka(x.amount)}` })}>বাদ</button></span>}</td></tr>)}
@@ -349,12 +399,13 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
 
     <section className="panel" id="sec-deposits">
       <div className="da-bar"><h2>ব্যাংক ডিপোজিট ও স্লিপ {done ? <Badge tone="ok">টাস্ক সম্পন্ন · {timeBn(s.session.bank_done_at)}</Badge> : null}</h2>
-        <div className="row no-print">{s.can_edit && <button onClick={() => { setErr(null); setD(blankD()) }}>＋ ডিপোজিট</button>}
+        <div className="row no-print"><LearnButton module="bank" />{s.can_edit && <button onClick={() => { setErr(null); setD(blankD()) }}>＋ ডিপোজিট</button>}
           <SectionMenu sec="deposits" title="ব্যাংক ডিপোজিট" s={s} settings={settings} onAdd={() => setD(blankD())} addLabel="＋ ডিপোজিট" onLayoutSaved={onLayoutSaved} /></div></div>
       <p className="muted small">চার্জ: ৳ {num(cfg.limit)} পর্যন্ত {taka(chargeFor(cfg, 1, 'bank', '2000-01-03'))}, তার বেশি হলে {taka(chargeFor(cfg, cfg.limit + 1, 'bank', '2000-01-03'))} (ভ্যাট {num(cfg.vat)}% সহ) · ছুটির দিনে চার্জ ও যাতায়াত নেই</p>
       <ErrorNote error={err && !d && !r ? err : null} />
+      {reading && <p className="muted small" role="status">{reading}</p>}
       <div className="da-table-wrap"><table className="da-table" data-sec="deposits">
-        <thead><tr><th>নং</th><th>মাধ্যম</th><th>ব্যাংক</th><th className="r">টাকা</th><th className="r">চার্জ</th><th className="r">যাতায়াত</th><th>কে গেছেন</th><th>তারিখ</th><th>রেফ নং</th><th>স্লিপ</th><ExtraHeads settings={settings} sec="deposits" /><th className="no-print" /></tr></thead>
+        <thead><tr><th>নং</th><th>মাধ্যম</th><th>ব্যাংক</th><th className="r">টাকা</th><th className="r">চার্জ</th><th className="r">যাতায়াত</th><th>কে গেছেন</th><th>তারিখ</th><th>রেফ নং</th><th>স্লিপ</th><th>স্লিপ মিল · ব্যাংকে নিশ্চিত</th><ExtraHeads settings={settings} sec="deposits" /><th className="no-print" /></tr></thead>
         <tbody>{deposits.map((x, i) => <tr key={x.id}>
           <td data-l="নং">{num(i + 1)}</td><td data-l="মাধ্যম">{NOTE_METHOD[x.method] ?? x.method}</td><td data-l="ব্যাংক">{x.bank_name ?? '—'}</td>
           <td data-l="টাকা" className="r"><b>{taka(x.amount)}</b></td>
@@ -364,11 +415,19 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
           <td data-l="স্লিপ">{x.slip_path ? <SlipLink path={x.slip_path} /> : s.can_edit
             ? <label className="secondary sm upload-btn no-print">{uploading ? 'আপলোড…' : 'স্লিপ দিন'}<input type="file" hidden accept="image/png,image/jpeg,application/pdf"
                 onChange={e => { const f = e.target.files?.[0]; if (f) void slip(f, x) }} /></label> : <Badge tone="warn">বাকি</Badge>}</td>
+          <td data-l="স্লিপ মিল · ব্যাংকে নিশ্চিত" className="dp-check">{x.slip_path ? <>
+            {x.slip_match ? <Badge tone={MATCH_LABEL[x.slip_match][1] as 'ok' | 'bad' | 'warn'}>{MATCH_LABEL[x.slip_match][0]}</Badge> : <Badge tone="warn">পড়া হয়নি</Badge>}
+            <span className="sec">{x.slip_ocr_amount !== null && x.slip_ocr_amount !== undefined ? `স্লিপে ${taka(x.slip_ocr_amount)}${x.slip_ocr_confidence ? ` (${num(x.slip_ocr_confidence)}%)` : ''} · ` : ''}
+              স্লিপ দিয়েছেন {x.slip_uploaded_by_name ?? '—'}{x.slip_uploaded_at ? ` · ${timeBn(x.slip_uploaded_at)}` : ''}</span>
+            {x.bank_confirmed_at ? <span className="sec ok">✓ ব্যাংকে নিশ্চিত — {x.bank_confirmed_by_name ?? ''} · {timeBn(x.bank_confirmed_at)}{x.bank_confirm_note ? ` · “${x.bank_confirm_note}”` : ''}</span>
+              : canConfirm && <button type="button" className="secondary sm no-print" onClick={() => { setErr(null); setCNote(''); setConfirm(x) }}>ব্যাংকে নিশ্চিত করুন</button>}
+            {x.bank_confirmed_at && canConfirm && <button type="button" className="link small no-print" onClick={() => { setErr(null); setCNote(''); setConfirm(x) }}>তুলে নিন</button>}
+          </> : '—'}</td>
           <ExtraCells s={s} settings={settings} sec="deposits" row={x.id} reload={reload} />
           <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => editD(x)}>এডিট</button>
             <button className="danger sm" onClick={() => setDrop({ kind: 'deposit', id: x.id, what: `${taka(x.amount)} · ${x.bank_name ?? NOTE_METHOD[x.method]}` })}>বাদ</button></span>}</td></tr>)}
-          {deposits.length === 0 && <tr><td colSpan={11} className="muted">ব্যাংকে টাকা জমা দেওয়ার পর এখানে লিখুন, স্লিপের ছবি দিন।</td></tr>}</tbody>
-        {deposits.length > 0 && <tfoot><tr><td colSpan={3}>মোট ({num(deposits.length)} টি)</td><td className="r">{taka(deposited)}</td><td className="r">{taka(charges)}</td><td className="r">{taka(transport)}</td><td colSpan={4} /><ExtraBlanks settings={settings} sec="deposits" /><td className="no-print" /></tr></tfoot>}
+          {deposits.length === 0 && <tr><td colSpan={12} className="muted">ব্যাংকে টাকা জমা দেওয়ার পর এখানে লিখুন, স্লিপের ছবি দিন।</td></tr>}</tbody>
+        {deposits.length > 0 && <tfoot><tr><td colSpan={3}>মোট ({num(deposits.length)} টি)</td><td className="r">{taka(deposited)}</td><td className="r">{taka(charges)}</td><td className="r">{taka(transport)}</td><td colSpan={5} /><ExtraBlanks settings={settings} sec="deposits" /><td className="no-print" /></tr></tfoot>}
       </table></div>
       {s.can_edit && !done && <div className="row no-print" style={{ marginTop: 10 }}>
         <button disabled={busy || deposits.length === 0 || slipsMissing > 0} onClick={() => void finish()}>টাস্ক সম্পন্ন করুন</button>
@@ -382,7 +441,29 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
         <Field label="রিপোর্ট আইডি *"><input autoFocus value={r.no} placeholder="#731417" onChange={e => setR({ ...r, no: e.target.value })} /></Field>
         <Field label="টোটাল এমাউন্ট *"><input type="number" min={0} value={r.amount} onChange={e => setR({ ...r, amount: e.target.value })} /></Field>
         <Field label="মন্তব্য"><input value={r.remarks} onChange={e => setR({ ...r, remarks: e.target.value })} /></Field>
-      </div><ErrorNote error={err} />
+      </div>
+      <div className="da-grid3">
+        <Field label="রিপোর্টের স্ক্রিনশট বা পিডিএফ" hint="ছবি থেকে আইডি ও টাকা পড়ার চেষ্টা হয়; পিডিএফ হলে নিজে লিখুন"><input type="file" accept="image/png,image/jpeg,application/pdf"
+          onChange={e => setR({ ...r, file: e.target.files?.[0] ?? null })} /></Field>
+        <Field label="রিপোর্টের লেখা (কপি করে পেস্ট)" wide><textarea rows={3} value={r.text ?? ''} onChange={e => setR({ ...r, text: e.target.value })} placeholder="মেইন সাইটের রিপোর্ট থেকে কপি করা লেখা" /></Field>
+      </div>
+      <div className="row"><button type="button" className="secondary" disabled={!!reading || (!r.file && !r.text?.trim())} onClick={() => void readReport()}>{reading ?? 'লেখা/ছবি থেকে আইডি ও টাকা পড়ুন'}</button>
+        <span className="muted small">পড়া মান মিলিয়ে নিন — রিপোর্টের তারিখ ও হাব এই খাতার সাথে মিলছে কিনা দেখুন।</span></div>
+      <ErrorNote error={err} />
+    </Modal>}
+
+    {confirm && <Modal title={confirm.bank_confirmed_at ? 'ব্যাংকে জমার নিশ্চয়তা তুলে নেবেন?' : 'ব্যাংকে জমা নিশ্চিত করুন'} onClose={() => setConfirm(null)}
+      actions={<><button className="secondary" onClick={() => setConfirm(null)}>বাতিল</button>
+        {confirm.bank_confirmed_at ? <button className="danger" disabled={busy} onClick={() => void doConfirm(true)}>তুলে নিন</button>
+          : <button disabled={busy || (confirm.slip_match !== 'match' && !cNote.trim())} onClick={() => void doConfirm()}>নিশ্চিত করছি</button>}</>}>
+      <p><b>{taka(confirm.amount)}</b> · {confirm.bank_name ?? NOTE_METHOD[confirm.method]} · {dateBn(confirm.deposited_on)}{confirm.ref_no ? ` · রেফ ${confirm.ref_no}` : ''}</p>
+      {!confirm.bank_confirmed_at && <>
+        <p className="notice">OCR-এ পড়া টাকা ব্যাংকে জমার প্রমাণ নয়। স্লিপ নিজে দেখে (সম্ভব হলে ব্যাংক স্টেটমেন্ট/মেসেজ মিলিয়ে) তারপর নিশ্চিত করুন — আপনার নাম ও সময় রেকর্ডে থাকবে।</p>
+        {confirm.slip_path && <p><SlipLink path={confirm.slip_path} /> স্লিপ দেখুন · {confirm.slip_match ? MATCH_LABEL[confirm.slip_match][0] : 'পড়া হয়নি'}</p>}
+        <Field label={confirm.slip_match === 'match' ? 'মন্তব্য (ইচ্ছা হলে)' : 'মন্তব্য * — মেলেনি/পড়া যায়নি, কীভাবে মিলিয়েছেন লিখুন'}>
+          <textarea rows={2} value={cNote} onChange={e => setCNote(e.target.value)} placeholder="যেমন: ব্যাংকের মেসেজে ৯৭,৪৫০ জমা দেখেছি" /></Field>
+      </>}
+      <ErrorNote error={err} />
     </Modal>}
 
     {d && <Modal title={d.id ? 'ডিপোজিট এডিট' : 'ব্যাংক ডিপোজিট'} wide onClose={() => setD(null)}

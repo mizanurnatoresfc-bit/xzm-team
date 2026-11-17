@@ -4,6 +4,10 @@
 //   chat     → { messages: [{role, content}] } → { text, usage, actions }
 //            নদী can run several commands in one message through tools (see TOOLS). Every tool runs AS THE CALLER:
 //            the same database functions and permission checks as the app itself — nodi can do nothing a person could not.
+//   teach    → { messages, module?, guide } → { text }
+//            "নদী AI হিসাব শিক্ষক": answers accounts questions in Bangla from two sources only — the official SteadFast
+//            rules head office wrote (setting da.learn_official, read here from the database) and the app's own internal
+//            instructions (the lesson text the page sends, plus the accounts settings read here). No tools: it teaches, it does not act.
 //   office   → { task: 'contract' | 'power' | 'insight', data } → { text }
 //            One answer, no tools: a rental agreement draft, ways to lower the electricity bill, or what to fix first
 //            in an office. The page sends only what the person already sees; passwords are never sent here.
@@ -48,6 +52,28 @@ const OFFICE: Record<string, { system: string; ask: string; tokens: number }> = 
     system: `তুমি একটি কুরিয়ার কোম্পানির জোনাল ম্যানেজারের অপারেশন সহকারী। দেওয়া অফিস/হাবের তথ্য (ভাড়া, চুক্তির মেয়াদ, বিল, জিনিসপত্র, নষ্ট জিনিস, ধার দেওয়া জিনিস, খোলা রিপোর্ট, দায়িত্বহীন ডেস্ক) দেখে সহজ বাংলায় বলো আগে কোন কাজগুলো করা দরকার, গুরুত্ব অনুযায়ী সাজিয়ে — প্রতিটা এক লাইনে, কোন হাব/অফিস তার নামসহ।
 শুধু দেওয়া তথ্য থেকে বলো, কিছু বানাবে না। সর্বোচ্চ ১০ লাইন, কোনো মার্কডাউন চিহ্ন নয়।` },
 }
+
+const TEACH = (official: string, internal: string, settings: string, module: string) => `তুমি "নদী AI হিসাব শিক্ষক" — XZM-TEAM-এর হাব ম্যানেজারদের SteadFast কুরিয়ারের হিসাবের কাজ শেখাও।
+সবসময় সহজ, ভদ্র বাংলায় উত্তর দাও। নতুন ম্যানেজার বুঝবেন এমনভাবে, ধাপে ধাপে (১, ২, ৩…), ছোট বাক্যে। স্ক্রিনে ঘরের নাম যেভাবে লেখা আছে সেভাবেই বলো।
+
+তোমার উত্তরের উৎস শুধু এই তিনটি — এর বাইরে কিছু নয়:
+[ক] SteadFast অফিশিয়াল নিয়ম — হেড অফিস নিজে লিখে দিয়েছে:
+${official || '(হেড অফিস এখনো কোনো অফিশিয়াল নিয়ম লিখে দেয়নি)'}
+[খ] নদী AI-র অভ্যন্তরীণ নির্দেশনা — এই সিস্টেম কীভাবে কাজ করে:
+${internal || '(এই অংশের নির্দেশনা পাঠানো হয়নি)'}
+[গ] এই সিস্টেমের বর্তমান হিসাব সেটিংস (খরচের খাত, সীমা, রসিদ লাগবে কিনা, ব্যাংক চার্জ):
+${settings || '(নেই)'}
+${module ? `ম্যানেজার এখন এই অংশ শিখছেন: ${module}` : ''}
+
+কঠোর নিয়ম:
+- কোনো নিয়ম বললে আগে উৎস লেখো: "SteadFast অফিশিয়াল (হেড অফিস):" অথবা "নদী AI অভ্যন্তরীণ নির্দেশনা:"। [খ] ও [গ]-কে কখনো SteadFast-এর অফিশিয়াল নিয়ম বলবে না।
+- উৎসে নেই এমন কোনো নিয়ম, সীমা, টাকার অঙ্ক, চার্জ, সময়সীমা, ওয়েবসাইটের মেনুর নাম বা ফর্ম বানাবে না। না জানলে স্পষ্ট বলো: "এটা আমার কাছে লেখা নেই — হেড অফিস বা অ্যাকাউন্টস টিমের কাছ থেকে নিশ্চিত হোন।"
+- ম্যানেজার কোনো এন্ট্রির তথ্য লিখলে মিলিয়ে দেখো কোন ঘর বাকি বা ভুল (যেমন টাকা, খাত, স্টাফ আইডি, রেফারেন্স, ভাউচার/বিল) — শুধু উৎসের নিয়ম ধরে।
+- OCR-এ পড়া টাকা কখনো ব্যাংকে জমার নিশ্চয়তা নয় — মানুষকে নিজে মিলিয়ে "ব্যাংকে নিশ্চিত করুন" দিতে হয়, এটা মনে করিয়ে দাও যখন প্রাসঙ্গিক।
+- তুমি কোনো কাজ নিজে করো না (কিছু সেভ, জমা বা অনুমোদন করো না) — শুধু শেখাও, কোথায় চাপতে হবে বলো।
+- কারও গোপন তথ্য (NID, বেতন, পাসওয়ার্ড, ব্যাংক অ্যাকাউন্ট নম্বর) চাইবে না।
+- উত্তর সর্বোচ্চ ১৫ লাইন; মার্কডাউন চিহ্ন (#, **, টেবিল) নয়।
+আজকের তারিখ: ${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })}।`
 
 type Db = ReturnType<typeof createClient>
 type Hub = { hub_id: string; hub_name: string; hub_code: string }
@@ -124,7 +150,7 @@ Deno.serve(async (req) => {
   const key = Deno.env.get('ANTHROPIC_API_KEY')
 
   if (b.action === 'status') return reply(200, { configured: Boolean(key) })
-  if (b.action !== 'chat' && b.action !== 'office') return reply(400, { error: 'bad_request' })
+  if (b.action !== 'chat' && b.action !== 'office' && b.action !== 'teach') return reply(400, { error: 'bad_request' })
   if (!key) return reply(503, { error: 'not_configured', message: 'API key বসানো হয়নি — অ্যাডমিন Supabase secret-এ ANTHROPIC_API_KEY দিন' })
 
   // the database decides: permission, on/off, daily limit, model
@@ -147,6 +173,40 @@ Deno.serve(async (req) => {
       if (!r.ok) { await log(false, 0, 0, `office ${r.status} ${j?.error?.type ?? ''}`); return reply(502, { error: 'upstream', message: 'নদী AI এখন উত্তর দিতে পারছে না' }) }
       const text = ((j.content ?? []) as Array<{ type: string; text?: string }>).filter(c => c.type === 'text').map(c => c.text).join('\n')
       await log(true, j.usage?.input_tokens ?? 0, j.usage?.output_tokens ?? 0, `office:${b.task}`)
+      return reply(200, { text })
+    } catch (e) {
+      await log(false, 0, 0, String(e).slice(0, 200)); return reply(502, { error: 'upstream', message: 'নদী AI-র সাথে যোগাযোগ হয়নি' })
+    }
+  }
+
+  if (b.action === 'teach') {
+    const raw = Array.isArray(b.messages) ? b.messages : []
+    const messages = raw.slice(-10).map((m: { role?: unknown; content?: unknown }) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content ?? '').slice(0, 3000) }))
+      .filter(m => m.content.trim())
+    if (!messages.length || messages[messages.length - 1].role !== 'user') return reply(400, { error: 'bad_request', message: 'প্রশ্ন লিখুন' })
+    // official rules and settings come from the database as the caller sees them, never from the page
+    const st = await caller.rpc('da_settings')
+    const all = (st.data ?? {}) as Record<string, unknown>
+    const mod = String(b.module ?? '').slice(0, 40)
+    const off = (all['da.learn_official'] ?? {}) as Record<string, string>
+    const official = Object.entries(off).filter(([k, v]) => typeof v === 'string' && v.trim() && (!mod || k === mod || k === 'general'))
+      .map(([k, v]) => `(${k}) ${v}`).join('\n').slice(0, 6000)
+    const cats = ((all['da.expense_categories'] ?? []) as Array<Record<string, unknown>>).map(c =>
+      [c.bn, c.en && `(${c.en})`, c.note_bn, c.site_limit && `সর্বোচ্চ ৳${c.site_limit}`, c.site_receipt === true ? 'রসিদ লাগবে' : c.site_receipt === false ? 'রসিদ ছাড়া চলে' : '',
+       c.site_name ? `মেইন সাইটে: ${c.site_name}${c.site_sub ? ' → ' + c.site_sub : ''}` : c.site_note_bn ?? ''].filter(Boolean).join(' · '))
+    const settings = [`খরচের খাত:\n${cats.join('\n')}`, `ব্যাংক চার্জ: ${JSON.stringify(all['da.bank_charge'] ?? null)}`,
+      `বিল/স্লিপ আপলোড: ${JSON.stringify(all['da.bill_upload'] ?? null)}`].join('\n').slice(0, 7000)
+    const system = TEACH(official, String(b.guide ?? '').slice(0, 12000), settings, String(b.title ?? mod).slice(0, 80))
+    const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
+    const log = (ok: boolean, i: number, o: number, note?: string) => admin.rpc('nodi_log', { p_profile: g.user, p_model: g.model, p_in: i, p_out: o, p_ok: ok, p_note: note ?? null })
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: g.model, max_tokens: Math.min(Math.max(g.max_tokens, 800), 2000), system, messages }) })
+      const j = await r.json()
+      if (!r.ok) { await log(false, 0, 0, `teach ${r.status} ${j?.error?.type ?? ''}`); return reply(502, { error: 'upstream', message: 'নদী AI এখন উত্তর দিতে পারছে না' }) }
+      const text = ((j.content ?? []) as Array<{ type: string; text?: string }>).filter(c => c.type === 'text').map(c => c.text).join('\n')
+      await log(true, j.usage?.input_tokens ?? 0, j.usage?.output_tokens ?? 0, `teach:${mod || 'general'}`)
       return reply(200, { text })
     } catch (e) {
       await log(false, 0, 0, String(e).slice(0, 200)); return reply(502, { error: 'upstream', message: 'নদী AI-র সাথে যোগাযোগ হয়নি' })

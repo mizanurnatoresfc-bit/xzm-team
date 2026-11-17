@@ -34,7 +34,7 @@ export async function readImage(file: File, languages = 'eng+ben', onProgress?: 
 const toLatin = (s: string) => s.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
 const money = (s: string) => Number(s.replace(/,/g, ''))
 
-function findAmount(t: string): number | null {
+export function findAmount(t: string): number | null {
   const labeled = t.match(/(?:amount|total|tk\.?|taka|৳|bdt|টাকা|মোট|পরিমাণ)\s*[:=]?\s*(?:tk\.?|৳|bdt)?\s*([\d,]+(?:\.\d{1,2})?)/i)
   if (labeled) return money(labeled[1])
   const all = [...t.matchAll(/(?:৳|tk\.?|bdt)\s*([\d,]+(?:\.\d{1,2})?)/gi)].map(m => money(m[1]))
