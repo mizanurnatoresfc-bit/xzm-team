@@ -27,4 +27,7 @@ export const nodi = {
   usage: (days = 14) => rpc<NodiUsageRow[]>('nodi_usage_summary', { p_days: days }),
   keyConfigured: () => call<{ configured: boolean }>({ action: 'status' }).then(r => r.configured).catch(() => false),
   chat: (messages: ChatMsg[]) => call<{ text: string; actions?: NodiAction[] }>({ action: 'chat', messages }),
+  /** নদী AI হিসাব শিক্ষক: the lesson text is the internal guide; official rules and settings are read by the server itself. */
+  teach: (messages: ChatMsg[], module: string, title: string, guide: string) =>
+    call<{ text: string }>({ action: 'teach', messages, module, title, guide }),
 }

@@ -16,6 +16,8 @@ import { isNativeApp } from './lib/native'
 // Pages load on first visit, so the first screen downloads only what it needs.
 const DailyDashboard = lazy(() => import('./pages/accounts/DailyDashboard').then(m => ({ default: m.DailyDashboard })))
 const MainSheet = lazy(() => import('./pages/accounts/sheetFlow').then(m => ({ default: m.MainSheet })))
+const AccountsCenter = lazy(() => import('./pages/accounts/AccountsCenter').then(m => ({ default: m.AccountsCenter })))
+const LearnCenter = lazy(() => import('./pages/accounts/LearnCenter').then(m => ({ default: m.LearnCenter })))
 const MyKhata = lazy(() => import('./pages/accounts/MyKhata').then(m => ({ default: m.MyKhata })))
 const DailySheet = lazy(() => import('./pages/accounts/DailySheet').then(m => ({ default: m.DailySheet })))
 const MyAccounts = lazy(() => import('./pages/accounts/MyAccounts').then(m => ({ default: m.MyAccounts })))
@@ -95,6 +97,8 @@ export default function App() {
       <Route path="/app" element={<HomeOrPanel />} />
       <Route path="/app/staff" element={<StaffPanel />} />
       <Route path="/app/accounts/khata" element={<MyKhata />} />
+      <Route path="/app/accounts/center" element={<AccountsCenter />} />
+      <Route path="/app/accounts/learn" element={<LearnCenter />} />
       <Route path="/app/accounts/daily" element={<DailyDashboard />} />
       <Route path="/app/accounts/daily/:id" element={<DailySheet />} />
       <Route path="/app/accounts/daily/:id/main" element={<MainSheet />} />

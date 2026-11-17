@@ -30,7 +30,17 @@ export type RiderLine = {
   mobile_banking: number; remarks: string | null
   /** Who wrote the line (whose khata it belongs to). */
   created_by?: string
+  /** 'rider' when the rider sent it from their own dashboard; it waits until the manager accepts it. */
+  source?: 'manager' | 'rider'; accepted_at?: string | null; seq?: number; office_deposit?: boolean
 }
+
+/** One line a rider sent today, as the rider sees it. */
+export type MyRiderSend = { id: string; seq: number; source: 'manager' | 'rider'; delivery: number; pickup: number; amount: number
+  office_deposit: boolean; manager: string | null; at: string; status: 'pending' | 'accepted' | 'taken' }
+/** The dashboard card: today's khata of my hub, whose khata is open, and what I already sent. */
+export type RiderOpen = { session_id: string | null; status?: SheetStatus; date: string; hub: string | null; is_rider: boolean
+  managers: Array<{ user_id: string; name: string | null; code: string | null; closed: boolean }>
+  mine: MyRiderSend[]; my_times: number; max_times: number; message?: string }
 
 export type OcrResult = Record<string, string | number | null> & { confidence?: number; text?: string }
 
@@ -98,10 +108,17 @@ export type Sheet = {
   can_layout?: boolean
 }
 
-export type ReportId = { id: string; no: number; report_no: string; amount: number; remarks: string | null; created_by: string; created_at: string }
+export type ReportId = { id: string; no: number; report_no: string; amount: number; remarks: string | null; created_by: string; created_at: string
+  /** the main site's report kept with it: screenshot/PDF and/or pasted text */
+  file_path?: string | null; raw_text?: string | null; file_at?: string | null }
 export type Deposit = { id: string; no: number; method: 'bank' | 'bkash' | 'nagad' | 'rocket' | 'other'; bank_name: string | null
   amount: number; charge: number; charge_auto: boolean; transport: number; people: string | null; ref_no: string | null
-  slip_path: string | null; deposited_on: string; remarks: string | null; created_by: string; created_at: string }
+  slip_path: string | null; deposited_on: string; remarks: string | null; created_by: string; created_at: string
+  /** who gave the slip and when; what OCR read from it and MATCH / NOT MATCH / NEEDS REVIEW (never a confirmation) */
+  slip_uploaded_at?: string | null; slip_uploaded_by_name?: string | null; slip_ocr_amount?: number | null; slip_ocr_confidence?: number | null
+  slip_match?: 'match' | 'not_match' | 'review' | null
+  /** a person checked and confirmed the deposit */
+  bank_confirmed_at?: string | null; bank_confirmed_by_name?: string | null; bank_confirm_note?: string | null }
 export type Cell = { section: string; row_id: string; col: string; value: string | null }
 
 /** How one part of the sheet is laid out: hidden columns, other names, own columns, switched off. */
@@ -149,6 +166,8 @@ export type DaSettings = {
   'da.claim_date_source': 'sheet' | 'bill'; 'da.close_needs_all': boolean
   /** How many people take the accounts: per hub (hub id -> number) and for hubs without their own number. */
   'da.hub_collectors'?: Record<string, number>; 'da.collectors_default'?: number
+  /** SteadFast's official rules, written by head office per learning module (key 'general' = for every module). */
+  'da.learn_official'?: Record<string, string>; 'da.slip_ocr_min_confidence'?: number
   'da.fixed_riders': string[]; 'da.fixed_expenses': FixedExpense[]; 'da.note_methods': string[]
   'da.timezone': string; 'da.start_time': string; 'da.backdate_days': number; 'da.session_tracking': boolean
   'da.rider_fields': string[]; 'da.due_rule': 'manual' | 'amount_minus_paid'
@@ -168,6 +187,17 @@ export type Template = {
   id: string; no: number; name: string; name_bn: string | null; category: string; reference_prefix: string | null
   keywords: string[]; memo_template: string | null; default_amount: number | null; status: 'active' | 'inactive'
 }
+
+/** One hub on one day, for the accounts centre (managers, zonal managers, head office). */
+export type CenterRow = { id: string; name: string; code: string; zone_id: string; zone: string; session_id: string | null; status: SheetStatus | null
+  started_at: string | null; started_by_name: string | null; submitted_at: string | null; submitted_by_name: string | null
+  verified_at: string | null; verified_by_name: string | null; closed_at: string | null; bank_done_at: string | null
+  report_total: number; reports: number; merchant: number; expense: number; staff_expense: number; transport_expense: number
+  missing_vouchers: number; deposited: number; bank_costs: number; deposits: number; slips_missing: number
+  slips_match: number; slips_not_match: number; slips_review: number; bank_confirmed: number; bills_waiting: number
+  bank_amount: number; hub_due: number }
+export type HistoryRow = { at: string; action: string; table: string; record: string; by: string; by_id: string | null
+  fields: string[]; old: Record<string, unknown> | null; new: Record<string, unknown> | null }
 
 export type VoucherData = {
   voucher_no: string | null; expense_no: number; amount: number; bill_date: string
@@ -316,6 +346,13 @@ export const da = {
     rpc<string>('da_claim_add', { p_claim: claim, p_session: session, p_note: note ?? null }),
   rejectClaim: (claim: string, note: string) => rpc<void>('da_claim_reject', { p_claim: claim, p_note: note }),
   makeVoucher: (expense: string) => rpc<string>('da_make_voucher', { p_expense: expense }),
+  // ---- accounts centre, bank slips, history ----
+  centerOverview: (date?: string | null) => rpc<CenterRow[]>('da_center_overview', { p_date: date ?? null }),
+  history: (hub: string, from?: string | null, to?: string | null) => rpc<HistoryRow[]>('da_accounts_history', { p_hub: hub, p_from: from ?? null, p_to: to ?? null, p_limit: 300 }),
+  slipRead: (deposit: string, amount: number | null, confidence: number | null) =>
+    rpc<{ match: 'match' | 'not_match' | 'review'; amount: number; ocr_amount: number | null }>('da_deposit_slip_read', { p_deposit: deposit, p_ocr_amount: amount, p_confidence: confidence }),
+  confirmDeposit: (deposit: string, confirm = true, note?: string | null) => rpc<void>('da_deposit_confirm', { p_deposit: deposit, p_confirm: confirm, p_note: note ?? null }),
+  reportAttach: (report: string, path?: string | null, text?: string | null) => rpc<void>('da_report_attach', { p_report: report, p_path: path ?? null, p_text: text ?? null }),
   voucher: (expense: string) => rpc<VoucherData>('da_voucher', { p_expense: expense }),
   removeLine: (kind: 'rider' | 'merchant' | 'expense', id: string, reason: string) =>
     rpc<void>('da_remove_line', { p_kind: kind, p_line: id, p_reason: reason }),
@@ -324,6 +361,13 @@ export const da = {
   verify: (id: string, action: 'approve' | 'correction' | 'note', note?: string) =>
     rpc<void>('da_verify', { p_session: id, p_action: action, p_note: note ?? null }),
   myAccounts: (from: string, to: string) => rpc<MyAccounts>('da_my_accounts', { p_from: from, p_to: to }),
+  // ---- rider sends pickup, delivery and amount; the manager accepts ----
+  riderOpen: () => rpc<RiderOpen>('da_rider_open_managers', { p_date: null }),
+  riderSubmit: (a: { manager?: string | null; amount: number; delivery: number; pickup: number; office?: boolean; remarks?: string | null }) =>
+    rpc<string>('da_rider_submit', { p_manager: a.manager ?? null, p_amount: a.amount, p_delivery: a.delivery, p_pickup: a.pickup,
+      p_office: a.office ?? false, p_mobile_banking: 0, p_remarks: a.remarks ?? null, p_date: null }),
+  riderAccept: (line: string, accept = true, note?: string | null) => rpc<void>('da_rider_accept', { p_line: line, p_accept: accept, p_note: note ?? null }),
+  riderAcceptAll: (session: string) => rpc<number>('da_rider_accept_all', { p_session: session }),
   closeMyPart: (session: string, note?: string | null, done = true) =>
     rpc<void>('da_close_my_part', { p_session: session, p_note: note ?? null, p_done: done }),
   collectors: (session: string) => rpc<Collector[]>('da_collectors', { p_session: session }),

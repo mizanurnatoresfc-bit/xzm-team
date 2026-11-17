@@ -55,6 +55,8 @@ export const GROUPS: Group[] = [
     ] },
     { bn: 'হাবের হিসাব', en: 'Hub accounts', items: [
       { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের হাবের হিসাব খাতা', en: 'Hub accounts today', perms: null, count: 'sheets' },
+      { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (রিপোর্ট, ভাউচার, ব্যাংক)', en: 'Accounts centre', perms: ['da.sheet.view', 'da.sheet.create'] },
+      { to: '/app/accounts/learn', icon: 'book', bn: 'বাংলা শেখার কেন্দ্র (হিসাব)', en: 'Accounts learning centre', perms: ['da.sheet.view', 'da.sheet.create'] },
     ] },
     { bn: 'হাবের টিম', en: 'Hub team', items: [
       { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },

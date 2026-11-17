@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { Icon } from '../../components/Icon'
 import { Combo } from '../../components/inputs'
+import { RiderInbox } from '../../components/RiderQuick'
+import { LearnButton } from '../../components/Learn'
 import { da, dateBn, num, taka, timeBn, todayDhaka, type Template } from '../../lib/dailyAccounts'
 import { ExpenseTab, MerchantTab, RidersTab, type LS } from './DailySheet'
 import { onlyOf } from './sheetFlow'
@@ -79,7 +81,10 @@ export function MyKhata() {
         {s.session.closed_at && !accepted && <p className="notice">এই হাবের ডেইলি হিসাবের খাতা আজ খোলা হয়ে গেছে। এখন যা লিখবেন তা যোগফলে ধরতে হলে ম্যানেজারকে খাতাটি আবার খুলতে হবে।</p>}
         {(s.session.status === 'submitted' || s.session.status === 'approved') && <p className="notice">আজকের হিসাব চূড়ান্ত হয়ে গেছে — আর বদলানো যাবে না।</p>}
 
+        {s.can_edit && !submitted && <RiderInbox session={s.session.id} onChange={() => reload()} />}
         <nav className="da-tabs no-print" aria-label="খাতার অংশ">{tabs.map(([k, l, c]) => <button key={k} type="button" data-tab={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l} ({num(c)})</button>)}</nav>
+        <div className="lr-sec no-print"><LearnButton module={tab === 'riders' ? 'rider' : tab === 'expense' ? 'expense' : 'merchant_payment'} label={`নির্দেশনা: ${tabs.find(t => t[0] === tab)?.[1] ?? ''}`} />
+          <Link className="btn-link small" to="/app/accounts/learn?m=start">নতুন ম্যানেজার? শুরু থেকে শিখুন</Link></div>
         {tab === 'riders' && <RidersTab s={my} settings={st} reload={reload} ls={layoutSaved} />}
         {tab === 'expense' && <ExpenseTab s={my} settings={st} templates={templates.data ?? []} reload={reload} ls={layoutSaved} />}
         {tab === 'payment' && <MerchantTab s={my} settings={st} reload={reload} ls={layoutSaved} />}

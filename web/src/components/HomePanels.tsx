@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { dashboard } from '../lib/dashboard'
 import { dutiesApi, hubApi } from '../lib/hub'
 import { hubLabel, org } from '../lib/hr'
 import { hrReq } from '../lib/hrreq'
@@ -106,28 +105,5 @@ export function HubTodayPanel() {
         <Link to="/app/hr/requests" className="ma t-p"><Icon name="form" size={18} />{L('এইচআর রিকুয়েস্ট', 'HR request')}</Link>
       </div>
     </>}
-  </section>
-}
-
-/** What is waiting for my decision, across modules. */
-export function ApprovalsPanel() {
-  const { L, n } = usePrefs()
-  const { can } = useAuth()
-  const d = useLoad(() => dashboard.approvals(can), [])
-  const v = d.data
-  if (!v) return null
-  const rows: Array<[string, number, string, string, string]> = ([
-    ['/app/hr/applications', v.apps, L('আইডি আবেদন', 'ID applications'), 'form', 'b'],
-    ['/app/hr/leave', v.leave, L('ছুটির আবেদন', 'Leave requests'), 'log', 'p'],
-    ['/app/accounts/daily', v.sheets, L('হিসাব খাতা যাচাই', 'Daily sheets to check'), 'ledger', 'g'],
-    ['/app/hr/requests?tab=list', v.hrreq, L('এইচআর রিকুয়েস্ট', 'HR requests'), 'users', 'o'],
-  ] as Array<[string, number, string, string, string]>).filter(r => r[1] >= 0)
-  if (!rows.length) return null
-  const total = rows.reduce((a, r) => a + r[1], 0)
-  return <section className="panel approvals">
-    <div className="da-bar"><h2 style={{ margin: 0 }}>{L('আমার অনুমোদন বাকি', 'Waiting for my approval')}</h2>{total > 0 && <span className="ap-total">{n(total)}</span>}</div>
-    {total === 0 ? <div className="ap-clear"><Icon name="check" size={20} />{L('সব পরিষ্কার — কিছু বাকি নেই', 'All clear — nothing waiting')}</div> :
-      <div className="ap-list">{rows.map(([to, c, t, ic, tone]) => <Link key={to} to={to} className={`ap-row${c ? '' : ' zero'}`}>
-        <span className={`hrq-ic t-${tone}`}><Icon name={ic} size={16} /></span><span className="ap-t">{t}</span><span className={`ap-c${c ? ' on' : ''}`}>{n(c)}</span></Link>)}</div>}
   </section>
 }

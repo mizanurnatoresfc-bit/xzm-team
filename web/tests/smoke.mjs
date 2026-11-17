@@ -155,6 +155,35 @@ try {
       if (u.includes('rpc/att_days_list')) return j([
         { employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position_name: 'Commission Rider', site_days: 0, online_days: null, register_days: null, note: null, submitted_by_name: null, submitted_at: null },
         { employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', position_name: 'Commission Rider', site_days: 0, online_days: 15, register_days: 15, note: null, submitted_by_name: 'Owner', submitted_at: '2026-11-16T05:00:00Z' }])
+      // one tap: the rider's send card and the manager's accept box
+      if (u.includes('rpc/da_rider_open_managers')) return j({ session_id: 's2', status: 'open', date: '2026-11-15', hub: 'Natore Sadar',
+        is_rider: (permsNow ?? []).includes('ops.pickup_as_rider.create'), my_times: 1, max_times: 3,
+        managers: [{ user_id: 'u7', name: 'Abdul Karim', code: '1007', closed: false }, { user_id: 'u8', name: 'Sohel Sardar', code: '8157', closed: false }],
+        mine: !(permsNow ?? []).includes('ops.pickup_as_rider.create') ? [] : [{ id: 'rl1', seq: 1, source: 'rider', delivery: 20, pickup: 3, amount: 4100, office_deposit: false, manager: 'Abdul Karim', at: '2026-11-15T06:00:00Z', status: 'pending' }] })
+      if (/rpc\/(da_rider_submit|da_rider_accept_all|da_rider_accept)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j(u.includes('accept_all') ? 2 : 'rl9') }
+      if (/rpc\/(da_claim_add|da_claim_reject)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j('x9') }
+      if (u.includes('/rest/v1/da_expense_claims') && u.includes('status=eq.submitted')) return j([
+        { id: 'c1', no: 41, hub_id: 'h1', employee_code: '1003', employee_name: 'Rafiq Islam', kind: 'transport', expense_name: 'ভ্যান ভাড়া', category: 'transport', amount: 120, bill_date: '2026-11-15', attachment_path: null, remarks: null, created_at: '2026-11-15T05:00:00Z' },
+        { id: 'c2', no: 42, hub_id: 'h1', employee_code: '1004', employee_name: 'Nasima Akter', kind: 'employee', expense_name: 'অফিসের পানি', category: 'office', amount: 80, bill_date: '2026-11-15', attachment_path: 'claims/e04/x.jpg', remarks: null, created_at: '2026-11-15T05:10:00Z' },
+      ].filter(c => !flowCalls.some(f => (f.fn === 'da_claim_add' || f.fn === 'da_claim_reject') && f.p_claim === c.id)))
+      if (u.includes('/rest/v1/da_rider_lines') && u.includes('source=eq.rider')) return j(flowCalls.some(c => c.fn === 'da_rider_accept_all') ? [] : [
+        { id: 'rl2', session_id: 's2', rider_name: 'Alamin Sarker', employee_code: '7982', pickup_qty: 4, delivery_qty: 18, amount: 3600, seq: 1, office_deposit: false, created_at: '2026-11-15T06:10:00Z' },
+        { id: 'rl3', session_id: 's2', rider_name: 'Md Mahin', employee_code: '6799', pickup_qty: 0, delivery_qty: 11, amount: 2250, seq: 2, office_deposit: true, created_at: '2026-11-15T06:20:00Z' }])
+      if (u.includes('rpc/da_center_overview')) return j([
+        { id: 'h1', name: 'Natore Sadar', code: '80', zone_id: 'z1', zone: 'Natore Area', session_id: 's2', status: 'open', started_at: '2026-11-15T03:00:00Z', started_by_name: 'Owner', submitted_at: null, submitted_by_name: null, verified_at: null, verified_by_name: null, closed_at: null, bank_done_at: null,
+          report_total: 100700, reports: 1, merchant: 15000, expense: 1250, staff_expense: 500, transport_expense: 750, missing_vouchers: 2, deposited: 84000, bank_costs: 73, deposits: 1, slips_missing: 0, slips_match: 0, slips_not_match: 1, slips_review: 0, bank_confirmed: 0, bills_waiting: 1, bank_amount: 84377, hub_due: 377 },
+        { id: 'h2', name: 'Bagatipara', code: '81', zone_id: 'z1', zone: 'Natore Area', session_id: null, status: null, started_at: null, started_by_name: null, submitted_at: null, submitted_by_name: null, verified_at: null, verified_by_name: null, closed_at: null, bank_done_at: null,
+          report_total: 0, reports: 0, merchant: 0, expense: 0, staff_expense: 0, transport_expense: 0, missing_vouchers: 0, deposited: 0, bank_costs: 0, deposits: 0, slips_missing: 0, slips_match: 0, slips_not_match: 0, slips_review: 0, bank_confirmed: 0, bills_waiting: 0, bank_amount: 0, hub_due: 0 }])
+      if (u.includes('rpc/da_accounts_history')) return j([{ at: '2026-11-15T13:10:00Z', action: 'UPDATE', table: 'da_deposits', record: 'dp1', by: 'Owner', by_id: 'u1', fields: ['amount', 'updated_at'], old: { amount: 38000 }, new: { amount: 37550 } },
+        { at: '2026-11-15T12:00:00Z', action: 'INSERT', table: 'da_report_ids', record: 'rp1', by: 'Owner', by_id: 'u1', fields: [], old: null, new: { report_no: '#743858', amount: 38000 } }])
+      if (u.includes('/rest/v1/da_expenses') && u.includes('da_sessions')) return j([
+        { id: 'x1', no: 1, kind: 'transport', expense_name: 'ভ্যান ভাড়া', category: 'transport', amount: 120, bill_date: '2026-11-15', voucher_no: 'V-2611-00007', attachment_path: null, claim_file: null, bill_no: null, employee_code: null, employee_name: null, reference_name: 'Owner', hub_id: 'h1', session_id: 's2', da_sessions: { account_date: '2026-11-15' } },
+        { id: 'x2', no: 2, kind: 'employee', expense_name: 'চিকিৎসা', category: 'hr_treatment', amount: 500, bill_date: '2026-11-15', voucher_no: null, attachment_path: 'da/s2/m.jpg', claim_file: null, bill_no: 'M-9', employee_code: '6799', employee_name: 'Md Mahin', reference_name: null, hub_id: 'h1', session_id: 's2', da_sessions: { account_date: '2026-11-15' } }])
+      if (/rpc\/(da_deposit_slip_read|da_deposit_confirm|da_report_attach|da_save_expense|da_make_voucher|da_set_expense_reference)(\?|$)/.test(u)) {
+        const fn = u.split('rpc/')[1].split('?')[0]; flowCalls.push({ fn, ...r.request().postDataJSON() })
+        return j(fn === 'da_make_voucher' ? 'V-2611-00009' : fn === 'da_save_expense' ? 'x9' : fn === 'da_deposit_slip_read' ? { match: 'review', amount: 1, ocr_amount: null } : null) }
+      if (u.includes('/functions/v1/nodi-ai')) { const b = r.request().postDataJSON(); flowCalls.push({ fn: 'nodi-ai', ...b })
+        return j(b?.action === 'teach' ? { text: 'নদী AI অভ্যন্তরীণ নির্দেশনা: স্লিপের টাকা আর লেখা টাকা মেলেনি। আগে স্লিপ নিজে দেখুন, তারপর মন্তব্য লিখে "ব্যাংকে নিশ্চিত করুন" দিন।' } : { configured: true }) }
       if (u.includes('rpc/da_settings')) return j(daSettings)
       if (u.includes('rpc/da_flow_list')) return j([{ session_id: 's1', hub_id: 'h1', needed: 2, people: 2, submitted: 2, accepted: 2, checked_at: '2026-11-15T13:00:00Z', report_ok_at: null, report_diff: null, bank_done_at: null },
         { session_id: 's2', hub_id: 'h2', needed: 1, people: 2, submitted: 2, accepted: 1, checked_at: null, report_ok_at: null, report_diff: null, bank_done_at: null }])
@@ -169,7 +198,9 @@ try {
         hub: { id: 'h2', code: 'BGT', name: 'Bagatipara', name_bn: null }, zone: { id: 'z1', code: 'NAT', name: 'Natore Area' },
         riders: [{ id: 'r1', no: 1, employee_id: 'e02', employee_code: '1002', rider_name: 'Rahim Uddin', mobile: '01711000002', delivery_qty: 42, pickup_qty: 6, amount: 38500, paid_amount: 38000, due_input: 500, due: 500, mobile_banking: 0, remarks: null, created_by: 'u1' },
           { id: 'r2', no: 2, employee_id: 'e03', employee_code: '1003', rider_name: 'Sohel Rana', mobile: null, delivery_qty: 35, pickup_qty: 4, amount: 29800, paid_amount: 29800, due_input: 0, due: 0, mobile_banking: 2000, remarks: 'সব জমা', created_by: 'u7' }],
-        merchant_payments: [], notes_in: [], events: [], visits: [], deposits: [], cells: [],
+        merchant_payments: [], notes_in: [], events: [], visits: [], cells: [],
+        deposits: okd ? [] : [{ id: 'dp1', no: 1, method: 'bank', bank_name: 'DBBL', amount: 37550, charge: 23, charge_auto: true, transport: 50, people: 'Owner', ref_no: 'R-1', slip_path: 'da/s2/slip.jpg', deposited_on: '2026-11-15', remarks: null, created_by: 'u1', created_at: '2026-11-15T13:00:00Z',
+          slip_uploaded_at: '2026-11-15T13:05:00Z', slip_uploaded_by_name: 'Owner', slip_ocr_amount: 35750, slip_ocr_confidence: 88, slip_match: 'not_match', bank_confirmed_at: null, bank_confirmed_by_name: null, bank_confirm_note: null }],
         collectors: [{ user_id: 'u1', name: 'Owner', code: '1', closed_at: mineOpen ? null : '2026-11-15T10:00:00Z', created_at: '2026-11-15T03:00:00Z', note: null, riders: 1, payments: 0, expenses: 1, amount: 38500, expense_amount: 450, payment_amount: 0,
             closed_by: null, closed_by_name: null, accepted_at: mineOpen ? null : '2026-11-15T11:00:00Z', accepted_by: 'u1', accepted_by_name: 'Owner' },
           { user_id: 'u7', name: 'Sohel Rana', code: '1003', closed_at: '2026-11-15T10:30:00Z', created_at: '2026-11-15T04:00:00Z', note: null, riders: 1, payments: 0, expenses: 0, amount: 29800, expense_amount: 0, payment_amount: 0,
@@ -246,6 +277,102 @@ try {
 
     await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1', { state: 'attached' })
     check((await page.locator('.da-main h1').textContent()).includes('Owner'), `${size}: dashboard opens`); await fits('dashboard')
+    // আমার অনুমোদন: riders' pickup, delivery and money, and staff bills, on one card
+    await page.waitForSelector('.myapp .ri-list li', { timeout: 8000 }).catch(() => {})
+    { const sumTxt = (await page.locator('.myapp .ma-sum').innerText()).replace(/\s+/g, ' ')
+      check(await page.locator('.myapp').count() === 1 && await page.locator('.myapp .ri-list li[data-kind=rider]').count() === 2
+        && sumTxt.includes('৪') && sumTxt.includes('২৯') && sumTxt.includes('৳৫৮৫০') && sumTxt.includes('৳২০০'),
+        `${size}: my approvals shows pickups, deliveries, rider money and staff bills together`) }
+    check(await page.locator('.rsend').count() === 0, `${size}: someone who is not a rider gets no send card`)
+    await fits('my approvals')
+    if (process.env.SHOTS) await page.locator('.myapp').screenshot({ path: `${process.env.SHOTS}/${size}-my-approvals.png` })
+    await page.locator('.myapp .ma-all button').click(); await page.waitForSelector('.myapp .rs-done', { timeout: 8000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_rider_accept_all' && c.p_session === 's2') && await page.locator('.myapp .ri-list li[data-kind=rider]').count() === 0,
+      `${size}: accept all takes every rider line in one tap`)
+    await page.locator('.myapp .ma-tabs button', { hasText: 'খরচের বিল' }).click(); await page.waitForSelector('.myapp .ri-list li[data-kind=bill]')
+    if (process.env.SHOTS) await page.locator('.myapp').screenshot({ path: `${process.env.SHOTS}/${size}-my-approvals-bills.png` })
+    await page.locator('.myapp .ri-list li[data-kind=bill]').first().locator('.ri-acts button').first().click()
+    await page.waitForFunction(() => document.querySelectorAll('.myapp .ri-list li[data-kind=bill]').length === 1, null, { timeout: 8000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_claim_add' && c.p_claim === 'c1' && c.p_session === 's9') && started.length > 0,
+      `${size}: accepting a bill opens today's khata when needed and takes the bill in`)
+    await page.locator('.myapp .ri-list li[data-kind=bill] .ri-acts button.secondary').click()
+    await page.locator('.myapp .ri-back input').fill('বিল ঝাপসা')
+    await page.locator('.myapp .ri-back button.secondary').click(); await page.waitForSelector('.myapp .ap-clear', { timeout: 8000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_claim_reject' && c.p_claim === 'c2' && c.p_note === 'বিল ঝাপসা') && await page.locator('.myapp .ap-clear').count() === 1,
+      `${size}: a bill is turned down with the reason, and the card says all clear`)
+
+    // ---- হিসাব শেখার কেন্দ্র: lessons, practice (nothing saved), AI teacher ----
+    await page.goto(`${BASE}/app/accounts/learn`); await page.waitForSelector('.lr-card')
+    check(await page.locator('.lr-card').count() === 14 && await page.locator('.lr-official').count() === 1 && await page.locator('.lr-teacher').count() === 1,
+      `${size}: the learning centre lists every lesson, the official-rules box and the AI teacher`)
+    await fits('learning centre')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-learn.png`, fullPage: false })
+    await page.locator('.lr-card[data-module=bank]').click(); await page.waitForSelector('.lr-lesson[data-lesson=bank]')
+    { const parts = await page.locator('.lr-parts button').allInnerTexts()
+      check(['কীভাবে কাজ করবেন?', 'ধাপে ধাপে নির্দেশনা', 'নমুনা হিসাব', 'প্রয়োজনীয় কাগজপত্র', 'সাধারণ ভুল', 'অনুশীলন', 'AI-কে প্রশ্ন করুন'].every(p => parts.includes(p)),
+        `${size}: a lesson has how, steps, sample, papers, mistakes, practice and ask-the-AI`) }
+    await page.locator('.lr-parts button', { hasText: 'ধাপে ধাপে' }).click()
+    check(await page.locator('.lr-steps li').count() >= 4 && await page.locator('.lr-field').count() >= 4, `${size}: steps and every field explained with an example`)
+    await page.locator('.lr-parts button', { hasText: 'অনুশীলন' }).click(); await page.waitForSelector('.pr-banner')
+    { const before = flowCalls.length
+      const inputs = page.locator('.pr-task .pr-grid input')
+      await inputs.nth(0).fill('97450'); await inputs.nth(1).fill('97450'); await inputs.nth(2).fill('92')
+      const m1 = await page.locator('.pr-match b').innerText()
+      await inputs.nth(1).fill('94750'); const m2 = await page.locator('.pr-match b').innerText()
+      await inputs.nth(1).fill(''); await inputs.nth(2).fill('20'); const m3 = await page.locator('.pr-match').count() ? await page.locator('.pr-match b').innerText() : ''
+      await inputs.nth(1).fill('97450'); await inputs.nth(2).fill('30'); const m4 = await page.locator('.pr-match b').innerText()
+      await page.locator('.pr-task button', { hasText: 'ব্যাংকে নিশ্চিত করুন' }).click()
+      check(m1.startsWith('MATCH') && m2.startsWith('NOT MATCH') && m4.startsWith('NEEDS REVIEW') && flowCalls.length === before,
+        `${size}: bank practice shows MATCH / NOT MATCH / NEEDS REVIEW and saves nothing${m3 ? '' : ''}`) }
+    if (process.env.SHOTS) await page.locator('.lr-lesson').screenshot({ path: `${process.env.SHOTS}/${size}-learn-practice.png` })
+    await page.locator('.lr-parts button', { hasText: 'AI-কে প্রশ্ন' }).click(); await page.locator('.lr-t-sugg button').first().click()
+    await page.waitForSelector('.lr-t-msg.assistant:not(.muted)', { timeout: 8000 }).catch(() => {})
+    { const c = flowCalls.filter(x => x.fn === 'nodi-ai').at(-1) ?? {}
+      check(c.action === 'teach' && c.module === 'bank' && String(c.guide ?? '').includes('ব্যাংকে জমা') && !('official' in c)
+        && (await page.locator('.lr-t-msg.assistant').last().innerText()).includes('নদী AI অভ্যন্তরীণ নির্দেশনা'),
+        `${size}: the AI teacher gets the lesson as its internal guide (official rules are read by the server) and answers in Bangla`) }
+    if (process.env.SHOTS) await page.locator('.lr-lesson').screenshot({ path: `${process.env.SHOTS}/${size}-learn-teacher.png` })
+    // expense practice: automatic sorting and the checks
+    await page.goto(`${BASE}/app/accounts/learn?m=expense&p=practice`); await page.waitForSelector('.pr-banner')
+    { const g = page.locator('.pr-task .pr-grid'); await g.locator('input').nth(0).fill('ভ্যান ভাড়া'); await g.locator('select').selectOption('transport'); await g.locator('input').nth(1).fill('120')
+      const sortTxt = await page.locator('.pr-sort').innerText()
+      await page.locator('.pr-task button', { hasText: 'মিলিয়ে দেখুন' }).click()
+      check(sortTxt.includes('ভাউচার জমা হয়নি') && await page.locator('.pr-result.ok').count() === 1, `${size}: expense practice sorts the expense and checks the answer`) }
+
+    // ---- হিসাব কেন্দ্র ----
+    await page.goto(`${BASE}/app/accounts/center`); await page.waitForSelector('.ac-hub')
+    check(await page.locator('.ac-tile').count() === 11 && await page.locator('.ac-hub').count() === 2 && (await page.locator('.ac-hub').first().innerText()).includes('NOT MATCH'),
+      `${size}: the accounts centre shows the 11 parts and each hub's report, bank and slip status`)
+    await fits('accounts centre')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-center.png`, fullPage: false })
+    await page.locator('.ac-tabs button', { hasText: 'ভাউচার জমা হয়নি' }).click(); await page.waitForSelector('.da-table tbody tr')
+    check((await page.locator('.da-table tbody').innerText()).includes('V-2611-00007') && (await page.locator('.da-table tbody').innerText()).includes('ভাউচার জমা হয়নি'),
+      `${size}: missing vouchers are listed and sorted automatically`)
+    await page.locator('.ac-tabs button', { hasText: 'হিসাবের ইতিহাস' }).click(); await page.waitForSelector('.ac-hist li')
+    check((await page.locator('.ac-hist').innerText()).includes('৩৮০০০') || (await page.locator('.ac-hist').innerText()).includes('38000'), `${size}: the history shows the old and the new value`)
+    await page.locator('.ac-tabs button', { hasText: 'নতুন ভাউচার' }).click(); await page.waitForSelector('.ac-new')
+    { const f = page.locator('.ac-new .pr-grid')
+      await f.locator('input').nth(2).fill('ভ্যান ভাড়া (হাব থেকে ব্যাংক)'); await f.locator('select').nth(1).selectOption('transport'); await f.locator('input').nth(3).fill('120')
+      await page.locator('.ac-new button', { hasText: 'ভাউচার বানান' }).click(); await page.waitForSelector('.ac-made', { timeout: 8000 }).catch(() => {})
+      const save = flowCalls.filter(x => x.fn === 'da_save_expense').at(-1) ?? {}
+      check(flowCalls.some(x => x.fn === 'da_make_voucher' && x.p_expense === 'x9') && save.p_kind === 'transport' && save.p_amount === 120 && save.p_category === 'transport'
+        && (await page.locator('.ac-made').innerText()).includes('V-2611-00009'), `${size}: a new voucher makes the expense line and its number`) }
+    if (process.env.SHOTS) await page.locator('.ac-new').screenshot({ path: `${process.env.SHOTS}/${size}-new-voucher.png` })
+    // the sheet's bank part: OCR status, who gave the slip, and a person confirms (a note when it did not match)
+    await page.goto(`${BASE}/app/accounts/daily/s2?tab=bank`); await page.waitForSelector('#sec-deposits .dp-check', { timeout: 10000 }).catch(() => {})
+    check((await page.locator('#sec-deposits .dp-check').innerText()).includes('NOT MATCH') && (await page.locator('#sec-deposits .dp-check').innerText()).includes('Owner')
+      && await page.locator('.lr-sec .lr-btn').count() === 1, `${size}: the bank part shows the slip check, who gave it, and the instruction button`)
+    await page.locator('#sec-deposits .dp-check button', { hasText: 'ব্যাংকে নিশ্চিত করুন' }).click(); await page.waitForSelector('.da-modal textarea')
+    { const ok = page.locator('.da-modal-acts button', { hasText: 'নিশ্চিত করছি' })
+      const blocked = await ok.isDisabled()
+      await page.locator('.da-modal textarea').fill('ব্যাংকের মেসেজে ৩৭,৫৫০ দেখেছি'); await ok.click()
+      await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+      const c = flowCalls.filter(x => x.fn === 'da_deposit_confirm').at(-1) ?? {}
+      check(blocked && c.p_deposit === 'dp1' && c.p_confirm === true && String(c.p_note).includes('৩৭,৫৫০'), `${size}: a slip that did not match is confirmed only with the person's note`) }
+    await page.locator('.lr-sec .lr-btn').click(); await page.waitForSelector('.da-modal .lr-lesson[data-lesson=bank]')
+    check(await page.locator('.da-modal .lr-parts button').count() === 7, `${size}: the instruction button opens the lesson of that part`)
+    if (process.env.SHOTS) await page.locator('.da-modal').screenshot({ path: `${process.env.SHOTS}/${size}-sheet-lesson.png` })
+    await page.locator('.da-modal-acts button', { hasText: 'বন্ধ করুন' }).click()
 
     await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.font-pick')
     check(await page.locator('.font-pick button').count() === 5, `${size}: settings shows the font choices`); await fits('settings')
@@ -481,6 +608,18 @@ try {
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       await page.waitForSelector('.sp-hero')
+      await page.waitForSelector('.rsend .rs-grid input', { timeout: 8000 }).catch(() => {})
+      check(await page.locator('.rsend').count() === 1 && await page.locator('.rsend .rs-send').isDisabled() && await page.locator('.rsend .rs-list li').count() === 1,
+        `${size}: a rider sees the send card and today's line; send waits for a manager and a number`)
+      await page.locator('.rsend .rs-chip', { hasText: 'Abdul Karim' }).click()
+      const [pk, dl, am] = [0, 1, 2].map(i => page.locator('.rsend .rs-grid input').nth(i))
+      await pk.fill('৪'); await dl.fill('12'); await am.fill('2,500')
+      await fits('send card')
+      if (process.env.SHOTS) await page.locator('.rsend').screenshot({ path: `${process.env.SHOTS}/${size}-rider-send.png` })
+      await page.locator('.rsend .rs-send').click(); await page.waitForSelector('.rsend .rs-done', { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'da_rider_submit').at(-1) ?? {}
+        check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false && await page.locator('.rsend .rs-done').count() === 1,
+          `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
       check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
         `${size}: a rider gets one panel only, with everything they may open inside it`)
