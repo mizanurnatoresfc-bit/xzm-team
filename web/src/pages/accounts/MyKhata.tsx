@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { Icon } from '../../components/Icon'
 import { Combo } from '../../components/inputs'
+import { RiderInbox } from '../../components/RiderQuick'
 import { da, dateBn, num, taka, timeBn, todayDhaka, type Template } from '../../lib/dailyAccounts'
 import { ExpenseTab, MerchantTab, RidersTab, type LS } from './DailySheet'
 import { onlyOf } from './sheetFlow'
@@ -79,6 +80,7 @@ export function MyKhata() {
         {s.session.closed_at && !accepted && <p className="notice">এই হাবের ডেইলি হিসাবের খাতা আজ খোলা হয়ে গেছে। এখন যা লিখবেন তা যোগফলে ধরতে হলে ম্যানেজারকে খাতাটি আবার খুলতে হবে।</p>}
         {(s.session.status === 'submitted' || s.session.status === 'approved') && <p className="notice">আজকের হিসাব চূড়ান্ত হয়ে গেছে — আর বদলানো যাবে না।</p>}
 
+        {s.can_edit && !submitted && <RiderInbox session={s.session.id} onChange={() => reload()} />}
         <nav className="da-tabs no-print" aria-label="খাতার অংশ">{tabs.map(([k, l, c]) => <button key={k} type="button" data-tab={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l} ({num(c)})</button>)}</nav>
         {tab === 'riders' && <RidersTab s={my} settings={st} reload={reload} ls={layoutSaved} />}
         {tab === 'expense' && <ExpenseTab s={my} settings={st} templates={templates.data ?? []} reload={reload} ls={layoutSaved} />}

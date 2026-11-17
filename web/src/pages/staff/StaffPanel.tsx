@@ -5,6 +5,7 @@ import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { NodiGaps } from '../../components/NodiGaps'
+import { RiderSendCard } from '../../components/RiderQuick'
 import { da, addDays, todayDhaka, type Claim } from '../../lib/dailyAccounts'
 import { dashboard } from '../../lib/dashboard'
 import { referrals } from '../../lib/extra'
@@ -130,6 +131,7 @@ export function StaffPanel() {
         <div className="sp-tile t-o off"><span className="i"><Icon name="back" size={20} /></span><b>—</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small><span className="sp-soon">{L('শীঘ্রই', 'Soon')}</span></div>
         <Link to="/app/accounts/mine" className="sp-tile t-p"><span className="i"><Icon name="cash" size={20} /></span><b>{taka(sum(l => Number(l.line.amount)))}</b><small>{L('আজকের টাকা', 'Money today')}</small></Link>
       </div>
+      <RiderSendCard onSent={() => d.reload()} />
       <div className="nv-rows">
         {row('/app/accounts/mine', 'g', 'wallet', L('আমার হিসাব', 'My accounts'), mine.length ? L('আজকের হিসাব খাতায় উঠেছে', "Today's line is on the sheet") : L('আজ এখনো আমার নামে হিসাব ওঠেনি', 'No line in my name yet today'))}
         {row('/app/accounts/mine', due > 0 ? 'o' : 'b', 'ledger', L('আমার আগের হিসাব', 'My earlier accounts'), due > 0 ? L(`৩০ দিনে বকেয়া ${taka(due)}`, `Due in 30 days ${taka(due)}`) : L('৭ দিন, ৩০ দিন, এ মাস বা তারিখ বেছে', '7 days, 30 days, this month or pick dates'))}

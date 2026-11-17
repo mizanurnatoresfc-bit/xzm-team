@@ -155,6 +155,15 @@ try {
       if (u.includes('rpc/att_days_list')) return j([
         { employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position_name: 'Commission Rider', site_days: 0, online_days: null, register_days: null, note: null, submitted_by_name: null, submitted_at: null },
         { employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', position_name: 'Commission Rider', site_days: 0, online_days: 15, register_days: 15, note: null, submitted_by_name: 'Owner', submitted_at: '2026-11-16T05:00:00Z' }])
+      // one tap: the rider's send card and the manager's accept box
+      if (u.includes('rpc/da_rider_open_managers')) return j({ session_id: 's2', status: 'open', date: '2026-11-15', hub: 'Natore Sadar',
+        is_rider: (permsNow ?? []).includes('ops.pickup_as_rider.create'), my_times: 1, max_times: 3,
+        managers: [{ user_id: 'u7', name: 'Abdul Karim', code: '1007', closed: false }, { user_id: 'u8', name: 'Sohel Sardar', code: '8157', closed: false }],
+        mine: !(permsNow ?? []).includes('ops.pickup_as_rider.create') ? [] : [{ id: 'rl1', seq: 1, source: 'rider', delivery: 20, pickup: 3, amount: 4100, office_deposit: false, manager: 'Abdul Karim', at: '2026-11-15T06:00:00Z', status: 'pending' }] })
+      if (/rpc\/(da_rider_submit|da_rider_accept_all|da_rider_accept)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j(u.includes('accept_all') ? 2 : 'rl9') }
+      if (u.includes('/rest/v1/da_rider_lines') && u.includes('source=eq.rider')) return j(flowCalls.some(c => c.fn === 'da_rider_accept_all') ? [] : [
+        { id: 'rl2', session_id: 's2', rider_name: 'Alamin Sarker', employee_code: '7982', pickup_qty: 4, delivery_qty: 18, amount: 3600, seq: 1, office_deposit: false, created_at: '2026-11-15T06:10:00Z' },
+        { id: 'rl3', session_id: 's2', rider_name: 'Md Mahin', employee_code: '6799', pickup_qty: 0, delivery_qty: 11, amount: 2250, seq: 2, office_deposit: true, created_at: '2026-11-15T06:20:00Z' }])
       if (u.includes('rpc/da_settings')) return j(daSettings)
       if (u.includes('rpc/da_flow_list')) return j([{ session_id: 's1', hub_id: 'h1', needed: 2, people: 2, submitted: 2, accepted: 2, checked_at: '2026-11-15T13:00:00Z', report_ok_at: null, report_diff: null, bank_done_at: null },
         { session_id: 's2', hub_id: 'h2', needed: 1, people: 2, submitted: 2, accepted: 1, checked_at: null, report_ok_at: null, report_diff: null, bank_done_at: null }])
@@ -246,6 +255,13 @@ try {
 
     await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1', { state: 'attached' })
     check((await page.locator('.da-main h1').textContent()).includes('Owner'), `${size}: dashboard opens`); await fits('dashboard')
+    await page.waitForSelector('.rinbox .ri-list li', { timeout: 8000 }).catch(() => {})
+    check(await page.locator('.rinbox .ri-list li').count() === 2 && (await page.locator('.rinbox .da-bar button').innerText()).includes('৫৮৫০'),
+      `${size}: a manager sees what riders sent, with the total on the accept-all button`)
+    check(await page.locator('.rsend').count() === 0, `${size}: someone who is not a rider gets no send card`)
+    if (process.env.SHOTS) await page.locator('.rinbox').screenshot({ path: `${process.env.SHOTS}/${size}-rider-inbox.png` })
+    await page.locator('.rinbox .da-bar button').click(); await page.waitForFunction(() => !document.querySelector('.rinbox'), null, { timeout: 8000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_rider_accept_all' && c.p_session === 's2') && await page.locator('.rinbox').count() === 0, `${size}: accept all takes every line in one tap`)
 
     await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.font-pick')
     check(await page.locator('.font-pick button').count() === 5, `${size}: settings shows the font choices`); await fits('settings')
@@ -481,6 +497,18 @@ try {
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       await page.waitForSelector('.sp-hero')
+      await page.waitForSelector('.rsend .rs-grid input', { timeout: 8000 }).catch(() => {})
+      check(await page.locator('.rsend').count() === 1 && await page.locator('.rsend .rs-send').isDisabled() && await page.locator('.rsend .rs-list li').count() === 1,
+        `${size}: a rider sees the send card and today's line; send waits for a manager and a number`)
+      await page.locator('.rsend .rs-chip', { hasText: 'Abdul Karim' }).click()
+      const [pk, dl, am] = [0, 1, 2].map(i => page.locator('.rsend .rs-grid input').nth(i))
+      await pk.fill('৪'); await dl.fill('12'); await am.fill('2,500')
+      await fits('send card')
+      if (process.env.SHOTS) await page.locator('.rsend').screenshot({ path: `${process.env.SHOTS}/${size}-rider-send.png` })
+      await page.locator('.rsend .rs-send').click(); await page.waitForSelector('.rsend .rs-done', { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'da_rider_submit').at(-1) ?? {}
+        check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false && await page.locator('.rsend .rs-done').count() === 1,
+          `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
       check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
         `${size}: a rider gets one panel only, with everything they may open inside it`)

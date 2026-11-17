@@ -30,7 +30,17 @@ export type RiderLine = {
   mobile_banking: number; remarks: string | null
   /** Who wrote the line (whose khata it belongs to). */
   created_by?: string
+  /** 'rider' when the rider sent it from their own dashboard; it waits until the manager accepts it. */
+  source?: 'manager' | 'rider'; accepted_at?: string | null; seq?: number; office_deposit?: boolean
 }
+
+/** One line a rider sent today, as the rider sees it. */
+export type MyRiderSend = { id: string; seq: number; source: 'manager' | 'rider'; delivery: number; pickup: number; amount: number
+  office_deposit: boolean; manager: string | null; at: string; status: 'pending' | 'accepted' | 'taken' }
+/** The dashboard card: today's khata of my hub, whose khata is open, and what I already sent. */
+export type RiderOpen = { session_id: string | null; status?: SheetStatus; date: string; hub: string | null; is_rider: boolean
+  managers: Array<{ user_id: string; name: string | null; code: string | null; closed: boolean }>
+  mine: MyRiderSend[]; my_times: number; max_times: number; message?: string }
 
 export type OcrResult = Record<string, string | number | null> & { confidence?: number; text?: string }
 
@@ -324,6 +334,13 @@ export const da = {
   verify: (id: string, action: 'approve' | 'correction' | 'note', note?: string) =>
     rpc<void>('da_verify', { p_session: id, p_action: action, p_note: note ?? null }),
   myAccounts: (from: string, to: string) => rpc<MyAccounts>('da_my_accounts', { p_from: from, p_to: to }),
+  // ---- rider sends pickup, delivery and amount; the manager accepts ----
+  riderOpen: () => rpc<RiderOpen>('da_rider_open_managers', { p_date: null }),
+  riderSubmit: (a: { manager?: string | null; amount: number; delivery: number; pickup: number; office?: boolean; remarks?: string | null }) =>
+    rpc<string>('da_rider_submit', { p_manager: a.manager ?? null, p_amount: a.amount, p_delivery: a.delivery, p_pickup: a.pickup,
+      p_office: a.office ?? false, p_mobile_banking: 0, p_remarks: a.remarks ?? null, p_date: null }),
+  riderAccept: (line: string, accept = true, note?: string | null) => rpc<void>('da_rider_accept', { p_line: line, p_accept: accept, p_note: note ?? null }),
+  riderAcceptAll: (session: string) => rpc<number>('da_rider_accept_all', { p_session: session }),
   closeMyPart: (session: string, note?: string | null, done = true) =>
     rpc<void>('da_close_my_part', { p_session: session, p_note: note ?? null, p_done: done }),
   collectors: (session: string) => rpc<Collector[]>('da_collectors', { p_session: session }),
