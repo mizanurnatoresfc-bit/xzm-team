@@ -378,3 +378,28 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - UI: page `/app/me/complete` (always open: how full, what is missing, the hub profile form for oneself, photo / NID uploads shrunk to 1600 px);
   staff panel card "আমার প্রোফাইল X% পূর্ণ"; My Profile button. `components/PulsePopup.tsx` in AppShell (once per session);
   `pages/zonal/PulsePanel.tsx` on the zonal dashboard (new question with whole zone / hubs / posts, cards with counts, answers table, close).
+
+## 2026-11-17 — হাব অপারেশন ড্যাশবোর্ড (Hub Operations Dashboard) in the Zonal Manager panel
+- Owner's spec (17 Nov): a hub-wise dashboard of the zonal manager's zone; each hub has its own input panel with staff by designation
+  (Manager, Hub CC, Entry Man + configurable groups); total parcels, total pickups, remarks and operational reasons per hub; staff status
+  (Active / New Employee / Resigned and Present / Absent / Leave Applied / Leave Not Applied), every change logged with date, reason, hub, remarks;
+  hub summaries → one zonal summary; boss reports daily / weekly / monthly with Pending / Submitted / Reviewed; totals only from submitted inputs;
+  corrections with history; phone first; zone-scoped access; no duplicate employee or hub records.
+- Migration `20261117004000_hub_operations.sql` (additive). Tables (RLS on, no direct grants — only through functions): `hub_ops_reports`
+  (one per hub per day; null number = not entered; pending → submitted → reviewed; `version` + `last_correction`), `hub_ops_staff` (one row per person,
+  `employee_id` references HR; a person not in HR yet is written by name only — a mobile or same-hub name already in HR is refused),
+  `hub_ops_status_log` (append-only), `hub_ops_boss_reports` (snapshot of the summary as sent; no row = pending), `hub_ops_config` (per zone:
+  designation groups, reasons, hubs and weekdays without a report). Setting `zonal.hub_ops.defaults` (groups by post name match; week starts Saturday).
+  Permissions `zonal.hub_ops.view/create/edit/approve/export/configure`: zonal manager view/create/edit/export/configure (zone scope), head office
+  manager view/approve/export (the "boss"), auditor view/export, admin all. Zonal Assistant unchanged (its role test pins eight permissions).
+- Functions: `hub_ops_panel(hub, date)` (HR staff of the hub + hints: attendance register, leave application, last status, the hub's own
+  `hub_daily_metrics`), `hub_ops_save(hub, date, data, submit, reason)` (a submitted report changes only with a reason, goes back to "submitted"),
+  `hub_ops_review(ids, note)`, `hub_ops_summary(zone, from, to)`, `hub_ops_status_log`, `hub_ops_history(kind, id)` (old → new from `audit_logs`),
+  `hub_ops_boss_list/get/submit/review` (boss notified with kind `hub_ops`; review also marks the period's waiting hub reports reviewed),
+  `hub_ops_settings/configure`, `hub_ops_people_search`. Maker / checker: whoever submitted cannot review.
+  Resigned in a hub report does NOT change HR; the panel offers "এইচআর-এও চাকরি ছেড়েছেন করুন", which calls the existing `hr_change_status`.
+- Pages: `/app/zonal/hub-ops` (tabs হাবগুলো · জোনাল সারাংশ · বসের রিপোর্ট · স্ট্যাটাস লগ · সেটিং) and `/app/zonal/hub-ops/hub/:hubId?date=` (input panel:
+  big number boxes, reason chips, four one-tap attendance buttons per person, "বাকি সবাই উপস্থিত", "হাজিরা খাতা ও ছুটির আবেদন থেকে নিন",
+  floating save bar above the phone menu, "পরের হাব →"). Menu: Zonal Manager panel → জোন ও হাব; shortcut on the Zonal dashboard.
+- Tests: `supabase/tests/99zzzzzzzzzzzzz_hub_operations.sql` (72). Browser check at 390 px and 1366 px against the real SQL functions on a local DB.
+- **17 Nov — live:** migration applied to Supabase as `hub_operations` (25 functions; fingerprint = repo), site released by merging to `main`.

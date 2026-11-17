@@ -78,3 +78,4 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261117000200_phone_push.sql` | 20261117042720 phone_push |
 | `20261117000300_sync_live_functions.sql` | 20261117000300 sync_live_functions |
 | `20261117000400_foreign_key_indexes_2.sql` | foreign_key_indexes_2 |
+| `20261117004000_hub_operations.sql` | hub_operations (function fingerprints match the repo) |

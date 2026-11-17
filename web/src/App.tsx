@@ -37,6 +37,8 @@ const Referrals = lazy(() => import('./pages/hr/Referrals').then(m => ({ default
 const ZonalDashboard = lazy(() => import('./pages/zonal/ZonalDashboard').then(m => ({ default: m.ZonalDashboard })))
 const ZonalFiles = lazy(() => import('./pages/zonal/ZonalFiles').then(m => ({ default: m.ZonalFiles })))
 const Manpower = lazy(() => import('./pages/Manpower').then(m => ({ default: m.Manpower })))
+const HubOps = lazy(() => import('./pages/zonal/HubOps').then(m => ({ default: m.HubOps })))
+const HubOpsPanel = lazy(() => import('./pages/zonal/HubOpsPanel').then(m => ({ default: m.HubOpsPanel })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
@@ -107,6 +109,8 @@ export default function App() {
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />
       <Route path="/app/zonal/staff" element={<ZonalStaff />} />
+      <Route path="/app/zonal/hub-ops" element={<HubOps />} />
+      <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       <Route path="/app/manpower" element={<Manpower />} />
       <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />
