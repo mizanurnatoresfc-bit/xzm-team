@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -66,6 +66,9 @@ const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ de
 const References = lazy(() => import('./pages/References').then(m => ({ default: m.References })))
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
+const MyWorkforce = lazy(() => import('./pages/workforce/MyWorkforce').then(m => ({ default: m.MyWorkforce })))
+const WorkforceHub = lazy(() => import('./pages/workforce/WorkforceHub').then(m => ({ default: m.WorkforceHub })))
+const WorkforceZone = lazy(() => import('./pages/workforce/WorkforceZone').then(m => ({ default: m.WorkforceZone })))
 
 // After the first screen is shown, quietly fetch the most-used pages so later taps open at once.
 const WARM: Array<() => Promise<unknown>> = [
@@ -73,6 +76,7 @@ const WARM: Array<() => Promise<unknown>> = [
   () => import('./pages/hr/Attendance'), () => import('./pages/hr/Requests'), () => import('./pages/accounts/DailyDashboard'), () => import('./pages/accounts/DailySheet'),
   () => import('./pages/MyProfile'), () => import('./pages/zonal/ZonalStaff'), () => import('./pages/hr/EmployeeProfile'),
   () => import('./pages/org/OrgSetup'), () => import('./pages/sorting/Sorting'), () => import('./pages/office/Office'),
+  () => import('./pages/workforce/MyWorkforce'),
 ]
 if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
   && !(navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) {
@@ -83,6 +87,13 @@ if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
 }
 
 const Loading = () => <div className="page-loading" role="status"><span className="spin" />লোড হচ্ছে…</div>
+
+/** A page open to anyone who holds at least one of the permissions (ProtectedRoute takes a single one). The database re-checks every call. */
+function AnyOf({ perms }: { perms: string[] }) {
+  const { can } = useAuth()
+  return perms.some(can) ? <Outlet /> : <main className="center-screen">
+    <section className="notice"><h1>অনুমতি নেই</h1><p>এই পেজ ব্যবহারের প্রয়োজনীয় অনুমতি আপনার অ্যাকাউন্টে নেই।</p></section></main>
+}
 
 /** The home page: a staff member gets the staff panel, everyone else the dashboard. */
 function HomeOrPanel() {
@@ -141,6 +152,15 @@ export default function App() {
       <Route path="/app/training" element={<Training />} />
       <Route path="/app/zonal/assistant" element={<ZonalAssistant />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
+      {/* My Workforce & Attendance: my own three pages, the hub book and the zone report ('hub' and 'zone' come before ':tab') */}
+      <Route path="/app/workforce" element={<Navigate to="/app/workforce/attendance" replace />} />
+      <Route element={<AnyOf perms={['hr.attendance.view', 'ops.staff_daily.view']} />}>
+        <Route path="/app/workforce/hub" element={<WorkforceHub />} />
+      </Route>
+      <Route path="/app/workforce/:tab" element={<MyWorkforce />} />
+    </Route>
+    <Route element={<ProtectedRoute permission="zonal.dashboard.view" />}>
+      <Route path="/app/workforce/zone" element={<WorkforceZone />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.user.view" />}>
       <Route path="/app/users" element={<Users />} />

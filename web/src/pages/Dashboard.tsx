@@ -14,6 +14,8 @@ import { VIEWS, VIEW_OF, dashboard, dashboardFriendly, panelLabel, pickedView, s
 import { HubTodayPanel, MyDayPanel } from '../components/HomePanels'
 import { MyApprovalCard } from '../components/MyApprovals'
 import { RiderSendCard } from '../components/RiderQuick'
+import { PersonalMenu } from '../components/PersonalMenu'
+import { WorkforceAlerts } from '../components/WorkforceAlerts'
 
 const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
   ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
@@ -84,6 +86,8 @@ export function Dashboard() {
         <div className="g-motto">Less Work · More Automation · Better Manage</div></div>
       {d?.my_work && <div className="g-badge"><b>{n(d.my_work.tasks_open)}</b>{L('খোলা কাজ', 'open tasks')}</div>}
     </div>
+    {/* the three personal entries under the name card, and what is waiting on me (attendance, daily numbers, approvals) */}
+    <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
     {isSuperAdmin && !viewAs && <Link to="/app/role-dashboards" className="dash-edit"><Icon name="gear" size={15} />{L('ড্যাশবোর্ড সাজান', 'Arrange dashboard')}</Link>}
     {views.length > 1 && <div className="view-switch" role="tablist" aria-label={L('ড্যাশবোর্ড', 'Dashboard')}>
       {views.map(([v, bn, en, ic]) => <button key={v} type="button" role="tab" aria-selected={cur === v} className={cur === v ? 'on' : ''} onClick={() => pickView(v)}>

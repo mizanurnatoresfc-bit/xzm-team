@@ -1,10 +1,13 @@
-import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { NodiGaps } from '../../components/NodiGaps'
+import { DailyOpsCard } from '../../components/DailyOpsCard'
+import { PersonalMenu } from '../../components/PersonalMenu'
+import { WorkforceAlerts } from '../../components/WorkforceAlerts'
 import { RiderSendCard } from '../../components/RiderQuick'
 import { da, addDays, todayDhaka, type Claim } from '../../lib/dailyAccounts'
 import { dashboard } from '../../lib/dashboard'
@@ -16,6 +19,7 @@ import { issues } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { fleet } from '../../lib/fleet'
+import { useLiveLoad, wf } from '../../lib/workforce'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
@@ -59,6 +63,14 @@ export function StaffPanel() {
     return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car }
   }, [])
   const v = d.data
+  // Today's four numbers (My Workforce): the returns tile reads them; the input card below saves them. Live, so a submit shows here at once.
+  const ops = useLiveLoad(() => wf.myOps(1), [], ['wf_daily_ops'])
+  const todayOps = ops.data?.entry ?? null
+  const returnsToday = todayOps ? todayOps.pickup_return + todayOps.delivery_return : null
+  const opsHere = !!ops.data && !ops.error   // a login with no active staff profile gets no input card
+  const { hash } = useLocation()
+  useEffect(() => { if (hash === '#wf-ops' && opsHere) document.getElementById('wf-ops')?.scrollIntoView({ block: 'start' }) }, [hash, opsHere])
+  const toOps = (e: MouseEvent) => { const el = document.getElementById('wf-ops'); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }) } }
   const gapQ = useLoad(() => v?.me ? hr.profileGaps().then(l => l.find(g => g.employee_id === v.me!.id) ?? null).catch(() => null) : Promise.resolve(null), [v?.me?.id])
   const profilePct = gapQ.data ? Math.round(100 * (gapQ.data.total_checks - gapQ.data.missing.length) / Math.max(1, gapQ.data.total_checks)) : null
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
@@ -125,6 +137,7 @@ export function StaffPanel() {
         <span className="tx"><small>{day}</small><b>{name}</b>{who && <span>{who}</span>}</span>
         <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>
       </Link>
+      <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       {profilePct !== null && profilePct < 100 && <Link to="/app/me/complete" className="sp-card t-w mpc-nudge">
         <span className="i"><Icon name="user" size={24} /></span>
@@ -136,7 +149,9 @@ export function StaffPanel() {
       <div className="sp-tiles">
         <Link to="/app/accounts/mine" className="sp-tile t-b"><span className="i"><Icon name="box" size={20} /></span><b>{n(sum(l => l.line.pickup_qty))}</b><small>{L('আজকের পিকআপ', 'Pickups today')}</small></Link>
         <Link to="/app/accounts/mine" className="sp-tile t-g"><span className="i"><Icon name="truck" size={20} /></span><b>{n(sum(l => l.line.delivery_qty))}</b><small>{L('আজকের ডেলিভারি', 'Deliveries today')}</small></Link>
-        <div className="sp-tile t-o off"><span className="i"><Icon name="back" size={20} /></span><b>—</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small><span className="sp-soon">{L('শীঘ্রই', 'Soon')}</span></div>
+        {opsHere
+          ? <a href="#wf-ops" className="sp-tile t-o" onClick={toOps}><span className="i"><Icon name="back" size={20} /></span><b>{returnsToday === null ? '—' : n(returnsToday)}</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></a>
+          : <div className="sp-tile t-o off"><span className="i"><Icon name="back" size={20} /></span><b>—</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></div>}
         <Link to="/app/accounts/mine" className="sp-tile t-p"><span className="i"><Icon name="cash" size={20} /></span><b>{taka(sum(l => Number(l.line.amount)))}</b><small>{L('আজকের টাকা', 'Money today')}</small></Link>
       </div>
       <RiderSendCard onSent={() => d.reload()} />
@@ -144,6 +159,11 @@ export function StaffPanel() {
         {row('/app/accounts/mine', 'g', 'wallet', L('আমার হিসাব', 'My accounts'), mine.length ? L('আজকের হিসাব খাতায় উঠেছে', "Today's line is on the sheet") : L('আজ এখনো আমার নামে হিসাব ওঠেনি', 'No line in my name yet today'))}
         {row('/app/accounts/mine', due > 0 ? 'o' : 'b', 'ledger', L('আমার আগের হিসাব', 'My earlier accounts'), due > 0 ? L(`৩০ দিনে বকেয়া ${taka(due)}`, `Due in 30 days ${taka(due)}`) : L('৭ দিন, ৩০ দিন, এ মাস বা তারিখ বেছে', '7 days, 30 days, this month or pick dates'))}
       </div>
+
+      {opsHere && <section id="wf-ops" className="wf-ops-sec">
+        <h2 className="sd-h">{L('আজকের কাজের হিসাব', "Today's work count")}</h2>
+        <DailyOpsCard />
+      </section>}
 
       <h2 className="sd-h">{L('আজকের হাজিরা', "Today's attendance")}</h2>
       <div className={`sp-card t-${attTone}`} id="sp-att">
