@@ -337,3 +337,14 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Migration `20261117000700_brought_people_many.sql` (applied live): `employee_reference_requests.action` ('set' | 'remove'), `hr_reference_many(p_employees[], p_action, p_referrer, p_note)` → `{applied, waiting}` (HR applies at once, others wait), `hr_reference_brought_pending(p_referrer)`, `private.ref_apply`. `ref_can_ask` now also lets the current referrer ask about the people they brought.
 - Profile: brought list is a compact card list with checkboxes, "সব বাছুন", "সরান (n)", per-row বদলান / সরান, "+ যোগ করুন" (hub → tick many, or paste many Employee IDs). Waiting adds/removals show as dashed "অপেক্ষায়" lines. HR's "যিনি এনেছেন" tab shows removal requests.
 - Tests: `99zzzzzzzzzz_brought_many.sql`. Full suite 1293 pass.
+
+## 2026-11-17 — Calm look across the whole app (owner approved the demo)
+- Owner looked at the demo (three phone screens) and said "ভালো লাগছে, সব পাতায় এভাবে বানাও"; then asked for the look to go live on its own,
+  ahead of the features waiting on branch `claude/route-panel-location-rider-lnznbs`.
+- CSS only, no page logic: every `font-size` of 10–12.5px in theme.css / accounts.css raised (10→12, 11→13, 12→13.5, 12.5→14); body 16px;
+  and a final "Calm look" block at the END of `web/src/theme.css` (loaded last, wins over the colourful phone layer): one main green `#15803D`
+  (orange warning, red problem, blue leave/info, through theme variables so dark mode follows); flat cards with a thin border, no shadows or
+  gradients; white number tiles with the number big and no icon blob; plain staff greeting and profile cover; green "+" button; phone tables
+  as plain divided rows; label · amount tables keep the amount on the right in bold. Hind Siliguri first in the font stack.
+- To change the look later, edit that last block, not the older layers above it.
+- Not done yet: dates written as 01/01/2026 and some English words (Rider, HR, Staff); the employee list's phone cards are still tall.
