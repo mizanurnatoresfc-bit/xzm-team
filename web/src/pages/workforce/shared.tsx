@@ -27,9 +27,19 @@ export const fmtDay = (iso: string, lang: Lang) => dateText(iso, lang, { day: 'n
 export const fmtLong = (iso: string, lang: Lang) => dateText(iso, lang, { weekday: 'long', day: 'numeric', month: 'long' })
 /** "সোম" */
 export const fmtWeekday = (iso: string, lang: Lang) => dateText(iso, lang, { weekday: 'short' })
+const BN_DIGITS = '০১২৩৪৫৬৭৮৯'
+/** The day of a timestamp on the Dhaka calendar: "১৭ নভেম্বর". */
+export const fmtTsDay = (ts: string, lang: Lang) => new Date(ts).toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'long' })
+/** The time of a timestamp on the Dhaka clock: "সকাল ১০:১৫" / "10:15 am". */
+export const fmtTime = (ts: string, lang: Lang) => {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ts))
+  const h = Number(p.find(x => x.type === 'hour')?.value) % 24; const m = p.find(x => x.type === 'minute')?.value ?? '00'
+  if (lang === 'en') return `${h % 12 || 12}:${m} ${h < 12 ? 'am' : 'pm'}`
+  const part = h >= 4 && h < 12 ? 'সকাল' : h < 16 ? 'দুপুর' : h < 18 ? 'বিকেল' : h < 20 ? 'সন্ধ্যা' : 'রাত'
+  return `${part} ${`${h % 12 || 12}:${m}`.replace(/\d/g, d => BN_DIGITS[+d])}`
+}
 /** A moment on the Dhaka clock: "১৭ নভেম্বর, সকাল ১০:১৫". */
-export const fmtStamp = (ts: string | null | undefined, lang: Lang) => !ts ? '—'
-  : new Date(ts).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' })
+export const fmtStamp = (ts: string | null | undefined, lang: Lang) => !ts ? '—' : `${fmtTsDay(ts, lang)}, ${fmtTime(ts, lang)}`
 export const monthName = (ym: string, lang: Lang) => dateText(`${ym.slice(0, 7)}-01`, lang, { month: 'long', year: 'numeric' })
 
 // ------------------------------------------------------------------ the hub the person works in (same memory as the hub pages)
@@ -247,8 +257,8 @@ export function WmTable<T>({ cols, rows, rowKey, onRow, rowCls, title, file, sub
       <span className="wm-grow" />
       {extraTools}
       {exp.length > 0 && <>
-        <button type="button" className="secondary sm" onClick={() => { const d = data(); exportRows(title, subtitle, d.heads, d.rows, file) }}><Icon name="xls" size={15} />{L('এক্সেল', 'Excel')}</button>
-        <button type="button" className="secondary sm" onClick={() => { const d = data(); printRows(title, subtitle, d.heads, d.rows) }}><Icon name="print" size={15} />{L('প্রিন্ট', 'Print')}</button></>}
+        <button type="button" className="secondary sm" aria-label={L('এক্সেল ফাইল', 'Excel file')} title={L('এক্সেল', 'Excel')} onClick={() => { const d = data(); exportRows(title, subtitle, d.heads, d.rows, file) }}><Icon name="xls" size={15} /><span className="wm-bl">{L('এক্সেল', 'Excel')}</span></button>
+        <button type="button" className="secondary sm" aria-label={L('প্রিন্ট', 'Print')} title={L('প্রিন্ট', 'Print')} onClick={() => { const d = data(); printRows(title, subtitle, d.heads, d.rows) }}><Icon name="print" size={15} /><span className="wm-bl">{L('প্রিন্ট', 'Print')}</span></button></>}
     </div>
     <div className="wm-scroll" tabIndex={0} role="region" aria-label={title}>
       <table className={`wm-tbl${grid ? ' grid' : ''}`}>

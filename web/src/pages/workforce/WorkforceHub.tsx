@@ -8,10 +8,10 @@ import { todayDhaka } from '../../lib/dailyAccounts'
 import { usePrefs } from '../../lib/prefs'
 import { ACTION_META, APP_META, CELL_META, LIVE, monthOf, useLiveLoad, wf, wfFriendly,
   type AbsenceApp, type AppStatus, type BookCell, type CellCode, type Can, type Decided, type History, type HubBook, type HubBookPerson, type HubOverview, type HubPerson,
-  type IsoDate, type Mark, type MarkStatus, type OpsReport } from '../../lib/workforce'
+  type IsoDate, type Mark, type MarkStatus, type OpsReport, type OpsTotals } from '../../lib/workforce'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { AS_OPTIONS, ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, NoteDialog, Notice, RangeBar, Section, Who, WmTable, decideMarks, exportRows,
-  fmtDay, fmtLong, fmtStamp, fmtWeekday, lastMonths, monthName, prevMonth, recordLabel, rememberHub, siteText, storedHub, toneOfRecord, useHubList, useRange,
+  fmtDay, fmtLong, fmtStamp, fmtTime, fmtTsDay, fmtWeekday, lastMonths, monthName, prevMonth, recordLabel, rememberHub, siteText, storedHub, toneOfRecord, useHubList, useRange,
   type WCol } from './shared'
 
 /**
@@ -146,7 +146,7 @@ function TodayTab({ ov, hubId, go, reload }: { ov: HubOverview; hubId: string; g
 
   return <>
     {node}
-    <Section title={L('আজকের হাজিরা', "Today's attendance")} hint={fmtLong(ov.date, lang)}
+    {att && <Section title={L('আজকের হাজিরা', "Today's attendance")} hint={fmtLong(ov.date, lang)}
       tools={att && ov.can.decide && ov.pending.marks > 0 ? <button type="button" disabled={busy} onClick={() => void openOneTap()}><Icon name="checkall" size={16} />{L(`সব অপেক্ষমাণ অনুমোদন (${n(ov.pending.marks)})`, `Approve all waiting (${ov.pending.marks})`)}</button> : undefined}>
       {err && !tap ? <p className="da-error" role="alert">{err}</p> : null}
       <div className="da-stats">
@@ -161,10 +161,11 @@ function TodayTab({ ov, hubId, go, reload }: { ov: HubOverview; hubId: string; g
           <Stat icon="log" tone={ov.pending.marks ? 'warn' : undefined} label={L('অনুমোদনের অপেক্ষায়', 'Waiting approval')} value={n(ov.pending.marks)} />
           <Stat icon="form" tone={ov.pending.applications ? 'warn' : undefined} label={L('আবেদন অপেক্ষায়', 'Applications waiting')} value={n(ov.pending.applications)} /></>}
       </div>
-    </Section>
+    </Section>}
 
     {o && <Section title={L('আজকের পিকআপ · রিটার্ন · ডেলিভারি', "Today's pickup · return · delivery")} tools={<button type="button" className="secondary sm" onClick={() => go('ops')}>{L('বিস্তারিত রিপোর্ট', 'Full report')}</button>}>
       <div className="da-stats">
+        {!att && <Stat icon="users" label={L('মোট কর্মী', 'Staff')} value={n(ov.staff_total)} />}
         <Stat icon="box" label={L('পিকআপ', 'Pickup')} value={n(o.pickup)} />
         <Stat icon="swap" label={L('পিকআপ রিটার্ন', 'Pickup return')} value={n(o.pickup_return)} />
         <Stat icon="truck" label={L('ডেলিভারি', 'Delivery')} value={n(o.delivery)} />
@@ -176,15 +177,15 @@ function TodayTab({ ov, hubId, go, reload }: { ov: HubOverview; hubId: string; g
 
     <Section title={L('কর্মীদের আজকের অবস্থা', 'Where everyone stands today')}>
       <div className="wm-filters no-print">
-        <div className="wm-chips" role="group" aria-label={L('ফিল্টার', 'Filter')}>
-          {chip('all', 'সবাই', 'All')}{chip('missing', 'বাকি', 'Not given')}{chip('waiting', 'অপেক্ষায়', 'Waiting')}{chip('absent', 'অনুপস্থিত', 'Absent')}{chip('present', 'উপস্থিত', 'Present')}</div>
+        {att && <div className="wm-chips" role="group" aria-label={L('ফিল্টার', 'Filter')}>
+          {chip('all', 'সবাই', 'All')}{chip('missing', 'বাকি', 'Not given')}{chip('waiting', 'অপেক্ষায়', 'Waiting')}{chip('absent', 'অনুপস্থিত', 'Absent')}{chip('present', 'উপস্থিত', 'Present')}</div>}
         <input type="search" className="wm-search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('নাম, আইডি বা মোবাইল খুঁজুন…', 'Search name, ID or mobile…')} aria-label={L('খুঁজুন', 'Search')} />
       </div>
       {!list.length ? <Empty>{ov.people.length ? L('এই ফিল্টারে কেউ নেই।', 'No one matches.') : L('এই হাবে কোনো সক্রিয় কর্মী নেই।', 'No active staff in this hub.')}</Empty> :
         <ul className="wm-people">{list.map(([p, s]) => <li key={p.employee_id} className={`wm-prow s-${s}`}>
           <Who name={p.name} code={p.code} position={p.position} />
           <span className="wm-pst">
-            {s === 'present' || s === 'absent' || s === 'off' ? <Badge tone={toneOfRecord(p.record_status)}>{recordLabel(p.record_status, lang)}</Badge>
+            {!att ? null : s === 'present' || s === 'absent' || s === 'off' ? <Badge tone={toneOfRecord(p.record_status)}>{recordLabel(p.record_status, lang)}</Badge>
               : s === 'waiting' ? <Badge tone="info">{L('দিয়েছেন', 'Given')}{p.mark_kind ? ` · ${p.mark_kind === 'present' ? L('উপস্থিত', 'present') : L('অনুপস্থিত', 'absent')}` : ''} · {L('অপেক্ষায়', 'waiting')}</Badge>
                 : s === 'returned' ? <Badge tone="bad">{L('ফেরত — আবার দেবেন', 'Returned')}</Badge> : <Badge tone="warn">{L('বাকি', 'Not given')}</Badge>}
             {p.ops_submitted !== null && <Badge tone={p.ops_submitted ? 'ok' : 'neutral'}>{p.ops_submitted ? L('হিসাব দিয়েছেন', 'Numbers given') : L('হিসাব বাকি', 'Numbers due')}</Badge>}
@@ -308,7 +309,7 @@ function DaySheet({ hubId, can, person, date, cell, go, onClose, onChanged }: {
   const run = async (fn: () => Promise<unknown>, msg: string) => { setBusy(true); setErr(''); try { await fn(); onChanged(msg) } catch (e) { setErr(wfFriendly(e)); setBusy(false) } }
   const tone = CELL_META[cell.s].tone
 
-  return <Modal title={`${person.name} · ${fmtDay(date, lang)}`} onClose={onClose} actions={<button type="button" className="secondary" onClick={onClose}>{L('বন্ধ করুন', 'Close')}</button>}>
+  return <Modal title={person.name} onClose={onClose} actions={<button type="button" className="secondary" onClick={onClose}>{L('বন্ধ করুন', 'Close')}</button>}>
     <p className="wm-sheet-sub"><span className="muted small">{fmtLong(date, lang)}{person.code ? ` · ${n(person.code)}` : ''}</span>
       <Badge tone={tone}>{lang === 'bn' ? CELL_LABEL[cell.s][0] : CELL_LABEL[cell.s][1]}</Badge></p>
     {d.loading && !d.data ? <Loading /> : d.error ? <p className="da-error" role="alert">{wfFriendly(d.error)}</p> : <>
@@ -516,7 +517,7 @@ function OpsTab({ hubId }: { hubId: string }) {
   const [edit, setEdit] = useState<OpsReport['rows'][number] | null>(null)
   const [hist, setHist] = useState<OpsReport['rows'][number] | null>(null)
   const label = (k: typeof NUM_CHIPS[number]) => k === 'pickup' ? L('পিকআপ', 'Pickup') : k === 'pickup_return' ? L('পিকআপ রিটার্ন', 'Pickup return') : k === 'delivery' ? L('ডেলিভারি', 'Delivery') : L('ডেলিভারি রিটার্ন', 'Delivery return')
-  const nums = <T extends { pickup: number; pickup_return: number; delivery: number; delivery_return: number }>(foot?: T | null): Array<WCol<T>> =>
+  const nums = <T extends OpsTotals>(foot?: OpsTotals | null): Array<WCol<T>> =>
     NUM_CHIPS.map(k => ({ key: k, label: label(k), num: true, sort: true, text: (x: T) => x[k], cell: (x: T) => n(x[k]), foot: foot ? <b>{n(foot[k])}</b> : undefined }))
   const sub = `${fmtDay(r.from, lang)}${r.from !== r.to ? ` – ${fmtDay(r.to, lang)}` : ''}`
 
@@ -540,6 +541,7 @@ function OpsTab({ hubId }: { hubId: string }) {
         <ul className="wm-people">{d.missing_today.map(p => <li key={p.employee_id} className="wm-prow"><Who name={p.name} code={p.code} position={p.position} /><span className="wm-pst" /><Contact phone={p.mobile} showNumber={false} text={L('আজকের পিকআপ-ডেলিভারির সংখ্যা দিন', 'Please give today’s numbers')} /></li>)}</ul>
       </Section>}
 
+      {!d.rows.length ? <Section title={L('এই সময়ের রিপোর্ট', 'Report for this period')}><Empty>{L('এই সময়ে কেউ পিকআপ-ডেলিভারির সংখ্যা দেননি।', 'No one gave pickup / delivery numbers in this period.')}</Empty></Section> : <>
       <Section title={L('কর্মী অনুযায়ী', 'By person')}>
         <WmTable<OpsReport['by_person'][number]> cols={[
           { key: 'who', label: L('কর্মী', 'Person'), primary: true, sort: true, text: p => p.name, cell: p => <Who name={p.name} code={p.code} position={p.position} /> },
@@ -559,8 +561,8 @@ function OpsTab({ hubId }: { hubId: string }) {
 
       <Section title={L('সব এন্ট্রি', 'All entries')} hint={d.can_edit ? L('ভুল হলে “সংশোধন” চাপুন — কারণ লিখতে হবে, ইতিহাসে থাকবে।', 'Use “Correct” for a wrong number — a reason is needed and it stays in the history.') : undefined}>
         <WmTable<OpsReport['rows'][number]> cols={[
-          { key: 'date', label: L('তারিখ', 'Date'), sort: true, text: x => x.work_date, cell: x => <span className="wm-dt"><b>{fmtDay(x.work_date, lang)}</b><small>{fmtWeekday(x.work_date, lang)}</small></span> },
           { key: 'who', label: L('কর্মী', 'Person'), primary: true, sort: true, text: x => x.employee_name, cell: x => <Who name={x.employee_name} code={x.employee_code} position={x.position} /> },
+          { key: 'date', label: L('তারিখ', 'Date'), sort: true, text: x => x.work_date, cell: x => <span className="wm-dt"><b>{fmtDay(x.work_date, lang)}</b><small>{fmtWeekday(x.work_date, lang)}</small></span> },
           ...nums<OpsReport['rows'][number]>(),
           { key: 'rev', label: L('সংশোধন', 'Edits'), num: true, text: x => x.revision - 1, cell: x => x.revision > 1 ? <Badge tone="info">{n(x.revision - 1)}</Badge> : <span className="muted">—</span> },
           { key: 'note', label: L('কথা', 'Note'), text: x => x.note ?? '', cell: x => x.note ? <span className="wm-wrap">{x.note}</span> : <span className="muted">—</span> },
@@ -569,7 +571,7 @@ function OpsTab({ hubId }: { hubId: string }) {
             {d.can_edit && <button type="button" className="secondary sm" onClick={() => setEdit(x)}><Icon name="edit" size={14} />{L('সংশোধন', 'Correct')}</button>}</span> },
         ]} rows={d.rows} rowKey={x => x.id} grid title={L('দৈনিক এন্ট্রি', 'Daily entries')} file={`ops-entries-${r.from}`} sub={sub}
           empty={<Empty>{L('এই সময়ে কোনো এন্ট্রি নেই।', 'No entries in this period.')}</Empty>} />
-      </Section>
+      </Section></>}
     </div>}
 
     {edit && <OpsEdit row={edit} onClose={() => setEdit(null)} onDone={() => { setEdit(null); void q.reload(); toast(L('সংশোধন হয়েছে', 'Corrected')) }} />}
@@ -615,7 +617,7 @@ function changeText(h: History, lang: 'bn' | 'en'): string {
 }
 
 function HistoryTab({ hubId, today }: { hubId: string; today: IsoDate }) {
-  const { L, n, lang } = usePrefs()
+  const { L, lang } = usePrefs()
   const [month, setMonth] = useState<IsoDate>(monthOf(today))
   const [find, setFind] = useState('')
   const q = useLiveLoad<History[]>(() => wf.history({ hub: hubId }, month, 200), [hubId, month], LIVE.manage)
@@ -629,7 +631,7 @@ function HistoryTab({ hubId, today }: { hubId: string; today: IsoDate }) {
     {!q.data && !q.error ? <Loading /> : null}
     {q.data && <div className={q.loading ? 'wm-stale' : ''}>
       <WmTable<History> cols={[
-        { key: 'at', label: L('সময়', 'When'), sort: true, text: h => h.at, cell: h => <span className="wm-dt"><b>{fmtDay(h.at, lang)}</b><small>{fmtStamp(h.at, lang).split(', ').slice(1).join(', ')}</small></span> },
+        { key: 'at', label: L('সময়', 'When'), sort: true, text: h => h.at, cell: h => <span className="wm-dt"><b>{fmtTsDay(h.at, lang)}</b><small>{fmtTime(h.at, lang)}</small></span> },
         { key: 'who', label: L('কর্মী', 'Person'), primary: true, sort: true, text: h => h.employee_name, cell: h => <Who name={h.employee_name} code={h.employee_code} /> },
         { key: 'date', label: L('তারিখ', 'Date'), sort: true, text: h => h.work_date, cell: h => fmtDay(h.work_date, lang) },
         { key: 'act', label: L('কাজ', 'Action'), sort: true, text: h => ACTION_META[h.action].bn, cell: h => <Badge tone={h.action === 'returned' ? 'bad' : h.action === 'approved' ? 'ok' : h.action === 'corrected' ? 'warn' : 'info'}>{lang === 'bn' ? ACTION_META[h.action].bn : ACTION_META[h.action].en}</Badge> },
