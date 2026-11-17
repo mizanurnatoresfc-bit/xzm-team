@@ -11,14 +11,19 @@ const WITH: Record<string, string[]> = {
   '/app/hr/employees': ['/app/hr/applications'],
 }
 const bare = (p: string) => p.split('?')[0].replace(/\/+$/, '') || '/app'
+/** "আজকের হিসাব" is one door for the pages it opens: a role given either of them (older page lists) still gets the door, and the door opens both. */
+const DOOR: Record<string, string[]> = { '/app/accounts/today': ['/app/accounts/khata', '/app/accounts/daily'] }
+WITH['/app/accounts/today'] = DOOR['/app/accounts/today']
 
 /** A menu entry is shown when it is on the list. */
 export const inMenu = (menu: string[] | null, to: string) => !menu || ALWAYS.includes(bare(to)) || menu.includes(to) || menu.map(bare).includes(bare(to))
+  || (DOOR[bare(to)] ?? []).some(p => menu.map(bare).includes(p))
 /** A page may be opened when it is on the list, under a listed page, or belongs to one. */
 export function pageAllowed(menu: string[] | null, pathname: string): boolean {
   if (!menu) return true
   const here = bare(pathname)
   if (ALWAYS.includes(here)) return true
+  if (DOOR[here] && inMenu(menu, here)) return true
   const open = menu.map(bare).flatMap(p => [p, ...(WITH[p] ?? [])])
   return open.some(p => p !== '/app' && (here === p || here.startsWith(p + '/')))
 }

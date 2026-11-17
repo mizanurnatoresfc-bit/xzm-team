@@ -74,15 +74,18 @@ export function DailySheet() {
     {s.session.status === 'correction' && s.session.verify_note && <p className="notice">সংশোধন প্রয়োজন: {s.session.verify_note}</p>}
     {s.session.status === 'approved' && <p className="da-ok">অনুমোদিত — {s.session.verified_by_name} · {timeBn(s.session.verified_at)}{s.session.verify_note ? ` · “${s.session.verify_note}”` : ''}</p>}
     {s.session.closed_at && <p className="da-ok">আজকের হিসাব ক্লোজ — {timeBn(s.session.closed_at)}</p>}
-    {t && <section className="da-stats">
-      <Stat label="রাইডার" value={num(t.riders)} /><Stat label="ডেলিভারি" value={num(t.delivery)} /><Stat label="পিকআপ" value={num(t.pickup)} />
-      <Stat label="টাকা" value={taka(t.amount)} /><Stat label="বকেয়া" value={taka(t.due)} tone={t.due > 0 ? 'warn' : undefined} />
-      <Stat label="মোবাইল ব্যাংকিং" value={taka(t.mobile_banking)} sub="আলাদা হিসাব" />
-      <Stat label="পেমেন্ট" value={taka(t.merchant_cash)} />
-      <Stat label="মোট খরচ" value={taka(t.transport_expense + t.employee_expense)} />
-    </section>}
-
-    <FlowPanel s={s} settings={st} reload={reload} viewing={viewing} onView={u => { setViewing(u); if (u) setTab('riders') }} />
+    <FlowPanel s={s} settings={st} reload={reload} viewing={viewing} onView={u => { setViewing(u); if (u) setTab('riders') }}
+      onStart={() => { setTab('riders'); window.setTimeout(() => [...document.querySelectorAll<HTMLButtonElement>('.print-area button')].find(x => x.textContent?.trim() === '＋ রাইডার যোগ')?.click(), 60) }}
+      summary={t ? <details className="sh-sum no-print">
+        <summary><span><b>{taka(t.amount)}</b> টাকা</span><span className={t.due > 0 ? 'warn' : ''}><b>{taka(t.due)}</b> বকেয়া</span>
+          <span><b>{taka(t.transport_expense + t.employee_expense)}</b> খরচ</span><span><b>{num(t.riders)}</b> রাইডার</span><i>সব সংখ্যা</i></summary>
+        <section className="da-stats">
+          <Stat label="রাইডার" value={num(t.riders)} /><Stat label="ডেলিভারি" value={num(t.delivery)} /><Stat label="পিকআপ" value={num(t.pickup)} />
+          <Stat label="টাকা" value={taka(t.amount)} /><Stat label="বকেয়া" value={taka(t.due)} tone={t.due > 0 ? 'warn' : undefined} />
+          <Stat label="মোবাইল ব্যাংকিং" value={taka(t.mobile_banking)} sub="আলাদা হিসাব" />
+          <Stat label="পেমেন্ট" value={taka(t.merchant_cash)} />
+          <Stat label="মোট খরচ" value={taka(t.transport_expense + t.employee_expense)} />
+        </section></details> : null} />
     {viewing && <p className="notice no-print" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>শুধু <b>{(s.collectors ?? []).find(c => c.user_id === viewing)?.name ?? '—'}</b>-এর খাতা দেখাচ্ছে (রাইডার, পেমেন্ট, খরচ)।
       <button type="button" className="secondary sm" onClick={() => setViewing(null)}>সবার খাতা দেখুন</button></p>}
 
@@ -330,18 +333,18 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
   const total = s.merchant_payments.reduce((a, m) => a + m.amount, 0)
 
   // ---- Excel-like quick entry: Payment ID + amount, nothing else
-  const pcols: GCol[] = [{ key: 'ref', label: 'Payment ID', width: 150, placeholder: '101001 বা SFC-101001' }, { key: 'amount', label: 'টাকা', type: 'number', width: 110 }, { key: 'remarks', label: 'মন্তব্য', width: 180 }]
+  const pcols: GCol[] = [{ key: 'ref', label: 'পেমেন্ট আইডি', width: 150, placeholder: '101001 বা SFC-101001' }, { key: 'amount', label: 'টাকা', type: 'number', width: 110 }, { key: 'remarks', label: 'মন্তব্য', width: 180 }]
   const pblank = useCallback((): Vals => ({ ref: '', amount: '', remarks: '' }), [])
   const psave = useCallback(async (v: Vals) => { await da.saveMerchant({ session: s.session.id, ref: v.ref, amount: +v.amount, date: s.session.account_date, remarks: v.remarks }) }, [s.session.id, s.session.account_date])
   return <section className="panel" id="da-merchant">
     <div className="da-bar"><h2>মার্চেন্ট ক্যাশ পেমেন্ট</h2><div className="row no-print">{s.can_edit && <button onClick={() => { setErr(null); setD({ ...blank }) }}>＋ পেমেন্ট যোগ</button>}
       <SectionMenu sec="payment" title="মার্চেন্ট ক্যাশ পেমেন্ট" s={s} settings={settings} onAdd={() => { setErr(null); setD({ ...blank }) }} addLabel="＋ পেমেন্ট যোগ" onLayoutSaved={ls} /></div></div>
-    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে শুধু <b>Payment ID</b> আর <b>টাকা</b> লিখুন — লাইন ছাড়লেই সেভ। স্ক্রিনশট বা বিস্তারিত লাগলে উপরের "＋ পেমেন্ট" বাটন।</p>
+    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে শুধু <b>পেমেন্ট আইডি</b> আর <b>টাকা</b> লিখুন — লাইন ছাড়লেই সেভ। স্ক্রিনশট বা বিস্তারিত লাগলে উপরের "＋ পেমেন্ট" বাটন।</p>
       <QuickGrid cols={pcols} rows={NO_ROWS} blank={pblank} editable ready={v => (!v.ref.trim() ? 'পেমেন্ট আইডি লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
         save={psave} onSaved={() => reload()} /></div>}
-    <div className="da-table-wrap"><table className="da-table" data-sec="payment"><thead><tr><th>নং</th><th>কে নিয়েছে</th><th>Payment ID</th><th>Transaction ID</th><th className="r">টাকা</th><th>তারিখ</th><th>মিল</th><th>OCR</th><th>স্ক্রিনশট</th><th>মন্তব্য</th><ExtraHeads settings={settings} sec="payment" /><th className="no-print" /></tr></thead>
-      <tbody>{s.merchant_payments.map(m => <tr key={m.id}><td data-l="নং">{num(m.no)}</td><td data-l="কে নিয়েছে">{m.merchant_id || m.payee_name ? <b>{m.merchant_name}</b> : <span className="muted">—</span>}</td><td data-l="Payment ID">{m.payment_ref ?? '—'}</td>
-        <td data-l="Transaction ID">{m.transaction_id ?? '—'}</td><td data-l="টাকা" className="r">{taka(m.amount)}</td><td data-l="তারিখ">{dateBn(m.payment_date)}</td>
+    <div className="da-table-wrap"><table className="da-table" data-sec="payment"><thead><tr><th>নং</th><th>কে নিয়েছে</th><th>পেমেন্ট আইডি</th><th>ট্রানজেকশন আইডি</th><th className="r">টাকা</th><th>তারিখ</th><th>মিল</th><th>OCR</th><th>স্ক্রিনশট</th><th>মন্তব্য</th><ExtraHeads settings={settings} sec="payment" /><th className="no-print" /></tr></thead>
+      <tbody>{s.merchant_payments.map(m => <tr key={m.id}><td data-l="নং">{num(m.no)}</td><td data-l="কে নিয়েছে">{m.merchant_id || m.payee_name ? <b>{m.merchant_name}</b> : <span className="muted">—</span>}</td><td data-l="পেমেন্ট আইডি">{m.payment_ref ?? '—'}</td>
+        <td data-l="ট্রানজেকশন আইডি">{m.transaction_id ?? '—'}</td><td data-l="টাকা" className="r">{taka(m.amount)}</td><td data-l="তারিখ">{dateBn(m.payment_date)}</td>
         <td data-l="মিল">{m.match_status === 'matched' ? <Badge tone="ok">মিলেছে</Badge> : m.match_status === 'mismatch' ? <Badge tone="bad">অমিল</Badge> : <Badge>রেকর্ড নেই</Badge>}</td>
         <td data-l="OCR">{!m.ocr ? '—' : m.ocr_verified ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>}</td>
         <td data-l="স্ক্রিনশট">{m.screenshot_path ? <FileLink path={m.screenshot_path} /> : '—'}</td><td data-l="মন্তব্য">{m.remarks ?? ''}</td>
@@ -356,9 +359,9 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
       <Field label="পেমেন্টের স্ক্রিনশট (ছবি দিলে তথ্য নিজে পূরণ হবে)" hint={up.progress !== null ? `পড়া হচ্ছে… ${num(Math.round(up.progress * 100))}%` : d.path ? 'আপলোড হয়েছে' : undefined}>
         <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void onFile(f) }} /></Field>
       <ErrorNote error={up.err} /><OcrNote ocr={d.ocr} min={settings['da.ocr'].min_confidence} />
-      <p className="muted small no-print">শুধু <b>Payment ID</b> আর <b>টাকা</b> — ব্যস। <b>101001</b> লিখলেও <b>SFC-101001</b> হয়ে যাবে। মার্চেন্ট মেলানোর দরকার নেই; ওই আইডির রেকর্ড থাকলে নাম নিজে থেকেই বসবে।</p>
+      <p className="muted small no-print">শুধু <b>পেমেন্ট আইডি</b> আর <b>টাকা</b> — ব্যস। <b>101001</b> লিখলেও <b>SFC-101001</b> হয়ে যাবে। মার্চেন্ট মেলানোর দরকার নেই; ওই আইডির রেকর্ড থাকলে নাম নিজে থেকেই বসবে।</p>
       <div className="da-grid3">
-        <Field label="Payment ID *" hint={d.match ?? '101001 লিখলেই চলবে'}>
+        <Field label="পেমেন্ট আইডি *" hint={d.match ?? '101001 লিখলেই চলবে'}>
           <input value={d.ref} autoFocus={!d.line} placeholder="101001"
             onChange={e => setD({ ...d, ref: e.target.value, match: undefined, matched: undefined })}
             onBlur={e => void checkRef(e.target.value)} /></Field>
@@ -373,7 +376,7 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
             onClick={() => { setD({ ...d, merchant: o.merchant_id, merchantName: o.name, merchantQ: `${o.code} — ${o.name}` }); setOpts([]) }}>{o.code} — {o.name}</button>)}</div>}</Field>
       </div>
       <details className="da-more no-print"><summary>আরও তথ্য (দরকার হলে)</summary><div className="da-grid3">
-        <Field label="Transaction ID"><input value={d.txn} onChange={e => setD({ ...d, txn: e.target.value })} /></Field>
+        <Field label="ট্রানজেকশন আইডি"><input value={d.txn} onChange={e => setD({ ...d, txn: e.target.value })} /></Field>
         <Field label="পেমেন্টের তারিখ"><input type="date" max={todayDhaka()} value={d.date} onChange={e => setD({ ...d, date: e.target.value })} /></Field>
         <Field label="মন্তব্য"><input value={d.remarks} onChange={e => setD({ ...d, remarks: e.target.value })} /></Field>
       </div></details>
@@ -727,19 +730,19 @@ function ActionBar({ s, reload }: { s: Sheet; reload: (m?: string) => Promise<vo
   if (!s.can_edit && !showVerify && !s.can_reopen) return null
   return <div className="da-actionbar no-print">
     {s.can_edit && (s.session.closed_at
-      ? <><span className="muted small">ডেইলি হিসাবের খাতা খোলা হয়েছে{s.session.bank_done_at ? ', ব্যাংকে জমাও শেষ' : ' — ব্যাংকে জমা বাকি থাকলে আগে সেটা শেষ করুন'}। সব ঠিক থাকলে একাউন্টসে পাঠান; পাঠানোর পর আর বদলানো যাবে না।{unchecked ? ` · OCR যাচাই বাকি ${num(unchecked)}টি` : ''}</span>
-        <button className="secondary" onClick={() => open('submit')}>একাউন্টসে চূড়ান্ত জমা দিন</button></>
-      : <span className="muted small">শেষ সেভ {timeBn(s.session.last_saved_at)} · উপরের ধাপগুলো শেষ করুন: খাতা Accept → ডেইলি হিসাবের খাতা → রিপোর্ট ওকে → ব্যাংকে জমা। তারপর এখানে একাউন্টসে পাঠানোর বোতাম আসবে।</span>)}
+      ? <><span className="muted small">দৈনিক হিসাবের খাতা খোলা হয়েছে{s.session.bank_done_at ? ', ব্যাংকে জমাও শেষ' : ' — ব্যাংকে জমা বাকি থাকলে আগে সেটা শেষ করুন'}। সব ঠিক থাকলে হিসাব বিভাগে পাঠান; পাঠানোর পর আর বদলানো যাবে না।{unchecked ? ` · OCR যাচাই বাকি ${num(unchecked)}টি` : ''}</span>
+        <button className="secondary" onClick={() => open('submit')}>হিসাব বিভাগে চূড়ান্ত জমা দিন</button></>
+      : <span className="muted small">শেষ সেভ {timeBn(s.session.last_saved_at)} · দৈনিক হিসাবের খাতা ও ব্যাংকে জমা শেষ হলে এখানে পাঠানোর বোতাম আসবে।</span>)}
     {s.can_reopen && <button className="secondary" onClick={() => open('reopen')}>সংশোধনের জন্য খুলুন</button>}
-    {showVerify && <><span className="muted small">Submit: {s.session.submitted_by_name} · {timeBn(s.session.submitted_at)}</span>
+    {showVerify && <><span className="muted small">সাবমিট: {s.session.submitted_by_name} · {timeBn(s.session.submitted_at)}</span>
       <button className="secondary" onClick={() => open('note')}>মন্তব্য দিন</button>
       <button className="danger" onClick={() => open('correction')}>সংশোধন প্রয়োজন</button>
       <button onClick={() => open('approve')}>অনুমোদন — সব ঠিক আছে</button></>}
 
-    {dlg === 'submit' && <Modal title="একাউন্টসে চূড়ান্ত জমা" onClose={() => setDlg(null)}
+    {dlg === 'submit' && <Modal title="হিসাব বিভাগে চূড়ান্ত জমা" onClose={() => setDlg(null)}
       actions={<><button className="secondary" onClick={() => setDlg(null)}>বাতিল</button><button className="secondary" onClick={() => setDlg(null)}>এডিট করুন</button>
-        <button disabled={busy || unchecked > 0} onClick={() => void go()}>{busy ? 'হচ্ছে…' : 'Submit'}</button></>}>
-      <p><b>আপনি কি নিশ্চিত যে আজকের হিসাব একাউন্টসে চূড়ান্তভাবে জমা দিতে চান?</b> জমা দেওয়ার পর এই হাবের আজকের কোনো খাতা আর বদলানো বা গ্রহণ করা যাবে না।</p>
+        <button disabled={busy || unchecked > 0} onClick={() => void go()}>{busy ? 'হচ্ছে…' : 'সাবমিট'}</button></>}>
+      <p><b>আপনি কি নিশ্চিত যে আজকের হিসাব হিসাব বিভাগে চূড়ান্তভাবে জমা দিতে চান?</b> জমা দেওয়ার পর এই হাবের আজকের কোনো খাতা আর বদলানো বা গ্রহণ করা যাবে না।</p>
       <ul className="muted"><li>রাইডার {num(s.riders.length)} জন · মোট টাকা {taka(s.totals?.amount)} · বকেয়া {taka(s.totals?.due)}</li>
         <li>মার্চেন্ট পেমেন্ট {num(s.merchant_payments.length)}টি · খরচ {num(s.expenses.length)}টি</li>
         <li>সাবমিটের পর বদলাতে সংশোধনের অনুমতি লাগবে।</li></ul>

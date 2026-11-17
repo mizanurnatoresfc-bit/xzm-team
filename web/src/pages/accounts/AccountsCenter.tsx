@@ -332,9 +332,9 @@ function MerchantList(r: Range) {
     <ListHead title="মার্চেন্ট ক্যাশ পেমেন্ট" count={rows.length} total={rows.reduce((a, x) => a + Number(x.amount), 0)} lesson="merchant_payment" r={r} />
     <ErrorNote error={l.error || err} />
     {l.loading && !l.data ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
-      <thead><tr><th>তারিখ</th><th>হাব</th><th>Payment ID</th><th>মার্চেন্ট</th><th className="r">টাকা</th><th>স্ক্রিনশট</th><th>যাচাই</th><th className="no-print" /></tr></thead>
+      <thead><tr><th>তারিখ</th><th>হাব</th><th>পেমেন্ট আইডি</th><th>মার্চেন্ট</th><th className="r">টাকা</th><th>স্ক্রিনশট</th><th>যাচাই</th><th className="no-print" /></tr></thead>
       <tbody>{rows.map(x => <tr key={x.id}><td data-l="তারিখ">{dateBn(x.payment_date)}</td><td data-l="হাব">{hubName.get(x.hub_id) ?? '—'}</td>
-        <td data-l="Payment ID"><b>{x.payment_ref ?? '—'}</b>{x.transaction_id && <span className="sec">TrxID {x.transaction_id}</span>}</td>
+        <td data-l="পেমেন্ট আইডি"><b>{x.payment_ref ?? '—'}</b>{x.transaction_id && <span className="sec">TrxID {x.transaction_id}</span>}</td>
         <td data-l="মার্চেন্ট">{x.merchant_name}</td><td data-l="টাকা" className="r"><b>{taka(x.amount)}</b></td>
         <td data-l="স্ক্রিনশট">{x.screenshot_path ? <button type="button" className="link" onClick={() => void da.fileUrl(x.screenshot_path!).then(u => window.open(u, '_blank', 'noopener')).catch(setErr)}>দেখুন</button> : <span className="sec warn">নেই</span>}</td>
         <td data-l="যাচাই">{x.ocr ? (x.ocr_verified ? <Badge tone="ok">যাচাই করা</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>) : <Badge tone="neutral">হাতে লেখা</Badge>}</td>

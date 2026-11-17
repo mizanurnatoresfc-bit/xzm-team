@@ -485,6 +485,6 @@ export const STATUS_LABEL: Record<SheetStatus, string> = {
   open: 'চলমান', submitted: 'যাচাইয়ের অপেক্ষায়', correction: 'সংশোধন প্রয়োজন', approved: 'অনুমোদিত',
 }
 export const EVENT_LABEL: Record<SheetEvent['action'], string> = {
-  started: 'হিসাব শুরু', submitted: 'Submit', resubmitted: 'আবার সাবমিট', approved: 'অনুমোদিত',
+  started: 'হিসাব শুরু', submitted: 'সাবমিট', resubmitted: 'আবার সাবমিট', approved: 'অনুমোদিত',
   correction_required: 'সংশোধন প্রয়োজন', note: 'মন্তব্য', reopened: 'সংশোধনের জন্য খোলা',
 }

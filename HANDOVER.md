@@ -394,3 +394,18 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   Permission resources no page names (salary, NID, ops…) show at the end of the AERV grid, read from the `permissions` table.
 - `panelLevel(can, group)`: the role group, when set, decides how far up the menu panels go, the staff panel home, and the tab bar; else permissions as before.
 - Smoke test: new checks for groups, AERV, dropdown and group-driven menu (448 checks pass). Note: `web/node_modules` was a broken self-link in this checkout; `npm ci` fixed it.
+
+## 2026-11-17 — Accounts made simpler (owner: "চারটাই করো")
+- **"এখন যা করবেন" first** (`sheetFlow.tsx` FlowPanel): the hub sheet opens with one card saying the single next step and its button
+  (start writing → accept the handed-in khatas, all at once → open the daily sheet → enter / match the report → bank deposit → done).
+  The four steps are a compact row on phones; the eight figure tiles fold into one line (`.sh-sum`, "সব সংখ্যা" opens them).
+  The long instruction in the bottom bar is one short line now.
+- **One door** `/app/accounts/today` (`AccountsToday.tsx`): zonal / several hubs → all hubs today; a hub manager with one hub → that hub's sheet
+  today, straight in (the list with "শুরু করুন" if none started); staff who write → their khata; others → "আমার হিসাব". Bottom tab "হিসাব",
+  home tile and quick-add all go there. Older role page lists holding `/app/accounts/khata` or `/app/accounts/daily` still get the door
+  (`DOOR` in `lib/menu.ts`), and the door opens both pages.
+- **Accounts menu: 19 lines → 6** (আজকের হিসাব · হিসাব কেন্দ্র · ভাউচার · হিসাবের রিপোর্ট · শেখার কেন্দ্র · হিসাব সেটিংস). The centre's
+  parts (report, expenses, merchant, bank, due, staff, transport, missing vouchers, history) are its own tabs, as before; old links with `?tab=` still work.
+- **Bangla words**: ডেইলি → দৈনিক, Accept → গ্রহণ, Submit → সাবমিট, Payment / Transaction ID → পেমেন্ট / ট্রানজেকশন আইডি, একাউন্টসে → হিসাব বিভাগে
+  (accounts pages and `accountsGuide.ts`). The English side of the bilingual labels and Excel column names are unchanged.
+- No database change. Smoke test updated for the new menu and words, plus a check that the door opens the khata for a role limited to it (all pass).

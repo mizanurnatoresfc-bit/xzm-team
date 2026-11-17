@@ -325,7 +325,7 @@ function AccessCard() {
       <div><h3>নির্ধারিত হিসাব ম্যানেজার</h3><table className="da-table"><thead><tr><th>হাব</th><th>ব্যক্তি</th><th>কারণ</th><th /></tr></thead>
         <tbody>{(assigned.data ?? []).map(a => <tr key={a.id}><td>{hubName(a.hub_id)}</td><td>{userName(a.user_id)}</td><td>{a.reason}</td><td><button className="danger sm" onClick={() => void revoke(a.id)}>বাতিল</button></td></tr>)}
           {(assigned.data ?? []).length === 0 && <tr><td colSpan={4} className="muted">কেউ নির্ধারিত নেই — অনুমতিপ্রাপ্ত যেকোনো হিসাব ম্যানেজার যাচাই করতে পারবেন।</td></tr>}</tbody></table></div>
-      <div><h3>এই হাবে কার কী অনুমতি</h3><table className="da-table"><thead><tr><th>ব্যক্তি</th><th>রোল</th><th>Submit</th><th>সংশোধন</th><th>অনুমোদন</th></tr></thead>
+      <div><h3>এই হাবে কার কী অনুমতি</h3><table className="da-table"><thead><tr><th>ব্যক্তি</th><th>রোল</th><th>সাবমিট</th><th>সংশোধন</th><th>অনুমোদন</th></tr></thead>
         <tbody>{(access.data ?? []).map((a, i) => <tr key={i}><td>{a.full_name}</td><td>{a.role_name}<span className="sec">{a.scope_type}</span></td>
           <td>{a.can_submit ? '✓' : '—'}</td><td>{a.can_correct ? '✓' : '—'}</td><td>{a.can_verify ? '✓' : '—'}</td></tr>)}</tbody></table>
         <p className="muted small">সাবমিট, সংশোধন ও অনুমোদনের অনুমতি রোলের মাধ্যমে আসে (da.sheet.create, da.correction.edit, da.sheet.approve)। রোলের অনুমতি শুধু সুপার অ্যাডমিন বদলাতে পারেন।</p></div>

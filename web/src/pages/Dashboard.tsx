@@ -45,7 +45,7 @@ export function Dashboard() {
     ['/app/hub/late', 'clock', 'দেরি', 'Late', 'o', ['hr.attendance.view', 'hr.attendance.create']],
     ['/app/hub/pickup', 'box', 'পিকআপ', 'Pickups', 'b', ['ops.pickup.view', 'ops.pickup_as_hub_manager.create']],
     ['/app/hub/tasks', 'tasks', 'কাজ', 'Tasks', 'p', ['zonal.task.view', 'zonal.task.create']],
-    ['/app/accounts/daily', 'ledger', 'হিসাব খাতা', 'Daily sheet', 'g', null],
+    ['/app/accounts/today', 'ledger', 'আজকের হিসাব', "Today's accounts", 'g', ['da.sheet.view', 'da.sheet.create', 'da.sheet.approve']],
     ['/app/hub/team', 'users', 'হাব টিম', 'Hub team', 'b', ['hr.employee.view']],
     ['/app/org/hubs', 'hub', 'হাব ম্যাপ', 'Hub map', 'r', ['org.hub.view']],
     ['/app/sorting/dashboard', 'truck', 'শটিং', 'Sorting', 'o', ['sorting.center.view', 'sorting.report.view']],

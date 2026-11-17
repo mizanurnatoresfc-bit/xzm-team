@@ -1,6 +1,6 @@
 // The day's flow on a sheet: drafts -> submitted -> "accounts checked" -> main site report confirmed -> main sheet.
 // FlowPanel sits at the top of a sheet, HubCollectorsCard in the settings, MainSheet is the page that puts everything together.
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { Icon } from '../../components/Icon'
@@ -24,7 +24,9 @@ export function onlyOf(s: Sheet, users: Set<string> | null): Sheet {
 }
 
 /** Top of the hub's sheet: the khatas handed in, Accept (several at once), then the daily sheet, the report and the bank. */
-export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; settings: DaSettings; reload: Reload; viewing?: string | null; onView?: (user: string | null) => void }) {
+export function FlowPanel({ s, settings, reload, viewing, onView, onStart, summary }: { s: Sheet; settings: DaSettings; reload: Reload; viewing?: string | null; onView?: (user: string | null) => void
+  /** "Start writing": opens the riders part. */ onStart?: () => void
+  /** A short line of the day's figures, shown under the steps. */ summary?: ReactNode }) {
   const { session: me } = useAuth()
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState<unknown>(null)
@@ -61,13 +63,33 @@ export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; 
   const goBank = () => document.querySelector<HTMLButtonElement>('.da-tabs button[data-tab="bank"]')?.click()
   const cls = (n: number) => (step > n ? 'done' : step === n ? 'on' : '')
 
+  // "Now do this": one card at the very top with the one thing to do next, and its button.
+  const drafts = people.filter(c => !c.closed_at).length
+  const next: { tone: 'go' | 'wait' | 'done'; text: string; sub?: string; label?: string; act?: () => void } =
+    banked ? { tone: 'done', text: 'আজকের হিসাব শেষ ✓', sub: 'ব্যাংকে জমা দিয়ে ক্লোজ হয়েছে।' }
+    : !canWrite ? { tone: 'wait', text: checked ? 'দৈনিক খাতা খোলা হয়েছে — রিপোর্ট ও ব্যাংকে জমার অপেক্ষা' : `${num(submitted)}টি খাতা জমা, ${num(accepted.length)}টি গ্রহণ হয়েছে`, sub: 'এই হাবে লেখার অনুমতি আপনার নেই, শুধু দেখছেন।' }
+    : people.length === 0 ? { tone: 'go', text: 'আজ এখনো কোনো লাইন নেই', sub: 'রাইডারের হিসাব লিখে শুরু করুন।', label: '＋ রাইডার যোগ করুন', act: onStart }
+    : !checked && markable.length > 0 ? { tone: 'go', text: `${num(markable.length)} জনের খাতা জমা পড়েছে — গ্রহণ করুন`, sub: markable.length > 1 ? 'একবারে সবগুলো গ্রহণ করা যায়; আগে দেখতে চাইলে নিচে “চেক করুন”।' : 'আগে দেখতে চাইলে নিচে “চেক করুন”।',
+        label: markable.length > 1 ? `সব ${num(markable.length)}টি গ্রহণ করুন` : 'গ্রহণ করুন', act: () => void run('next', () => da.acceptParts(s.session.id, markable), `${num(markable.length)}টি খাতা গ্রহণ হয়েছে`) }
+    : !checked && accepted.length === 0 ? { tone: 'wait', text: `${num(drafts)} জন এখনো খাতা লিখছেন`, sub: 'সাবমিট করলে এখানে গ্রহণ করার বোতাম আসবে। চাইলে নিচে “সাবমিট করে দিন”।' }
+    : !checked ? { tone: 'go', text: 'গ্রহণ করা খাতা দিয়ে দৈনিক হিসাবের খাতা খুলুন', sub: drafts ? `${num(drafts)} জন এখনো লিখছেন — তাঁদের বাদ দিলে কারণ লিখতে হবে।` : `${num(accepted.length)}টি খাতার যোগফল নেওয়া হবে।`, label: 'দৈনিক খাতা খুলুন', act: () => open('check') }
+    : !okd ? (reports.length ? { tone: 'go', text: 'রিপোর্ট মিলিয়ে ওকে দিন', sub: `${num(reports.length)}টি রিপোর্ট আইডি · ${taka(reportTotal)}`, label: 'রিপোর্ট মিলিয়ে ওকে দিন', act: () => open('ok') }
+      : { tone: 'go', text: 'মেইন সাইটের রিপোর্ট আইডি ও টাকা বসান', sub: 'তারপর মিলিয়ে ওকে দেবেন।', label: '＋ রিপোর্ট আইডি বসান', act: goBank })
+    : { tone: 'go', text: 'ব্যাংকে জমা দিয়ে দিন ক্লোজ করুন', sub: `${num((s.deposits ?? []).length)}টি ডিপোজিট লেখা আছে।`, label: 'ব্যাংকে জমা', act: goBank }
+
   return <section className="panel fl no-print" id="da-flow">
+    <div className={`fl-next t-${next.tone}`} role="status">
+      <span className="fl-next-ic"><Icon name={next.tone === 'done' ? 'check' : next.tone === 'wait' ? 'clock' : 'play'} size={22} /></span>
+      <span className="fl-next-tx"><small>এখন যা করবেন</small><b>{next.text}</b>{next.sub && <span>{next.sub}</span>}</span>
+      {next.label && next.act && <button type="button" className="fl-next-go" disabled={!!busy} onClick={next.act}>{busy === 'next' ? 'হচ্ছে…' : next.label}</button>}
+    </div>
     <ol className="fl-steps" aria-label="হিসাবের ধাপ">
-      <li className={cls(1) || (step === 2 ? 'done' : '')}><i>{step > 1 ? '✓' : num(1)}</i><span><b>খাতা জমা ও গ্রহণ</b><small>জমা {num(submitted)} · Accept {num(accepted.length)} / {num(needed)}</small></span></li>
-      <li className={checked ? 'done' : step === 2 ? 'on' : ''}><i>{checked ? '✓' : num(2)}</i><span><b>ডেইলি হিসাবের খাতা</b><small>{checked ? `খোলা হয়েছে · ${timeBn(s.session.closed_at)}` : 'Accept করা খাতার যোগফল'}</small></span></li>
+      <li className={cls(1) || (step === 2 ? 'done' : '')}><i>{step > 1 ? '✓' : num(1)}</i><span><b>খাতা জমা ও গ্রহণ</b><small>জমা {num(submitted)} · গ্রহণ {num(accepted.length)} / {num(needed)}</small></span></li>
+      <li className={checked ? 'done' : step === 2 ? 'on' : ''}><i>{checked ? '✓' : num(2)}</i><span><b>দৈনিক হিসাবের খাতা</b><small>{checked ? `খোলা হয়েছে · ${timeBn(s.session.closed_at)}` : 'গ্রহণ করা খাতার যোগফল'}</small></span></li>
       <li className={okd ? 'done' : step === 3 ? 'on' : ''}><i>{okd ? '✓' : num(3)}</i><span><b>মেইন সাইটের রিপোর্ট ওকে</b><small>{okd ? `ওকে · ${s.session.report_ok_by_name ?? ''}` : reports.length ? `${num(reports.length)}টি রিপোর্ট আইডি · ${taka(reportTotal)}` : 'রিপোর্ট আইডি ও টাকা'}</small></span></li>
       <li className={banked ? 'done' : step === 4 ? 'on' : ''}><i>{banked ? '✓' : num(4)}</i><span><b>ব্যাংকে জমা — ক্লোজ</b><small>{banked ? `ক্লোজ হয়েছে · ${timeBn(s.session.bank_done_at)}` : `${num((s.deposits ?? []).length)}টি ডিপোজিট`}</small></span></li>
     </ol>
+    {summary}
 
     <div className="da-bar"><h2 style={{ margin: 0 }}>জমা পড়া খাতা</h2>
       {canMark && markable.length > 1 && <button type="button" className="link small" onClick={() => setMarked(new Set(picked.length === markable.length ? [] : markable))}>{picked.length === markable.length ? 'মার্ক তুলুন' : 'সব মার্ক করুন'}</button>}</div>
@@ -77,11 +99,11 @@ export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; 
         <span className="nv-av">{(c.name ?? '?').slice(0, 1)}</span>
         <span className="tx"><b>{c.name ?? '—'}{c.user_id === me?.user.id ? ' (আপনি)' : ''}</b>
           <span>{c.code ? `আইডি ${c.code} · ` : ''}{num(c.riders)} রাইডার · {taka(c.amount)} · খরচ {taka(c.expense_amount ?? 0)} · পেমেন্ট {taka(c.payment_amount ?? 0)}</span>
-          <span className="who">{c.accepted_at ? `Accept ${timeBn(c.accepted_at)} · ${c.accepted_by_name ?? ''}` : c.closed_at ? `সাবমিট ${timeBn(c.closed_at)}${c.closed_by_name && c.closed_by && c.closed_by !== c.user_id ? ` · দিয়েছেন ${c.closed_by_name}` : ''}` : 'এখনো লিখছেন'}</span></span>
+          <span className="who">{c.accepted_at ? `গ্রহণ ${timeBn(c.accepted_at)} · ${c.accepted_by_name ?? ''}` : c.closed_at ? `সাবমিট ${timeBn(c.closed_at)}${c.closed_by_name && c.closed_by && c.closed_by !== c.user_id ? ` · দিয়েছেন ${c.closed_by_name}` : ''}` : 'এখনো লিখছেন'}</span></span>
         <span className="end">{st === 'acc' ? <Badge tone="ok">গ্রহণ হয়েছে</Badge> : st === 'sub' ? <Badge tone="info">জমা পড়েছে</Badge> : <Badge tone="warn">ড্রাফট</Badge>}
           <span className="row-acts">
             {onView && <button type="button" className="link small" onClick={() => onView(viewing === c.user_id ? null : c.user_id)}>{viewing === c.user_id ? 'সব দেখুন' : 'চেক করুন'}</button>}
-            {canMark && st === 'sub' && <button type="button" className="sm" disabled={!!busy} onClick={() => void run(c.user_id, () => da.acceptParts(s.session.id, [c.user_id]), `${c.name ?? ''} — গ্রহণ হয়েছে`)}>Accept</button>}
+            {canMark && st === 'sub' && <button type="button" className="sm" disabled={!!busy} onClick={() => void run(c.user_id, () => da.acceptParts(s.session.id, [c.user_id]), `${c.name ?? ''} — গ্রহণ হয়েছে`)}>গ্রহণ করুন</button>}
             {canMark && st === 'acc' && <button type="button" className="link small" disabled={!!busy} onClick={() => void run(c.user_id, () => da.acceptParts(s.session.id, [c.user_id], false), 'গ্রহণ ফিরিয়ে নেওয়া হলো')}>ফিরিয়ে নিন</button>}
             {canMark && st === 'draft' && <button type="button" className="link small" disabled={!!busy} onClick={() => void run(c.user_id, () => da.closePartFor(s.session.id, c.user_id, true), `${c.name ?? ''} — সাবমিট হয়েছে`)}>সাবমিট করে দিন</button>}
           </span></span>
@@ -91,29 +113,29 @@ export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; 
     {people.length < needed && people.length > 0 && <p className="muted small" style={{ margin: 0 }}>এই হাবে {num(needed)} জনের হিসাব নেওয়ার কথা; এখন পর্যন্ত খাতা আছে {num(people.length)} জনের।</p>}
 
     {stale && <p className="notice">ওকে দেওয়ার পর রিপোর্ট আইডির টাকা বদলেছে — আবার মিলিয়ে ওকে দিন।</p>}
-    {checked && s.session.check_note && <p className="muted small" style={{ margin: 0 }}>ডেইলি খাতায় ধরা হয়েছে {num(s.session.check_done ?? 0)} / {num(s.session.check_needed ?? 0)} খাতা{s.session.check_left ? ` · বাদ: ${s.session.check_left}` : ''} — কারণ: “{s.session.check_note}”</p>}
+    {checked && s.session.check_note && <p className="muted small" style={{ margin: 0 }}>দৈনিক খাতায় ধরা হয়েছে {num(s.session.check_done ?? 0)} / {num(s.session.check_needed ?? 0)} খাতা{s.session.check_left ? ` · বাদ: ${s.session.check_left}` : ''} — কারণ: “{s.session.check_note}”</p>}
     {okd && Number(s.session.report_diff) !== 0 && <p className="muted small" style={{ margin: 0 }}>রিপোর্টের সাথে পার্থক্য {taka(s.session.report_diff)} — কারণ: “{s.session.report_note}”</p>}
     <ErrorNote error={dlg ? null : err} />
 
     <div className="fl-acts">
-      {canMark && picked.length > 0 && <button type="button" disabled={!!busy} onClick={() => void run('many', () => da.acceptParts(s.session.id, picked), `${num(picked.length)}টি খাতা গ্রহণ হয়েছে`)}><Icon name="check" size={16} /> মার্ক করা {num(picked.length)}টি Accept করুন</button>}
-      {!checked && canWrite && <button type="button" className={picked.length ? 'secondary' : ''} disabled={accepted.length === 0} title={accepted.length === 0 ? 'আগে অন্তত একটি খাতা গ্রহণ করুন' : undefined} onClick={() => open('check')}><Icon name="ledger" size={16} /> ডেইলি হিসাবের খাতা খুলুন</button>}
-      {checked && <Link className="btn" to={`/app/accounts/daily/${s.session.id}/main`}><Icon name="ledger" size={16} /> ডেইলি হিসাবের খাতা দেখুন</Link>}
+      {canMark && picked.length > 0 && <button type="button" disabled={!!busy} onClick={() => void run('many', () => da.acceptParts(s.session.id, picked), `${num(picked.length)}টি খাতা গ্রহণ হয়েছে`)}><Icon name="check" size={16} /> মার্ক করা {num(picked.length)}টি গ্রহণ করুন</button>}
+      {!checked && canWrite && <button type="button" className={picked.length ? 'secondary' : ''} disabled={accepted.length === 0} title={accepted.length === 0 ? 'আগে অন্তত একটি খাতা গ্রহণ করুন' : undefined} onClick={() => open('check')}><Icon name="ledger" size={16} /> দৈনিক হিসাবের খাতা খুলুন</button>}
+      {checked && <Link className="btn" to={`/app/accounts/daily/${s.session.id}/main`}><Icon name="ledger" size={16} /> দৈনিক হিসাবের খাতা দেখুন</Link>}
       {checked && !okd && <><button type="button" className="secondary" onClick={goBank}>＋ রিপোর্ট আইডি বসান</button>
         <button type="button" className="secondary" disabled={!reports.length} onClick={() => open('ok')}>রিপোর্ট মিলিয়ে ওকে দিন</button></>}
       {checked && !banked && <button type="button" className="secondary" onClick={goBank}>ব্যাংকে জমা দিয়ে ক্লোজ করুন</button>}
       {okd && s.session.status !== 'approved' && <button type="button" className="link small" onClick={() => open('undo')}>রিপোর্টের ওকে ফিরিয়ে নিন</button>}
-      {checked && canWrite && !okd && <button type="button" className="link small" onClick={() => open('reopen')}>ডেইলি খাতা ফিরিয়ে নিন</button>}
+      {checked && canWrite && !okd && <button type="button" className="link small" onClick={() => open('reopen')}>দৈনিক খাতা ফিরিয়ে নিন</button>}
     </div>
 
-    {dlg === 'check' && <Modal title="ডেইলি হিসাবের খাতা খুলবেন?" onClose={() => setDlg(null)}
+    {dlg === 'check' && <Modal title="দৈনিক হিসাবের খাতা খুলবেন?" onClose={() => setDlg(null)}
       actions={<><button className="secondary" onClick={() => setDlg(null)}>বাতিল</button>
-        <button disabled={!!busy || (short && !note.trim())} onClick={() => void run('check', () => da.check(s.session.id, note), 'ডেইলি হিসাবের খাতা খোলা হয়েছে')}>{busy ? 'হচ্ছে…' : 'খুলুন'}</button></>}>
-      <p>গ্রহণ করা খাতাগুলোর যোগফল নিয়ে আজকের ডেইলি হিসাবের খাতা তৈরি হবে। এরপর রিপোর্ট মিলিয়ে ব্যাংকে জমা দিলে দিনের হিসাব ক্লোজ হবে।</p>
+        <button disabled={!!busy || (short && !note.trim())} onClick={() => void run('check', () => da.check(s.session.id, note), 'দৈনিক হিসাবের খাতা খোলা হয়েছে')}>{busy ? 'হচ্ছে…' : 'খুলুন'}</button></>}>
+      <p>গ্রহণ করা খাতাগুলোর যোগফল নিয়ে আজকের দৈনিক হিসাবের খাতা তৈরি হবে। এরপর রিপোর্ট মিলিয়ে ব্যাংকে জমা দিলে দিনের হিসাব ক্লোজ হবে।</p>
       <div className="da-table-wrap"><table className="da-table da-close"><tbody>
         {accepted.map(c => <tr key={c.user_id}><td>{c.name ?? '—'}<span className="sec">{num(c.riders)} রাইডার · খরচ {taka(c.expense_amount ?? 0)} · পেমেন্ট {taka(c.payment_amount ?? 0)}</span></td><td className="r">{taka(c.amount)}</td></tr>)}</tbody>
         <tfoot><tr><td><b>যোগফল ({num(accepted.length)}টি খাতা)</b></td><td className="r"><b>{taka(sumOf(accepted, c => c.amount))}</b></td></tr></tfoot></table></div>
-      {short && <><p className="notice">{left.length > 0 ? `যোগফলে ধরা হচ্ছে না: ${left.map(c => c.name ?? '—').join(', ')}। ` : ''}এই হাবে {num(needed)} জনের খাতা লাগে, Accept হয়েছে {num(accepted.length)} জনের। কারণ লিখলে তবেই খোলা যাবে।</p>
+      {short && <><p className="notice">{left.length > 0 ? `যোগফলে ধরা হচ্ছে না: ${left.map(c => c.name ?? '—').join(', ')}। ` : ''}এই হাবে {num(needed)} জনের খাতা লাগে, গ্রহণ হয়েছে {num(accepted.length)} জনের। কারণ লিখলে তবেই খোলা যাবে।</p>
         <Field label="কারণ *"><input value={note} onChange={e => setNote(e.target.value)} placeholder="যেমন: একজন ছুটিতে" /></Field></>}
       <ErrorNote error={err} />
     </Modal>}
@@ -123,13 +145,13 @@ export function FlowPanel({ s, settings, reload, viewing, onView }: { s: Sheet; 
       <div className="da-table-wrap"><table className="da-table da-close"><tbody>
         {reports.map(r => <tr key={r.id}><td>রিপোর্ট আইডি <b>{r.report_no}</b></td><td className="r">{taka(r.amount)}</td></tr>)}
         <tr><td><b>রিপোর্টের মোট</b></td><td className="r"><b>{taka(reportTotal)}</b></td></tr>
-        <tr><td>ডেইলি খাতার মোট টাকা</td><td className="r">{taka(sheetTotal)}</td></tr></tbody>
+        <tr><td>দৈনিক খাতার মোট টাকা</td><td className="r">{taka(sheetTotal)}</td></tr></tbody>
         <tfoot><tr><td><b>পার্থক্য</b></td><td className="r"><b className={diff !== 0 ? 'bad' : ''}>{diff === 0 ? 'মিলেছে ✓' : taka(diff)}</b></td></tr></tfoot></table></div>
-      {diff !== 0 && <><p className="notice">রিপোর্ট আর খাতার টাকা মিলছে না। কারণ লিখলে তবেই ওকে হবে — পার্থক্য ও কারণ ডেইলি খাতায় ছাপা থাকবে।</p>
+      {diff !== 0 && <><p className="notice">রিপোর্ট আর খাতার টাকা মিলছে না। কারণ লিখলে তবেই ওকে হবে — পার্থক্য ও কারণ দৈনিক খাতায় ছাপা থাকবে।</p>
         <Field label="কারণ *"><input value={note} onChange={e => setNote(e.target.value)} placeholder="যেমন: একটি পার্সেল পরের রিপোর্টে গেছে" /></Field></>}
       <ErrorNote error={err} />
     </Modal>}
-    {(dlg === 'undo' || dlg === 'reopen') && <Modal title={dlg === 'undo' ? 'রিপোর্টের ওকে ফিরিয়ে নেবেন?' : 'ডেইলি হিসাবের খাতা ফিরিয়ে নেবেন?'} onClose={() => setDlg(null)}
+    {(dlg === 'undo' || dlg === 'reopen') && <Modal title={dlg === 'undo' ? 'রিপোর্টের ওকে ফিরিয়ে নেবেন?' : 'দৈনিক হিসাবের খাতা ফিরিয়ে নেবেন?'} onClose={() => setDlg(null)}
       actions={<><button className="secondary" onClick={() => setDlg(null)}>বাতিল</button>
         <button disabled={!!busy || !note.trim()} onClick={() => void run('undo', () => dlg === 'undo' ? da.reportOkUndo(s.session.id, note) : da.reopenDay(s.session.id, note), 'ফিরিয়ে নেওয়া হলো')}>{busy ? 'হচ্ছে…' : 'ফিরিয়ে নিন'}</button></>}>
       <p className="muted">{dlg === 'undo' ? 'ঠিক করে আবার ওকে দিতে হবে।' : 'ধরে রাখা যোগফল বাদ যাবে; খাতা ঠিক করে আবার খুলতে হবে।'}</p>
@@ -189,13 +211,13 @@ export function MainSheet() {
   const s = useMemo(() => { if (!raw) return null; const ok = (raw.collectors ?? []).filter(c => c.accepted_at).map(c => c.user_id); return ok.length ? onlyOf(raw, new Set(ok)) : raw }, [raw])
   const cats = useMemo(() => new Map(((settings.data?.['da.expense_categories'] ?? []) as Category[]).map(c => [c.code, c.bn || c.en])), [settings.data])
 
-  if (sheet.error) return <AccountsShell title="ডেইলি হিসাবের খাতা"><ErrorNote error={sheet.error} /><Link to="/app/accounts/daily">← তালিকায় ফিরুন</Link></AccountsShell>
-  if (!s) return <AccountsShell title="ডেইলি হিসাবের খাতা"><p className="muted">লোড হচ্ছে…</p></AccountsShell>
+  if (sheet.error) return <AccountsShell title="দৈনিক হিসাবের খাতা"><ErrorNote error={sheet.error} /><Link to="/app/accounts/daily">← তালিকায় ফিরুন</Link></AccountsShell>
+  if (!s) return <AccountsShell title="দৈনিক হিসাবের খাতা"><p className="muted">লোড হচ্ছে…</p></AccountsShell>
   const se = s.session
   const back = <Link className="btn-ghost" to={`/app/accounts/daily/${se.id}`}>← খাতায় ফিরুন</Link>
-  if (!se.closed_at) return <AccountsShell title={`ডেইলি হিসাবের খাতা · ${s.hub.name}`} subtitle={dateBn(se.account_date)} actions={back}>
-    <div className="nv-empty"><Icon name="ledger" size={36} /><p><b>ডেইলি হিসাবের খাতা এখনো খোলা হয়নি</b></p>
-      <p>হাবের খাতায় জমা পড়া খাতাগুলো চেক করে গ্রহণ করুন, তারপর “ডেইলি হিসাবের খাতা খুলুন” চাপুন।</p>{back}</div>
+  if (!se.closed_at) return <AccountsShell title={`দৈনিক হিসাবের খাতা · ${s.hub.name}`} subtitle={dateBn(se.account_date)} actions={back}>
+    <div className="nv-empty"><Icon name="ledger" size={36} /><p><b>দৈনিক হিসাবের খাতা এখনো খোলা হয়নি</b></p>
+      <p>হাবের খাতায় জমা পড়া খাতাগুলো চেক করে গ্রহণ করুন, তারপর “দৈনিক হিসাবের খাতা খুলুন” চাপুন।</p>{back}</div>
   </AccountsShell>
 
   const t = se.closed_totals
@@ -229,10 +251,10 @@ export function MainSheet() {
       ['খরচ', '', ''], ...sh.expenses.map(x => [`${x.expense_name} (${cats.get(x.category) ?? x.category})`, x.amount, [x.employee_name, x.bill_no, x.voucher_no, x.reference_no].filter(Boolean).join(' · ')]),
       ['পেমেন্ট', '', ''], ...sh.merchant_payments.map(m => [`${m.merchant_name} ${m.payment_ref ?? ''}`.trim(), m.amount, m.transaction_id ?? '']),
       ['ব্যাংক ডিপোজিট', '', ''], ...deposits.map(d => [`${d.bank_name ?? d.method} ${d.ref_no ?? ''}`.trim(), d.amount, `চার্জ ${d.charge} · যাতায়াত ${d.transport}`])]
-    download(xlsxBlob(`XZM-TEAM — ডেইলি হিসাবের খাতা · ${sh.hub.name}`, `${se.account_date} · হিসাব নং ${se.no}`, ['বিবরণ', 'টাকা', 'নোট'], rows), `${title}.xlsx`)
+    download(xlsxBlob(`XZM-TEAM — দৈনিক হিসাবের খাতা · ${sh.hub.name}`, `${se.account_date} · হিসাব নং ${se.no}`, ['বিবরণ', 'টাকা', 'নোট'], rows), `${title}.xlsx`)
   }
 
-  return <AccountsShell title={`ডেইলি হিসাবের খাতা · ${s.hub.name}`} subtitle={`${dateBn(se.account_date)} · হিসাব নং ${num(se.no)}`}
+  return <AccountsShell title={`দৈনিক হিসাবের খাতা · ${s.hub.name}`} subtitle={`${dateBn(se.account_date)} · হিসাব নং ${num(se.no)}`}
     actions={<>{back}<button className="secondary" onClick={excel}>Excel</button><button onClick={() => printArea(title)}>প্রিন্ট / পিডিএফ</button></>}>
     {node}
     <div className="nv ms print-area">
@@ -250,7 +272,7 @@ export function MainSheet() {
         <div className="da-table-wrap"><table className="da-table da-close"><tbody>
           {top.map(([l, v, n]) => <tr key={l} className={l === 'হাতে থাকার কথা' ? 'ms-strong' : ''}><td>{l}{n ? <span className="sec">{n}</span> : null}</td><td className="r">{typeof v === 'number' ? taka(v) : v}</td></tr>)}</tbody></table></div></section>
 
-      <section className="panel"><h2>মেইন সাইটের ডেইলি রিপোর্ট</h2>
+      <section className="panel"><h2>মেইন সাইটের দৈনিক রিপোর্ট</h2>
         <div className="da-table-wrap"><table className="da-table da-close"><tbody>
           {reports.map(r => <tr key={r.id}><td>রিপোর্ট আইডি <b>{r.report_no}</b>{r.remarks ? <span className="sec">{r.remarks}</span> : null}</td><td className="r">{taka(r.amount)}</td></tr>)}
           {reports.length === 0 && <tr><td colSpan={2} className="muted">রিপোর্ট আইডি এখনো বসানো হয়নি।</td></tr>}
@@ -262,7 +284,7 @@ export function MainSheet() {
       <section className="panel"><h2>যে খাতাগুলোর যোগফল</h2>
         <div className="nv-rows">{(s.collectors ?? []).map(c => <div key={c.user_id} className="nv-row"><span className="nv-av">{(c.name ?? '?').slice(0, 1)}</span>
           <span className="tx"><b>{c.name ?? '—'}</b><span>{c.code ? `আইডি ${c.code} · ` : ''}{num(c.riders)} রাইডার · {num(c.payments)} পেমেন্ট · {num(c.expenses)} খরচ</span>
-            <span className="who">{c.accepted_at ? `Accept ${timeBn(c.accepted_at)} · ${c.accepted_by_name ?? ''}` : <em>যোগফলে ধরা হয়নি{c.closed_at ? ' (Accept হয়নি)' : ' (সাবমিট হয়নি)'}</em>}</span></span>
+            <span className="who">{c.accepted_at ? `গ্রহণ ${timeBn(c.accepted_at)} · ${c.accepted_by_name ?? ''}` : <em>যোগফলে ধরা হয়নি{c.closed_at ? ' (গ্রহণ হয়নি)' : ' (সাবমিট হয়নি)'}</em>}</span></span>
           <span className="end"><b>{c.accepted_at ? taka(c.amount) : '—'}</b></span></div>)}</div>
         {se.check_note && <p className="muted small">ধরা হয়েছে {num(se.check_done ?? 0)} / {num(se.check_needed ?? 0)} খাতা{se.check_left ? ` · বাদ: ${se.check_left}` : ''} — কারণ: “{se.check_note}”</p>}</section>
 

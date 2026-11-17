@@ -116,39 +116,21 @@ export const GROUPS: Group[] = [
   ]),
 ]
 /**
- * হিসাব — a menu of its own (owner, 17 Nov 2026): every SteadFast accounts part one tap away, in the order of the day's work.
+ * হিসাব — a menu of its own (owner, 17 Nov 2026). Kept short on purpose (six lines): "আজকের হিসাব" is the one door to
+ * today's work and opens the right page by itself (AccountsToday); every part of the accounts centre is a tab inside it.
  * It is not one of the three level panels: anyone whose role may do accounts work sees it, at the top.
  */
 const DA = ['da.sheet.view', 'da.sheet.create']
-export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও নদী শিক্ষক', 'Accounts & Nodi teacher', [
-  { bn: 'প্রতিদিনের হিসাব', en: 'Every day', items: [
-    { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা (আমার)', en: 'My sheet today', perms: ['da.sheet.create'] },
-    { to: '/app/accounts/daily', icon: 'ledger', bn: 'হাবের দৈনিক হিসাব খাতা', en: 'Hub daily sheets', perms: DA, count: 'sheets' },
-    { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (সব হাবের চিত্র)', en: 'Accounts centre', perms: DA },
+export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব', 'Accounts', [
+  { bn: 'প্রতিদিন', en: 'Every day', items: [
+    { to: '/app/accounts/today', icon: 'form', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create', 'da.sheet.approve'], count: 'sheets' },
+    { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (রিপোর্ট, খরচ, পেমেন্ট, ব্যাংক, বকেয়া)', en: 'Accounts centre', perms: DA },
+    { to: '/app/accounts/center?tab=vouchers', icon: 'file', bn: 'ভাউচার', en: 'Vouchers', perms: DA },
   ] },
-  { bn: 'হিসাবের অংশ', en: 'Accounts parts', items: [
-    { to: '/app/accounts/center?tab=reports', icon: 'doc', bn: 'দৈনিক রিপোর্ট', en: 'Daily report', perms: DA },
-    { to: '/app/accounts/center?tab=expenses', icon: 'receipt', bn: 'হাবের খরচ', en: 'Hub expense', perms: DA },
-    { to: '/app/accounts/center?tab=merchant', icon: 'cash', bn: 'মার্চেন্ট ক্যাশ পেমেন্ট', en: 'Merchant cash payment', perms: DA },
-    { to: '/app/accounts/center?tab=bank', icon: 'wallet', bn: 'ব্যাংকে জমা', en: 'Bank deposit', perms: DA },
-    { to: '/app/accounts/center?tab=due', icon: 'ledger', bn: 'হাবের বকেয়া / ফান্ড', en: 'Hub due / add funds', perms: DA },
-    { to: '/app/accounts/center?tab=staff', icon: 'users', bn: 'স্টাফ খরচ', en: 'Staff expense', perms: DA },
-    { to: '/app/accounts/center?tab=transport', icon: 'truck', bn: 'যাতায়াত বিল', en: 'Transport bill', perms: DA },
-  ] },
-  { bn: 'ভাউচার', en: 'Vouchers', items: [
-    { to: '/app/accounts/center?tab=new', icon: 'plus', bn: 'নতুন ভাউচার', en: 'New voucher', perms: ['da.sheet.create'] },
-    { to: '/app/accounts/center?tab=vouchers', icon: 'file', bn: 'ভাউচার ম্যানেজমেন্ট', en: 'Voucher management', perms: DA },
-    { to: '/app/accounts/center?tab=missing', icon: 'alert', bn: 'ভাউচার জমা হয়নি', en: 'Missing voucher', perms: DA },
-  ] },
-  { bn: 'ইতিহাস ও রিপোর্ট', en: 'History & reports', items: [
-    { to: '/app/accounts/center?tab=history', icon: 'log', bn: 'হিসাবের ইতিহাস', en: 'Accounts history', perms: DA },
-    { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
+  { bn: 'রিপোর্ট ও শেখা', en: 'Reports & learning', items: [
+    { to: '/app/accounts/reports', icon: 'doc', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
+    { to: '/app/accounts/learn', icon: 'book', bn: 'শেখার কেন্দ্র (অনুশীলন ও নদী শিক্ষক)', en: 'Learning centre', perms: DA },
     { to: '/app/accounts/settings', icon: 'gear', bn: 'হিসাব সেটিংস', en: 'Accounts settings', perms: ['da.settings.configure'] },
-  ] },
-  { bn: 'শেখা', en: 'Learning', items: [
-    { to: '/app/accounts/learn', icon: 'book', bn: 'বাংলা শেখার কেন্দ্র', en: 'Bangla learning centre', perms: DA },
-    { to: '/app/accounts/learn?p=practice', icon: 'play', bn: 'অনুশীলন (নমুনা হিসাব)', en: 'Practice (sample data)', perms: DA },
-    { to: '/app/accounts/learn?p=ask', icon: 'sms', bn: 'নদী AI হিসাব শিক্ষক', en: 'Nodi AI accounts teacher', perms: DA },
   ] },
 ])
 
@@ -257,7 +239,7 @@ const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: str
   { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', perms: null, match: '/app$' },
   { to: '/app/hub/attendance', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'ট্রিপ', en: 'Trips', perms: ['sorting.parcel.view', 'sorting.parcel.create', 'sorting.center.view'], match: '/app/sorting' },
-  { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
+  { to: '/app/accounts/today', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
   { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Staff', perms: ['hr.employee.view'], match: '/app/hr' },
 ]
 // The tab bar follows the home view: a staff member's own app, a hub manager's hub app, or the full zone app.
@@ -274,7 +256,7 @@ const VIEW_TABS: Record<DashView, Tab[]> = {
   hub: [HOME_TAB,
     { to: '/app/hub/attendance', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub/(?!team)' },
     { to: '/app/hub/team', icon: 'users', bn: 'টিম', en: 'Team', perms: ['hr.employee.view'], match: '/app/hub/team' },
-    { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
+    { to: '/app/accounts/today', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
     { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' }],
   zone: TABS,
 }
@@ -285,7 +267,7 @@ const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: st
   { to: '/app/hub/late', icon: 'clock', bn: 'দেরি লিখুন', en: 'Late', perms: ['hr.attendance.create'], tone: 'o' },
   { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },
   { to: '/app/hub/tasks', icon: 'tasks', bn: 'নতুন কাজ', en: 'New task', perms: ['zonal.task.create'], tone: 'p' },
-  { to: '/app/accounts/khata', icon: 'ledger', bn: 'আজকের খাতা', en: 'My sheet today', perms: ['da.sheet.create'], tone: 'g' },
+  { to: '/app/accounts/today', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.create', 'da.sheet.view'], tone: 'g' },
   { to: '/app/fleet?tab=approve', icon: 'truck', bn: 'গাড়ির অনুমোদন', en: 'Vehicle approvals', perms: ['vehicle.log.approve'], tone: 'o' },
   { to: '/app/accounts/mine?bill=1', icon: 'receipt', bn: 'আমার বিল', en: 'My bill', perms: null, tone: 'o' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },

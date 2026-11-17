@@ -73,12 +73,12 @@ export function MyKhata() {
           <div className="nv-hero-main"><span className="lbl">আমার খাতা · {s.hub.name}</span>
             <b className="big">{taka(total)}</b>
             <span className="sub">{num(my.riders.length)} রাইডার · {num(my.riders.reduce((a, r) => a + r.delivery_qty, 0))} ডেলিভারি · {num(my.riders.reduce((a, r) => a + r.pickup_qty, 0))} পিকআপ</span>
-            <span>{accepted ? <Badge tone="ok">Accept হয়েছে · {part?.accepted_by_name ?? ''}</Badge> : submitted ? <Badge tone="info">জমা পড়েছে — গ্রহণের অপেক্ষায়</Badge> : <Badge tone="warn">ড্রাফট — এখনো সাবমিট হয়নি</Badge>}</span></div>
+            <span>{accepted ? <Badge tone="ok">গ্রহণ হয়েছে · {part?.accepted_by_name ?? ''}</Badge> : submitted ? <Badge tone="info">জমা পড়েছে — গ্রহণের অপেক্ষায়</Badge> : <Badge tone="warn">ড্রাফট — এখনো সাবমিট হয়নি</Badge>}</span></div>
           <div className="nv-nums"><div><b>{taka(my.riders.reduce((a, r) => a + Number(r.paid_amount), 0))}</b><span>জমা (ক্যাশ)</span></div>
             <div className={my.riders.some(r => r.due > 0) ? 'warn' : ''}><b>{taka(my.riders.reduce((a, r) => a + Number(r.due), 0))}</b><span>বকেয়া</span></div>
             <div><b>{taka(exp)}</b><span>এক্সপেন্স</span></div><div><b>{taka(pay)}</b><span>ক্যাশ পেমেন্ট</span></div></div>
         </section>
-        {s.session.closed_at && !accepted && <p className="notice">এই হাবের ডেইলি হিসাবের খাতা আজ খোলা হয়ে গেছে। এখন যা লিখবেন তা যোগফলে ধরতে হলে ম্যানেজারকে খাতাটি আবার খুলতে হবে।</p>}
+        {s.session.closed_at && !accepted && <p className="notice">এই হাবের দৈনিক হিসাবের খাতা আজ খোলা হয়ে গেছে। এখন যা লিখবেন তা যোগফলে ধরতে হলে ম্যানেজারকে খাতাটি আবার খুলতে হবে।</p>}
         {(s.session.status === 'submitted' || s.session.status === 'approved') && <p className="notice">আজকের হিসাব চূড়ান্ত হয়ে গেছে — আর বদলানো যাবে না।</p>}
 
         {s.can_edit && !submitted && <RiderInbox session={s.session.id} onChange={() => reload()} />}
@@ -94,7 +94,7 @@ export function MyKhata() {
             <button type="button" disabled={busy || !lines} onClick={() => void run(() => da.closeMyPart(s.session.id, null, true), 'খাতা সাবমিট হয়েছে')}>{busy ? 'হচ্ছে…' : 'সাবমিট করুন'}</button></>}
           {submitted && !accepted && <><span className="muted small">সাবমিট {timeBn(part?.closed_at ?? null)} — কিছু বদলাতে হলে আবার খুলুন।</span>
             <button type="button" className="secondary" disabled={busy} onClick={() => void run(() => da.closeMyPart(s.session.id, null, false), 'খাতা আবার খোলা হলো')}>আবার খুলুন</button></>}
-          {accepted && <span className="muted small">Accept হয়েছে {timeBn(part?.accepted_at ?? null)} — বদলাতে হলে ম্যানেজারকে Accept ফিরিয়ে নিতে বলুন।</span>}
+          {accepted && <span className="muted small">গ্রহণ হয়েছে {timeBn(part?.accepted_at ?? null)} — বদলাতে হলে ম্যানেজারকে গ্রহণ ফিরিয়ে নিতে বলুন।</span>}
         </div>}
       </>}
     </div>

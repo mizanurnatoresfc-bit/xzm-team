@@ -2400,3 +2400,32 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{border:1px solid va
 @media (max-width:600px){.gf-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.grp-dd.wide{grid-template-columns:1fr;min-width:0}}
 .av-tools select,.av-tools input[type=search]{width:auto}
 .av-tools select{min-width:170px}
+
+/* ---- Hub sheet: "now do this" first, the figures in one line (17 Nov 2026) ---- */
+.fl-next{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1.5px solid var(--primary);background:var(--primary-50);flex-wrap:wrap}
+.fl-next.t-wait{border-color:var(--warn-fg);background:var(--warn-bg)}
+.fl-next.t-done{border-color:var(--ok-fg);background:var(--ok-bg)}
+.fl-next-ic{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--surface);color:var(--primary-dark)}
+.fl-next.t-wait .fl-next-ic{color:var(--warn-fg)}.fl-next.t-done .fl-next-ic{color:var(--ok-fg)}
+.fl-next-tx{flex:1;min-width:180px;display:flex;flex-direction:column;gap:2px}
+.fl-next-tx small{font-size:12.5px;font-weight:700;color:var(--muted)}
+.fl-next-tx b{font-size:17px;line-height:1.35}
+.fl-next-tx span{font-size:14px;color:var(--muted)}
+.fl-next-go{min-height:48px;border-radius:99px;padding:0 20px;font-weight:700;font-size:15px}
+@media (max-width:600px){.fl-next-go{width:100%}}
+/* the four steps: one compact row of dots on phones */
+@media (max-width:600px){
+  .fl-steps{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px}
+  .fl-steps li{flex-direction:column;gap:4px;padding:6px 2px;text-align:center;border-radius:10px}
+  .fl-steps li i{width:26px;height:26px;font-size:13px}
+  .fl-steps li b{font-size:12px;font-weight:600}
+  .fl-steps li small{display:none}
+}
+.sh-sum{border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.sh-sum>summary{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;padding:10px 12px;cursor:pointer;list-style:none;font-size:14px;color:var(--muted)}
+.sh-sum>summary::-webkit-details-marker{display:none}
+.sh-sum>summary b{color:var(--text);font-size:15px}
+.sh-sum>summary .warn b{color:var(--warn-fg)}
+.sh-sum>summary i{margin-left:auto;font-style:normal;color:var(--primary-dark);font-weight:600;font-size:13px}
+.sh-sum[open]>summary i{visibility:hidden}
+.sh-sum>.da-stats{padding:0 10px 10px;margin:0}

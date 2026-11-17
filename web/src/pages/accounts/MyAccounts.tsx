@@ -60,14 +60,14 @@ export function MyAccounts() {
         <div className="nv-rows nv-phone-only">
           {m.my_sheets.map(sh => <Link key={sh.id} className="nv-row" to={`/app/accounts/daily/${sh.id}`}>
             <span className="nv-av">{sh.hub.slice(0, 1)}</span>
-            <span className="tx"><b>{sh.hub}</b><span>নং {num(sh.no)} · {dateBn(sh.account_date)} · {[sh.started_by_me && 'শুরু', sh.submitted_by_me && 'Submit'].filter(Boolean).join(' · ') || '—'}</span>
+            <span className="tx"><b>{sh.hub}</b><span>নং {num(sh.no)} · {dateBn(sh.account_date)} · {[sh.started_by_me && 'শুরু', sh.submitted_by_me && 'সাবমিট'].filter(Boolean).join(' · ') || '—'}</span>
               {sh.verify_note && <span className="who">{sh.verify_note}</span>}</span>
             <span className="end"><StatusBadge status={sh.status} /><small>খুলুন ›</small></span></Link>)}
           {m.my_sheets.length === 0 && <p className="nv-none">কোনো হিসাব নেই।</p>}</div>
         <div className="da-table-wrap nv-not-phone"><table className="da-table"><thead><tr><th>নং</th><th>তারিখ</th><th>হাব</th><th>আমার ভূমিকা</th><th>অবস্থা</th><th>Submit</th><th>যাচাই</th><th>মন্তব্য</th><th /></tr></thead>
           <tbody>{m.my_sheets.map(sh => <tr key={sh.id}><td data-l="নং">{num(sh.no)}</td><td data-l="তারিখ">{dateBn(sh.account_date)}</td><td data-l="হাব">{sh.hub}</td>
-            <td data-l="ভূমিকা">{[sh.started_by_me && 'শুরু', sh.submitted_by_me && 'Submit'].filter(Boolean).join(' · ')}</td><td data-l="অবস্থা"><StatusBadge status={sh.status} /></td>
-            <td data-l="Submit">{timeBn(sh.submitted_at)}</td><td data-l="যাচাই">{sh.verified_by_name ? `${sh.verified_by_name} · ${timeBn(sh.verified_at)}` : '—'}</td><td data-l="মন্তব্য">{sh.verify_note ?? ''}</td>
+            <td data-l="ভূমিকা">{[sh.started_by_me && 'শুরু', sh.submitted_by_me && 'সাবমিট'].filter(Boolean).join(' · ')}</td><td data-l="অবস্থা"><StatusBadge status={sh.status} /></td>
+            <td data-l="সাবমিট">{timeBn(sh.submitted_at)}</td><td data-l="যাচাই">{sh.verified_by_name ? `${sh.verified_by_name} · ${timeBn(sh.verified_at)}` : '—'}</td><td data-l="মন্তব্য">{sh.verify_note ?? ''}</td>
             <td><Link to={`/app/accounts/daily/${sh.id}`}>খুলুন →</Link></td></tr>)}
             {m.my_sheets.length === 0 && <tr><td colSpan={9} className="muted">কোনো হিসাব নেই।</td></tr>}</tbody></table></div></section>
 

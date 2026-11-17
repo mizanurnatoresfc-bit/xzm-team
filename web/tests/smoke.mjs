@@ -485,19 +485,20 @@ try {
       await page.locator('.da-modal-acts button.secondary').click()
     }
     // the hub's page: khatas handed in, Accept (one, or several marked), then the daily sheet with a reason when one is left out
-    check(await page.locator('.fl-steps li').count() === 4 && await page.locator('.fl-people .nv-row').count() === 2 && (await page.locator('.fl-steps li').first().innerText()).includes('Accept ১ / ১'), `${size}: the hub page shows the steps and the khatas handed in`)
+    if (process.env.SHOTS) { await page.evaluate(() => scrollTo(0, 0)); await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet-top.png` }) }
+    check(await page.locator('.fl-steps li').count() === 4 && await page.locator('.fl-people .nv-row').count() === 2 && (await page.locator('.fl-steps li').first().textContent()).includes('গ্রহণ ১ / ১'), `${size}: the hub page shows the steps and the khatas handed in`)
     await page.locator('.fl-people button', { hasText: 'চেক করুন' }).last().click()
     check((await page.locator('p.notice', { hasText: 'Sohel Rana' }).count()) === 1 && (phone ? await page.locator('.nv-rows:not(.fl-people) button.nv-row').count() === 1 : true), `${size}: "check" shows only that person's khata`)
     await page.locator('p.notice button', { hasText: 'সবার খাতা দেখুন' }).click()
     await page.locator('.fl-mark:not([disabled])').check()
-    await page.locator('.fl-acts button', { hasText: 'Accept করুন' }).click(); await page.waitForTimeout(300)
+    await page.locator('.fl-acts button', { hasText: 'গ্রহণ করুন' }).click(); await page.waitForTimeout(300)
     check(flowCalls.at(-1)?.fn === 'da_parts_accept' && flowCalls.at(-1)?.p_users?.join() === 'u7' && flowCalls.at(-1)?.p_accept === true, `${size}: marked khatas are accepted together`)
-    await page.locator('.fl-acts button', { hasText: 'ডেইলি হিসাবের খাতা খুলুন' }).click(); await page.waitForSelector('.da-modal')
+    await page.locator('.fl-acts button', { hasText: 'দৈনিক হিসাবের খাতা খুলুন' }).click(); await page.waitForSelector('.da-modal')
     check(await page.locator('.da-modal-acts button').last().isDisabled() && (await page.locator('.da-modal .notice').innerText()).includes('Sohel Rana'), `${size}: opening the daily sheet with a khata left out asks for a reason and names it`)
     await page.locator('.da-modal input').fill('একজন ছুটিতে'); await page.locator('.da-modal-acts button').last().click()
     await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
     check(flowCalls.at(-1)?.fn === 'da_check' && flowCalls.at(-1)?.p_note === 'একজন ছুটিতে', `${size}: the daily sheet is opened with its reason`)
-    check(await page.locator('.da-actionbar button').count() === 0 && (await page.locator('.da-actionbar').innerText()).includes('ডেইলি হিসাবের খাতা'), `${size}: the final "send to accounts" button waits until the daily sheet is opened`)
+    check(await page.locator('.da-actionbar button').count() === 0 && (await page.locator('.da-actionbar').innerText()).includes('দৈনিক হিসাবের খাতা'), `${size}: the final "send to accounts" button waits until the daily sheet is opened`)
     await fits('accounts sheet')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-sheet.png`, fullPage: true })
     // the vehicle pages are off the website: no menu entries, and an old link goes to the home page
@@ -601,16 +602,20 @@ try {
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
       check(await panels() === 'accounts,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 1,
         `${size}: the Super Admin's menu is the accounts menu and three panels (staff, manager, zonal manager)`)
-      { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
+      // a short accounts menu (six lines); every part of the accounts centre is a tab inside it
+      { const want = ['আজকের হিসাব', 'হিসাব কেন্দ্র', 'ভাউচার', 'হিসাবের রিপোর্ট', 'শেখার কেন্দ্র', 'হিসাব সেটিংস']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
-        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
-          `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
+        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 2 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 6 && got.every(c => c >= 1),
+          `${size}: the accounts menu is six lines${got.every(c => c >= 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] < 1).join(', ')}`) }
       if (size === 'phone') await page.locator('.bottom-nav button.bn-item').last().click()
-      await page.locator('.side .ngrp[data-panel=accounts] a.nl', { hasText: 'ব্যাংকে জমা' }).click()
-      await page.waitForSelector('.ac .da-table', { timeout: 10000 }).catch(() => {})
-      check(page.url().includes('/app/accounts/center?tab=bank') && (await page.locator('.ac .da-table').innerText().catch(() => '')).includes('NOT MATCH')
-        && await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').count() === 1 && (await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').innerText()).includes('ব্যাংকে জমা'),
-        `${size}: a menu entry opens its own part, and only that entry is marked`)
+      await page.locator('.side .ngrp[data-panel=accounts] a.nl', { hasText: 'ভাউচার' }).click()
+      await page.waitForSelector('.ac .ac-tabs', { timeout: 10000 }).catch(() => {})
+      check(page.url().includes('/app/accounts/center?tab=vouchers') && await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').count() === 1
+        && (await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').innerText()).includes('ভাউচার'), `${size}: a menu entry opens its own part, and only that entry is marked`)
+      await page.locator('.ac .ac-tabs button', { hasText: 'ব্যাংকে জমা' }).click()
+      await page.waitForFunction(() => [...document.querySelectorAll('.ac .da-table')].some(t => t.textContent?.includes('NOT MATCH')), null, { timeout: 10000 }).catch(() => {})
+      check(page.url().includes('/app/accounts/center?tab=bank') && (await page.locator('.ac .da-table').innerText().catch(() => '')).includes('NOT MATCH'),
+        `${size}: the parts that left the menu are tabs inside the accounts centre`)
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-menu-bank.png` })
       for (const [t, want] of [['দৈনিক রিপোর্ট', '#743858'], ['মার্চেন্ট ক্যাশ পেমেন্ট', 'SFC-33223762'], ['হাবের বকেয়া / ফান্ড', 'বকেয়া']]) {
         await page.goto(`${BASE}/app/accounts/center?tab=${{ 'দৈনিক রিপোর্ট': 'reports', 'মার্চেন্ট ক্যাশ পেমেন্ট': 'merchant', 'হাবের বকেয়া / ফান্ড': 'due' }[t]}`)
@@ -632,7 +637,7 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.home-tiles')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
       check(await panels() === 'accounts,self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1
-        && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
+        && await inPanel('accounts', 'আজকের হিসাব') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
@@ -723,8 +728,10 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 7 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].every(x => sideLinks.includes(x)),
+    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 7 && sideLinks.includes('/app/accounts/today') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].every(x => sideLinks.includes(x)),
       `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length})`)
+    await page.goto(`${BASE}/app/accounts/today`); await page.waitForURL(/\/app\/accounts\/(khata|daily)/, { timeout: 8000 }).catch(() => {})
+    check(/\/app\/accounts\/(khata|daily)/.test(page.url()), `${size}: "আজকের হিসাব" opens today's sheet for a role given the old khata page (${page.url().replace(BASE, '')})`)
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
@@ -767,7 +774,7 @@ try {
     // accounts: today's sheets in the native-style list
     await page.goto(`${BASE}/app/accounts/daily`); await page.waitForSelector('.nv-row, .da-table tbody tr')
     check((await page.locator('.nv-hero .big').innerText()).includes('২ / ৪') && await page.locator('.nv-row').count() + await page.locator('.da-table tbody tr').count() >= 3, `${size}: the accounts page says how many hubs have given today's sheet`)
-    check(await page.locator('.fl-line').count() >= 2 && (await page.locator('.fl-line').first().innerText()).includes('Accept'), `${size}: the list shows where each sheet stands (submitted, checked, report)`)
+    check(await page.locator('.fl-line').count() >= 2 && (await page.locator('.fl-line').first().innerText()).includes('গ্রহণ'), `${size}: the list shows where each sheet stands (submitted, checked, report)`)
     await fits('daily accounts')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-accounts.png`, fullPage: true })
     await page.locator('.nv-chip', { hasText: 'শুরু হয়নি' }).click()
