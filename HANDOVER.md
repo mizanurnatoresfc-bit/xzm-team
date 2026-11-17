@@ -365,3 +365,16 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - English words inside Bangla sentences replaced in the code (43 files): HR→এইচআর, NID→এনআইডি, Employee/Payment/Transaction ID→… আইডি,
   Submit→সাবমিট, Accept→গ্রহণ, Accounts Manager→হিসাব ম্যানেজার, Excel→এক্সেল, PDF→পিডিএফ, Super Admin→সুপার অ্যাডমিন; "ID 1001"→"আইডি 1001".
   Kept: "Save as PDF" (Chrome's own button), JPG/PNG, the main site's format names (ID CREATE, New Admin & Rider ID Create).
+
+## 2026-11-17 — Staff complete their own profile; the zonal manager's popup question
+- Owner: "সকল Employee তাদের প্রোফাইল কমপ্লিট করবে ইজিলি" — decision: whatever staff fill in about themselves saves at once.
+  "জোনাল ড্যাশবোর্ডে পপআপ রিপোর্ট নিবো … হ্যাঁ না হোম স্ক্রিনে" — decision: the zonal manager picks who gets it; "পরে দেব" brings it back
+  on the next app open until answered; a push notification goes out.
+- Migration `20261117003000_self_profile_and_pulse.sql`: `private.can_fill_profile` and `private.can_upload_employee_object` also accept the
+  caller's own employee record; `documents_insert` policy lets staff add their own photo / NID front / NID back / signature (ALTER POLICY).
+  `pulse_questions` / `pulse_answers` (function-only), permission `zonal.pulse.manage` (Zonal Manager + Admin). Functions `pulse_create`
+  (zone, title, body, kind yes_no | text | yes_no_text, hubs[], posts[], last day; notifies everyone it is for), `pulse_close`, `pulse_list`,
+  `pulse_results` (everyone it went to, with answer or none), `pulse_mine`, `pulse_answer`. Tests `99zzzzzzzzzz_self_profile_pulse.sql` (23).
+- UI: page `/app/me/complete` (always open: how full, what is missing, the hub profile form for oneself, photo / NID uploads shrunk to 1600 px);
+  staff panel card "আমার প্রোফাইল X% পূর্ণ"; My Profile button. `components/PulsePopup.tsx` in AppShell (once per session);
+  `pages/zonal/PulsePanel.tsx` on the zonal dashboard (new question with whole zone / hubs / posts, cards with counts, answers table, close).

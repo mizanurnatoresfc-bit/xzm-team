@@ -39,6 +39,7 @@ export function MyProfile() {
     {me.loading ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
       : !e ? <p className="notice">{L('আপনার লগইন এখনো কোনো কর্মীর প্রোফাইলের সাথে যুক্ত নয়। এইচআর-কে বলুন যুক্ত করে দিতে।', 'Your login is not linked to an employee profile yet. Ask HR to link it.')}</p>
       : <>
+        <Link to="/app/me/complete" className="sp-cta mpc-cta" style={{ marginBottom: 12 }}><Icon name="edit" size={20} />{L('আমার প্রোফাইল পূর্ণ করুন — নিজেই লিখুন', 'Complete my profile — fill it in yourself')}</Link>
         <div className="p-hero">
           <div className="p-band" />
           <div className="p-body">

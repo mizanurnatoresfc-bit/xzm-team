@@ -2303,3 +2303,34 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{border:1px solid va
   .lr-grid{grid-template-columns:1fr}
   .lr-t-msg{max-width:96%}
 }
+
+/* popup question */
+.pulse-q{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}.pulse-q b{font-size:18px;display:block}.pulse-q p{margin:6px 0 2px}
+.pulse-ic{width:40px;height:40px;flex:none;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--tone-b) 14%,var(--surface));color:var(--tone-b)}
+.pulse-yn{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.pulse-yn button{min-height:56px;font-size:18px;font-weight:700;border-radius:14px}
+.pulse-yn button.on.yes{background:var(--tone-g)!important;border-color:var(--tone-g)!important;color:#fff}
+.pulse-yn button.on.no{background:var(--tone-r)!important;border-color:var(--tone-r)!important;color:#fff}
+/* zonal: questions and answers */
+.pulse-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.pulse-card{border:1px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:color-mix(in srgb,var(--tone-b) 5%,var(--surface))}
+.pulse-card header{display:flex;gap:8px;justify-content:space-between;align-items:flex-start}
+.pulse-bar{height:8px;border-radius:4px;background:var(--border);overflow:hidden}.pulse-bar i{display:block;height:100%;background:var(--tone-g)}
+.pulse-nums{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:14px}.pulse-nums .yes b{color:var(--tone-g)}.pulse-nums .no b{color:var(--tone-r)}
+.pulse-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.pulse-chips input{width:auto;margin:0 6px 0 0}
+.pulse-chips .chip-toggle{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;cursor:pointer}
+/* my profile: complete it */
+.mpc-head{display:flex;align-items:center;gap:16px}
+.mpc-ring{--p:0;width:76px;height:76px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:radial-gradient(closest-side,var(--surface) 78%,transparent 80% 100%),conic-gradient(var(--tone-g) calc(var(--p) * 1%),var(--border) 0)}
+.mpc-ring b{font-size:19px}
+.mpc-miss{display:flex;flex-wrap:wrap;gap:6px}.mpc-miss span{padding:4px 12px;border-radius:999px;background:var(--warn-bg);color:var(--warn-fg);font-size:14px;font-weight:600}
+.mpc-cta{border:0;width:100%;cursor:pointer}
+.mpc-pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mpc-pic{position:relative;display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:16px;border:1.5px dashed var(--line);background:var(--surface);cursor:pointer}
+.mpc-pic.done{border-style:solid;border-color:color-mix(in srgb,var(--tone-g) 40%,var(--border));background:color-mix(in srgb,var(--tone-g) 7%,var(--surface))}
+.mpc-pic .i{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:color-mix(in srgb,var(--tone-b) 14%,var(--surface));color:var(--tone-b)}
+.mpc-pic.done .i{background:color-mix(in srgb,var(--tone-g) 16%,var(--surface));color:var(--tone-g)}
+.mpc-pic small{color:var(--muted);font-size:13.5px}
+.mpc-pic input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.mpc-nudge{text-decoration:none;color:inherit}

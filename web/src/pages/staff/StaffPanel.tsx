@@ -11,6 +11,7 @@ import { dashboard } from '../../lib/dashboard'
 import { referrals } from '../../lib/extra'
 import { dutiesApi } from '../../lib/hub'
 import { hrReq } from '../../lib/hrreq'
+import { hr } from '../../lib/hr'
 import { issues } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
@@ -58,6 +59,8 @@ export function StaffPanel() {
     return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car }
   }, [])
   const v = d.data
+  const gapQ = useLoad(() => v?.me ? hr.profileGaps().then(l => l.find(g => g.employee_id === v.me!.id) ?? null).catch(() => null) : Promise.resolve(null), [v?.me?.id])
+  const profilePct = gapQ.data ? Math.round(100 * (gapQ.data.total_checks - gapQ.data.missing.length) / Math.max(1, gapQ.data.total_checks)) : null
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
   const name = v?.home?.me?.name || v?.me?.full_name || session?.user.user_metadata?.full_name || L('স্টাফ', 'Staff')
   const who = [v?.home?.me?.employee_code && `${L('আইডি', 'ID')} ${v.home.me.employee_code}`, v?.home?.me?.position, v?.home?.me?.hub].filter(Boolean).join(' · ')
@@ -123,6 +126,11 @@ export function StaffPanel() {
         <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>
       </Link>
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
+      {profilePct !== null && profilePct < 100 && <Link to="/app/me/complete" className="sp-card t-w mpc-nudge">
+        <span className="i"><Icon name="user" size={24} /></span>
+        <div className="tx"><b>{L(`আমার প্রোফাইল ${n(profilePct)}% পূর্ণ — বাকিটা দিন`, `My profile is ${profilePct}% complete — finish it`)}</b>
+          <span>{L('ছবি, এনআইডি, জরুরি যোগাযোগ — নিজেই দিন, সাথে সাথে সেভ হবে', 'Photo, NID, emergency contact — add them yourself, they save at once')}</span></div>
+        <Icon name="chev" size={18} /></Link>}
 
       <h2 className="sd-h">{L('আমার হিসাব', 'My accounts')}</h2>
       <div className="sp-tiles">

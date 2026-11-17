@@ -72,7 +72,7 @@ export const ATT_STATUS: Record<AttendanceStatus, string> = {
 export const CHANGE_TYPE: Record<string, string> = { joining: 'যোগদান', transfer: 'বদলি', promotion: 'পদোন্নতি', correction: 'সংশোধন', exit: 'বিদায়' }
 export const MISSING: Record<string, string> = {
   full_name: 'পূর্ণ নাম', mobile: 'মোবাইল', hub: 'হাব', hub_id: 'হাব', department: 'বিভাগ', department_id: 'বিভাগ', position: 'পদবি', position_id: 'পদবি',
-  joining_date: 'যোগদানের তারিখ', nid: 'NID', nid_number: 'NID', date_of_birth: 'জন্মতারিখ', photo: 'ছবি', emergency_contact: 'জরুরি যোগাযোগ',
+  joining_date: 'যোগদানের তারিখ', nid: 'এনআইডি', nid_number: 'এনআইডি', date_of_birth: 'জন্মতারিখ', photo: 'ছবি', emergency_contact: 'জরুরি যোগাযোগ',
   emergency_contact_name: 'জরুরি যোগাযোগের নাম', emergency_contact_phone: 'জরুরি যোগাযোগের নম্বর', present_address: 'বর্তমান ঠিকানা',
   permanent_address: 'স্থায়ী ঠিকানা', email: 'Gmail (অ্যাডমিন পদ)', reference: 'রেফারেন্স (নাম ও আইডি)', basic_salary: 'বেতন (Basic)',
   'field:alt_mobile': 'বিকল্প মোবাইল', 'field:blood_group': 'রক্তের গ্রুপ',
