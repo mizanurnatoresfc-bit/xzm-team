@@ -17,7 +17,13 @@ export function NodiSettings() {
   const [q, setQ] = useState('')
   const [ans, setAns] = useState('')
   const [busy, setBusy] = useState(false)
+  const roles = useLoad(() => nodi.roles(), [])
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   useEffect(() => { if (cfg.data) setF(cfg.data) }, [cfg.data])
+  useEffect(() => { if (roles.data) setPicked(new Set(roles.data.filter(r => r.enabled).map(r => r.code))) }, [roles.data])
+  async function saveRoles() {
+    try { await nodi.setRoles([...picked]); toast('সংরক্ষণ হয়েছে'); await roles.reload() } catch (e) { setErr(errText(e)) }
+  }
   async function save() {
     if (!f) return
     setErr(''); try { await nodi.configure(f); toast('সংরক্ষণ হয়েছে'); await cfg.reload() } catch (e) { setErr(errText(e)) }
@@ -45,6 +51,14 @@ export function NodiSettings() {
       </div>
       {err && <p className="da-error" role="alert">{err}</p>}
       <button type="button" onClick={() => void save()}>সংরক্ষণ</button></div>}
+    <div className="da-card" style={{ padding: 14, marginBottom: 12 }}>
+      <h3 style={{ marginTop: 0 }}>কোন ভূমিকা নদী AI দেখবে</h3>
+      <p className="muted" style={{ marginTop: 0 }}>টিক দেওয়া ভূমিকার মানুষ মেনু ও নদীর বাটন দেখবে। সেটিংস-অনুমতিওয়ালা ভূমিকা সবসময় দেখবে।</p>
+      {roles.error ? <p className="da-error" role="alert">{errText(roles.error)}</p> : <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 6, marginBottom: 10 }}>
+        {(roles.data ?? []).map(r => <label key={r.code} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input type="checkbox" disabled={r.locked} checked={r.locked || picked.has(r.code)} onChange={e => setPicked(s => { const n = new Set(s); if (e.target.checked) n.add(r.code); else n.delete(r.code); return n })} />
+          {r.name_bn || r.name}</label>)}</div>}
+      <button type="button" onClick={() => void saveRoles()}>ভূমিকা সংরক্ষণ</button></div>
     <div className="da-card" style={{ padding: 14, marginBottom: 12 }}>
       <h3 style={{ marginTop: 0 }}>পরীক্ষা</h3>
       <div style={{ display: 'flex', gap: 8 }}><input style={{ flex: 1 }} placeholder="নদীকে কিছু জিজ্ঞাসা করুন" value={q} onChange={e => setQ(e.target.value)} />

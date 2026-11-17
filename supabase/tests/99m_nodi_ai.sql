@@ -32,4 +32,15 @@ select public.nodi_configure(false, 'claude-haiku-5-5', 50, 500);
 select tests.login(tests.id('hub_mgr'));
 select tests.throws($$select public.nodi_gate()$$, 'switched off: nobody can use it', 'P0001');
 select 'done';
+-- role-wise show/hide
+select tests.login(tests.id('hub_mgr'));
+select tests.throws($$select * from public.nodi_roles()$$, 'a hub manager cannot see the role list', '42501');
+select tests.login(tests.id('admin'));
+select tests.ok((select count(*) > 0 from public.nodi_roles() where code = 'hub_manager' and enabled), 'hub manager role shows by default');
+select public.nodi_set_roles(array['accounts_manager']);
+select tests.ok((select not enabled from public.nodi_roles() where code = 'hub_manager'), 'hub manager role is switched off');
+select tests.ok((select enabled and locked from public.nodi_roles() where code = 'admin'), 'admin can never be locked out');
+select tests.login(tests.id('hub_mgr'));
+select tests.throws($$select public.nodi_gate()$$, 'a hidden role is refused at the gate', '42501');
+
 rollback;
