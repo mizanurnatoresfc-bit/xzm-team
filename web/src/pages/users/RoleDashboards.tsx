@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { menuApi, type RoleMenu } from '../../lib/menu'
-import { GROUPS, HOME } from '../../components/AppShell'
+import { ACCOUNTS, GROUPS, HOME } from '../../components/AppShell'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Badge, Modal, useLoad, useToast } from '../accounts/ui'
@@ -78,7 +78,7 @@ function PagesEditor({ role, onClose, onDone }: { role: RoleMenu; onClose: () =>
   const [picked, setPicked] = useState<string[]>(role.menu ?? [])
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
   const toggle = (to: string) => setPicked(p => p.includes(to) ? p.filter(x => x !== to) : [...p, to])
-  const groups = [{ key: 'home', bn: 'শুরু', en: 'Start', items: HOME.filter(i => i.to !== '/app') }, ...GROUPS]
+  const groups = [{ key: 'home', bn: 'শুরু', en: 'Start', items: HOME.filter(i => i.to !== '/app') }, ACCOUNTS, ...GROUPS]
   async function save() {
     setBusy(true); setErr('')
     try { await menuApi.save(role.role_id, limit ? picked : null); onDone() } catch (e) { setErr(dashboardFriendly(e)) } finally { setBusy(false) }
