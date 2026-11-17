@@ -326,3 +326,9 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Page `/app/references` (menu "রেফারেন্স তালিকা", open to everyone): তালিকা (search, zone, call/SMS/WhatsApp), আমার অনুরোধ, অনুমোদন (HR; one or many).
   Add by জোন → হাব → লোক or by hand (name, post, number, hub name). The expense forms' "রেফারেন্স" dropdown now reads the approved list (the old
   `da.reference_people` setting stays as a fallback).
+
+## 2026-11-17 — প্রোফাইল থেকে "যিনি এনেছেন" (স্টাফ ও ম্যানেজার দেন, HR অনুমোদন দেয়)
+- Migration `20261117000600_employee_reference_requests.sql` (applied live): table `employee_reference_requests` (one waiting per employee; no direct access), RPCs `hr_reference_request`, `hr_reference_pending`, `hr_reference_requests`, `hr_reference_decide`.
+- Who may ask: the staff member on their own profile, or anyone with `hr.employee.view` for that employee (hub/zonal managers). Who decides: `hr.reference.approve` or `hr.referral.edit` for that employee. HR still sets directly (old `hr_set_reference`).
+- UI: profile রেফারেন্স panel shows "রেফারেন্স দিন" for staff/managers → sends to HR; a dashed "অপেক্ষায়" line shows the waiting name. `/app/references?tab=staff` (যিনি এনেছেন) lists them for HR with approve / "হবে না". `PersonPicker` hub list now reads `ref_hub_people` so staff can pick people too.
+- Tests: `supabase/tests/99zzzzzzzzz_employee_reference.sql`. Full suite 1282 pass.

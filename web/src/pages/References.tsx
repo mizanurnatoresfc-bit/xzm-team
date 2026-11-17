@@ -8,9 +8,10 @@ import { Icon } from '../components/Icon'
 import { Combo } from '../components/inputs'
 import { Badge, Field, Modal, useLoad, useToast } from './accounts/ui'
 import { useOrg } from './hr/common'
+import { referrals, type RefRequest } from '../lib/extra'
 import { ACTION_BN, refFriendly, refs, type HubPerson, type RefRow } from '../lib/refs'
 
-type Tab = 'list' | 'mine' | 'approve'
+type Tab = 'list' | 'mine' | 'approve' | 'staff'
 type Form = { id?: string; mode: 'hub' | 'manual'; zone: string; hub: string; person: HubPerson | null; name: string; position: string; phone: string; hubName: string; note: string }
 const when = (t: string | null) => t ? new Date(t).toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : ''
 
@@ -24,6 +25,10 @@ export function References() {
   const setTab = (t: Tab) => setSp(t === 'list' ? {} : { tab: t }, { replace: true })
   const data = useLoad(() => refs.list(), [])
   const me = session?.user.id
+  // "যিনি এনেছেন" asked from profiles — HR decides here; askers see their own.
+  const staffReq = useLoad(() => referrals.referenceRequests().catch(() => [] as RefRequest[]), [])
+  const sr = staffReq.data ?? []
+  const srWait = sr.filter(r => r.can_decide)
   const rows = data.data ?? []
   const listed = rows.filter(r => r.status === 'active' && (r.approval === 'approved' || r.pending_action !== 'add'))
   const mine = rows.filter(r => r.requested_by === me && (r.pending_action || r.approval === 'rejected' || r.decided_at))
@@ -57,6 +62,11 @@ export function References() {
     const why = (window.prompt(`"${r.name}" কেন সরাতে চান?`) ?? '').trim(); if (!why) return
     try { await refs.remove(r.id, why); await data.reload(); toast('সরানোর অনুরোধ জমা হয়েছে') } catch (e) { toast(refFriendly(e)) }
   }
+  async function decideStaff(ids: string[], ok: boolean) {
+    let note: string | null = null
+    if (!ok) { note = (window.prompt('কেন হবে না? (যিনি চেয়েছেন তিনি দেখবেন)') ?? '').trim(); if (!note) return }
+    try { const n = await referrals.decideReference(ids, ok, note ?? undefined); await staffReq.reload(); toast(`${n.toLocaleString('bn-BD')}টা ${ok ? 'অনুমোদিত — প্রোফাইলে বসেছে' : 'বাতিল'}`) } catch (e) { toast(refFriendly(e)) }
+  }
   async function decide(ids: string[], ok: boolean) {
     let note: string | null = null
     if (!ok) { note = (window.prompt('কেন হবে না? (যিনি চেয়েছেন তিনি দেখবেন)') ?? '').trim(); if (!note) return }
@@ -78,6 +88,7 @@ export function References() {
     <div className="rq-tabs">
       <button type="button" className={`rq-tab${tab === 'list' ? ' on' : ''}`} onClick={() => setTab('list')}><Icon name="users" size={16} />তালিকা <b className="rf-n">{listed.length}</b></button>
       <button type="button" className={`rq-tab${tab === 'mine' ? ' on' : ''}`} onClick={() => setTab('mine')}><Icon name="clock" size={16} />আমার অনুরোধ{mine.some(r => r.pending_action) && <b className="rf-n warn">{mine.filter(r => r.pending_action).length}</b>}</button>
+      {(srWait.length > 0 || sr.length > 0 || approver) && <button type="button" className={`rq-tab${tab === 'staff' ? ' on' : ''}`} onClick={() => setTab('staff')}><Icon name="usercheck" size={16} />যিনি এনেছেন{srWait.length > 0 && <b className="rf-n warn">{srWait.length}</b>}</button>}
       {approver && <button type="button" className={`rq-tab${tab === 'approve' ? ' on' : ''}`} onClick={() => setTab('approve')}><Icon name="check" size={16} />অনুমোদন{waiting.length > 0 && <b className="rf-n warn">{waiting.length}</b>}</button>}
     </div>
     {data.error ? <p className="da-error">{refFriendly(data.error)}</p> : null}
@@ -113,6 +124,22 @@ export function References() {
             <span className="row-acts"><input type="checkbox" aria-label="বাছুন" checked={pick.includes(r.id)} onChange={e => setPick(p => e.target.checked ? [...p, r.id] : p.filter(x => x !== r.id))} />
               <button className="secondary sm" onClick={() => void decide([r.id], false)}>হবে না</button>
               <button className="sm" onClick={() => void decide([r.id], true)}><Icon name="check" size={14} />অনুমোদন</button></span></div></Person>)}</div></>}
+    </section>}
+
+    {tab === 'staff' && <section className="panel">
+      <p className="muted small">কর্মীরা নিজের প্রোফাইল থেকে, বা ম্যানেজার তাঁর কর্মীর প্রোফাইল থেকে "যিনি এনেছেন" দেন। অনুমোদন দিলে কর্মীর প্রোফাইলে বসে যায়।</p>
+      {!sr.length ? <p className="muted">কিছু নেই।</p> : <div className="rf-list">{sr.map(r => <article key={r.id} className="rf-card">
+        <span className="rf-av">{r.employee.name.slice(0, 1)}</span>
+        <div className="rf-t"><b>{r.employee.name}{r.employee.code ? <span className="muted small"> #{r.employee.code}</span> : null}</b>
+          <span className="small">যিনি এনেছেন: <b style={{ display: 'inline' }}>{r.person.name}</b> {[r.person.code && `#${r.person.code}`, r.person.position, r.person.hub].filter(Boolean).join(' · ')}{r.person.kind === 'manual' ? ' (নিজে লেখা)' : ''}</span>
+          {r.person.mobile && <Contact phone={r.person.mobile} />}
+          {r.note && <span className="muted small">নোট: {r.note}</span>}</div>
+        <div className="rf-st">{r.status === 'pending' ? <Badge tone="warn">অপেক্ষায়</Badge> : r.status === 'approved' ? <Badge tone="ok">অনুমোদিত</Badge> : r.status === 'rejected' ? <Badge tone="bad">হবে না</Badge> : <Badge tone="neutral">বদলানো</Badge>}
+          <span className="muted small">{r.by} · {when(r.at)}</span>
+          {r.decision_note && <span className="small">{r.decided_by}: {r.decision_note}</span>}
+          {r.can_decide && <span className="row-acts"><button className="secondary sm" onClick={() => void decideStaff([r.id], false)}>হবে না</button>
+            <button className="sm" onClick={() => void decideStaff([r.id], true)}><Icon name="check" size={14} />অনুমোদন</button></span>}</div>
+      </article>)}</div>}
     </section>}
 
     {f && <Modal wide title={f.id ? 'রেফারেন্স বদলের অনুরোধ' : 'রেফারেন্সে নাম যোগ'} onClose={() => setF(null)}
