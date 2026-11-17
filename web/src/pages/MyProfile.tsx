@@ -37,7 +37,7 @@ export function MyProfile() {
   return <AppShell title={L('আমার প্রোফাইল', 'My profile')} subtitle={e ? <>{e.employee_code ? <>{L('এমপ্লয়ি আইডি', 'Employee ID')} <strong>{e.employee_code}</strong> · </> : null}<EmpBadge status={e.status} /></> : undefined}>
     {node}
     {me.loading ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
-      : !e ? <p className="notice">{L('আপনার লগইন এখনো কোনো কর্মীর প্রোফাইলের সাথে যুক্ত নয়। HR-কে বলুন যুক্ত করে দিতে।', 'Your login is not linked to an employee profile yet. Ask HR to link it.')}</p>
+      : !e ? <p className="notice">{L('আপনার লগইন এখনো কোনো কর্মীর প্রোফাইলের সাথে যুক্ত নয়। এইচআর-কে বলুন যুক্ত করে দিতে।', 'Your login is not linked to an employee profile yet. Ask HR to link it.')}</p>
       : <>
         <div className="p-hero">
           <div className="p-band" />
@@ -53,10 +53,10 @@ export function MyProfile() {
             </div>
             {!!roles.data?.length && <div className="p-roles">{roles.data.map(r => <span key={r} className="p-role">{r}</span>)}</div>}
             {can('hr.employee.edit') ? <Link to={`/app/hr/employees/${e.id}`} className="p-edit"><Icon name="edit" size={18} />{L('প্রোফাইল এডিট', 'Edit Profile')}</Link>
-              : <p className="muted small">{L('কোনো তথ্য ভুল থাকলে HR-কে জানান।', 'Tell HR if anything is wrong.')}</p>}
+              : <p className="muted small">{L('কোনো তথ্য ভুল থাকলে এইচআর-কে জানান।', 'Tell HR if anything is wrong.')}</p>}
           </div>
         </div>
-        {photo === null && <div className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span><span>{L('আপনার প্রোফাইলের ছবি নেই — HR-কে ছবি দিন', 'Your profile photo is missing — give one to HR')}</span></div>}
+        {photo === null && <div className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span><span>{L('আপনার প্রোফাইলের ছবি নেই — এইচআর-কে ছবি দিন', 'Your profile photo is missing — give one to HR')}</span></div>}
         <section className="panel">
           <h2>{L('আমার তথ্য', 'My details')}</h2>
           <dl className="hr-kv">
@@ -66,7 +66,7 @@ export function MyProfile() {
             <dt>{L('পদবি', 'Position')}</dt><dd>{e.position_id ? o.names.pos[e.position_id] ?? '—' : '—'}</dd>
             <dt>{L('যোগদান', 'Joined')}</dt><dd>{dmy(e.joining_date)}</dd>
           </dl>
-          <p className="muted small">{L('কোনো তথ্য ভুল থাকলে HR-কে জানান।', 'Tell HR if anything is wrong.')}</p>
+          <p className="muted small">{L('কোনো তথ্য ভুল থাকলে এইচআর-কে জানান।', 'Tell HR if anything is wrong.')}</p>
         </section>
         <section className="panel">
           <h2>{L('আমার দায়িত্ব', 'My duties')}</h2>

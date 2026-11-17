@@ -11,7 +11,7 @@ const WORK: Array<[string, string, string, string, string]> = [
   ['cal', 'হাজিরা ও ছুটি', 'Attendance and leave', 'দৈনিক হাজিরা, মাসিক হিসাব, ছুটির আবেদন ও অনুমোদন এক জায়গায়।', 'Daily attendance, the monthly summary, leave requests and approvals in one place.'],
   ['ledger', 'আজকের হিসাব খাতা', 'Today’s account sheet', 'রাইডারের লাইন, মার্চেন্ট পেমেন্ট ও খরচ — একবার সাবমিট, তারপর যাচাই।', 'Rider lines, merchant payments and expenses — submitted once, then checked.'],
   ['hub', 'কুরিয়ার অপারেশন', 'Courier operations', 'পিকআপ, ডেলিভারি, পার্সেল সমস্যা ও ক্যাশ হ্যান্ডওভার।', 'Pickups, deliveries, parcel problems and cash handovers.'],
-  ['chart', 'রিপোর্ট', 'Reports', 'দৈনিক থেকে মাসিক হিসাব — Excel, PDF বা প্রিন্ট করে নিন।', 'Daily to monthly figures — take them as Excel, PDF or print.'],
+  ['chart', 'রিপোর্ট', 'Reports', 'দৈনিক থেকে মাসিক হিসাব — এক্সেল, পিডিএফ বা প্রিন্ট করে নিন।', 'Daily to monthly figures — take them as Excel, PDF or print.'],
   ['shield', 'অনুমতি ও লগ', 'Permissions and logs', 'কে কী দেখবে তা রোল দিয়ে ঠিক করা, আর প্রতিটি বদলের রেকর্ড থাকে।', 'Roles decide who sees what, and every change leaves a record.'],
 ]
 

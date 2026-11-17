@@ -259,14 +259,14 @@ export function Rent({ ctx }: { ctx: Ctx }) {
         <Field label={L('চুক্তি শুরু', 'Contract from')}><input type="date" value={f.from} onChange={e => setF({ ...f, from: e.target.value })} /></Field>
         <Field label={L('চুক্তি শেষ', 'Contract to')}><input type="date" value={f.to} onChange={e => setF({ ...f, to: e.target.value })} /></Field>
       </div>
-      <b className="small">{L('চুক্তির ছবি / PDF', 'Contract photo / PDF')}</b>
+      <b className="small">{L('চুক্তির ছবি / পিডিএফ', 'Contract photo / PDF')}</b>
       <Upload property={p.id} value={f.file} onChange={v => setF(x => x ? { ...x, file: v } : x)} label={L('চুক্তির ছবি দিন', 'Add the contract photo')} />
       {err && <p className="da-error">{err}</p>}
     </Modal>}
     {c && <Modal wide title={L('নতুন চুক্তির খসড়া', 'New contract draft')} onClose={() => setC(null)}
       actions={<><button className="secondary" onClick={() => setC(null)}>{L('বন্ধ', 'Close')}</button>
         <button className="secondary" onClick={() => { void navigator.clipboard?.writeText(c.text).then(() => toast(L('কপি হয়েছে', 'Copied'))) }}><Icon name="doc" size={14} />{L('কপি', 'Copy')}</button>
-        <button onClick={() => printText(`XZM-TEAM-চুক্তি-${p.name}`, c.text)}><Icon name="print" size={14} />{L('প্রিন্ট / PDF', 'Print / PDF')}</button></>}>
+        <button onClick={() => printText(`XZM-TEAM-চুক্তি-${p.name}`, c.text)}><Icon name="print" size={14} />{L('প্রিন্ট / পিডিএফ', 'Print / PDF')}</button></>}>
       <div className="hr-form">
         <Field label={L('শুরু', 'From')}><input type="date" value={c.from} onChange={e => { const x = { ...c, from: e.target.value }; setC({ ...x, text: redraft(x) }) }} /></Field>
         <Field label={L('শেষ', 'To')}><input type="date" value={c.to} onChange={e => { const x = { ...c, to: e.target.value }; setC({ ...x, text: redraft(x) }) }} /></Field>

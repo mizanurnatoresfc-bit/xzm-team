@@ -35,7 +35,7 @@ export function ZonalStaff() {
     subtitle={L('হাব অনুযায়ী কর্মীর হিসাব। একটা হাবে চাপলে সেই হাবের কর্মীদের তালিকা আর কাজগুলো নিচে আসবে।',
       'Staff hub by hub. Tap a hub to see its staff and the actions below.')}
     actions={<><ExportByFormat zone={zone || null} hub={hub?.hub_id ?? null} title={L('কর্মী তালিকা', 'Staff list')} />
-      <Link to="/app/zonal/files" className="btn-ghost">জোনাল ফাইল (বদলি/চালু/বন্ধ Excel)</Link>
+      <Link to="/app/zonal/files" className="btn-ghost">জোনাল ফাইল (বদলি/চালু/বন্ধ এক্সেল)</Link>
       {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary" onClick={() => setMove(true)}>⇄ {L('হাব বদলি', 'Hub transfer')}</button>}
       {can('hr.application.create') && <button onClick={() => setNewApp(true)}>+ {L('নতুন কর্মী', 'New employee')}</button>}</>}>
     {node}
@@ -261,17 +261,17 @@ export function TransferAction({ list, hubs, onClose, onDone }: { list: Employee
   }
   if (moved) return <Modal title={L('বদলি হয়েছে', 'Transfer done')} onClose={() => onDone(moved.msg)}
     actions={<><button className="secondary" onClick={() => onDone(moved.msg)}>{L('বন্ধ করুন', 'Close')}</button>
-      <button onClick={() => excel(moved.people, 'সিস্টেমে হয়েছে')}>{L('Excel ফাইল নামান', 'Download Excel file')}</button></>}>
+      <button onClick={() => excel(moved.people, 'সিস্টেমে হয়েছে')}>{L('এক্সেল ফাইল নামান', 'Download Excel file')}</button></>}>
     <p><b>{moved.msg}</b> → {hubName(hub)}</p>
     <Names list={moved.people} />
     {moved.bad.length > 0 && <p className="da-error">{moved.bad.join(' · ')}</p>}
-    <p className="muted small">{L('কোম্পানির ফরম্যাটে বদলির Excel ফাইল এখান থেকে নিন। পরে লাগলে “জোনাল ফাইল” পাতায় তারিখ ধরে আবার পাওয়া যাবে।',
+    <p className="muted small">{L('কোম্পানির ফরম্যাটে বদলির এক্সেল ফাইল এখান থেকে নিন। পরে লাগলে “জোনাল ফাইল” পাতায় তারিখ ধরে আবার পাওয়া যাবে।',
       'Take the transfer Excel in the company layout here. Later it is also on the "Zonal files" page by date.')}</p>
   </Modal>
   return <Modal title={L('অন্য হাবে বদলি', 'Transfer to another hub')} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button>
       <button className="secondary" disabled={busy} title={L('বদলি না করে শুধু ফাইল', 'File only, no transfer')}
-        onClick={() => { const problem = check(); setErr(problem); if (!problem) excel(targets, 'প্রস্তাবিত') }}>{L('শুধু Excel', 'Excel only')}</button>
+        onClick={() => { const problem = check(); setErr(problem); if (!problem) excel(targets, 'প্রস্তাবিত') }}>{L('শুধু এক্সেল', 'Excel only')}</button>
       <button disabled={busy} onClick={() => void go()}>{L('বদলি করুন', 'Transfer')}</button></>}>
     <Names list={list} />
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
@@ -279,7 +279,7 @@ export function TransferAction({ list, hubs, onClose, onDone }: { list: Employee
       <Field label={L('যেদিন থেকে', 'From')}><input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
       <Field wide label={L('কারণ', 'Reason')}><input value={reason} onChange={e => setReason(e.target.value)} placeholder={L('যেমন: নতুন হাবে জনবল দরকার', 'e.g. the new hub needs staff')} /></Field>
     </div>
-    <p className="muted small">{L('পদবি আর বিভাগ আগের মতোই থাকবে। বদলির হিসাব প্রোফাইলের ইতিহাসে থেকে যাবে। বদলির পর কোম্পানির ফরম্যাটে Excel ফাইল নামানো যাবে।',
+    <p className="muted small">{L('পদবি আর বিভাগ আগের মতোই থাকবে। বদলির হিসাব প্রোফাইলের ইতিহাসে থেকে যাবে। বদলির পর কোম্পানির ফরম্যাটে এক্সেল ফাইল নামানো যাবে।',
       'Position and department stay the same. The move is kept in the profile history. After the transfer you can download the Excel file in the company layout.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>

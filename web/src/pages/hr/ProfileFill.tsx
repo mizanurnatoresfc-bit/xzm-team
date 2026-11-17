@@ -32,7 +32,7 @@ export function ProfileFill({ employee, onClose, onDone }: { employee: string; o
     for (const k of PLAIN) { const v = f[k].trim(); if (v !== (g[k] ?? '')) p[k] = k === 'mobile' || k === 'alt_mobile' || k === 'emergency_contact_phone' ? cleanMobile(v) : v }
     for (const k of SECRET) { const v = f[k].trim(); if (v) p[k] = v }
     for (const k of ['mobile', 'alt_mobile', 'emergency_contact_phone'] as const) if (p[k] && !BD_MOBILE.test(p[k])) return setErr('মোবাইল নম্বর ১১ সংখ্যার দিন, যেমন 01711000000')
-    if (p.nid_number && !/^\d{10}$|^\d{13}$|^\d{17}$/.test(p.nid_number.replace(/\s/g, ''))) return setErr('NID নম্বর ১০, ১৩ বা ১৭ সংখ্যার হয় — মিলিয়ে দেখুন')
+    if (p.nid_number && !/^\d{10}$|^\d{13}$|^\d{17}$/.test(p.nid_number.replace(/\s/g, ''))) return setErr('এনআইডি নম্বর ১০, ১৩ বা ১৭ সংখ্যার হয় — মিলিয়ে দেখুন')
     if (p.nid_number) p.nid_number = p.nid_number.replace(/\s/g, '')
     if (!Object.keys(p).length) return setErr('নতুন কিছু লেখা হয়নি')
     setBusy(true)
@@ -57,7 +57,7 @@ export function ProfileFill({ employee, onClose, onDone }: { employee: string; o
         <Field label="জরুরি যোগাযোগ — নাম"><input value={f.emergency_contact_name} onChange={set('emergency_contact_name')} /></Field>
         <Field label="জরুরি যোগাযোগ — মোবাইল"><input inputMode="tel" value={f.emergency_contact_phone} onChange={set('emergency_contact_phone')} placeholder="01XXXXXXXXX" /></Field>
       </div>
-      <p className="muted small">ছবি, NID-র সামনের ও পেছনের ছবি দিতে প্রোফাইলের “ডকুমেন্ট” অংশে যান।</p>
+      <p className="muted small">ছবি, এনআইডির সামনের ও পেছনের ছবি দিতে প্রোফাইলের “ডকুমেন্ট” অংশে যান।</p>
     </>}
     {err && <p className="da-error" role="alert">{err}</p>}
   </Modal>

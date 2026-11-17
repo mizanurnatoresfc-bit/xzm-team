@@ -55,7 +55,7 @@ export function References() {
         : { name: f.name, position: f.position, phone: f.phone, hub: f.hub || null, hubName: f.hubName || (o.names.hub[f.hub] ?? ''), zone: f.zone || null, note: f.note }
       if (f.id) await refs.edit(f.id, input); else await refs.add(input)
       setF(null); await data.reload()
-      toast(approver ? 'অনুরোধ জমা হয়েছে — অনুমোদন ট্যাবে আছে' : 'অনুরোধ জমা হয়েছে — HR অনুমোদন দিলে তালিকায় দেখাবে')
+      toast(approver ? 'অনুরোধ জমা হয়েছে — অনুমোদন ট্যাবে আছে' : 'অনুরোধ জমা হয়েছে — এইচআর অনুমোদন দিলে তালিকায় দেখাবে')
     } catch (e) { setErr(refFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(r: RefRow) {
@@ -164,7 +164,7 @@ export function References() {
             <datalist id="rf-posts">{o.data?.positions.map(p => <option key={p.id} value={p.name_bn || p.name} />)}</datalist></>}
         <Field label="নোট (ঐচ্ছিক)" wide><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder="HR-কে কিছু বলার থাকলে" /></Field>
       </div>
-      <p className="muted small"><Icon name="clock" size={12} /> HR অনুমোদন দিলে তবেই তালিকায় সবাই দেখবেন; ততক্ষণ "আমার অনুরোধ"-এ অপেক্ষায় থাকবে।</p>
+      <p className="muted small"><Icon name="clock" size={12} /> এইচআর অনুমোদন দিলে তবেই তালিকায় সবাই দেখবেন; ততক্ষণ "আমার অনুরোধ"-এ অপেক্ষায় থাকবে।</p>
       {err && <p className="da-error">{err}</p>}
     </Modal>}
   </AppShell>

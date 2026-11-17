@@ -622,7 +622,7 @@ function HubTeam({ hub }: { hub: Hub }) {
         empty={<p className="muted">{L('এখানে কেউ নেই।', 'Nobody here.')}</p>}
         cols={[
           { key: 'name', label: L('নাম', 'Name'), primary: true, value: r => r.full_name, render: r => <span className="emp-tname"><span className="ec-av sm">{r.full_name.slice(0, 2).toUpperCase()}</span>
-            <span><b>{r.full_name}</b><span className="sec">{r.employee_code ? `ID ${r.employee_code}` : L('আইডি বাকি', 'ID pending')}</span></span></span> },
+            <span><b>{r.full_name}</b><span className="sec">{r.employee_code ? `${L('আইডি', 'ID')} ${r.employee_code}` : L('আইডি বাকি', 'ID pending')}</span></span></span> },
           { key: 'code', label: L('আইডি', 'ID'), hidden: true, value: r => r.employee_code ?? '' },
           { key: 'mobile', label: L('ফোন', 'Phone'), value: r => r.mobile ?? '', render: r => r.mobile ? <Contact phone={r.mobile} /> : <span className="warn-text">{L('নম্বর নেই', 'No number')}</span> },
           { key: 'post', label: L('পদ', 'Role'), value: r => posName(r), render: r => <Badge tone={r.position_id ? 'ok' : 'neutral'}>{posName(r)}</Badge> },

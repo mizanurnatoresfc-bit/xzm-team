@@ -108,8 +108,8 @@ export function ImportEmployees() {
       [['101', 'Abdul Karim', 'Rider', 'Natore Sadar Hub', '01711000000', 12000, 1500, 500, '01/01/2024', '']]), 'employee-import-template.xlsx')
   }
 
-  return <AppShell title={L('কর্মী ইমপোর্ট (Excel)', 'Import employees (Excel)')}
-    subtitle={L('পুরনো কর্মীদের তালিকা Excel থেকে তুলুন। যেকোনো কলাম যেকোনো ঘরে বসানো যায় — কোম্পানির নিজের ফরম্যাট চলবে।', 'Bring existing staff in from Excel. Any column can go to any field — your own sheet format works.')}
+  return <AppShell title={L('কর্মী ইমপোর্ট (এক্সেল)', 'Import employees (Excel)')}
+    subtitle={L('পুরনো কর্মীদের তালিকা এক্সেল থেকে তুলুন। যেকোনো কলাম যেকোনো ঘরে বসানো যায় — কোম্পানির নিজের ফরম্যাট চলবে।', 'Bring existing staff in from Excel. Any column can go to any field — your own sheet format works.')}
     actions={<button className="secondary" onClick={template}>{L('নমুনা ফাইল', 'Sample file')}</button>}>
     {node}
     {err && <p className="da-error">{err}</p>}
@@ -135,7 +135,7 @@ export function ImportEmployees() {
           <p className="muted small">{L('নিজে থেকে মিলিয়ে দেওয়া হয়েছে — মিলিয়ে দেখুন। যে কলাম লাগবে না সেটায় "— বাদ —" রাখুন। দরকারি: নাম আর হাব। আইডি থাকলে কর্মী সরাসরি সক্রিয় হবেন, না থাকলে আইডি আবেদনে যাবেন।',
             'Matched automatically — please check. Leave “— skip —” for columns you do not need. Required: name and hub. Rows with an ID become active staff; rows without one go to ID applications.')}</p>
           <div className="da-table-wrap"><table className="da-table">
-            <thead><tr><th>{L('Excel কলাম', 'Excel column')}</th><th>{L('নমুনা', 'Sample')}</th><th>{L('কোন ঘরে যাবে', 'Goes to')}</th></tr></thead>
+            <thead><tr><th>{L('এক্সেল কলাম', 'Excel column')}</th><th>{L('নমুনা', 'Sample')}</th><th>{L('কোন ঘরে যাবে', 'Goes to')}</th></tr></thead>
             <tbody>{headers.map((h, i) => <tr key={i}><td><strong>{h}</strong></td>
               <td className="muted small">{dataRows.slice(0, 2).map(x => x.r[i]).filter(Boolean).join(' · ')}</td>
               <td><select value={mapping[i] ?? ''} aria-label={`${h} →`} onChange={e => setMapping({ ...mapping, [i]: e.target.value })}>

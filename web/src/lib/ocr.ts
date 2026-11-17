@@ -25,7 +25,7 @@ export function loadTesseract(): Promise<Tess> {
 }
 
 export async function readImage(file: File, languages = 'eng+ben', onProgress?: (p: number) => void) {
-  if (!file.type.startsWith('image/')) throw new Error('OCR শুধু ছবিতে চলে (JPG/PNG)। PDF হলে তথ্য নিজে লিখুন।')
+  if (!file.type.startsWith('image/')) throw new Error('OCR শুধু ছবিতে চলে (JPG/PNG)। পিডিএফ হলে তথ্য নিজে লিখুন।')
   const T = await loadTesseract()
   const { data } = await T.recognize(file, languages, { logger: m => { if (m.status === 'recognizing text') onProgress?.(m.progress) } })
   return { text: data.text, confidence: Math.round(data.confidence) }

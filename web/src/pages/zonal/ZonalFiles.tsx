@@ -29,7 +29,7 @@ export function ZonalFiles() {
     {node}
     <nav className="emp-tabs no-print" role="tablist">
       <button role="tab" aria-selected={tab === 'mark'} className={tab === 'mark' ? 'on' : ''} onClick={() => setTab('mark')}><Icon name="checkall" size={16} />মার্ক করুন</button>
-      <button role="tab" aria-selected={tab === 'file'} className={tab === 'file' ? 'on' : ''} onClick={() => setTab('file')}><Icon name="xls" size={16} />ফাইল ও Excel</button>
+      <button role="tab" aria-selected={tab === 'file'} className={tab === 'file' ? 'on' : ''} onClick={() => setTab('file')}><Icon name="xls" size={16} />ফাইল ও এক্সেল</button>
     </nav>
     {tab === 'mark' ? <Mark onDone={m => { toast(m); setTab('file') }} /> : <Files onToast={toast} />}
   </AppShell>
@@ -53,7 +53,7 @@ function Mark({ onDone }: { onDone: (m: string) => void }) {
 
   async function submit() {
     setErr('')
-    if (!fmt) return setErr('এই ধরনের রিকুয়েস্ট ফরম্যাট পাওয়া যায়নি (HR রিকুয়েস্ট → সেটিং দেখুন)')
+    if (!fmt) return setErr('এই ধরনের রিকুয়েস্ট ফরম্যাট পাওয়া যায়নি (এইচআর রিকুয়েস্ট → সেটিং দেখুন)')
     if (!ids.length) return setErr('কাকে মার্ক করবেন বেছে নিন')
     if (!common.reason.trim()) return setErr('কারণ লিখুন')
     if (kind === 'id_transfer' && ids.some(id => !(picked[id] || common.to))) return setErr('নতুন হাব দিন (সবার জন্য বা প্রতিজনের পাশে)')
@@ -74,7 +74,7 @@ function Mark({ onDone }: { onDone: (m: string) => void }) {
     }
     setBusy(false); setProgress('')
     if (bad.length) setErr(bad.join(' · '))
-    if (ok) { setPicked({}); onDone(`${ok.toLocaleString('bn-BD')} জনকে মার্ক করা হয়েছে — "ফাইল ও Excel" থেকে কোম্পানির ফাইল নিন`) }
+    if (ok) { setPicked({}); onDone(`${ok.toLocaleString('bn-BD')} জনকে মার্ক করা হয়েছে — "ফাইল ও এক্সেল" থেকে কোম্পানির ফাইল নিন`) }
   }
 
   return <section className="panel">
@@ -108,7 +108,7 @@ function Mark({ onDone }: { onDone: (m: string) => void }) {
       <div className="da-bar" style={{ marginTop: 10 }}>
         <span><b>{ids.length.toLocaleString('bn-BD')}</b> জন বাছাই করা {progress && <span className="muted"> · পাঠানো হচ্ছে {progress}</span>}</span>
         <button disabled={busy || !ids.length} onClick={() => void submit()}><Icon name="check" size={16} />মার্ক করে জমা দিন</button></div>
-      <p className="muted small">মার্ক করলে প্রতিজনের জন্য একটা HR রিকুয়েস্ট হয় (তালিকায় থাকে, কর্মী ও রেফারেন্স নোটিফিকেশন পান)। আসল বদলি / চালু / বন্ধ হবে “ফাইল ও Excel” থেকে “সিস্টেমে প্রয়োগ” দিলে, অথবা কোম্পানি থেকে করার পর।</p>
+      <p className="muted small">মার্ক করলে প্রতিজনের জন্য একটা এইচআর রিকুয়েস্ট হয় (তালিকায় থাকে, কর্মী ও রেফারেন্স নোটিফিকেশন পান)। আসল বদলি / চালু / বন্ধ হবে “ফাইল ও এক্সেল” থেকে “সিস্টেমে প্রয়োগ” দিলে, অথবা কোম্পানি থেকে করার পর।</p>
     </>}
     {err && <p className="da-error">{err}</p>}
   </section>

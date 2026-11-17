@@ -348,3 +348,13 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   as plain divided rows; label · amount tables keep the amount on the right in bold. Hind Siliguri first in the font stack.
 - To change the look later, edit that last block, not the older layers above it.
 - Not done yet: dates written as 01/01/2026 and some English words (Rider, HR, Staff); the employee list's phone cards are still tall.
+
+## 2026-11-17 — Bangla dates and words on screen
+- Owner: "তারিখ আর ইংরেজি শব্দগুলো বাংলায় করে দাও".
+- `web/src/lib/bnText.ts` (started in `main.tsx`): in Bangla mode, every date shown on screen as 2026-11-15 or 15/11/2026 becomes
+  "১৫ নভেম্বর ২০২৬", and a post or role name that arrives only in English shows its Bangla name (from `positions.name_bn` /
+  `roles.name_bn`, loaded once after sign-in). Only screen text — never inputs, data sent to the server or downloaded Excel; dates inside file
+  names or timestamps are left alone; switching to English restores the original. Add class `no-bn` to an element to keep its text as is.
+- English words inside Bangla sentences replaced in the code (43 files): HR→এইচআর, NID→এনআইডি, Employee/Payment/Transaction ID→… আইডি,
+  Submit→সাবমিট, Accept→গ্রহণ, Accounts Manager→হিসাব ম্যানেজার, Excel→এক্সেল, PDF→পিডিএফ, Super Admin→সুপার অ্যাডমিন; "ID 1001"→"আইডি 1001".
+  Kept: "Save as PDF" (Chrome's own button), JPG/PNG, the main site's format names (ID CREATE, New Admin & Rider ID Create).

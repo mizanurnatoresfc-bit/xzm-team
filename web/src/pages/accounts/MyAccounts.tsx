@@ -56,7 +56,7 @@ export function MyAccounts() {
             <td data-l="বকেয়া" className="r">{taka(l.line.due)}</td><td data-l="মোবাইল ব্যাংকিং" className="r">{taka(l.line.mobile_banking)}</td><td data-l="অবস্থা"><StatusBadge status={l.status} /></td><td data-l="মন্তব্য">{l.verify_note ?? l.line.remarks ?? ''}</td></tr>)}
             {m.my_lines.length === 0 && <tr><td colSpan={9} className="muted">এই সময়ে আপনার নামে কোনো রাইডার হিসাব নেই।</td></tr>}</tbody></table></div></section>
 
-      <section className="panel"><h2>আমার শুরু / Submit করা হিসাব</h2>
+      <section className="panel"><h2>আমার শুরু / সাবমিট করা হিসাব</h2>
         <div className="nv-rows nv-phone-only">
           {m.my_sheets.map(sh => <Link key={sh.id} className="nv-row" to={`/app/accounts/daily/${sh.id}`}>
             <span className="nv-av">{sh.hub.slice(0, 1)}</span>

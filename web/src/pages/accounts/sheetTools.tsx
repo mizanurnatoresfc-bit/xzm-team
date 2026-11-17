@@ -128,8 +128,8 @@ export function SectionMenu({ sec, title, s, settings, onAdd, addLabel, onLayout
   return <>
     <DotMenu label={`${title} — আরও`} items={[
       { label: addLabel ?? '＋ নতুন লাইন', onClick: () => onAdd?.(), hide: !onAdd || !s.can_edit },
-      { label: 'এই অংশ প্রিন্ট / PDF', onClick: () => printSection(el(), `${title} — ${sub}`) },
-      { label: 'এই অংশ Excel-এ', onClick: () => exportSection(el(), title, sub) },
+      { label: 'এই অংশ প্রিন্ট / পিডিএফ', onClick: () => printSection(el(), `${title} — ${sub}`) },
+      { label: 'এই অংশ এক্সেলে', onClick: () => exportSection(el(), title, sub) },
       { label: 'কলাম সাজান (দেখান, লুকান, নাম বদল, নতুন কলাম)', onClick: () => setDlg(true), hide: !s.can_layout },
       { label: 'এই অংশ বন্ধ করুন', danger: true, hide: !s.can_layout, onClick: () => {
         if (!window.confirm(`"${title}" অংশটা সবার জন্য বন্ধ হবে। হিসাব সেটিংস থেকে আবার চালু করা যাবে।`)) return
@@ -399,7 +399,7 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
           {d.byHand ? <input type="number" min={0} value={d.charge} onChange={e => setD({ ...d, charge: e.target.value })} /> : <input readOnly value={num(autoCharge)} />}
           <button type="button" className="link" onClick={() => setD({ ...d, byHand: !d.byHand, charge: String(autoCharge) })}>{d.byHand ? 'অটোতে ফিরুন' : 'হাতে লিখুন'}</button></Field>
         <Field label="রেফ নং (স্লিপের)"><input value={d.ref} onChange={e => setD({ ...d, ref: e.target.value })} /></Field>
-        <Field label="ব্যাংক স্লিপ" hint={uploading ? 'আপলোড হচ্ছে…' : d.slip ? 'আপলোড হয়েছে' : 'ছবি বা PDF'}>
+        <Field label="ব্যাংক স্লিপ" hint={uploading ? 'আপলোড হচ্ছে…' : d.slip ? 'আপলোড হয়েছে' : 'ছবি বা পিডিএফ'}>
           <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void slip(f) }} /></Field>
         <Field label="মন্তব্য" wide><input value={d.remarks} onChange={e => setD({ ...d, remarks: e.target.value })} /></Field>
       </div>

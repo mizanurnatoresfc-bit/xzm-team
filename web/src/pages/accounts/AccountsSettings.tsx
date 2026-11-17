@@ -32,7 +32,7 @@ export function AccountsSettings() {
           <Field label="কত দিন আগের হিসাব শুরু করা যাবে"><input type="number" min={0} max={31} value={s['da.backdate_days']} onChange={e => set('da.backdate_days', Number(e.target.value))} /></Field>
         </div>
         <label className="da-check"><input type="checkbox" checked={s['da.session_tracking']} onChange={e => set('da.session_tracking', e.target.checked)} /> পেজে প্রবেশ-বের হওয়া ও সময় ট্র্যাক করুন</label>
-        <label className="da-check"><input type="checkbox" checked={s['da.require_assignment']} onChange={e => set('da.require_assignment', e.target.checked)} /> শুধু হাবে নির্ধারিত Accounts Manager যাচাই করতে পারবেন</label>
+        <label className="da-check"><input type="checkbox" checked={s['da.require_assignment']} onChange={e => set('da.require_assignment', e.target.checked)} /> শুধু হাবে নির্ধারিত হিসাব ম্যানেজার যাচাই করতে পারবেন</label>
         <button onClick={() => void save(['da.start_time', 'da.backdate_days', 'da.session_tracking', 'da.require_assignment'])}>সেভ</button></section>
 
       <section className="panel"><h2>হিসাবের নিয়ম</h2>
@@ -74,7 +74,7 @@ export function AccountsSettings() {
           <Field label="OCR ভাষা"><select value={s['da.ocr'].languages} onChange={e => set('da.ocr', { ...s['da.ocr'], languages: e.target.value })}><option value="eng+ben">English + বাংলা</option><option value="eng">English</option><option value="ben">বাংলা</option></select></Field>
           <Field label="OCR সতর্কতা সীমা (%)"><input type="number" min={0} max={100} value={s['da.ocr'].min_confidence} onChange={e => set('da.ocr', { ...s['da.ocr'], min_confidence: Number(e.target.value) })} /></Field>
         </div>
-        <label className="da-check"><input type="checkbox" checked={s['da.ocr'].require_verification} onChange={e => set('da.ocr', { ...s['da.ocr'], require_verification: e.target.checked })} /> OCR তথ্য যাচাই ছাড়া Submit করা যাবে না (প্রস্তাবিত)</label>
+        <label className="da-check"><input type="checkbox" checked={s['da.ocr'].require_verification} onChange={e => set('da.ocr', { ...s['da.ocr'], require_verification: e.target.checked })} /> OCR তথ্য যাচাই ছাড়া সাবমিট করা যাবে না (প্রস্তাবিত)</label>
         <p className="muted small">OCR: Tesseract.js, ব্রাউজারে চলে; প্রথমবার ইন্টারনেট থেকে লোড হয়।</p>
         <button onClick={() => void save(['da.reference_setup', 'da.bill_upload', 'da.ocr'])}>সেভ</button></section>
     </div>
@@ -109,7 +109,7 @@ function FixedLinesCard({ riders, expenses, cats, onSave }: { riders: string[]; 
     <p className="muted small">যে রাইডারদের হিসাব রোজই ওঠে আর যে খরচ রোজই হয় — এখানে রেখে দিলে নতুন খাতা খোলার সময় নিজে থেকেই বসে যাবে। পরে বদলানো বা বাদ দেওয়া যাবে।</p>
     <div className="da-grid2">
       <div>
-        <h3>রাইডারের Employee ID</h3>
+        <h3>রাইডারের এমপ্লয়ি আইডি</h3>
         {r.map((code, i) => <div key={i} className="row" style={{ marginBottom: 6 }}>
           <input value={code} inputMode="numeric" onChange={e => setR(r.map((v, j) => j === i ? e.target.value : v))} />
           <button className="danger sm" onClick={() => setR(r.filter((_, j) => j !== i))}>×</button></div>)}
@@ -315,20 +315,20 @@ function AccessCard() {
   async function assign() { setErr(null); try { await da.assignAccountant(hub, form.user, form.reason); setForm({ user: '', reason: '' }); await assigned.reload() } catch (e) { setErr(e) } }
   async function revoke(id: string) { const r = window.prompt('বাতিলের কারণ লিখুন'); if (!r) return; try { await da.revokeAccountant(id, r); await assigned.reload() } catch (e) { setErr(e) } }
 
-  return <section className="panel"><h2>Accounts Manager নির্ধারণ ও হাব-ভিত্তিক অনুমতি</h2>
+  return <section className="panel"><h2>হিসাব ম্যানেজার নির্ধারণ ও হাব-ভিত্তিক অনুমতি</h2>
     <div className="da-filters"><Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{(hubs.data ?? []).map(h => <option key={h.hub_id} value={h.hub_id}>{h.name} · {h.zone_name}</option>)}</select></Field>
       <Field label="Accounts Manager"><select value={form.user} onChange={e => setForm({ ...form, user: e.target.value })}><option value="">— বেছে নিন —</option>{(people.data ?? []).map(p => <option key={p.user_id} value={p.user_id}>{p.full_name}</option>)}</select></Field>
       <Field label="কারণ"><input value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></Field>
       <button disabled={!hub || !form.user || !form.reason.trim()} onClick={() => void assign()}>নির্ধারণ করুন</button></div>
     <ErrorNote error={err || assigned.error || access.error} />
     <div className="da-grid2">
-      <div><h3>নির্ধারিত Accounts Manager</h3><table className="da-table"><thead><tr><th>হাব</th><th>ব্যক্তি</th><th>কারণ</th><th /></tr></thead>
+      <div><h3>নির্ধারিত হিসাব ম্যানেজার</h3><table className="da-table"><thead><tr><th>হাব</th><th>ব্যক্তি</th><th>কারণ</th><th /></tr></thead>
         <tbody>{(assigned.data ?? []).map(a => <tr key={a.id}><td>{hubName(a.hub_id)}</td><td>{userName(a.user_id)}</td><td>{a.reason}</td><td><button className="danger sm" onClick={() => void revoke(a.id)}>বাতিল</button></td></tr>)}
-          {(assigned.data ?? []).length === 0 && <tr><td colSpan={4} className="muted">কেউ নির্ধারিত নেই — অনুমতিপ্রাপ্ত যেকোনো Accounts Manager যাচাই করতে পারবেন।</td></tr>}</tbody></table></div>
+          {(assigned.data ?? []).length === 0 && <tr><td colSpan={4} className="muted">কেউ নির্ধারিত নেই — অনুমতিপ্রাপ্ত যেকোনো হিসাব ম্যানেজার যাচাই করতে পারবেন।</td></tr>}</tbody></table></div>
       <div><h3>এই হাবে কার কী অনুমতি</h3><table className="da-table"><thead><tr><th>ব্যক্তি</th><th>রোল</th><th>Submit</th><th>সংশোধন</th><th>অনুমোদন</th></tr></thead>
         <tbody>{(access.data ?? []).map((a, i) => <tr key={i}><td>{a.full_name}</td><td>{a.role_name}<span className="sec">{a.scope_type}</span></td>
           <td>{a.can_submit ? '✓' : '—'}</td><td>{a.can_correct ? '✓' : '—'}</td><td>{a.can_verify ? '✓' : '—'}</td></tr>)}</tbody></table>
-        <p className="muted small">Submit, সংশোধন ও অনুমোদনের অনুমতি রোলের মাধ্যমে আসে (da.sheet.create, da.correction.edit, da.sheet.approve)। রোলের অনুমতি শুধু Super Admin বদলাতে পারেন।</p></div>
+        <p className="muted small">সাবমিট, সংশোধন ও অনুমোদনের অনুমতি রোলের মাধ্যমে আসে (da.sheet.create, da.correction.edit, da.sheet.approve)। রোলের অনুমতি শুধু সুপার অ্যাডমিন বদলাতে পারেন।</p></div>
     </div>
   </section>
 }

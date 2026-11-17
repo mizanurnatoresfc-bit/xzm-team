@@ -99,11 +99,11 @@ const BN: Array<[RegExp, string]> = [
   [/^Missing (.+)$/, 'দরকারি ঘর খালি: $1'],
   [/Unknown hub: (.+)/, 'হাব পাওয়া যায়নি: $1'], [/Unknown position: (.+)/, 'পদবি পাওয়া যায়নি: $1'], [/Unknown department: (.+)/, 'বিভাগ পাওয়া যায়নি: $1'],
   [/Unknown reference ID: (.+)/, 'রেফারেন্স আইডি পাওয়া যায়নি: $1'], [/Employee cannot refer themselves/, 'নিজেই নিজের রেফারেন্স হতে পারেন না'],
-  [/Invalid mobile/, 'মোবাইল নম্বর ঠিক নেই'], [/Invalid emergency_contact_phone/, 'জরুরি মোবাইল ঠিক নেই'], [/Invalid NID/, 'NID ঠিক নেই (১০/১৩/১৭ সংখ্যা)'],
+  [/Invalid mobile/, 'মোবাইল নম্বর ঠিক নেই'], [/Invalid emergency_contact_phone/, 'জরুরি মোবাইল ঠিক নেই'], [/Invalid NID/, 'এনআইডি ঠিক নেই (১০/১৩/১৭ সংখ্যা)'],
   [/Invalid date_of_birth/, 'জন্মতারিখ ঠিক নেই'], [/Invalid joining_date/, 'যোগদানের তারিখ ঠিক নেই'], [/Younger than (\d+)/, 'বয়স $1-এর কম'],
   [/Joining date too far/, 'যোগদানের তারিখ অনেক পরের'], [/Invalid (basic_salary|transport_allowance|commission)/, 'টাকার ঘরে শুধু সংখ্যা দিন'],
   [/Hub outside your scope/, 'এই হাব আপনার এলাকার বাইরে'], [/Invalid employee_code format/, 'এমপ্লয়ি আইডির ধরন ঠিক নেই'],
-  [/employee_code already exists/, 'এই এমপ্লয়ি আইডি আগেই আছে'], [/NID already exists/, 'এই NID আগেই আছে'], [/Mobile already exists/, 'এই মোবাইল আগেই আছে'],
+  [/employee_code already exists/, 'এই এমপ্লয়ি আইডি আগেই আছে'], [/NID already exists/, 'এই এনআইডি আগেই আছে'], [/Mobile already exists/, 'এই মোবাইল আগেই আছে'],
   [/Invalid value for (.+)/, '"$1" ঘরের মান ঠিক নেই'], [/Duplicate of another row/, 'ফাইলের অন্য সারির সাথে মিলে গেছে'],
 ]
 export function rowError(e: string): string {
@@ -115,7 +115,7 @@ export function importFriendly(err: unknown): string {
   if (/Required column "hub"/.test(m)) return 'হাবের কলাম বেছে দিন (হাব নাম বা হাব কোড)'
   if (/Required column "(.+)"/.test(m)) return `দরকারি কলাম বাছাই হয়নি: ${m.match(/"(.+)"/)?.[1]}`
   if (/same field/.test(m)) return 'দুটো কলাম একই ঘরে দেওয়া হয়েছে'
-  if (/uploader cannot verify/.test(m)) return 'যিনি আপলোড করেছেন তিনি নিজে যাচাই করতে পারবেন না — অন্য একজন HR যাচাই করবেন'
+  if (/uploader cannot verify/.test(m)) return 'যিনি আপলোড করেছেন তিনি নিজে যাচাই করতে পারবেন না — অন্য একজন এইচআর যাচাই করবেন'
   if (/row\(s\) have errors/.test(m)) return 'কিছু সারিতে ভুল আছে — ভুল সারি বাদ দিয়ে সেভ করতে টিক দিন'
   if (/Choose the zone/.test(m)) return 'নতুন হাবগুলো কোন জোনে যাবে বেছে নিন'
   if (/Not authorised to create hubs/.test(m)) return 'এই জোনে হাব বানানোর অনুমতি নেই'

@@ -69,7 +69,7 @@ export function HubLogins({ hub }: { hub: { id: string; name: string } }) {
     <section className="nv-hero">
       <div className="nv-hero-main"><span className="lbl">লগইন সেটআপ · {hub.name}</span>
         <b className="big">{bn(have.length)} / {bn(rows.length)} জনের লগইন আছে</b>
-        <span className="sub">লগইন আইডি হবে কর্মীর Employee ID। রোল তাঁর পদ অনুযায়ী নিজে থেকে বসে (রাইডার বা সাধারণ স্টাফ)।</span>
+        <span className="sub">লগইন আইডি হবে কর্মীর এমপ্লয়ি আইডি। রোল তাঁর পদ অনুযায়ী নিজে থেকে বসে (রাইডার বা সাধারণ স্টাফ)।</span>
         {ready.length > 0 && <div><button type="button" onClick={() => open(ready)}><Icon name="key" size={16} /> বাকি {bn(ready.length)} জনের লগইন একসাথে বানান</button></div>}</div>
       <div className="nv-nums"><div><b>{bn(ready.length)}</b><span>বানানো বাকি</span></div><div className={cannot.length ? 'warn' : ''}><b>{bn(cannot.length)}</b><span>এখান থেকে হবে না</span></div></div>
     </section>
@@ -77,9 +77,9 @@ export function HubLogins({ hub }: { hub: { id: string; name: string } }) {
     {list.loading && !list.data ? <p className="muted">লোড হচ্ছে…</p> : <div className="nv-rows">
       {rows.map(r => <div key={r.employee_id} className="nv-row">
         <span className="nv-av">{r.full_name.slice(0, 1)}</span>
-        <span className="tx"><b>{r.full_name}</b><span>{r.employee_code ? `ID ${r.employee_code}` : 'আইডি নেই'} · {post(r)}</span>
+        <span className="tx"><b>{r.full_name}</b><span>{r.employee_code ? `আইডি ${r.employee_code}` : 'আইডি নেই'} · {post(r)}</span>
           <span className="who">{r.user_id ? (r.last_login_at ? 'লগইন করেছেন' : r.must_change ? 'লগইন তৈরি — এখনো ঢোকেননি' : 'লগইন আছে') + (r.locked ? ' · এখন লক' : '')
-            : r.can_make ? 'লগইন নেই' : !r.employee_code ? 'আগে Employee ID লাগবে' : 'এই পদের লগইন অ্যাডমিন বানাবেন'}</span></span>
+            : r.can_make ? 'লগইন নেই' : !r.employee_code ? 'আগে এমপ্লয়ি আইডি লাগবে' : 'এই পদের লগইন অ্যাডমিন বানাবেন'}</span></span>
         <span className="end">{r.user_id ? <><Badge tone="ok">লগইন আছে</Badge><button type="button" className="link small" onClick={() => { setErr(''); setPw(''); setReset(r) }}>নতুন পাসওয়ার্ড দিন</button></>
           : r.can_make ? <button type="button" className="sm" onClick={() => open([r])}>লগইন বানান</button> : <Badge>অ্যাডমিন</Badge>}</span>
       </div>)}
@@ -89,7 +89,7 @@ export function HubLogins({ hub }: { hub: { id: string; name: string } }) {
     {make && <Modal title={make.length === 1 ? `লগইন বানান — ${make[0].full_name}` : `${bn(make.length)} জনের লগইন বানান`} onClose={() => !busy && setMake(null)}
       actions={<><button className="secondary" disabled={busy} onClick={() => setMake(null)}>{run && !busy ? 'বন্ধ' : 'বাতিল'}</button>
         {!(run && !busy) && <button disabled={busy} onClick={() => void create()}>{busy ? `হচ্ছে… ${bn(run?.done ?? 0)}/${bn(run?.total ?? make.length)}` : 'লগইন বানান'}</button>}</>}>
-      <p className="muted small">{make.length === 1 ? `লগইন আইডি: ${make[0].employee_code}` : 'প্রত্যেকের লগইন আইডি হবে তাঁর Employee ID; সবার প্রথম পাসওয়ার্ড একই থাকবে।'}</p>
+      <p className="muted small">{make.length === 1 ? `লগইন আইডি: ${make[0].employee_code}` : 'প্রত্যেকের লগইন আইডি হবে তাঁর এমপ্লয়ি আইডি; সবার প্রথম পাসওয়ার্ড একই থাকবে।'}</p>
       {!(run && !busy) && pwBox}
       {run && run.bad.length > 0 && <div className="da-error" role="alert"><b>{bn(run.bad.length)} জনের হয়নি:</b><ul style={{ margin: '4px 0 0', paddingLeft: 18 }}>{run.bad.map((b, i) => <li key={i}>{b}</li>)}</ul></div>}
       {err && <p className="da-error" role="alert">{err}</p>}

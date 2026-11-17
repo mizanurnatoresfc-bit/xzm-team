@@ -89,7 +89,7 @@ export function AttendanceDays({ hub }: { hub: { id: string; name: string; code:
         {rows.map(r => { const x = d[r.employee_id] ?? { on: '', reg: '', note: '' }; const a = num(x.on), b = num(x.reg); const diff = a !== null && b !== null && a !== b
           return <div key={r.employee_id} className={`nv-row${diff ? ' ad-diff' : ''}`}>
             <span className="nv-av">{r.full_name.slice(0, 1)}</span>
-            <span className="tx"><b>{r.full_name}</b><span>{r.employee_code ? `ID ${r.employee_code} · ` : ''}{post(r.position_name)}{r.site_days > 0 ? ` · এই সাইটে ${bn(r.site_days)} দিন` : ''}</span>
+            <span className="tx"><b>{r.full_name}</b><span>{r.employee_code ? `আইডি ${r.employee_code} · ` : ''}{post(r.position_name)}{r.site_days > 0 ? ` · এই সাইটে ${bn(r.site_days)} দিন` : ''}</span>
               {diff && <span className="who"><em>পার্থক্য {bn(Math.abs(b! - a!))} দিন</em> <input className="ad-note" value={x.note} disabled={!edit} onChange={e => set(r.employee_id, 'note', e.target.value)} placeholder="কেন মেলেনি (ঐচ্ছিক)" aria-label={`${r.full_name} — নোট`} /></span>}
               {!diff && r.submitted_at && <span className="who">জমা দিয়েছেন {r.submitted_by_name ?? '—'}</span>}</span>
             <span className="ad-in">

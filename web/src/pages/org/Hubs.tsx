@@ -300,7 +300,7 @@ function ImportPanel({ rows, hubs, can, onDone }: { rows: ImportRow[]; hubs: Hub
   }
   return <section className="panel hd-import">
     <div className="da-bar"><strong>তালিকা থেকে মিলানো বাকি: {rows.length}টি</strong>
-      <span className="muted sm">ID, ফোন ও GPS তালিকার মতোই বসবে। চালু হাবে শুধু ফাঁকা ঘর ভরবে।</span></div>
+      <span className="muted sm">আইডি, ফোন ও জিপিএস তালিকার মতোই বসবে। চালু হাবে শুধু ফাঁকা ঘর ভরবে।</span></div>
     <div className="hd-imp-list">
       {rows.map(r => {
         const target = pick[r.id] ?? (r.suggested_hub_id && free.some(h => h.id === r.suggested_hub_id) ? r.suggested_hub_id : '')

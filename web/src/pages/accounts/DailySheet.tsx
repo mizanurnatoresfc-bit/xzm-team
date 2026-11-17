@@ -62,7 +62,7 @@ export function DailySheet() {
 
   return <AccountsShell title={`${s.hub.name} · ${dateBn(s.session.account_date)}`}
     subtitle={`হিসাব নং ${num(s.session.no)} · শুরু করেছেন ${s.session.started_by_name ?? '—'}${s.session.started_by_code ? ` (ID ${s.session.started_by_code})` : ''} · ${timeBn(s.session.started_at)}`}
-    actions={<><StatusBadge status={s.session.status} /><button className="secondary" onClick={() => printArea(`Daily-account-${s.hub.code}-${s.session.account_date}`)}>প্রিন্ট / PDF</button></>}>
+    actions={<><StatusBadge status={s.session.status} /><button className="secondary" onClick={() => printArea(`Daily-account-${s.hub.code}-${s.session.account_date}`)}>প্রিন্ট / পিডিএফ</button></>}>
     {node}
     <div className="nv-sheet">
     {s.session.status === 'correction' && s.session.verify_note && <p className="notice">সংশোধন প্রয়োজন: {s.session.verify_note}</p>}
@@ -175,7 +175,7 @@ export function RidersTab({ s, settings, reload, ls }: { s: Sheet; settings: DaS
       <p className="qg-tip no-print">এক্সেলের মতো ঘরে সরাসরি লিখুন — <b>Employee ID</b> দিলে নাম নিজে আসবে। <b>Enter / ↓</b> নিচের ঘরে যায়, <b>Tab</b> পাশের ঘরে। লাইন ছাড়লেই নিজে সেভ হয়; নিচের ফাঁকা লাইনে নতুন রাইডার।</p>
       <datalist id="da-staff-q">{(staff.data ?? []).map(e => <option key={e.employee_id} value={e.employee_code}>{e.full_name}</option>)}</datalist>
       <QuickGrid cols={rcols} rows={rrows} blank={rblank} editable
-        ready={v => (v.code.trim() ? null : 'ID লিখুন')} save={rsave} onSaved={() => reload()} lookup={rlookup}
+        ready={v => (v.code.trim() ? null : 'আইডি লিখুন')} save={rsave} onSaved={() => reload()} lookup={rlookup}
         onRemove={id => setRemove(s.riders.find(r => r.id === id) ?? null)} /></div>}
     {/* phone: one row per rider — tap to change it */}
     <div className="nv-rows nv-phone-only no-print">
@@ -307,7 +307,7 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
   }
   async function save() {
     if (!d) return
-    if (!d.ref.trim() && !d.merchant && !d.merchantQ.trim()) { setErr(new Error('Payment ID লিখুন।')); return }
+    if (!d.ref.trim() && !d.merchant && !d.merchantQ.trim()) { setErr(new Error('পেমেন্ট আইডি লিখুন।')); return }
     if (!(+d.amount > 0)) { setErr(new Error('টাকার অঙ্ক লিখুন।')); return }
     setBusy(true); setErr(null)
     try {
@@ -329,7 +329,7 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
     <div className="da-bar"><h2>মার্চেন্ট ক্যাশ পেমেন্ট</h2><div className="row no-print">{s.can_edit && <button onClick={() => { setErr(null); setD({ ...blank }) }}>＋ পেমেন্ট যোগ</button>}
       <SectionMenu sec="payment" title="মার্চেন্ট ক্যাশ পেমেন্ট" s={s} settings={settings} onAdd={() => { setErr(null); setD({ ...blank }) }} addLabel="＋ পেমেন্ট যোগ" onLayoutSaved={ls} /></div></div>
     {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে শুধু <b>Payment ID</b> আর <b>টাকা</b> লিখুন — লাইন ছাড়লেই সেভ। স্ক্রিনশট বা বিস্তারিত লাগলে উপরের "＋ পেমেন্ট" বাটন।</p>
-      <QuickGrid cols={pcols} rows={NO_ROWS} blank={pblank} editable ready={v => (!v.ref.trim() ? 'Payment ID লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
+      <QuickGrid cols={pcols} rows={NO_ROWS} blank={pblank} editable ready={v => (!v.ref.trim() ? 'পেমেন্ট আইডি লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
         save={psave} onSaved={() => reload()} /></div>}
     <div className="da-table-wrap"><table className="da-table" data-sec="payment"><thead><tr><th>নং</th><th>কে নিয়েছে</th><th>Payment ID</th><th>Transaction ID</th><th className="r">টাকা</th><th>তারিখ</th><th>মিল</th><th>OCR</th><th>স্ক্রিনশট</th><th>মন্তব্য</th><ExtraHeads settings={settings} sec="payment" /><th className="no-print" /></tr></thead>
       <tbody>{s.merchant_payments.map(m => <tr key={m.id}><td data-l="নং">{num(m.no)}</td><td data-l="কে নিয়েছে">{m.merchant_id || m.payee_name ? <b>{m.merchant_name}</b> : <span className="muted">—</span>}</td><td data-l="Payment ID">{m.payment_ref ?? '—'}</td>
@@ -355,7 +355,7 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
             onChange={e => setD({ ...d, ref: e.target.value, match: undefined, matched: undefined })}
             onBlur={e => void checkRef(e.target.value)} /></Field>
         <Field label="টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
-        <Field label="কে নিয়েছে" hint={d.merchantName ? `পেয়েছে: ${d.merchantName}` : 'না দিলেও চলবে — Payment ID-ই যথেষ্ট'}>
+        <Field label="কে নিয়েছে" hint={d.merchantName ? `পেয়েছে: ${d.merchantName}` : 'না দিলেও চলবে — পেমেন্ট আইডিই যথেষ্ট'}>
           {d.merchantName && !d.byHand
             ? <span className="row"><b>{d.merchantName}</b><button type="button" className="secondary sm"
                 onClick={() => setD({ ...d, byHand: true, merchant: undefined, merchantName: undefined, merchantQ: '' })}>বদলান</button></span>
@@ -370,7 +370,7 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
         <Field label="মন্তব্য"><input value={d.remarks} onChange={e => setD({ ...d, remarks: e.target.value })} /></Field>
       </div></details>
       {d.ocr && <ScreenshotRead ocr={d.ocr} />}
-      {d.ocr && <label className="da-check"><input type="checkbox" checked={d.verified} onChange={e => setD({ ...d, verified: e.target.checked })} /> আমি স্ক্রিনশটের সাথে Payment ID, Transaction ID ও টাকা মিলিয়ে দেখেছি</label>}
+      {d.ocr && <label className="da-check"><input type="checkbox" checked={d.verified} onChange={e => setD({ ...d, verified: e.target.checked })} /> আমি স্ক্রিনশটের সাথে পেমেন্ট আইডি, ট্রানজেকশন আইডি ও টাকা মিলিয়ে দেখেছি</label>}
       <ErrorNote error={err} />
     </Modal>}
     {remove && <RemoveDialog what={`${remove.merchant_name} · ${taka(remove.amount)}`} onClose={() => setRemove(null)}
@@ -469,7 +469,7 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
 
   // ---- Excel-like quick entry: name, amount, whose (Employee ID), category
   const ecols: GCol[] = [{ key: 'name', label: 'খরচের নাম', width: 170, placeholder: 'যেমন: তেল' }, { key: 'amount', label: 'টাকা', type: 'number', width: 100 },
-    { key: 'employee', label: 'কার খরচ (ID)', width: 110, placeholder: 'ফাঁকা = যাতায়াত', list: 'da-staff-x' }, { key: 'empName', label: 'কার', width: 130, ro: true },
+    { key: 'employee', label: 'কার খরচ (আইডি)', width: 110, placeholder: 'ফাঁকা = যাতায়াত', list: 'da-staff-x' }, { key: 'empName', label: 'কার', width: 130, ro: true },
     { key: 'category', label: 'খাত', type: 'select', width: 150, options: cats.map(c => [c.code, c.bn] as [string, string]) }]
   const eblank = useCallback((): Vals => ({ name: '', amount: '', employee: '', empName: '', category: cats[0]?.code ?? 'other' }), [cats])
   const esave = useCallback(async (v: Vals) => {
@@ -487,7 +487,7 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
         {s.can_edit && <><button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ যাতায়াত খরচ</button><button className="secondary" onClick={() => { setErr(null); setD(blank('employee')) }}>＋ কর্মীর খরচ</button></>}
         <SectionMenu sec="expense" title="যাতায়াত ও হাব কর্মীর খরচ" s={s} settings={settings} onAdd={() => { setErr(null); setD(blank('transport')) }} addLabel="＋ খরচ যোগ" onLayoutSaved={ls} /></div></div>
     <ErrorNote error={err && !d ? err : null} />
-    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে <b>খরচের নাম, টাকা, কার খরচ (Employee ID), খাত</b> লিখুন — লাইন ছাড়লেই সেভ। বিল ফাইল/ভাউচার/গাড়ির তথ্য লাগলে উপরের বাটন।</p>
+    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে <b>খরচের নাম, টাকা, কার খরচ (এমপ্লয়ি আইডি), খাত</b> লিখুন — লাইন ছাড়লেই সেভ। বিল ফাইল/ভাউচার/গাড়ির তথ্য লাগলে উপরের বাটন।</p>
       <datalist id="da-staff-x">{(staffX.data ?? []).map(e => <option key={e.employee_id} value={e.employee_code}>{e.full_name}</option>)}</datalist>
       <QuickGrid cols={ecols} rows={NO_ROWS} blank={eblank} editable ready={v => (!v.name.trim() ? 'খরচের নাম লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
         save={esave} onSaved={() => reload()} lookup={elookup} /></div>}
@@ -516,7 +516,7 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
       <div className="da-grid3">
         <Field label="খরচের নাম *" hint="যেমন: CNG ভাড়া, ভ্যানের তেল"><input autoFocus={!d.line} value={d.name} onChange={e => setD({ ...d, name: e.target.value })} /></Field>
         <Field label="বিলের টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
-        <Field label={d.kind === 'employee' ? 'কার খরচ — Employee ID *' : 'কার খরচ — Employee ID'} hint={d.employeeName || 'রাইডার বা স্টাফের আইডি'}>
+        <Field label={d.kind === 'employee' ? 'কার খরচ — এমপ্লয়ি আইডি *' : 'কার খরচ — এমপ্লয়ি আইডি'} hint={d.employeeName || 'রাইডার বা স্টাফের আইডি'}>
           <input inputMode="numeric" value={d.employee} onChange={e => { setD({ ...d, employee: e.target.value, employeeName: '' }); void lookup(e.target.value) }} /></Field>
         <Field label="খাত *" wide><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.bn} ({c.en})</option>)}</select>
           <CatHelp cat={cats.find(c => c.code === d.category)} amount={+d.amount || 0} /></Field>
@@ -652,7 +652,7 @@ function ClosingBox({ s, settings }: { s: Sheet; settings: DaSettings }) {
       <p className="muted small">বকেয়া: <b className={due > 0 ? 'bad' : ''}>{taka(due)}</b> — আজ যা আদায় হয়নি, রাইডারের নামে থেকে যাবে।</p>
       <p className="muted small">মোবাইল ব্যাংকিং: <b>{taka(mb)}</b> — {rule === 'separate' ? 'আলাদা হিসাব, হাতের ক্যাশের সাথে ধরা হয়নি'
         : rule === 'reduces_due' ? 'বকেয়া থেকে বাদ গেছে' : 'বকেয়ার সাথে যোগ হয়েছে'}।</p>
-      <p className="muted small">ক্যাশে গরমিল থাকলে Submit করার আগে মন্তব্যে লিখে দিন — যাচাইকারী সেটাই আগে দেখবেন।</p>
+      <p className="muted small">ক্যাশে গরমিল থাকলে সাবমিট করার আগে মন্তব্যে লিখে দিন — যাচাইকারী সেটাই আগে দেখবেন।</p>
     </div>
   </section>
 }
@@ -711,7 +711,7 @@ function ActionBar({ s, reload }: { s: Sheet; reload: (m?: string) => Promise<vo
       if (dlg === 'submit') await da.submit(s.session.id, note)
       else if (dlg === 'reopen') await da.reopen(s.session.id, note)
       else if (dlg) await da.verify(s.session.id, dlg, note)
-      const msg = dlg === 'submit' ? 'Submit হয়েছে — Accounts Manager-এর কাছে গেছে' : dlg === 'approve' ? 'অনুমোদিত — হিসাব চূড়ান্ত' : dlg === 'correction' ? 'সংশোধনের জন্য ফেরত পাঠানো হয়েছে' : dlg === 'reopen' ? 'সংশোধনের জন্য খোলা হয়েছে' : 'মন্তব্য যোগ হয়েছে'
+      const msg = dlg === 'submit' ? 'সাবমিট হয়েছে — হিসাব ম্যানেজারের কাছে গেছে' : dlg === 'approve' ? 'অনুমোদিত — হিসাব চূড়ান্ত' : dlg === 'correction' ? 'সংশোধনের জন্য ফেরত পাঠানো হয়েছে' : dlg === 'reopen' ? 'সংশোধনের জন্য খোলা হয়েছে' : 'মন্তব্য যোগ হয়েছে'
       setDlg(null); await reload(msg)
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }
@@ -729,19 +729,19 @@ function ActionBar({ s, reload }: { s: Sheet; reload: (m?: string) => Promise<vo
       <button onClick={() => open('approve')}>অনুমোদন — সব ঠিক আছে</button></>}
 
     {dlg === 'submit' && <Modal title="একাউন্টসে চূড়ান্ত জমা" onClose={() => setDlg(null)}
-      actions={<><button className="secondary" onClick={() => setDlg(null)}>বাতিল (Cancel)</button><button className="secondary" onClick={() => setDlg(null)}>এডিট করুন (Edit)</button>
+      actions={<><button className="secondary" onClick={() => setDlg(null)}>বাতিল</button><button className="secondary" onClick={() => setDlg(null)}>এডিট করুন</button>
         <button disabled={busy || unchecked > 0} onClick={() => void go()}>{busy ? 'হচ্ছে…' : 'Submit'}</button></>}>
-      <p><b>আপনি কি নিশ্চিত যে আজকের হিসাব একাউন্টসে চূড়ান্তভাবে জমা দিতে চান?</b> জমা দেওয়ার পর এই হাবের আজকের কোনো খাতা আর বদলানো বা Accept করা যাবে না।</p>
+      <p><b>আপনি কি নিশ্চিত যে আজকের হিসাব একাউন্টসে চূড়ান্তভাবে জমা দিতে চান?</b> জমা দেওয়ার পর এই হাবের আজকের কোনো খাতা আর বদলানো বা গ্রহণ করা যাবে না।</p>
       <ul className="muted"><li>রাইডার {num(s.riders.length)} জন · মোট টাকা {taka(s.totals?.amount)} · বকেয়া {taka(s.totals?.due)}</li>
         <li>মার্চেন্ট পেমেন্ট {num(s.merchant_payments.length)}টি · খরচ {num(s.expenses.length)}টি</li>
-        <li>Submit-এর পর বদলাতে সংশোধনের অনুমতি লাগবে।</li></ul>
+        <li>সাবমিটের পর বদলাতে সংশোধনের অনুমতি লাগবে।</li></ul>
       {unchecked > 0 && <p className="notice">OCR থেকে পাওয়া {num(unchecked)}টি এন্ট্রি এখনো যাচাই হয়নি — আগে যাচাই করুন।</p>}
       <Field label="মন্তব্য (ঐচ্ছিক)"><input value={note} onChange={e => setNote(e.target.value)} /></Field><ErrorNote error={err} />
     </Modal>}
     {dlg && dlg !== 'submit' && <Modal title={{ reopen: 'সংশোধনের জন্য খুলবেন?', approve: 'হিসাব অনুমোদন', correction: 'সংশোধন প্রয়োজন', note: 'মন্তব্য দিন' }[dlg]} onClose={() => setDlg(null)}
       actions={<><button className="secondary" onClick={() => setDlg(null)}>বাতিল</button><button className={dlg === 'correction' ? 'danger' : ''} disabled={busy || (dlg !== 'approve' && !note.trim())} onClick={() => void go()}>{busy ? 'হচ্ছে…' : 'নিশ্চিত'}</button></>}>
       {dlg === 'approve' && <p>অনুমোদন দিলে হিসাবটি চূড়ান্ত হবে, আর বদলানো যাবে না।</p>}
-      {dlg === 'correction' && <p>কী ভুল হয়েছে লিখুন। হিসাবটি যিনি Submit করেছেন তাঁর কাছে ফেরত যাবে।</p>}
+      {dlg === 'correction' && <p>কী ভুল হয়েছে লিখুন। হিসাবটি যিনি সাবমিট করেছেন তাঁর কাছে ফেরত যাবে।</p>}
       <Field label={dlg === 'approve' ? 'মন্তব্য (ঐচ্ছিক)' : dlg === 'reopen' ? 'কারণ *' : dlg === 'correction' ? 'কী ভুল হয়েছে *' : 'মন্তব্য *'}>
         <textarea rows={3} value={note} onChange={e => setNote(e.target.value)} /></Field><ErrorNote error={err} />
     </Modal>}

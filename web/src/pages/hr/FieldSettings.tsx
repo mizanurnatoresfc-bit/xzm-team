@@ -48,7 +48,7 @@ export function FieldSettings() {
               <td>{TYPE_LABEL[f.field_type] ? L(...TYPE_LABEL[f.field_type]) : f.field_type}</td>
               <td>{f.zone_id ? <Badge tone="info">{zoneName(f.zone_id)}</Badge> : zoneName(null)}</td>
               <td>{f.is_required ? L('হ্যাঁ', 'Yes') : L('না', 'No')}</td>
-              <td className="small">{f.view_permission === 'hr.employee_sensitive.view' ? L('শুধু HR (গোপন)', 'HR only (private)') : L('যিনি কর্মীকে দেখতে পারেন', 'Anyone who can see the employee')}</td>
+              <td className="small">{f.view_permission === 'hr.employee_sensitive.view' ? L('শুধু এইচআর (গোপন)', 'HR only (private)') : L('যিনি কর্মীকে দেখতে পারেন', 'Anyone who can see the employee')}</td>
               <td style={{ textAlign: 'right' }}>{(f.zone_id ? can('hr.profile_field.configure') : global('hr.profile_field.configure')) && <button className="secondary sm" onClick={() => setArchive({ kind: 'field', id: f.id, label: lbl(f) })}>{L('সরান', 'Remove')}</button>}</td>
             </tr>)}</tbody></table></div></div>)}
     </section>}
@@ -132,7 +132,7 @@ function NewItem({ kind, sections, canGlobal, zones, onClose, onDone }: { kind: 
         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} disabled={!!f.zone} checked={!f.zone && f.required} onChange={e => setF({ ...f, required: e.target.checked })} />
           {L('বাধ্যতামূলক (আইডি আবেদনে লাগবে)', 'Required (needed for ID application)')}{f.zone ? <span className="muted small"> — {L('এরিয়াের ঘর ঐচ্ছিক', 'zone fields are optional')}</span> : null}</label>
         <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" style={{ width: 'auto' }} checked={f.privateField} onChange={e => setF({ ...f, privateField: e.target.checked })} />
-          {L('গোপন — শুধু HR (NID দেখার অনুমতি যাঁদের) দেখবে', 'Private — only HR with sensitive-data access')}</label>
+          {L('গোপন — শুধু এইচআর (এনআইডি দেখার অনুমতি যাঁদের) দেখবে', 'Private — only HR with sensitive-data access')}</label>
       </>}
     </div>
     {err && <p className="da-error">{err}</p>}

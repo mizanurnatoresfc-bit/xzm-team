@@ -71,7 +71,7 @@ export function EmployeeProfile() {
     {left && <LeftJob person={{ id: e.id, full_name: e.full_name, employee_code: e.employee_code, hub_id: e.hub_id, hub: e.hub_id ? o.names.hub[e.hub_id] ?? '' : '', position: e.position_id ? o.names.posEn[e.position_id] ?? '' : '' }}
       onClose={() => setLeft(false)} onDone={m => { setLeft(false); toast(m) }} />}
     <nav className="emp-tabs" role="tablist">
-      {([['overview', 'সারসংক্ষেপ', 'dash'], ['personal', 'ব্যক্তিগত', 'user'], ['docs', 'ডকুমেন্ট', 'file'], ['history', 'HR ইতিহাস', 'log']] as const).map(([k, t, ic]) =>
+      {([['overview', 'সারসংক্ষেপ', 'dash'], ['personal', 'ব্যক্তিগত', 'user'], ['docs', 'ডকুমেন্ট', 'file'], ['history', 'এইচআর ইতিহাস', 'log']] as const).map(([k, t, ic]) =>
         <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={16} />{t}</button>)}
     </nav>
     {tab === 'overview' && <>
@@ -80,7 +80,7 @@ export function EmployeeProfile() {
         {app.data.review_note && <p className="notice">HR-এর নোট: {app.data.review_note}</p>}
         <MissingList id={id} key={`${e.id}-${emp.data?.updated_at ?? ''}`} />
         {app.data.status === 'submitted' && can('hr.application.approve') && <ReviewActions id={id} onDone={async m => { toast(m); await reload() }} />}
-        {app.data.status === 'submitted' && !can('hr.application.approve') && <p className="muted">HR যাচাই করছে।</p>}
+        {app.data.status === 'submitted' && !can('hr.application.approve') && <p className="muted">এইচআর যাচাই করছে।</p>}
       </section>}
       <WorkPanel e={e} canEdit={can('hr.employee.edit') || can('hr.duty.edit')} onChanged={async m => { toast(m); await reload() }} />
       {isDraftOwner ? <DraftForm e={e} onSaved={async m => { toast(m); await reload() }} /> : <Details e={e} askEdit={askEdit} onChanged={async m => { toast(m); await reload() }} />}
@@ -186,7 +186,7 @@ function DraftForm({ e, onSaved }: { e: Employee; onSaved: (m: string) => Promis
     if (!f.full_name?.trim()) return setErr('পূর্ণ নাম দিন')
     if (!BD_MOBILE.test(f.mobile?.trim() ?? '')) return setErr('সঠিক মোবাইল নম্বর দিন')
     if (f.emergency_contact_phone && !BD_MOBILE.test(f.emergency_contact_phone.trim())) return setErr('জরুরি যোগাযোগের নম্বর সঠিক নয়')
-    if (f.nid_number && !/^([0-9]{10}|[0-9]{13}|[0-9]{17})$/.test(f.nid_number.trim())) return setErr('NID নম্বর ১০, ১৩ বা ১৭ অঙ্কের হবে')
+    if (f.nid_number && !/^([0-9]{10}|[0-9]{13}|[0-9]{17})$/.test(f.nid_number.trim())) return setErr('এনআইডি নম্বর ১০, ১৩ বা ১৭ অঙ্কের হবে')
     setBusy(true)
     try {
       const n = (k: string) => f[k]?.trim() || null
@@ -201,7 +201,7 @@ function DraftForm({ e, onSaved }: { e: Employee; onSaved: (m: string) => Promis
         await pay.propose(e.id, f.joining_date || todayDhaka(), b, Number(f.transport) || 0, Number(f.commission) || 0, 'Initial salary')
       }
       await Promise.all([sens.reload(), comp.reload()])
-      if (submit) { await hr.submitApplication(e.id); await onSaved('আবেদন HR-এর কাছে পাঠানো হয়েছে') }
+      if (submit) { await hr.submitApplication(e.id); await onSaved('আবেদন এইচআর-এর কাছে পাঠানো হয়েছে') }
       else await onSaved('সেভ হয়েছে')
     } catch (x) { setErr(hrFriendly(x)) } finally { setBusy(false) }
   }
@@ -247,8 +247,8 @@ function DraftForm({ e, onSaved }: { e: Employee; onSaved: (m: string) => Promis
       </div>}
     {err && <p className="da-error">{err}</p>}
     <div className="row" style={{ marginTop: 14 }}><button className="secondary" disabled={busy} onClick={() => void save(false)}>সেভ করুন</button>
-      <button disabled={busy} onClick={() => void save(true)}>সেভ করে HR-এ পাঠান</button>
-      <span className="muted small">পাঠানোর আগে NID (সামনে, পেছনে) ও ছবি আপলোড করুন।</span></div>
+      <button disabled={busy} onClick={() => void save(true)}>সেভ করে এইচআর-এ পাঠান</button>
+      <span className="muted small">পাঠানোর আগে এনআইডি (সামনে, পেছনে) ও ছবি আপলোড করুন।</span></div>
   </section>
 }
 
@@ -374,7 +374,7 @@ function Documents({ e, canUpload, onDone }: { e: Employee; canUpload: boolean; 
       <select value={type} onChange={ev => setType(ev.target.value)} style={{ width: 'auto', marginTop: 0 }}>{Object.entries(DOC_TYPE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
       <label className="secondary" style={{ margin: 0, fontWeight: 600 }}><input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy} style={{ width: 'auto' }}
         onChange={ev => { void upload(ev.target.files?.[0]); ev.target.value = '' }} /></label>
-      <span className="muted small">JPG / PNG / PDF, সর্বোচ্চ ১০ MB। আপলোডের পর ফাইল বদলানো বা মোছা যায় না।</span></div>}
+      <span className="muted small">JPG / PNG / পিডিএফ, সর্বোচ্চ ১০ MB। আপলোডের পর ফাইল বদলানো বা মোছা যায় না।</span></div>}
     {err && <p className="da-error">{err}</p>}
   </section>
 }
