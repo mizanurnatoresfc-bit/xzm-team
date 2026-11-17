@@ -69,6 +69,7 @@ export function ZonalDashboard() {
   return <AppShell title={L('জোনাল ড্যাশবোর্ড', 'Zonal dashboard')}
     subtitle={L('পুরো জোন এক পাতায়: কর্মী, হাবের পারফরম্যান্স, সতর্কতা, কাজ, পরিকল্পনা, ভিজিট ও ক্লেইম।', 'The whole zone on one page: staff, hub performance, alerts, tasks, planning, visits and claims.')}
     actions={<>
+      {(can('zonal.hub_ops.view') || can('zonal.hub_ops.create')) && <Link to="/app/zonal/hub-ops" className="btn-ghost"><Icon name="chart" size={16} />{L('হাব অপারেশন ড্যাশবোর্ড', 'Hub Operations Dashboard')}</Link>}
       <Link to="/app/zonal/staff" className="btn-ghost"><Icon name="users" size={16} />{L('হাব অনুযায়ী কর্মী ও বদলি', 'Staff by hub & transfers')}</Link>
       <button className="secondary no-print" onClick={() => window.print()}><Icon name="print" size={16} />{L('প্রিন্ট', 'Print')}</button></>}>
     {node}

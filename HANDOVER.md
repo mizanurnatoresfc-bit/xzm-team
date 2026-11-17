@@ -387,7 +387,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Nothing is stored twice.** A staff member's per-date input is a row of the existing `attendance_self_marks` (4 columns added: `zone_id`, `applied_on_site`, `application_id`, `via`); the manager approves it with the
   existing, untouched `att_self_decide`, which writes the existing `attendance_records`. New tables only for what did not exist: `wf_absence_applications` (AB-00001…), `wf_daily_ops`, and the append-only `wf_att_history`, `wf_ops_history`.
   "আমার লোক দেওয়া" / "আমার হাতে লোক আছে" reuse the existing referral features (`hr_referrals`, `referral_prospects`).
-- Migration `20261117010000_workforce_attendance.sql` (+ `supabase/tests/99zzzzzzzzzzzzz_workforce.sql`, 260 assertions; whole suite 1617, also 1686 together with the live-only `advanced_permissions`). Details, rules, rollback: `docs/WORKFORCE.md`.
+- Migration `20261117010000_workforce_attendance.sql` (+ `supabase/tests/99zzzzzzzzzzzzz_workforce.sql`, 291 assertions; whole suite 1720 with the hub-operations migration, 1648 + 69 together with the live-only `advanced_permissions`). **Applied live on 17 Nov** (three parts, see `docs/MIGRATIONS_LIVE_MAP.md`); the pg_cron job `wf-remind` is active. Details, rules, rollback: `docs/WORKFORCE.md`.
   Contract between database and screens: `web/src/lib/workforce.ts` (18 `wf_*` functions). Settings `workforce.book_from_day` (1), `workforce.book_to_day` (17), `workforce.ops_backdate_days` (1).
   New permissions `ops.staff_daily.view` / `.edit`; everything else reuses `hr.attendance.view / create / edit`. pg_cron job `wf-remind` (16:00 Dhaka daily) sends the pending-attendance reminders (switch off: `select cron.unschedule('wf-remind')`).
 - Pages: `/app/workforce/attendance|given|hand` (personal; always open to a signed-in staff member), `/app/workforce/hub` (manager: আজ · হাজিরা বই · অনুমোদন · আবেদন · দৈনিক রিপোর্ট · ইতিহাস),
@@ -395,3 +395,28 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - `web/tests/smoke.mjs`: the limited-role menu now counts 8 links (the always-open attendance entry). Known, older, not touched: `web/node_modules` is a symlink committed by mistake in `0fa563d` pointing at itself —
   `npx tsc -b` / `npm run build` cannot run in a fresh clone until it is removed from git (CI still deploys, most likely because `npm ci` replaces it — not checked).
 - Known limits: `att_self_decide` (old) notifies once per date, so approving a long application sends one notice per date; zone-without-hub staff are visible only to company-wide roles.
+
+## 2026-11-17 — হাব অপারেশন ড্যাশবোর্ড (Hub Operations Dashboard) in the Zonal Manager panel
+- Owner's spec (17 Nov): a hub-wise dashboard of the zonal manager's zone; each hub has its own input panel with staff by designation
+  (Manager, Hub CC, Entry Man + configurable groups); total parcels, total pickups, remarks and operational reasons per hub; staff status
+  (Active / New Employee / Resigned and Present / Absent / Leave Applied / Leave Not Applied), every change logged with date, reason, hub, remarks;
+  hub summaries → one zonal summary; boss reports daily / weekly / monthly with Pending / Submitted / Reviewed; totals only from submitted inputs;
+  corrections with history; phone first; zone-scoped access; no duplicate employee or hub records.
+- Migration `20261117004000_hub_operations.sql` (additive). Tables (RLS on, no direct grants — only through functions): `hub_ops_reports`
+  (one per hub per day; null number = not entered; pending → submitted → reviewed; `version` + `last_correction`), `hub_ops_staff` (one row per person,
+  `employee_id` references HR; a person not in HR yet is written by name only — a mobile or same-hub name already in HR is refused),
+  `hub_ops_status_log` (append-only), `hub_ops_boss_reports` (snapshot of the summary as sent; no row = pending), `hub_ops_config` (per zone:
+  designation groups, reasons, hubs and weekdays without a report). Setting `zonal.hub_ops.defaults` (groups by post name match; week starts Saturday).
+  Permissions `zonal.hub_ops.view/create/edit/approve/export/configure`: zonal manager view/create/edit/export/configure (zone scope), head office
+  manager view/approve/export (the "boss"), auditor view/export, admin all. Zonal Assistant unchanged (its role test pins eight permissions).
+- Functions: `hub_ops_panel(hub, date)` (HR staff of the hub + hints: attendance register, leave application, last status, the hub's own
+  `hub_daily_metrics`), `hub_ops_save(hub, date, data, submit, reason)` (a submitted report changes only with a reason, goes back to "submitted"),
+  `hub_ops_review(ids, note)`, `hub_ops_summary(zone, from, to)`, `hub_ops_status_log`, `hub_ops_history(kind, id)` (old → new from `audit_logs`),
+  `hub_ops_boss_list/get/submit/review` (boss notified with kind `hub_ops`; review also marks the period's waiting hub reports reviewed),
+  `hub_ops_settings/configure`, `hub_ops_people_search`. Maker / checker: whoever submitted cannot review.
+  Resigned in a hub report does NOT change HR; the panel offers "এইচআর-এও চাকরি ছেড়েছেন করুন", which calls the existing `hr_change_status`.
+- Pages: `/app/zonal/hub-ops` (tabs হাবগুলো · জোনাল সারাংশ · বসের রিপোর্ট · স্ট্যাটাস লগ · সেটিং) and `/app/zonal/hub-ops/hub/:hubId?date=` (input panel:
+  big number boxes, reason chips, four one-tap attendance buttons per person, "বাকি সবাই উপস্থিত", "হাজিরা খাতা ও ছুটির আবেদন থেকে নিন",
+  floating save bar above the phone menu, "পরের হাব →"). Menu: Zonal Manager panel → জোন ও হাব; shortcut on the Zonal dashboard.
+- Tests: `supabase/tests/99zzzzzzzzzzzzz_hub_operations.sql` (72). Browser check at 390 px and 1366 px against the real SQL functions on a local DB.
+- **17 Nov — live:** migration applied to Supabase as `hub_operations` (25 functions; fingerprint = repo), site released by merging to `main`.
