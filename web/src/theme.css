@@ -2165,14 +2165,14 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{border:1px solid va
 .rsend .rs-chip{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:999px;min-height:36px;padding:6px 14px}
 .rsend .rs-chip.on{background:var(--primary);color:#fff;border-color:var(--primary)}
 .rsend .rs-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:10px 0 8px}
-.rsend .rs-f{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:14px;min-width:0}
+.rsend .rs-f{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:14px;min-width:0;border:1px solid var(--border)}
 .rsend .rs-f>span{display:flex;align-items:center;gap:6px;font-weight:700;font-size:14px}
 .rsend .rs-f.t-b{background:var(--t-b);color:var(--t-b-fg)}.rsend .rs-f.t-p{background:var(--t-p);color:var(--t-p-fg)}.rsend .rs-f.t-g{background:var(--t-g);color:var(--t-g-fg)}
 .rsend .rs-f input{width:100%;min-width:0;box-sizing:border-box;font-size:24px;font-weight:700;text-align:center;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text)}
 .rsend .rs-office{display:flex!important;flex-direction:row!important;align-items:center;justify-content:flex-start;gap:8px;font-size:14px;margin:2px 0 10px;text-align:left}
 .rsend .rs-office input{width:20px!important;height:20px;min-height:0;flex:none;margin:0}
 .rsend .rs-send{width:100%;justify-content:center;min-height:50px;font-size:17px;border-radius:14px}
-.rsend .rs-done{display:flex;align-items:center;gap:6px;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--ok-bg);color:var(--ok-fg);font-weight:600}
+.rsend .rs-done,.myapp .rs-done{display:flex;align-items:center;gap:6px;margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--ok-bg);color:var(--ok-fg);font-weight:600}
 .rsend .rs-list,.rinbox .ri-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .rsend .rs-list li{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:var(--canvas);font-size:14px}
 .rsend .rs-t{color:var(--muted);flex:none;min-width:58px}.rsend .rs-v{flex:1;min-width:0}
@@ -2191,4 +2191,21 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{border:1px solid va
   .rsend .rs-f input{font-size:20px;padding:6px 2px}
   .rinbox .ri-acts{width:100%}.rinbox .ri-acts button{flex:1;justify-content:center}
   .rinbox .ri-back{width:100%}.rinbox .ri-back input{flex:1}
+}
+
+/* ===== আমার অনুমোদন: one card for everything waiting on the manager (MyApprovals.tsx) ===== */
+.myapp .ma-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:4px 0 12px}
+.myapp .ma-sum button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border-radius:14px;min-height:0;text-align:left;justify-content:flex-start}
+.myapp .ma-sum button b{font-size:26px!important;line-height:1.15;font-weight:700}.myapp .ma-sum button small{font-size:14px!important;color:var(--muted)}
+.myapp .ma-sum button.t-b,.myapp .ma-sum button.t-b:hover:not(:disabled){background:var(--t-b)!important;color:var(--t-b-fg)!important}
+.myapp .ma-sum button.t-p,.myapp .ma-sum button.t-p:hover:not(:disabled){background:var(--t-p)!important;color:var(--t-p-fg)!important}
+.myapp .ma-sum button.t-g,.myapp .ma-sum button.t-g:hover:not(:disabled){background:var(--t-g)!important;color:var(--t-g-fg)!important}
+.myapp .ma-sum button.t-o,.myapp .ma-sum button.t-o:hover:not(:disabled){background:var(--t-o)!important;color:var(--t-o-fg)!important}
+.myapp .ma-sum button{border:1px solid var(--border)!important}.myapp .ma-sum button:hover:not(:disabled){border-color:var(--primary)!important}
+.myapp .ma-tabs{margin:0 0 10px;flex-wrap:wrap}
+.myapp .ma-all{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.myapp .ri-v small{font-size:13px}
+@media (max-width:700px){
+  .myapp .ma-sum{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.myapp .ma-sum button b{font-size:22px!important}
+  .myapp .ma-all button{width:100%;justify-content:center}
 }

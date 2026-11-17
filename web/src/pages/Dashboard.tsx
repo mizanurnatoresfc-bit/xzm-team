@@ -11,8 +11,9 @@ import { HrReqPanel } from '../components/HrReqPanel'
 import { Badge, Stat, useLoad } from './accounts/ui'
 import { usePrefs } from '../lib/prefs'
 import { VIEWS, VIEW_OF, dashboard, dashboardFriendly, panelLabel, pickedView, setView, type DashView, type PanelCode } from '../lib/dashboard'
-import { ApprovalsPanel, HubTodayPanel, MyDayPanel } from '../components/HomePanels'
-import { RiderInbox, RiderSendCard } from '../components/RiderQuick'
+import { HubTodayPanel, MyDayPanel } from '../components/HomePanels'
+import { MyApprovalCard } from '../components/MyApprovals'
+import { RiderSendCard } from '../components/RiderQuick'
 
 const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
   ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
@@ -93,8 +94,8 @@ export function Dashboard() {
       <span>{L(`${n(d.my_work.tasks_due)}টা কাজের সময় পেরিয়ে গেছে`, `${d.my_work.tasks_due} tasks are overdue`)}</span></Link>}
     {d?.me && photo === null && <Link to="/app/me" className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span>
       <span>{L('আপনার প্রোফাইলে ছবি নেই — এইচআর-কে ছবি দিন', 'Your profile has no photo — give one to HR')}</span></Link>}
-    {/* one tap: riders send today's pickup, delivery and amount; managers accept what was sent */}
-    <RiderInbox compact />
+    {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
+    <MyApprovalCard />
     <RiderSendCard />
     <div className="home-tiles">{tiles.slice(0, allTiles || tiles.length <= 8 ? tiles.length : 7).map(([to, ic, bn, en, tone]) =>
       <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}
@@ -110,7 +111,7 @@ export function Dashboard() {
       case 'my_day': return <MyDayPanel />
       case 'hub_today': return <HubTodayPanel />
       case 'network': return <NetworkPanel />
-      case 'approvals': return <ApprovalsPanel />
+      case 'approvals': return null   // always shown at the top as "আমার অনুমোদন" (MyApprovalCard)
       case 'my_requests': return <HrReqPanel />
       case 'my_work': return d?.my_work ? <Panel code="my_work">
       <div className="da-stats">

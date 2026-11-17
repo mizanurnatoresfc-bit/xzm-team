@@ -161,6 +161,11 @@ try {
         managers: [{ user_id: 'u7', name: 'Abdul Karim', code: '1007', closed: false }, { user_id: 'u8', name: 'Sohel Sardar', code: '8157', closed: false }],
         mine: !(permsNow ?? []).includes('ops.pickup_as_rider.create') ? [] : [{ id: 'rl1', seq: 1, source: 'rider', delivery: 20, pickup: 3, amount: 4100, office_deposit: false, manager: 'Abdul Karim', at: '2026-11-15T06:00:00Z', status: 'pending' }] })
       if (/rpc\/(da_rider_submit|da_rider_accept_all|da_rider_accept)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j(u.includes('accept_all') ? 2 : 'rl9') }
+      if (/rpc\/(da_claim_add|da_claim_reject)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j('x9') }
+      if (u.includes('/rest/v1/da_expense_claims') && u.includes('status=eq.submitted')) return j([
+        { id: 'c1', no: 41, hub_id: 'h1', employee_code: '1003', employee_name: 'Rafiq Islam', kind: 'transport', expense_name: 'ভ্যান ভাড়া', category: 'transport', amount: 120, bill_date: '2026-11-15', attachment_path: null, remarks: null, created_at: '2026-11-15T05:00:00Z' },
+        { id: 'c2', no: 42, hub_id: 'h1', employee_code: '1004', employee_name: 'Nasima Akter', kind: 'employee', expense_name: 'অফিসের পানি', category: 'office', amount: 80, bill_date: '2026-11-15', attachment_path: 'claims/e04/x.jpg', remarks: null, created_at: '2026-11-15T05:10:00Z' },
+      ].filter(c => !flowCalls.some(f => (f.fn === 'da_claim_add' || f.fn === 'da_claim_reject') && f.p_claim === c.id)))
       if (u.includes('/rest/v1/da_rider_lines') && u.includes('source=eq.rider')) return j(flowCalls.some(c => c.fn === 'da_rider_accept_all') ? [] : [
         { id: 'rl2', session_id: 's2', rider_name: 'Alamin Sarker', employee_code: '7982', pickup_qty: 4, delivery_qty: 18, amount: 3600, seq: 1, office_deposit: false, created_at: '2026-11-15T06:10:00Z' },
         { id: 'rl3', session_id: 's2', rider_name: 'Md Mahin', employee_code: '6799', pickup_qty: 0, delivery_qty: 11, amount: 2250, seq: 2, office_deposit: true, created_at: '2026-11-15T06:20:00Z' }])
@@ -255,13 +260,29 @@ try {
 
     await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1', { state: 'attached' })
     check((await page.locator('.da-main h1').textContent()).includes('Owner'), `${size}: dashboard opens`); await fits('dashboard')
-    await page.waitForSelector('.rinbox .ri-list li', { timeout: 8000 }).catch(() => {})
-    check(await page.locator('.rinbox .ri-list li').count() === 2 && (await page.locator('.rinbox .da-bar button').innerText()).includes('৫৮৫০'),
-      `${size}: a manager sees what riders sent, with the total on the accept-all button`)
+    // আমার অনুমোদন: riders' pickup, delivery and money, and staff bills, on one card
+    await page.waitForSelector('.myapp .ri-list li', { timeout: 8000 }).catch(() => {})
+    { const sumTxt = (await page.locator('.myapp .ma-sum').innerText()).replace(/\s+/g, ' ')
+      check(await page.locator('.myapp').count() === 1 && await page.locator('.myapp .ri-list li[data-kind=rider]').count() === 2
+        && sumTxt.includes('৪') && sumTxt.includes('২৯') && sumTxt.includes('৳৫৮৫০') && sumTxt.includes('৳২০০'),
+        `${size}: my approvals shows pickups, deliveries, rider money and staff bills together`) }
     check(await page.locator('.rsend').count() === 0, `${size}: someone who is not a rider gets no send card`)
-    if (process.env.SHOTS) await page.locator('.rinbox').screenshot({ path: `${process.env.SHOTS}/${size}-rider-inbox.png` })
-    await page.locator('.rinbox .da-bar button').click(); await page.waitForFunction(() => !document.querySelector('.rinbox'), null, { timeout: 8000 }).catch(() => {})
-    check(flowCalls.some(c => c.fn === 'da_rider_accept_all' && c.p_session === 's2') && await page.locator('.rinbox').count() === 0, `${size}: accept all takes every line in one tap`)
+    await fits('my approvals')
+    if (process.env.SHOTS) await page.locator('.myapp').screenshot({ path: `${process.env.SHOTS}/${size}-my-approvals.png` })
+    await page.locator('.myapp .ma-all button').click(); await page.waitForSelector('.myapp .rs-done', { timeout: 8000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_rider_accept_all' && c.p_session === 's2') && await page.locator('.myapp .ri-list li[data-kind=rider]').count() === 0,
+      `${size}: accept all takes every rider line in one tap`)
+    await page.locator('.myapp .ma-tabs button', { hasText: 'খরচের বিল' }).click(); await page.waitForSelector('.myapp .ri-list li[data-kind=bill]')
+    if (process.env.SHOTS) await page.locator('.myapp').screenshot({ path: `${process.env.SHOTS}/${size}-my-approvals-bills.png` })
+    await page.locator('.myapp .ri-list li[data-kind=bill]').first().locator('.ri-acts button').first().click()
+    await page.waitForFunction(() => document.querySelectorAll('.myapp .ri-list li[data-kind=bill]').length === 1, null, { timeout: 8000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_claim_add' && c.p_claim === 'c1' && c.p_session === 's9') && started.length > 0,
+      `${size}: accepting a bill opens today's khata when needed and takes the bill in`)
+    await page.locator('.myapp .ri-list li[data-kind=bill] .ri-acts button.secondary').click()
+    await page.locator('.myapp .ri-back input').fill('বিল ঝাপসা')
+    await page.locator('.myapp .ri-back button.secondary').click(); await page.waitForSelector('.myapp .ap-clear', { timeout: 8000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_claim_reject' && c.p_claim === 'c2' && c.p_note === 'বিল ঝাপসা') && await page.locator('.myapp .ap-clear').count() === 1,
+      `${size}: a bill is turned down with the reason, and the card says all clear`)
 
     await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.font-pick')
     check(await page.locator('.font-pick button').count() === 5, `${size}: settings shows the font choices`); await fits('settings')

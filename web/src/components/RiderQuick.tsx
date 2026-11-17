@@ -2,7 +2,6 @@
 // manager's khata, and the manager accepts it (one line, or all at once). Every rule is in the database
 // (da_rider_submit / da_rider_accept / da_rider_accept_all); this only calls it.
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { da, type MyRiderSend } from '../lib/dailyAccounts'
 import { usePrefs } from '../lib/prefs'
@@ -96,7 +95,7 @@ type Pending = { id: string; session_id: string; rider_name: string; employee_co
 
 /** Manager: what riders sent into my khata — accept each, or all in one tap; send one back with a reason.
  *  With a session, only that day's sheet; without one (the dashboard), everything still waiting for me. */
-export function RiderInbox({ session, onChange, compact }: { session?: string | null; onChange?: () => void | Promise<void>; compact?: boolean }) {
+export function RiderInbox({ session, onChange }: { session?: string | null; onChange?: () => void | Promise<void> }) {
   const { L, n } = usePrefs()
   const { session: me } = useAuth()
   const uid = me?.user.id ?? ''
@@ -127,7 +126,7 @@ export function RiderInbox({ session, onChange, compact }: { session?: string | 
     try { await f(); setBack(null); setReason(''); await d.reload(); await onChange?.() } catch (e) { setErr(e) } finally { setBusy('') }
   }
 
-  return <section className={`panel rinbox${compact ? ' compact' : ''}`}>
+  return <section className="panel rinbox">
     <div className="da-bar"><h2 style={{ margin: 0 }}>{L('রাইডারের পাঠানো হিসাব', 'Sent by riders')} <span className="ap-total">{n(rows.length)}</span></h2>
       <button type="button" disabled={!!busy} onClick={() => void run('all', async () => { for (const id of sessions) await da.riderAcceptAll(id) })}>
         <Icon name="checkall" size={16} />{busy === 'all' ? L('হচ্ছে…', 'Working…') : L(`সব গ্রহণ · ৳${n(total)}`, `Accept all · ৳${total}`)}</button></div>
@@ -143,6 +142,5 @@ export function RiderInbox({ session, onChange, compact }: { session?: string | 
           <button type="button" disabled={!!busy} onClick={() => void run(r.id, () => da.riderAccept(r.id, true))}><Icon name="check" size={16} />{L('গ্রহণ', 'Accept')}</button>
           <button type="button" className="secondary" disabled={!!busy} onClick={() => { setBack(r.id); setReason('') }}>{L('ফেরত', 'Back')}</button></span>}
     </li>)}</ul>
-    {compact && <Link to="/app/accounts/khata" className="small">{L('আমার খাতা খুলুন', 'Open my khata')} →</Link>}
   </section>
 }
