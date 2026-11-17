@@ -1,7 +1,7 @@
 // Advanced role & permission management — reads and writes for the access pages.
 // Roles, their permissions, the pages a role sees and the hub / zone a role is held at all use what the
 // database already had (lib/roles, lib/menu, lib/users). New here: a person's own permissions on top of or
-// taken away from their roles (migration 20261117004000_advanced_permissions), what a person can do in the
+// taken away from their roles (migration 20261117004500_advanced_permissions), what a person can do in the
 // end, and the permission change history (read from the audit log).
 import { supabase } from './supabase'
 import { HrError } from './hr'

@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -37,6 +37,8 @@ const Referrals = lazy(() => import('./pages/hr/Referrals').then(m => ({ default
 const ZonalDashboard = lazy(() => import('./pages/zonal/ZonalDashboard').then(m => ({ default: m.ZonalDashboard })))
 const ZonalFiles = lazy(() => import('./pages/zonal/ZonalFiles').then(m => ({ default: m.ZonalFiles })))
 const Manpower = lazy(() => import('./pages/Manpower').then(m => ({ default: m.Manpower })))
+const HubOps = lazy(() => import('./pages/zonal/HubOps').then(m => ({ default: m.HubOps })))
+const HubOpsPanel = lazy(() => import('./pages/zonal/HubOpsPanel').then(m => ({ default: m.HubOpsPanel })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
@@ -69,6 +71,9 @@ const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ de
 const References = lazy(() => import('./pages/References').then(m => ({ default: m.References })))
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
+const MyWorkforce = lazy(() => import('./pages/workforce/MyWorkforce').then(m => ({ default: m.MyWorkforce })))
+const WorkforceHub = lazy(() => import('./pages/workforce/WorkforceHub').then(m => ({ default: m.WorkforceHub })))
+const WorkforceZone = lazy(() => import('./pages/workforce/WorkforceZone').then(m => ({ default: m.WorkforceZone })))
 
 // After the first screen is shown, quietly fetch the most-used pages so later taps open at once.
 const WARM: Array<() => Promise<unknown>> = [
@@ -76,6 +81,7 @@ const WARM: Array<() => Promise<unknown>> = [
   () => import('./pages/hr/Attendance'), () => import('./pages/hr/Requests'), () => import('./pages/accounts/DailyDashboard'), () => import('./pages/accounts/DailySheet'),
   () => import('./pages/MyProfile'), () => import('./pages/zonal/ZonalStaff'), () => import('./pages/hr/EmployeeProfile'),
   () => import('./pages/org/OrgSetup'), () => import('./pages/sorting/Sorting'), () => import('./pages/office/Office'),
+  () => import('./pages/workforce/MyWorkforce'),
 ]
 if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
   && !(navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) {
@@ -96,6 +102,12 @@ function OldRolePage() {
   const { id } = useParams()
   if (!advancedAccessHere()) return id ? <RoleEditor /> : <Roles />
   return <Navigate to={id ? `/app/access/role/${id}` : '/app/access/roles'} replace />
+}
+/** A page open to anyone who holds at least one of the permissions (ProtectedRoute takes a single one). The database re-checks every call. */
+function AnyOf({ perms }: { perms: string[] }) {
+  const { can } = useAuth()
+  return perms.some(can) ? <Outlet /> : <main className="center-screen">
+    <section className="notice"><h1>অনুমতি নেই</h1><p>এই পেজ ব্যবহারের প্রয়োজনীয় অনুমতি আপনার অ্যাকাউন্টে নেই।</p></section></main>
 }
 
 /** The home page: a staff member gets the staff panel, everyone else the dashboard. */
@@ -121,6 +133,8 @@ export default function App() {
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />
       <Route path="/app/zonal/staff" element={<ZonalStaff />} />
+      <Route path="/app/zonal/hub-ops" element={<HubOps />} />
+      <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       <Route path="/app/manpower" element={<Manpower />} />
       <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />
@@ -155,6 +169,15 @@ export default function App() {
       <Route path="/app/training" element={<Training />} />
       <Route path="/app/zonal/assistant" element={<ZonalAssistant />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
+      {/* My Workforce & Attendance: my own three pages, the hub book and the zone report ('hub' and 'zone' come before ':tab') */}
+      <Route path="/app/workforce" element={<Navigate to="/app/workforce/attendance" replace />} />
+      <Route element={<AnyOf perms={['hr.attendance.view', 'ops.staff_daily.view']} />}>
+        <Route path="/app/workforce/hub" element={<WorkforceHub />} />
+      </Route>
+      <Route path="/app/workforce/:tab" element={<MyWorkforce />} />
+    </Route>
+    <Route element={<ProtectedRoute permission="zonal.dashboard.view" />}>
+      <Route path="/app/workforce/zone" element={<WorkforceZone />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.user.view" />}>
       <Route path="/app/users" element={<Users />} />

@@ -258,6 +258,6 @@ export function PlacePicker({ value, onChange, onlyAll }: { value: PlacePick; on
 /** The database part (personal permissions) has not been applied yet. */
 export function NotInstalled() {
   const { L } = usePrefs()
-  return <p className="notice">{L('এই অংশ চালু করতে ডাটাবেসে একটি আপডেট বসাতে হবে (migration 20261117004000_advanced_permissions)। বসানো হলেই এখানে কাজ শুরু হবে — বাকি সব অংশ এখনই চলছে।',
-    'This part needs one database update (migration 20261117004000_advanced_permissions). It starts working here as soon as that is applied — everything else already works.')}</p>
+  return <p className="notice">{L('এই অংশ চালু করতে ডাটাবেসে একটি আপডেট বসাতে হবে (migration 20261117004500_advanced_permissions)। বসানো হলেই এখানে কাজ শুরু হবে — বাকি সব অংশ এখনই চলছে।',
+    'This part needs one database update (migration 20261117004500_advanced_permissions). It starts working here as soon as that is applied — everything else already works.')}</p>
 }
