@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { usePrefs } from '../../lib/prefs'
-import { ACTION_META, APP_META, LIVE, RECORD_META, STATE_META, dayLabel, monthLabel, monthOf, useLiveLoad, wf, wfFriendly,
+import { ACTION_META, APP_META, LIVE, RECORD_META, STATE_META, announceWfChange, dayLabel, monthLabel, monthOf, useLiveLoad, wf, wfFriendly,
   type AbsenceApp, type BookDay, type IsoDate, type Kind, type MyBook } from '../../lib/workforce'
 import { Badge, Field, Modal, useToast } from '../accounts/ui'
 import { AbsenceApply, longDate, shortDate, stamp, weekdayShort } from './AbsenceApply'
@@ -56,12 +56,12 @@ export function AttendanceBook() {
   const dayOf = (iso: IsoDate) => book.days.find(d => d.date === iso) ?? null
   const sheetDay = sheet ? dayOf(sheet) : null
 
-  const after = async (msg: string) => { setSheet(null); await q.reload(); toast(msg) }
+  const after = async (msg: string) => { setSheet(null); await q.reload(); announceWfChange(); toast(msg) }
   const openDay = (d: BookDay) => { rows.current[d.date]?.scrollIntoView({ block: 'center', behavior: 'smooth' }); setSheet(d.date) }
   const doWithdraw = async () => {
     if (!withdraw) return
     setWdBusy(true); setWdErr('')
-    try { await wf.cancelApplication(withdraw.id); setWithdraw(null); await q.reload(); toast(L('আবেদন তুলে নেওয়া হয়েছে', 'Application withdrawn')) }
+    try { await wf.cancelApplication(withdraw.id); setWithdraw(null); await q.reload(); announceWfChange(); toast(L('আবেদন তুলে নেওয়া হয়েছে', 'Application withdrawn')) }
     catch (e) { setWdErr(wfFriendly(e)); void q.reload() } finally { setWdBusy(false) }
   }
 

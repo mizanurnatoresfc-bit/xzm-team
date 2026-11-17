@@ -67,7 +67,7 @@ create table if not exists public.wf_absence_applications (
   zone_id        uuid references public.zones(id),
   month          date not null check (extract(day from month) = 1),
   dates          date[] not null check (cardinality(dates) between 1 and 31),
-  reason         text not null check (length(trim(reason)) > 0),
+  reason         text not null check (btrim(reason, E' \t\r\n') <> '' and length(reason) <= 500),
   status         text not null default 'pending' check (status in ('pending', 'approved', 'rejected', 'cancelled')),
   decided_by     uuid,
   decided_at     timestamptz,
@@ -75,7 +75,8 @@ create table if not exists public.wf_absence_applications (
   cancelled_at   timestamptz,
   created_at     timestamptz not null default now(), created_by uuid,
   updated_at     timestamptz not null default now(), updated_by uuid,
-  constraint wf_app_reject_note check (status <> 'rejected' or length(trim(coalesce(decision_note, ''))) > 0),
+  constraint wf_app_reject_note check (status <> 'rejected' or btrim(coalesce(decision_note, ''), E' \t\r\n') <> ''),
+  constraint wf_app_note_len check (decision_note is null or length(decision_note) <= 500),
   constraint wf_app_cancel_when check ((status = 'cancelled') = (cancelled_at is not null))
 );
 create index if not exists wf_absence_employee_idx on public.wf_absence_applications (employee_id, month);
@@ -113,7 +114,7 @@ create table if not exists public.wf_daily_ops (
   pickup_return    integer not null default 0 check (pickup_return between 0 and 100000),
   delivery         integer not null default 0 check (delivery between 0 and 100000),
   delivery_return  integer not null default 0 check (delivery_return between 0 and 100000),
-  note             text,
+  note             text check (note is null or length(note) <= 500),
   revision         integer not null default 1 check (revision >= 1),
   created_at       timestamptz not null default now(), created_by uuid,
   updated_at       timestamptz not null default now(), updated_by uuid,
@@ -176,6 +177,17 @@ create or replace function private.wf_backdate() returns integer language sql st
 create or replace function private.wf_open() returns boolean language sql stable set search_path = '' as
   $$ select extract(day from private.wf_today())::integer between private.wf_from_day() and private.wf_to_day() $$;
 
+-- Free text from a person: surrounding spaces, tabs and line breaks removed (so "only a newline" is empty), and bounded.
+create or replace function private.wf_clean(p_text text, p_max integer default 500) returns text
+language plpgsql immutable set search_path = '' as $$
+declare v text := nullif(btrim(coalesce(p_text, ''), E' \t\r\n'), '');
+begin
+  if v is not null and length(v) > p_max then
+    raise exception 'The text is too long (at most % characters) — লেখা খুব বড়, সর্বোচ্চ % অক্ষর', p_max, p_max using errcode = '22023';
+  end if;
+  return v;
+end $$;
+
 -- The caller's own active staff profile (null row when there is none).
 create or replace function private.wf_me() returns public.employees
 language sql stable security definer set search_path = '' as $$
@@ -213,8 +225,13 @@ begin
     return query select h.id, h.zone_id from public.hubs h where h.id = p_hub;
     return;
   end if;
-  return query select h.id, h.zone_id from public.hubs h
-    where h.archived_at is null and (p_zone is null or h.zone_id = p_zone) and private.has_permission(p_perm, h.zone_id, h.id);
+  -- one read of the caller's grants, then a plain join (has_permission per hub was O(hubs x grants) for every signed-in person)
+  return query
+    with g as materialized (select mg.scope_type, mg.zone_id as gz, mg.hub_id as gh from private.my_grants() mg
+                             where mg.permission_code = p_perm or (mg.is_super and mg.scope_type = 'global'))
+    select h.id, h.zone_id from public.hubs h
+    where h.archived_at is null and (p_zone is null or h.zone_id = p_zone)
+      and exists (select 1 from g where g.scope_type = 'global' or (g.scope_type = 'hub' and g.gh = h.id) or (g.scope_type = 'zone' and g.gz = h.zone_id));
 end $$;
 
 create or replace function private.wf_can(p_hub uuid) returns jsonb
@@ -373,7 +390,7 @@ declare
   v_book boolean := coalesce(current_setting('app.wf_path', true), '') = 'book';
   v_redo boolean;
 begin
-  if new.hub_id is not null then new.zone_id := private.hub_zone(new.hub_id); end if;
+  new.zone_id := private.hub_zone(new.hub_id);   -- null when there is no hub
   if new.kind = 'present' then new.applied_on_site := null; new.application_id := null; end if;
   if tg_op = 'UPDATE' and not v_book then
     -- only att_self_mark puts an input back to "waiting" outside the book functions: it is the old one-tap path
@@ -497,6 +514,10 @@ create or replace trigger wf_att_history_immutable before update or delete on pu
   for each row execute function private.audit_immutable();
 create or replace trigger wf_ops_history_immutable before update or delete on public.wf_ops_history
   for each row execute function private.audit_immutable();
+create or replace trigger wf_att_history_no_truncate before truncate on public.wf_att_history
+  for each statement execute function private.audit_immutable();
+create or replace trigger wf_ops_history_no_truncate before truncate on public.wf_ops_history
+  for each statement execute function private.audit_immutable();
 
 -- ---------------------------------------------------------------------
 -- 4. Row level security: read only for the API; every write goes through the functions below.
@@ -568,12 +589,13 @@ end $$;
 create or replace function public.wf_att_submit(p_date date, p_kind text, p_applied_on_site boolean default null, p_note text default null)
 returns uuid language plpgsql security definer set search_path = '' as $$
 declare
-  e public.employees; v_today date := private.wf_today(); v_note text := nullif(trim(coalesce(p_note, '')), '');
+  e public.employees; v_today date := private.wf_today(); v_note text := private.wf_clean(p_note);
   v_site boolean; m public.attendance_self_marks; v_id uuid; v_i integer; v_action text;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
   e := private.wf_me();
   if e.id is null then raise exception 'No active staff profile is linked to your login — আপনার লগইনের সাথে সক্রিয় কর্মী প্রোফাইল যুক্ত নেই' using errcode = '42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('wf:' || e.id::text, 0));   -- one of this person's book calls at a time
   if p_kind is null or p_kind not in ('present', 'absent') then raise exception 'Unknown attendance kind' using errcode = '22023'; end if;
   perform private.wf_check_date(p_date, e.joining_date);
   if p_kind = 'absent' then
@@ -637,12 +659,13 @@ end $$;
 create or replace function public.wf_absence_apply(p_dates date[], p_reason text) returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare
-  e public.employees; v_reason text := nullif(trim(coalesce(p_reason, '')), ''); v_dates date[]; d date; m public.attendance_self_marks;
+  e public.employees; v_reason text := private.wf_clean(p_reason); v_dates date[]; d date; m public.attendance_self_marks;
   a public.wf_absence_applications;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
   e := private.wf_me();
   if e.id is null then raise exception 'No active staff profile is linked to your login — আপনার লগইনের সাথে সক্রিয় কর্মী প্রোফাইল যুক্ত নেই' using errcode = '42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('wf:' || e.id::text, 0));   -- a double tap cannot make two applications
   if v_reason is null then raise exception 'Write the reason for the absence (reason is required) — কারণ লিখুন' using errcode = '22023'; end if;
   select array_agg(distinct x order by x) into v_dates from unnest(coalesce(p_dates, '{}'::date[])) x where x is not null;
   if coalesce(cardinality(v_dates), 0) = 0 then raise exception 'Choose at least one date — অন্তত একটি তারিখ বাছুন' using errcode = '22023'; end if;
@@ -687,10 +710,17 @@ language plpgsql security definer set search_path = '' as $$
 declare a public.wf_absence_applications;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
-  select * into a from public.wf_absence_applications x where x.id = p_application for update;
+  select * into a from public.wf_absence_applications x where x.id = p_application;
   if a.id is null then raise exception 'Application not found — আবেদনটি পাওয়া যায়নি' using errcode = 'P0002'; end if;
   if not private.is_self_employee(a.employee_id) then raise exception 'You may not withdraw somebody else''s application' using errcode = '42501'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('wf:' || a.employee_id::text, 0));
+  -- lock order: the dates first, then the application (the same order the old approval list takes)
+  perform 1 from public.attendance_self_marks m where m.application_id = a.id order by m.id for update;
+  select * into a from public.wf_absence_applications x where x.id = p_application for update;
   if a.status <> 'pending' then raise exception 'Only a pending application can be withdrawn — শুধু অপেক্ষারত আবেদন তুলে নেওয়া যায়' using errcode = '22023'; end if;
+  if exists (select 1 from public.attendance_self_marks m where m.application_id = a.id and m.status = 'approved') then
+    raise exception 'A date of this application is already approved, so it can no longer be withdrawn — একটি তারিখ অনুমোদিত হয়ে গেছে, আবেদন আর তোলা যাবে না' using errcode = '22023';
+  end if;
   update public.wf_absence_applications set status = 'cancelled', cancelled_at = now() where id = a.id;
   perform set_config('app.wf_action', 'cancelled', true);
   update public.attendance_self_marks set status = 'rejected', decided_by = null, decided_at = now(), decided_as = null, decide_note = 'আবেদন তুলে নেওয়া হয়েছে'
@@ -725,23 +755,31 @@ end $$;
 create or replace function public.wf_ops_submit(p_pickup integer, p_pickup_return integer, p_delivery integer, p_delivery_return integer,
   p_note text default null, p_date date default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare e public.employees; v_today date := private.wf_today(); v_date date := coalesce(p_date, private.wf_today()); v_note text := nullif(trim(coalesce(p_note, '')), ''); v_id uuid;
+declare e public.employees; v_today date := private.wf_today(); v_date date := coalesce(p_date, private.wf_today()); v_note text := private.wf_clean(p_note); v_id uuid;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
   e := private.wf_me();
   if e.id is null then raise exception 'No active staff profile is linked to your login — আপনার লগইনের সাথে সক্রিয় কর্মী প্রোফাইল যুক্ত নেই' using errcode = '42501'; end if;
-  if least(coalesce(p_pickup, 0), coalesce(p_pickup_return, 0), coalesce(p_delivery, 0), coalesce(p_delivery_return, 0)) < 0 then
+  if p_pickup is null or p_pickup_return is null or p_delivery is null or p_delivery_return is null then
+    raise exception 'All four numbers must be filled (0 is fine) — চারটি সংখ্যাই দিন (০ও চলবে)' using errcode = '22023';
+  end if;
+  if least(p_pickup, p_pickup_return, p_delivery, p_delivery_return) < 0 then
     raise exception 'The numbers must be non-negative — সংখ্যা ০ বা তার বেশি হতে হবে' using errcode = '22023';
   end if;
-  if greatest(coalesce(p_pickup, 0), coalesce(p_pickup_return, 0), coalesce(p_delivery, 0), coalesce(p_delivery_return, 0)) > 100000 then
+  if greatest(p_pickup, p_pickup_return, p_delivery, p_delivery_return) > 100000 then
     raise exception 'The numbers must be at most 100000' using errcode = '22023';
   end if;
   if v_date > v_today then raise exception 'A future date cannot be filled yet — আগামী তারিখ' using errcode = '22023'; end if;
   if v_date < v_today - private.wf_backdate() then
     raise exception 'You may not change an older day — ask your manager to correct it (পুরোনো দিনের সংখ্যা ম্যানেজার সংশোধন করবেন)' using errcode = '42501';
   end if;
+  perform pg_advisory_xact_lock(hashtextextended('wf:' || e.id::text, 0));
+  if exists (select 1 from public.wf_daily_ops o join public.wf_ops_history h on h.entry_id = o.id and h.action = 'corrected'
+              where o.employee_id = e.id and o.work_date = v_date) then
+    raise exception 'You may not change these numbers: your manager corrected them (ম্যানেজার সংশোধন করেছেন — আবার বদলাতে ম্যানেজারকে বলুন)' using errcode = '42501';
+  end if;
   insert into public.wf_daily_ops (employee_id, hub_id, zone_id, work_date, pickup, pickup_return, delivery, delivery_return, note)
-  values (e.id, e.hub_id, private.hub_zone(e.hub_id), v_date, coalesce(p_pickup, 0), coalesce(p_pickup_return, 0), coalesce(p_delivery, 0), coalesce(p_delivery_return, 0), v_note)
+  values (e.id, e.hub_id, private.hub_zone(e.hub_id), v_date, p_pickup, p_pickup_return, p_delivery, p_delivery_return, v_note)
   on conflict (employee_id, work_date) do update
      set pickup = excluded.pickup, pickup_return = excluded.pickup_return, delivery = excluded.delivery, delivery_return = excluded.delivery_return,
          note = excluded.note, hub_id = excluded.hub_id, zone_id = excluded.zone_id
@@ -931,12 +969,27 @@ begin
 end $$;
 
 -- Approve / turn down a whole application: its waiting dates go through att_self_decide (the same path as any input).
+-- A waiting input whose date is ALREADY on the register (the manager wrote it by hand, or it is an approved leave): the
+-- register stays exactly as it is and the input is closed with it. (The old approval list overwrites when the approver may edit.)
+create or replace function private.wf_close_on_register(m public.attendance_self_marks, p_note text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare r public.attendance_records;
+begin
+  select * into r from public.attendance_records x where x.employee_id = m.employee_id and x.work_date = m.work_date;
+  update public.attendance_self_marks set status = 'approved', decided_by = auth.uid(), decided_at = now(),
+         decided_as = case when r.status in ('present', 'late', 'half_day', 'absent') then r.status end,
+         decide_note = coalesce(p_note, 'খাতায় আগেই ছিল — বদলানো হয়নি'), attendance_id = r.id
+   where id = m.id;
+end $$;
+
+-- The manager decides a whole application. Approve: each waiting date goes on the register as absent (a date already on the register
+-- is left as it is); turn down: each waiting date is returned with the reason. The staff member gets ONE notice, not one per date.
 create or replace function public.wf_absence_decide(p_application uuid, p_ok boolean, p_note text default null) returns integer
 language plpgsql security definer set search_path = '' as $$
-declare a public.wf_absence_applications; v_note text := nullif(trim(coalesce(p_note, '')), ''); v_ids uuid[]; v_n integer := 0;
+declare a public.wf_absence_applications; m public.attendance_self_marks; v_note text := private.wf_clean(p_note); v_n integer := 0; v_rec uuid; v_prof uuid;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
-  select * into a from public.wf_absence_applications x where x.id = p_application for update;
+  select x.* into a from public.wf_absence_applications x where x.id = p_application;
   if a.id is null then raise exception 'Application not found — আবেদনটি পাওয়া যায়নি' using errcode = 'P0002'; end if;
   if not private.employee_has_permission('hr.attendance.create', a.employee_id) then
     raise exception 'You may not decide this application — এই আবেদন নিষ্পত্তির অনুমতি নেই' using errcode = '42501';
@@ -944,16 +997,63 @@ begin
   if private.is_self_employee(a.employee_id) then
     raise exception 'Your own attendance is approved by another manager (নিজের আবেদন অন্য ম্যানেজার দেখবেন)' using errcode = '42501';
   end if;
-  if a.status <> 'pending' then raise exception 'This application is already settled (%) — আবেদনের সিদ্ধান্ত আগেই হয়ে গেছে', a.status using errcode = 'P0001'; end if;
   if p_ok is null then raise exception 'Choose approve or turn down' using errcode = '22023'; end if;
   if not p_ok and v_note is null then raise exception 'Write why it is turned down — কেন ফেরত দিচ্ছেন লিখুন' using errcode = '22023'; end if;
-  select array_agg(m.id) into v_ids from public.attendance_self_marks m where m.application_id = a.id and m.status = 'waiting';
-  if v_ids is not null then
-    v_n := public.att_self_decide(v_ids, p_ok, case when p_ok then 'absent' end, v_note);   -- its trigger settles the application
-  end if;
+  -- lock order: the dates first, then the application (the same order the old approval list takes)
+  perform 1 from public.attendance_self_marks x where x.application_id = a.id order by x.id for update;
+  select x.* into a from public.wf_absence_applications x where x.id = p_application for update;
+  if a.status <> 'pending' then raise exception 'This application is already settled (%) — আবেদনের সিদ্ধান্ত আগেই হয়ে গেছে', a.status using errcode = 'P0001'; end if;
+  for m in select * from public.attendance_self_marks x where x.application_id = a.id and x.status = 'waiting' order by x.work_date loop
+    if not p_ok then
+      update public.attendance_self_marks set status = 'rejected', decided_by = auth.uid(), decided_at = now(), decide_note = v_note where id = m.id;
+    elsif exists (select 1 from public.attendance_records r where r.employee_id = m.employee_id and r.work_date = m.work_date) then
+      perform private.wf_close_on_register(m, null);
+    else
+      insert into public.attendance_records (employee_id, work_date, status, check_in, source, note)
+      values (m.employee_id, m.work_date, 'absent', null, 'self', coalesce(m.note, 'নিজে দিয়েছেন')) returning id into v_rec;
+      update public.attendance_self_marks set status = 'approved', decided_as = 'absent', decided_by = auth.uid(), decided_at = now(),
+             decide_note = v_note, attendance_id = v_rec where id = m.id;
+    end if;
+    v_n := v_n + 1;
+  end loop;
   update public.wf_absence_applications set status = case when p_ok then 'approved' else 'rejected' end, decided_by = auth.uid(), decided_at = now(),
          decision_note = coalesce(v_note, 'ফেরত দেওয়া হয়েছে')
    where id = a.id and status = 'pending';   -- only when nothing was waiting (the trigger already settled it otherwise)
+  select e.profile_id into v_prof from public.employees e where e.id = a.employee_id;
+  perform private.notify(v_prof,
+    case when p_ok then 'আবেদন ' || a.application_no || ' অনুমোদিত' else 'আবেদন ' || a.application_no || ' ফেরত দেওয়া হয়েছে' end,
+    case when p_ok then coalesce('মন্তব্য: ' || v_note, private.my_display_name() || ' অনুমোদন দিয়েছেন') else 'কারণ: ' || v_note end,
+    '/app/workforce/attendance', 'attendance');
+  return v_n;
+end $$;
+
+-- Approve or return several staff inputs at once (the approval list). Same as att_self_decide, except that a date already on the
+-- register is never overwritten: the input is closed with the register as it is.
+create or replace function public.wf_marks_decide(p_ids uuid[], p_ok boolean, p_as text default null, p_note text default null) returns integer
+language plpgsql security definer set search_path = '' as $$
+declare m public.attendance_self_marks; v_rest uuid[] := '{}'; v_n integer := 0; v_note text := private.wf_clean(p_note);
+begin
+  if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
+  if p_ok is null then raise exception 'Choose approve or turn down' using errcode = '22023'; end if;
+  if p_ok then
+    for m in select * from public.attendance_self_marks x where x.id = any (coalesce(p_ids, '{}')) and x.status = 'waiting' order by x.id for update loop
+      if exists (select 1 from public.attendance_records r where r.employee_id = m.employee_id and r.work_date = m.work_date) then
+        if not private.employee_has_permission('hr.attendance.create', m.employee_id) then
+          raise exception 'You may not approve attendance for this person — এই ব্যক্তির হাজিরা অনুমোদনের অনুমতি নেই' using errcode = '42501';
+        end if;
+        if private.is_self_employee(m.employee_id) then
+          raise exception 'Your own attendance is approved by another manager (নিজের হাজিরা অন্য ম্যানেজার অনুমোদন দেবেন)' using errcode = '42501';
+        end if;
+        perform private.wf_close_on_register(m, v_note);
+        v_n := v_n + 1;
+      else
+        v_rest := v_rest || m.id;
+      end if;
+    end loop;
+  else
+    v_rest := coalesce(p_ids, '{}');
+  end if;
+  if cardinality(v_rest) > 0 then v_n := v_n + public.att_self_decide(v_rest, p_ok, p_as, v_note); end if;
   return v_n;
 end $$;
 
@@ -961,7 +1061,7 @@ end $$;
 create or replace function public.wf_att_correct(p_mark uuid, p_as text, p_note text) returns void
 language plpgsql security definer set search_path = '' as $$
 declare
-  m public.attendance_self_marks; r public.attendance_records; v_note text := nullif(trim(coalesce(p_note, '')), ''); v_prof uuid; v_word text;
+  m public.attendance_self_marks; r public.attendance_records; v_note text := private.wf_clean(p_note); v_prof uuid; v_word text;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
   select * into m from public.attendance_self_marks x where x.id = p_mark for update;
@@ -1079,7 +1179,7 @@ end $$;
 -- A manager corrects somebody's four numbers (any date). A note is required; revision + history record it.
 create or replace function public.wf_ops_correct(p_id uuid, p_pickup integer, p_pickup_return integer, p_delivery integer, p_delivery_return integer, p_note text)
 returns void language plpgsql security definer set search_path = '' as $$
-declare o public.wf_daily_ops; v_note text := nullif(trim(coalesce(p_note, '')), ''); v_prof uuid;
+declare o public.wf_daily_ops; v_note text := private.wf_clean(p_note); v_prof uuid;
 begin
   if auth.uid() is null then raise exception 'Sign in first' using errcode = '42501'; end if;
   select * into o from public.wf_daily_ops x where x.id = p_id for update;
@@ -1091,20 +1191,21 @@ begin
     raise exception 'You may not correct your own numbers here — another manager does it (নিজের সংখ্যা অন্য ম্যানেজার সংশোধন করবেন)' using errcode = '42501';
   end if;
   if v_note is null then raise exception 'A correction note is required — সংশোধনের কারণ লিখুন' using errcode = '22023'; end if;
-  if least(coalesce(p_pickup, 0), coalesce(p_pickup_return, 0), coalesce(p_delivery, 0), coalesce(p_delivery_return, 0)) < 0 then
+  if p_pickup is null or p_pickup_return is null or p_delivery is null or p_delivery_return is null then
+    raise exception 'All four numbers must be filled (0 is fine) — চারটি সংখ্যাই দিন (০ও চলবে)' using errcode = '22023';
+  end if;
+  if least(p_pickup, p_pickup_return, p_delivery, p_delivery_return) < 0 then
     raise exception 'The numbers must be non-negative — সংখ্যা ০ বা তার বেশি হতে হবে' using errcode = '22023';
   end if;
-  if greatest(coalesce(p_pickup, 0), coalesce(p_pickup_return, 0), coalesce(p_delivery, 0), coalesce(p_delivery_return, 0)) > 100000 then
+  if greatest(p_pickup, p_pickup_return, p_delivery, p_delivery_return) > 100000 then
     raise exception 'The numbers must be at most 100000' using errcode = '22023';
   end if;
-  if (o.pickup, o.pickup_return, o.delivery, o.delivery_return)
-       = (coalesce(p_pickup, 0), coalesce(p_pickup_return, 0), coalesce(p_delivery, 0), coalesce(p_delivery_return, 0)) then
+  if (o.pickup, o.pickup_return, o.delivery, o.delivery_return) = (p_pickup, p_pickup_return, p_delivery, p_delivery_return) then
     return;   -- nothing to change
   end if;
   perform set_config('app.wf_action', 'corrected', true);
   perform set_config('app.wf_note', v_note, true);
-  update public.wf_daily_ops set pickup = coalesce(p_pickup, 0), pickup_return = coalesce(p_pickup_return, 0), delivery = coalesce(p_delivery, 0),
-         delivery_return = coalesce(p_delivery_return, 0) where id = o.id;
+  update public.wf_daily_ops set pickup = p_pickup, pickup_return = p_pickup_return, delivery = p_delivery, delivery_return = p_delivery_return where id = o.id;
   perform set_config('app.wf_action', '', true);
   perform set_config('app.wf_note', '', true);
   select e.profile_id into v_prof from public.employees e where e.id = o.employee_id;
@@ -1214,7 +1315,7 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_today date := private.wf_today(); v_day0 timestamptz := (private.wf_today()::timestamp at time zone 'Asia/Dhaka');
   v_month date := date_trunc('month', private.wf_today())::date; v_from integer := private.wf_from_day();
-  v_n integer := 0; v_c integer; h record; u uuid; v_w integer; v_a integer;
+  v_n integer := 0; v_c integer; h record; u uuid; v_w integer; v_a integer; v_since date := (date_trunc('month', private.wf_today()) - interval '1 month')::date; v_title text;
 begin
   if private.wf_open() then
     -- today's date is still missing
@@ -1248,20 +1349,21 @@ begin
   -- one digest per hub manager while something waits for them
   for h in
     select e.hub_id from public.attendance_self_marks m join public.employees e on e.id = m.employee_id
-     where m.status = 'waiting' and e.hub_id is not null and e.archived_at is null
+     where m.status = 'waiting' and m.work_date >= v_since and e.hub_id is not null and e.archived_at is null
     union
     select e.hub_id from public.wf_absence_applications a join public.employees e on e.id = a.employee_id
-     where a.status = 'pending' and e.hub_id is not null and e.archived_at is null
+     where a.status = 'pending' and a.month >= v_since and e.hub_id is not null and e.archived_at is null
   loop
+    select 'অনুমোদনের জন্য অপেক্ষায়: ' || coalesce(x.name_bn, x.name) into v_title from public.hubs x where x.id = h.hub_id;
     for u in select * from private.wf_hub_managers(h.hub_id) loop
       select count(*) into v_w from public.attendance_self_marks m join public.employees e on e.id = m.employee_id
-       where m.status = 'waiting' and e.hub_id = h.hub_id and e.archived_at is null and e.profile_id is distinct from u;
+       where m.status = 'waiting' and m.work_date >= v_since and e.hub_id = h.hub_id and e.archived_at is null and e.profile_id is distinct from u;
       select count(*) into v_a from public.wf_absence_applications a join public.employees e on e.id = a.employee_id
-       where a.status = 'pending' and e.hub_id = h.hub_id and e.archived_at is null and e.profile_id is distinct from u;
+       where a.status = 'pending' and a.month >= v_since and e.hub_id = h.hub_id and e.archived_at is null and e.profile_id is distinct from u;
       if v_w + v_a > 0 and not exists (select 1 from public.notifications n where n.profile_id = u and n.kind = 'workforce'
-                                         and n.title = 'অনুমোদনের জন্য অপেক্ষায়' and n.created_at >= v_day0) then
+                                         and n.title = v_title and n.created_at >= v_day0) then
         insert into public.notifications (profile_id, title, body, link, kind)
-        values (u, 'অনুমোদনের জন্য অপেক্ষায়', v_w || ' টি হাজিরা ও ' || v_a || ' টি অনুপস্থিতির আবেদন আপনার সিদ্ধান্তের অপেক্ষায়।', '/app/workforce/hub', 'workforce');
+        values (u, v_title, v_w || ' টি হাজিরা ও ' || v_a || ' টি অনুপস্থিতির আবেদন আপনার সিদ্ধান্তের অপেক্ষায়।', '/app/workforce/hub', 'workforce');
         v_n := v_n + 1;
       end if;
     end loop;

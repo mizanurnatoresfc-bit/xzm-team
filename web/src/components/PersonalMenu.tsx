@@ -7,7 +7,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { referrals } from '../lib/extra'
 import { usePrefs } from '../lib/prefs'
-import { LIVE, useLiveLoad, wf, type PendingCounts } from '../lib/workforce'
+import { useLiveLoad, wf, type PendingCounts } from '../lib/workforce'
 import { Icon } from './Icon'
 import '../workforce.css'
 
@@ -31,7 +31,15 @@ export function WfCountsHost() {
     first.current = false
     return reuse ? Promise.resolve(snap.data!) : wf.counts().then(d => { snapAt = Date.now(); return d })
   }
-  const c = useLiveLoad(load, [user], LIVE.mine)
+  // No Realtime subscription here: this host runs for every signed-in person on every page, and each change would be checked against
+  // their row security once per listener. It refreshes every 60 s, when the app comes back, and when a screen announces a change.
+  const c = useLiveLoad(load, [user])
+  const reload = c.reload
+  useEffect(() => {
+    const f = () => void reload()
+    window.addEventListener('wf:changed', f)
+    return () => window.removeEventListener('wf:changed', f)
+  }, [reload])
   useEffect(() => {
     if (!user) { publish(NONE); return }
     if (c.data) publish({ user, data: c.data, failed: false })

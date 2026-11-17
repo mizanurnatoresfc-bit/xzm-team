@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { addDays } from '../lib/dailyAccounts'
 import { usePrefs, type Lang } from '../lib/prefs'
 import { toLatinDigits } from '../lib/validate'
-import { useLiveLoad, wf, wfFriendly, type DailyOps, type OpsInput } from '../lib/workforce'
+import { announceWfChange, useLiveLoad, wf, wfFriendly, type DailyOps, type OpsInput } from '../lib/workforce'
 import { Badge, Field, useToast } from '../pages/accounts/ui'
 import { Icon } from './Icon'
 import '../workforce-book.css'
@@ -96,6 +96,7 @@ export function DailyOpsCard() {
       await wf.submitOps(v, form.note.trim() || null, off === 0 ? null : date)
       edited.current = false; setTried(false)
       await q.reload()
+      announceWfChange()
       toast(entry ? L('হিসাব বদলানো হয়েছে', 'Your numbers were changed') : L('সাবমিট হয়েছে — ধন্যবাদ', 'Submitted — thank you'))
     } catch (e) { setErr(wfFriendly(e)) } finally { setBusy(false) }
   }

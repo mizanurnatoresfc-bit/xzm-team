@@ -749,9 +749,9 @@ select tests.ok(tests.n_notes('u_s2', 'ফেরত দেওয়া হাজ
             and (select body from public.notifications where profile_id = tests.id('u_s2') and title = 'ফেরত দেওয়া হাজিরা আবার দিন') like '1 %', 'reminders: returned dates are named once per person');
 select tests.ok(tests.n_notes('u_s2', 'আজকের সংখ্যা বাকি') = 1 and tests.n_notes('u_s3', 'আজকের সংখ্যা বাকি') = 0 and tests.n_notes('u_nh', 'আজকের সংখ্যা বাকি') = 0 and tests.n_notes('rider_login', 'আজকের সংখ্যা বাকি') = 0,
   'reminders: only people who send their numbers every day, and have not yet today, are asked for them');
-select tests.ok(tests.n_notes('hub_mgr', 'অনুমোদনের জন্য অপেক্ষায়') = 1 and tests.n_notes('mgr2', 'অনুমোদনের জন্য অপেক্ষায়') = 1 and tests.n_notes('hub_b_mgr', 'অনুমোদনের জন্য অপেক্ষায়') = 1
-            and (select body from public.notifications where profile_id = tests.id('mgr2') and title = 'অনুমোদনের জন্য অপেক্ষায়') like '% টি হাজিরা ও 1 টি অনুপস্থিতির আবেদন%'
-            and tests.n_notes('zonal_a', 'অনুমোদনের জন্য অপেক্ষায়') = 0, 'reminders: one digest per hub manager while something waits in their hub (a zonal viewer is not asked to approve)');
+select tests.ok(tests.n_notes('hub_mgr', 'অনুমোদনের জন্য অপেক্ষায়%') = 1 and tests.n_notes('mgr2', 'অনুমোদনের জন্য অপেক্ষায়%') = 1 and tests.n_notes('hub_b_mgr', 'অনুমোদনের জন্য অপেক্ষায়%') = 1
+            and (select body from public.notifications where profile_id = tests.id('mgr2') and title like 'অনুমোদনের জন্য অপেক্ষায়%') like '% টি হাজিরা ও 1 টি অনুপস্থিতির আবেদন%'
+            and tests.n_notes('zonal_a', 'অনুমোদনের জন্য অপেক্ষায়%') = 0, 'reminders: one digest per hub manager while something waits in their hub (a zonal viewer is not asked to approve)');
 select tests.ok(private.wf_remind() = 0 and tests.n_notes('u_s3', 'আজকের হাজিরা বাকি') = 1, 'reminders: running again the same day tells nobody twice');
 select tests.ok((select count(*) from public.notifications where kind = 'workforce' and link in ('/app/workforce/attendance', '/app/workforce/hub')) = (select count(*) from public.notifications where kind = 'workforce'),
   'reminders: every one is a "workforce" notification with a link into the module');
@@ -759,8 +759,131 @@ select tests.set_today(18);
 update public.notifications set created_at = created_at - interval '3 days' where kind = 'workforce';
 select tests.ok(private.wf_remind() > 0 and tests.n_notes('u_s3', 'আজকের হাজিরা বাকি') = 1 and tests.n_notes('u_s3', 'আজকের সংখ্যা বাকি') = 0, 'reminders: after the book closes nobody is asked for dates any more (the digest still goes to managers)');
 select tests.set_today(10);
-select tests.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%' and p.prosecdef and p.proconfig @> array['search_path=""']) = 18,
-  'all eighteen public functions are security definer with an empty search path');
+
+-- ================================================================ after the independent review (fixes F1-F13)
+insert into tests.ids values ('u_s5', tests.make_user('s5@test.local', 'Staff Five'));
+insert into tests.ids values ('e5', tests.active_employee('Staff Five', '809', tests.id('hub_a1'), '01711000809', '8090101010', 15000, tests.id('u_s5')));
+select tests.grant_role(tests.id('u_s5'), 'rider', 'hub', null, tests.id('hub_a1'));
+select tests.set_today(16);
+
+-- F2: deciding an application never overwrites a register row that is already there
+select tests.login(tests.id('hub_mgr'));
+insert into public.attendance_records (employee_id, work_date, status, source) values (tests.id('e5'), tests.day(13), 'present', 'manual');
+select tests.logout();
+insert into public.attendance_records (employee_id, work_date, status, source, note) values (tests.id('e5'), tests.day(14), 'leave', 'leave', 'Approved leave');
+select tests.login(tests.id('u_s5'));
+-- the register rows came after the person applied: apply first, the manager's rows land in between
+insert into tests.ids values ('app9', public.wf_absence_apply(array[tests.day(15), tests.day(16)], 'পারিবারিক কাজ'));
+select tests.logout();
+insert into public.attendance_records (employee_id, work_date, status, source) values (tests.id('e5'), tests.day(15), 'late', 'manual');
+select tests.login(tests.id('hub_mgr'));
+select tests.ok(public.wf_absence_decide(tests.id('app9'), true, 'ঠিক আছে') = 2, 'F2: the application is decided (two dates)');
+select tests.ok((select status from public.attendance_records where employee_id = tests.id('e5') and work_date = tests.day(15)) = 'late'
+            and (select source from public.attendance_records where employee_id = tests.id('e5') and work_date = tests.day(15)) = 'manual',
+  'F2: a register row the manager wrote by hand is NOT overwritten by approving the application');
+select tests.ok((select status from public.attendance_records where employee_id = tests.id('e5') and work_date = tests.day(16)) = 'absent'
+            and (select source from public.attendance_records where employee_id = tests.id('e5') and work_date = tests.day(16)) = 'self',
+  'F2: a date with no register row goes on the register as absent');
+select tests.ok((select status = 'approved' and decided_as = 'late' and attendance_id is not null from public.attendance_self_marks where employee_id = tests.id('e5') and work_date = tests.day(15)),
+  'F2: its input is closed with the register as it is (approved, as late)');
+select tests.ok(tests.n_notes('u_s5', 'আবেদন AB-% অনুমোদিত') = 1 and tests.n_notes('u_s5', 'হাজিরা অনুমোদিত%') = 0, 'F7: the person gets ONE notice for the application, not one per date');
+-- the approval list does the same for a single date
+select tests.logout();
+select tests.login(tests.id('u_s5'));
+select public.wf_att_submit(tests.day(12), 'present');
+insert into tests.ids values ('m12', tests.mark_of('e5', 12));
+select tests.logout();
+select tests.login(tests.id('hub_mgr'));
+insert into public.attendance_records (employee_id, work_date, status, source) values (tests.id('e5'), tests.day(12), 'half_day', 'manual');
+select tests.ok(public.wf_marks_decide(array[tests.id('m12')], true, 'present', 'নোট') = 1, 'F2: wf_marks_decide handles the input');
+select tests.ok((select status from public.attendance_records where employee_id = tests.id('e5') and work_date = tests.day(12)) = 'half_day'
+            and (select status = 'approved' and decided_as = 'half_day' from public.attendance_self_marks where id = tests.id('m12')),
+  'F2: wf_marks_decide closes an input whose date is already on the register without overwriting it');
+select tests.ok(tests.err(format($$select public.wf_marks_decide(array[%L::uuid], true)$$, tests.id('m12'))) is null
+            and public.wf_marks_decide(null, true) = 0, 'F2: deciding nothing is harmless');
+select tests.logout();
+select tests.login(tests.id('u_s5'));
+select public.wf_att_submit(tests.day(11), 'present');
+insert into tests.ids values ('m11', tests.mark_of('e5', 11));
+select tests.logout();
+select tests.login(tests.id('hub_mgr'));
+select tests.ok(public.wf_marks_decide(array[tests.id('m11')], true, 'late') = 1, 'wf_marks_decide handles an input with no register row');
+select tests.ok((select status || '/' || source from public.attendance_records where employee_id = tests.id('e5') and work_date = tests.day(11)) = 'late/self',
+  'wf_marks_decide with no register row behaves as the old approval (register written as decided)');
+select tests.ok(tests.err(format($$select public.wf_marks_decide(array[%L::uuid], true)$$, tests.id('m12'))) is null, 'deciding an already closed input again is harmless');
+select tests.login(tests.id('hub_b_mgr'));
+select tests.ok(tests.err(format($$select public.wf_marks_decide(array[%L::uuid], true)$$, tests.id('m12'))) is null, 'another hub''s manager closes nothing (the input is no longer waiting)');
+select tests.logout();
+
+-- F5: no withdrawing after part of the application was decided
+select tests.login(tests.id('u_s5'));
+insert into tests.ids values ('app10', public.wf_absence_apply(array[tests.day(8), tests.day(9)], 'অসুস্থ'));
+select tests.logout();
+select tests.login(tests.id('hub_mgr'));
+select public.att_self_decide(array[tests.mark_of('e5', 8)], true, 'absent');
+select tests.login(tests.id('u_s5'));
+select tests.ok(tests.err(format($$select public.wf_absence_cancel(%L)$$, tests.id('app10'))) ~ '^22023 .*already approved', 'F5: an application cannot be withdrawn after one of its dates was approved');
+select tests.ok((select status from public.wf_absence_applications where id = tests.id('app10')) = 'pending' and tests.mark_of('e5', 9) is not null
+            and (select status from public.attendance_self_marks where id = tests.mark_of('e5', 9)) = 'waiting', 'F5: the refused withdrawal changed nothing');
+
+-- F6 / F12: text is bounded and "only a newline" is empty
+select tests.ok(tests.err(format($$select public.wf_att_submit(tests.day(7), 'present', null, %L)$$, repeat('ক', 501))) ~ '^22023 .*too long', 'F6: a note over 500 characters is refused');
+select tests.ok(tests.err(format($$select public.wf_absence_apply(array[tests.day(6)], %L)$$, repeat('x', 501))) ~ '^22023 .*too long', 'F6: so is a reason');
+select tests.ok(tests.err(format($$select public.wf_ops_submit(1, 1, 1, 1, %L)$$, repeat('x', 501))) ~ '^22023 .*too long', 'F6: and an ops note');
+select tests.ok(tests.err($$select public.wf_absence_apply(array[tests.day(6)], E'\n\t \r')$$) ~ '^22023 .*reason', 'F12: a reason of only a newline / tab is empty');
+select tests.logout();
+select tests.ok(tests.err(format($$insert into public.wf_absence_applications (application_no, employee_id, month, dates, reason) values ('AB-99999', %L, %L, array[%L::date], E'\n')$$,
+                                 tests.id('e5'), tests.fm(), tests.day(6))) ~ '^23514', 'F12: the table check says the same');
+select tests.login(tests.id('u_s5'));
+select tests.logout();
+
+-- F13: numbers are never silently NULL -> 0, and the person cannot overwrite a manager's correction
+select tests.login(tests.id('u_s5'));
+select tests.ok(tests.err($$select public.wf_ops_submit(1, null, 1, 1)$$) ~ '^22023 .*four numbers', 'F13: an empty number is refused, not turned into 0');
+select public.wf_ops_submit(10, 2, 20, 1);
+insert into tests.ids values ('o5', (select id from public.wf_daily_ops where employee_id = tests.id('e5') and work_date = tests.day(16)));
+select tests.login(tests.id('hub_mgr'));
+select tests.ok(tests.err(format($$select public.wf_ops_correct(%L, null, 2, 20, 1, 'নোট')$$, tests.id('o5'))) ~ '^22023 .*four numbers', 'F13: the manager''s correction needs all four numbers too');
+select public.wf_ops_correct(tests.id('o5'), 12, 2, 20, 1, 'গণনা ঠিক করা হলো');
+select tests.login(tests.id('u_s5'));
+select tests.ok(tests.err($$select public.wf_ops_submit(99, 99, 99, 99)$$) ~ '^42501 .*corrected', 'F13: the person cannot overwrite what the manager corrected');
+select tests.ok((select pickup from public.wf_daily_ops where id = tests.id('o5')) = 12, 'F13: the corrected numbers stand');
+select tests.logout();
+
+-- F9: the histories cannot be truncated, even by the owner
+select tests.ok(tests.err('truncate public.wf_att_history') is not null and tests.err('truncate public.wf_ops_history') is not null
+            and (select count(*) from public.wf_att_history) > 0, 'F9: neither history table can be truncated');
+
+-- F10: the zone follows the hub even when the hub becomes empty
+update public.employees set hub_id = null, zone_id = null where id = tests.id('e5');
+select tests.login(tests.id('u_s5'));
+select public.wf_att_submit(tests.day(5), 'present');
+select tests.logout();
+select tests.ok((select zone_id is null and hub_id is null from public.attendance_self_marks where employee_id = tests.id('e5') and work_date = tests.day(5)), 'F10: a person with no hub leaves no stale zone on the input');
+
+-- F1: wf_hubs returns exactly the hubs the permission gives, by scope (private helper: reached through a definer shim here)
+create function tests.hubs_of(p_perm text) returns uuid[] language sql stable security definer as
+  $$ select coalesce(array_agg(hub_id order by hub_id), '{}') from private.wf_hubs(p_perm) $$;
+grant execute on function tests.hubs_of(text) to authenticated;
+select tests.login(tests.id('hub_mgr'));
+select tests.ok(tests.hubs_of('hr.attendance.view') = array[tests.id('hub_a1')], 'F1: a hub manager sees exactly their hub');
+select tests.login(tests.id('zonal_a'));
+select tests.ok(tests.hubs_of('hr.attendance.view') = (select array_agg(id order by id) from public.hubs where zone_id = tests.id('zone_a') and archived_at is null),
+  'F1: a zonal manager sees exactly the hubs of their zone');
+select tests.login(tests.id('rider_login'));
+select tests.ok(cardinality(tests.hubs_of('hr.attendance.view')) = 0, 'F1: a rider sees no hub through the manager helpers');
+select tests.login(tests.id('admin'));
+select tests.ok(tests.hubs_of('hr.attendance.view') = (select array_agg(id order by id) from public.hubs where archived_at is null), 'F1: a company-wide role sees every active hub');
+select tests.logout();
+
+-- F7: one digest per hub, titled with the hub, and old waiting inputs are not nagged
+update public.notifications set created_at = created_at - interval '3 days' where kind = 'workforce';
+select tests.set_today(10);
+select tests.ok(private.wf_remind() >= 0, 'F7: reminders still run');
+select tests.ok(not exists (select 1 from public.notifications where kind = 'workforce' and title = 'অনুমোদনের জন্য অপেক্ষায়'), 'F7: the digest title names the hub');
+
+select tests.ok((select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%' and p.prosecdef and p.proconfig @> array['search_path=""']) = 19,
+  'all nineteen public functions are security definer with an empty search path');
 select tests.ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'
                               and (has_function_privilege('anon', p.oid, 'execute') or not has_function_privilege('authenticated', p.oid, 'execute'))), 'anon cannot run any of them; signed-in users can');
 rollback;

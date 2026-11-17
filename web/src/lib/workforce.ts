@@ -195,9 +195,9 @@ export const wf = {
   hubBook: (hub: string, month?: IsoDate | null) => rpc<HubBook>('wf_hub_book', { p_hub: hub, p_month: month ?? null }),
   marks: (r: Range, from: IsoDate, to: IsoDate, status?: MarkStatus | null) =>
     rpc<Mark[]>('wf_marks', { p_zone: r.zone ?? null, p_hub: r.hub ?? null, p_from: from, p_to: to, p_status: status ?? null }),
-  /** Approve / return inputs. Same function the hub page already uses: att_self_decide(ids, ok, decidedAs, note). */
+  /** Approve / return inputs: the existing att_self_decide, except that a date already on the register is never overwritten. */
   decideMarks: (ids: string[], ok: boolean, as?: Decided | null, note?: string | null) =>
-    rpc<number>('att_self_decide', { p_ids: ids, p_ok: ok, p_as: as ?? null, p_note: note || null }),
+    rpc<number>('wf_marks_decide', { p_ids: ids, p_ok: ok, p_as: as ?? null, p_note: note || null }),
   applications: (r: Range, status?: AppStatus | null, month?: IsoDate | null) =>
     rpc<AbsenceApp[]>('wf_applications', { p_zone: r.zone ?? null, p_hub: r.hub ?? null, p_status: status ?? null, p_month: month ?? null }),
   decideApplication: (id: string, ok: boolean, note?: string | null) => rpc<number>('wf_absence_decide', { p_application: id, p_ok: ok, p_note: note || null }),
@@ -225,13 +225,27 @@ const BN: Array<[RegExp, string]> = [
   [/Your own attendance/i, 'নিজের হাজিরা অন্য ম্যানেজার অনুমোদন দেবেন'],
   [/Write why it is turned down/i, 'কেন ফেরত দিচ্ছেন, লিখুন'],
   [/correction note/i, 'সংশোধনের কারণ লিখুন'],
+  [/too long/i, 'লেখা খুব বড় — সর্বোচ্চ ৫০০ অক্ষর'],
+  [/four numbers/i, 'চারটি সংখ্যাই দিন (০ও চলবে)'],
+  [/corrected them|already approved, so it can no longer/i, 'ম্যানেজার এটা সংশোধন করেছেন — বদলাতে ম্যানেজারকে বলুন'],
   [/numbers must be|non-negative|negative/i, 'সংখ্যা ০ বা তার বেশি হতে হবে'],
-  [/may not|42501|permission denied/i, 'এই কাজের অনুমতি আপনার নেই'],
 ]
+/** The database writes its own Bangla after a dash ("English — বাংলা"). When no rule above fits, show that Bangla part. */
+const banglaTail = (m: string): string | null => {
+  const t = m.split(' — ').slice(1).join(' — ').trim()
+  return /[\u0980-\u09FF]/.test(t) ? t : null
+}
 export const wfFriendly = (e: unknown): string => {
   const m = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e)
-  return BN.find(([re]) => re.test(m))?.[1] ?? m
+  const known = BN.find(([re]) => re.test(m))?.[1]
+  if (known) return known
+  const bn = banglaTail(m)
+  if (bn) return bn
+  return /may not|42501|permission denied/i.test(m) ? 'এই কাজের অনুমতি আপনার নেই' : m
 }
+
+/** Tell the shared alert numbers (menu badge, alert cards) that something changed, so they refresh now instead of at the next poll. */
+export const announceWfChange = () => { try { window.dispatchEvent(new Event('wf:changed')) } catch { /* no window: nothing to refresh */ } }
 
 // ------------------------------------------------------------------ labels (Bangla first, English second)
 export const STATE_META: Record<DayState, { bn: string; en: string; tone: 'ok' | 'warn' | 'bad' | 'info' | 'neutral' }> = {

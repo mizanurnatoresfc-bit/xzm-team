@@ -1,6 +1,6 @@
 # আমার লোক ও উপস্থিতি / My Workforce & Attendance
 
-Migration `supabase/migrations/20261117010000_workforce_attendance.sql` · tests `supabase/tests/99zzzzzzzzzzzzz_workforce.sql` (260 checks) ·
+Migration `supabase/migrations/20261117010000_workforce_attendance.sql` · tests `supabase/tests/99zzzzzzzzzzzzz_workforce.sql` (290 checks) ·
 typed calls `web/src/lib/workforce.ts` (the contract: every function below returns exactly the keys of those types).
 
 শুধু যোগ হয়েছে — পুরোনো টেবিল, লগইন, রোল, পেজ আগের মতোই। একই তথ্য দু'বার তৈরি হয় না; তিনটি প্যানেলই একই টেবিল থেকে পড়ে।
@@ -26,12 +26,26 @@ Additive only. Nothing is stored twice; the staff, manager and zonal panels all 
 `hr.attendance.edit` (`wf_att_correct`). `zonal_assistant`-কে নতুন অনুমতি দেওয়া হয়নি (পুরোনো টেস্ট ওই রোলকে ঠিক ৮টি অনুমতিতে বেঁধে রাখে) — দরকার হলে রোল-বিল্ডার থেকে দিন।
 নতুন টেবিলে শুধু SELECT (নিজে বা অনুমতি অনুযায়ী); সব লেখা ফাংশন দিয়ে। কোনো মুছে ফেলা নেই; ইতিহাস টেবিল বদলানো যায় না।
 
+## স্বাধীন রিভিউয়ের পর ঠিক করা (লাইভে দেওয়ার আগে) / Fixed after an independent review
+- `private.wf_hubs` এখন সেট-ভিত্তিক: ১০০০ হাবেও একটি কল ≈ ৩ ms (আগে ≈ ৪০০ ms)। `wf_pending_counts` প্রতিটি ইউজার প্রতি পাতায় ডাকে, তাই এটা জরুরি ছিল।
+- আবেদন অনুমোদনে ও `wf_marks_decide`-এ রেজিস্টারে আগে থেকে থাকা সারি (ম্যানেজারের হাতে লেখা, অনুমোদিত ছুটি) **কখনো ওভাররাইট হয় না**; ইনপুটটি রেজিস্টার যেমন আছে তেমনই রেখে বন্ধ হয়। অনুমোদন তালিকা এখন `wf_marks_decide` ডাকে (পুরোনো `att_self_decide` অপরিবর্তিত, ওটা এখনো ওভাররাইট করে)।
+- একজনের দুইবার চাপ/দুই ট্যাব: প্রতি কর্মীর advisory lock — একটি আবেদনই হয়। মুছে ফেলা/অনুমোদনে লক ক্রম পুরোনো তালিকার সাথে এক (deadlock নেই)।
+- আংশিক অনুমোদনের পর আবেদন তুলে নেওয়া যায় না। আবেদন অনুমোদনে কর্মী একটিই নোটিশ পান (প্রতি তারিখে একটি নয়)।
+- লেখা (নোট/কারণ) সর্বোচ্চ ৫০০ অক্ষর, শুধু নতুন লাইন/ট্যাব = ফাঁকা; চারটি সংখ্যার কোনোটি ফাঁকা (NULL) থাকলে ত্রুটি (আগে ০ হয়ে যেত); ম্যানেজার সংশোধনের পর কর্মী আর ওভাররাইট করতে পারেন না।
+- ইতিহাস টেবিলে `truncate` বন্ধ; ইনপুটের জোন সবসময় হাবের জোন (হাব না থাকলে খালি)।
+- রিমাইন্ডার: ম্যানেজারের সারাংশ প্রতি হাবে আলাদা (শিরোনামে হাবের নাম) এবং আগের মাসের আগের অপেক্ষারত ইনপুট নিয়ে আর তাগাদা নেই।
+- Realtime: মেনুর ব্যাজ/সতর্কতা সব ইউজারের জন্য Realtime ছাড়াই (৬০ সেকেন্ড পরপর বা কাজ করার সাথে সাথে); লাইভ সাবস্ক্রিপশন শুধু হাজিরা বই ও ম্যানেজার/জোনাল পাতায়।
+
 ## সীমা / Limits to know
+- কাস্টম রোল (রোল-বিল্ডারে বানানো) যার `system.user_role.create` আছে এবং হুবহু পুরোনো hub_manager/zonal_manager ইত্যাদির অনুমতি — তাকে ওই রোল দিতে হলে নতুন দুটি `ops.staff_daily.*` অনুমতিও দিতে হবে (বিল্ট-ইন রোলে শুধু admin এটা পারে, এবং তার দুটোই আছে)।
+- `wf_marks` (৩০০০), `wf_applications` (২০০০) সীমা পেরোলে চুপচাপ কাটে — ছোট সময় বেছে নিন (বর্তমান আকারে ছোঁয়ার কথা নয়)।
+- পুরোনো `att_self_decide` এখনো প্রতি তারিখে একটি নোটিশ পাঠায় এবং হাব ম্যানেজারের (`hr.attendance.edit` থাকলে) আগের রেজিস্টার সারি বদলে দিতে পারে — এই মডিউলের পাতাগুলো ওটার বদলে `wf_marks_decide` ব্যবহার করে।
+
 - ইতিহাস (`wf_att_history`) বইয়ের ইনপুটের বদল রাখে; হাব রেজিস্টারে সরাসরি হাতে লেখা বদল `audit_logs`-এ থাকে।
 - `wf_ops_report.rows` সর্বোচ্চ ৩০০০ লাইন (`truncated` বলে দেয়); মোট ও দিন/জন অনুযায়ী যোগফল সবসময় পুরো সময়ের।
 - ক্রন/রিয়েলটাইম অংশ সাধারণ Postgres-এ নিজে থেকে বাদ পড়ে; মাইগ্রেশন আবার চালানো নিরাপদ (idempotent)।
 
 ## ফিরিয়ে নিতে / Rollback
-কাজ সরাতে: `select cron.unschedule('wf-remind')`; `alter publication supabase_realtime drop table …` (চারটি টেবিল); `wf_*` ফাংশন (public ও private) মুছুন;
+কাজ সরাতে: `select cron.unschedule('wf-remind')`; `alter publication supabase_realtime drop table …` (চারটি টেবিল); `wf_*` ফাংশন (public ও private; `wf_marks_decide` সহ ১৯টি public) মুছুন;
 `attendance_self_marks`-এর `att_self_wf_before/after` ট্রিগার ও চারটি কলাম (`zone_id, applied_on_site, application_id, via`) সরান; টেবিল `wf_ops_history, wf_att_history, wf_daily_ops, wf_absence_applications`
 ও সিকোয়েন্স `wf_absence_no_seq` মুছুন; `ops.staff_daily.*` অনুমতি এবং `workforce.*` সেটিং মুছুন। পুরোনো ডাটা অক্ষত থাকে।
