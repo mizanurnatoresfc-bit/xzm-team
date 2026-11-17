@@ -400,3 +400,14 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   "ডেলিভারি জানান", and "আজকের কাজ ও পরামর্শ"; page `/app/zonal/daily-report` (problems, hubs, route covers, suggestions, staff table).
 - Not decided yet: whether the 11:05 chase should skip Fridays / holidays (it runs every day now). Reminders are in-app only (no phone push yet).
 - Tests: `supabase/tests/99zzzzzzzzz_absence_cover.sql` (27). **To go live:** apply `20261117002000`–`…2300` in order, merge, new APK.
+
+## 2026-11-17 — Calm look across the whole app (owner approved the demo)
+- Demo (claude.ai artifact "XZM-TEAM নতুন UI ডেমো"): staff panel, hub sheet, hub team. Owner: "ভালো লাগছে, সব পাতায় এভাবে বানাও".
+- Done in CSS only, no page logic changed: every `font-size` of 10–12.5px in theme.css / accounts.css / styles.css raised (10→12, 11→13,
+  12→13.5, 12.5→14); body 16px; and a final "Calm look" block at the END of `web/src/theme.css` (loaded last, wins over the colourful phone
+  layer): green `#15803D` is the one main colour (orange warning, red problem, blue leave/info, all through theme variables so dark mode
+  follows); flat cards with a thin border, no shadows or gradients; number tiles white with the number big and no icon blob; staff-panel
+  greeting and profile cover plain; the "+" button green; phone tables as plain divided rows (no coloured left edge); label · amount
+  tables keep the amount on the right in bold. Hind Siliguri first in the font stack.
+- To change the look later, edit that last block, not the older layers above it.
+- Not done yet: dates written as 01/01/2026 and English words (Rider, HR, Staff) in some pages; the employee list's phone cards are still tall.
