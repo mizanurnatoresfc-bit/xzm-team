@@ -6,6 +6,9 @@ import { usePrefs } from '../../lib/prefs'
 import { org, type Position } from '../../lib/hr'
 import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { Icon } from '../../components/Icon'
+import { Combo } from '../../components/inputs'
+import { refs, type HubPerson } from '../../lib/refs'
+import { useOrg } from './common'
 import { extraFriendly, fields, PROSPECT_STATUS, referrals, showValue, type CField, type Option, type PCol, type Prospect } from '../../lib/extra'
 
 /** Custom profile fields of one employee, grouped by section (company fields + this zone's fields). */
@@ -84,12 +87,26 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
     return { list, cols: cols.filter(c => !c.zone_id || c.zone_id === zoneId), pos }
   }, [employee, zoneId])
   const [setting, setSetting] = useState(false)
+  const bPend = useLoad(() => referrals.broughtPending(employee).catch(() => []), [employee])
+  const [pick, setPick] = useState<string[]>([])
+  const [adding, setAdding] = useState(false)
+  const [changeOf, setChangeOf] = useState<string | null>(null)
   const pending = useLoad(() => referrals.pendingReference(employee).catch(() => null), [employee])
   const [editP, setEditP] = useState<Partial<Prospect> | null>(null)
   const canSetRef = can('hr.referral.edit') || can('hr.employee.edit')
   // Everyone else (the staff member on their own profile, a manager on their staff) asks; HR approves.
   const canAsk = !canSetRef && (self || can('hr.employee.view'))
   const canEditP = self || can('hr.referral.edit')
+  // "যাঁদের এনেছেন": add many, change, remove many — HR at once, others wait for HR.
+  const canBrought = canSetRef || self || can('hr.employee.view')
+  async function removeMany(ids: string[]) {
+    const why = (window.prompt(L(`${n(ids.length)} জনের রেফারেন্স সরাবেন? কারণ লিখুন`, `Remove the reference of ${ids.length}? Reason`)) ?? '').trim(); if (!why) return
+    try {
+      const r = await referrals.referenceMany(ids, 'remove', employee, why)
+      setPick([]); void brought.reload(); void bPend.reload()
+      onSaved?.(r.waiting ? L(`${n(r.waiting)} জন সরানোর অনুরোধ HR-এ গেছে`, `${r.waiting} sent to HR`) : L(`${n(r.applied)} জন সরানো হয়েছে`, `${r.applied} removed`))
+    } catch (e) { onSaved?.(e instanceof Error && /[ঀ-৿]/.test(e.message) ? e.message : extraFriendly(e)) }
+  }
   const posName = (id: string | null) => pros.data?.pos.find(p => p.id === id)?.name ?? '—'
   const byPos = useMemo(() => {
     const m: Record<string, number> = {}
@@ -108,19 +125,31 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
         {ref.data.kind === 'manual' && <span className="pp-tag">{L('নিজে লেখা', 'Written by hand')}</span>}</div>
       {ref.data.mobile && <a className="ec-call static" href={`tel:${ref.data.mobile}`} aria-label="call"><Icon name="phone" size={16} /></a>}</>
       : <span className="muted">{L('যিনি এনেছেন: দেওয়া নেই', 'Referred by: not set')}</span>}</div>
-    {pending.data && <div className="ref-wait"><Badge tone="warn">{L('অপেক্ষায়', 'Waiting')}</Badge>
+    {pending.data && <div className="ref-wait"><Badge tone={pending.data.action === 'remove' ? 'bad' : 'warn'}>{pending.data.action === 'remove' ? L('সরানো — অপেক্ষায়', 'Removal waiting') : L('অপেক্ষায়', 'Waiting')}</Badge>
       <span><b>{pending.data.person.name}</b> {[pending.data.person.position, pending.data.person.hub].filter(Boolean).join(' · ')}
         <small className="muted"> — {L('HR অনুমোদন দিলে বসবে', 'shows once HR approves')}{pending.data.by ? ` · ${pending.data.by}` : ''}</small></span>
       {pending.data.can_decide && <Link className="soft sm btn-link" to="/app/references?tab=staff">{L('দেখুন', 'Review')}</Link>}</div>}
 
-    <h3>{self ? L('আমি যাঁদের এনেছি', 'People I brought') : L('যাঁদের এনেছেন', 'People they brought')} <span className="muted small">({n(brought.data?.length ?? 0)})</span></h3>
+    <div className="da-bar" style={{ marginTop: 6 }}><h3 style={{ margin: 0 }}>{self ? L('আমি যাঁদের এনেছি', 'People I brought') : L('যাঁদের এনেছেন', 'People they brought')} <span className="muted small">({n(brought.data?.length ?? 0)})</span></h3>
+      {canBrought && <span className="row-acts">
+        {pick.length > 0 && <button className="secondary sm" onClick={() => void removeMany(pick)}><Icon name="x" size={14} />{L('সরান', 'Remove')} ({n(pick.length)})</button>}
+        <button className="sm" onClick={() => setAdding(true)}>+ {L('যোগ করুন', 'Add')}</button></span>}</div>
+    {(bPend.data?.length ?? 0) > 0 && <div className="br-wait">{bPend.data!.map(r => <div key={r.id} className="ref-wait">
+      <Badge tone={r.action === 'remove' ? 'bad' : 'warn'}>{r.action === 'remove' ? L('সরানো — অপেক্ষায়', 'Removal waiting') : L('যোগ — অপেক্ষায়', 'Add waiting')}</Badge>
+      <span><b>{r.employee.name}</b>{r.employee.code ? ` #${r.employee.code}` : ''} <small className="muted">{[r.employee.position, r.employee.hub, r.by].filter(Boolean).join(' · ')}</small></span>
+      {r.can_decide && <Link className="soft sm btn-link" to="/app/references?tab=staff">{L('দেখুন', 'Review')}</Link>}</div>)}</div>}
     {byPos.length > 0 && <div className="da-mini" style={{ marginBottom: 8 }}>{byPos.map(([p, c]) => <span key={p}>{p}: <strong>{n(c)}</strong></span>)}</div>}
     {!brought.data?.length ? <p className="muted">{L('এখনো কেউ নেই।', 'Nobody yet.')}</p> :
-      <div className="da-table-wrap"><table className="da-table"><thead><tr><th>{L('আইডি', 'ID')}</th><th>{L('নাম', 'Name')}</th><th>{L('পদবি', 'Position')}</th><th>{L('হাব', 'Hub')}</th><th>{L('অবস্থা', 'Status')}</th></tr></thead>
-        <tbody>{brought.data.map(r => <tr key={r.id}><td>{r.employee_code ?? '—'}</td>
-          <td>{self ? r.full_name : <Link to={`/app/hr/employees/${r.id}`}>{r.full_name}</Link>}</td><td>{r.position_name ?? '—'}</td>
-          <td>{r.hub_name ?? '—'}{r.zone_name ? <span className="sec">{r.zone_name}</span> : null}</td>
-          <td><Badge tone={r.status === 'active' ? 'ok' : r.status === 'applicant' ? 'info' : 'neutral'}>{r.status === 'active' ? L('সক্রিয়', 'Active') : r.status === 'applicant' ? L('আবেদন', 'Applicant') : r.status}</Badge></td></tr>)}</tbody></table></div>}
+      <div className="br-cards">{canBrought && brought.data.length > 1 && <label className="br-row all"><input type="checkbox" checked={pick.length === brought.data.length}
+          onChange={e => setPick(e.target.checked ? brought.data!.map(r => r.id) : [])} /><span className="small">{L('সব বাছুন', 'Select all')}</span></label>}
+        {brought.data.map(r => <div key={r.id} className={`br-row${pick.includes(r.id) ? ' sel' : ''}`}>
+          {canBrought && <input type="checkbox" aria-label={L('বাছুন', 'Select')} checked={pick.includes(r.id)} onChange={e => setPick(p => e.target.checked ? [...p, r.id] : p.filter(x => x !== r.id))} />}
+          <span className="br-who"><b>{self ? r.full_name : <Link to={`/app/hr/employees/${r.id}`}>{r.full_name}</Link>}</b>{r.employee_code ? <small className="muted"> #{r.employee_code}</small> : null}
+            <small className="muted">{[r.position_name, r.hub_name, r.zone_name].filter(Boolean).join(' · ')}</small></span>
+          <Badge tone={r.status === 'active' ? 'ok' : r.status === 'applicant' ? 'info' : 'neutral'}>{r.status === 'active' ? L('সক্রিয়', 'Active') : r.status === 'applicant' ? L('আবেদন', 'Applicant') : r.status}</Badge>
+          {canBrought && <span className="br-acts"><button className="icon-btn" aria-label={L('বদলান', 'Change')} title={L('রেফারেন্স বদলান', 'Change referrer')} onClick={() => setChangeOf(r.id)}><Icon name="edit" size={16} /></button>
+            <button className="icon-btn" aria-label={L('সরান', 'Remove')} title={L('সরান', 'Remove')} onClick={() => void removeMany([r.id])}><Icon name="x" size={16} /></button></span>}
+        </div>)}</div>}
 
     <div className="da-bar" style={{ marginTop: 14 }}><h3 style={{ margin: 0 }}>{L('হাতে থাকা লোক (যোগ দিতে পারেন)', 'People in hand (could join)')} <span className="muted small">({n(pros.data?.list.length ?? 0)})</span></h3>
       {canEditP && <button className="sm" onClick={() => setEditP({ referrer_id: employee, status: 'available', extra: {} })}>+ {L('যোগ করুন', 'Add')}</button>}</div>
@@ -136,6 +165,10 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
         : { kind: 'manual', name: ref.data.name, code: ref.data.code ?? '', hub: ref.data.hub ?? '', position: ref.data.position ?? '', mobile: ref.data.mobile ?? '' }) : null} onClose={() => setSetting(false)}
       onDone={() => { setSetting(false); void ref.reload(); void pending.reload()
         onSaved?.(canAsk ? L('পাঠানো হয়েছে — HR অনুমোদন দিলে দেখাবে', 'Sent — shows once HR approves') : L('রেফারেন্স সেভ হয়েছে', 'Referrer saved')) }} />}
+    {adding && <AddBrought referrer={employee} onClose={() => setAdding(false)} onDone={m => { setAdding(false); void brought.reload(); void bPend.reload(); onSaved?.(m) }} />}
+    {changeOf && <SetReferrer employee={changeOf} ask={!canSetRef} current={{ kind: 'employee', id: employee, code: null, name: L('এই প্রোফাইল', 'This profile'), hub: '', position: '' }}
+      onClose={() => setChangeOf(null)} onDone={() => { setChangeOf(null); void brought.reload(); void bPend.reload()
+        onSaved?.(canSetRef ? L('রেফারেন্স বদলানো হয়েছে', 'Referrer changed') : L('পাঠানো হয়েছে — HR অনুমোদন দিলে বদলাবে', 'Sent — changes once HR approves')) }} />}
     {editP && pros.data && <ProspectForm p={editP} cols={pros.data.cols} positions={pros.data.pos} onClose={() => setEditP(null)}
       onDone={m => { setEditP(null); void pros.reload(); onSaved?.(m) }} />}
   </section>
@@ -207,6 +240,69 @@ export function ProspectForm({ p, cols, positions, onClose, onDone }: { p: Parti
         {(Object.keys(PROSPECT_STATUS) as Prospect['status'][]).map(s => <option key={s} value={s}>{PROSPECT_STATUS[s][0]}</option>)}</select></Field>
       <Field wide label={L('নোট', 'Note')}><input value={f.note ?? ''} onChange={e => set('note', e.target.value)} /></Field>
     </div>
+    {err && <p className="da-error">{err}</p>}
+  </Modal>
+}
+
+/** Add several people at once to "যাঁদের এনেছেন": pick a hub and tick names, or type many Employee IDs. */
+function AddBrought({ referrer, onClose, onDone }: { referrer: string; onClose: () => void; onDone: (m: string) => void }) {
+  const { L, n } = usePrefs()
+  const o = useOrg()
+  const [mode, setMode] = useState<'hub' | 'ids'>('hub')
+  const [hub, setHub] = useState('')
+  const [q, setQ] = useState('')
+  const people = useLoad(() => hub ? refs.hubPeople(hub) : Promise.resolve([] as HubPerson[]), [hub])
+  const [sel, setSel] = useState<Record<string, string>>({})   // id -> label
+  const [codes, setCodes] = useState('')
+  const [note, setNote] = useState('')
+  const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const list = (people.data ?? []).filter(p => p.id !== referrer && (!q.trim() || `${p.full_name} ${p.employee_code ?? ''} ${p.mobile ?? ''} ${p.post ?? ''}`.toLowerCase().includes(q.trim().toLowerCase())))
+  const toggle = (p: HubPerson, on: boolean) => setSel(s => { const x = { ...s }; if (on) x[p.id] = `${p.full_name}${p.employee_code ? ' #' + p.employee_code : ''}`; else delete x[p.id]; return x })
+  async function addCodes() {
+    setErr('')
+    const all = [...new Set(codes.split(/[\s,;]+/).map(c => c.trim()).filter(Boolean))]
+    const miss: string[] = []; const add: Record<string, string> = {}
+    for (const c of all) {
+      const r = await referrals.lookup(c).catch(() => null)
+      if (!r || r.id === referrer) miss.push(c); else add[r.id] = `${r.full_name} #${r.employee_code}`
+    }
+    setSel(s => ({ ...s, ...add })); setCodes(miss.join(' '))
+    if (miss.length) setErr(L(`এই আইডিগুলো পাওয়া যায়নি: ${miss.join(', ')}`, `Not found: ${miss.join(', ')}`))
+  }
+  async function go() {
+    const ids = Object.keys(sel); if (!ids.length) return setErr(L('অন্তত একজন বাছুন', 'Pick at least one'))
+    setErr(''); setBusy(true)
+    try {
+      const r = await referrals.referenceMany(ids, 'set', referrer, note)
+      onDone([r.applied && L(`${n(r.applied)} জন যোগ হয়েছে`, `${r.applied} added`), r.waiting && L(`${n(r.waiting)} জন HR অনুমোদনের অপেক্ষায়`, `${r.waiting} waiting for HR`)].filter(Boolean).join(' · '))
+    } catch (e) { setErr(e instanceof Error && /[ঀ-৿]/.test(e.message) ? e.message : extraFriendly(e)) } finally { setBusy(false) }
+  }
+  const count = Object.keys(sel).length
+  return <Modal wide title={L('যাঁদের এনেছেন — যোগ করুন', 'Add people brought')} onClose={onClose}
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button>
+      <button disabled={busy || !count} onClick={() => void go()}>{busy ? '…' : L(`যোগ করুন (${n(count)})`, `Add (${count})`)}</button></>}>
+    <div className="seg pp-modes">
+      <button type="button" className={mode === 'hub' ? 'on' : ''} onClick={() => setMode('hub')}>{L('হাব থেকে বাছুন', 'From a hub')}</button>
+      <button type="button" className={mode === 'ids' ? 'on' : ''} onClick={() => setMode('ids')}>{L('অনেক আইডি একসাথে', 'Many IDs')}</button></div>
+    {mode === 'hub' ? <>
+      <div className="hr-form pp-form">
+        <Field label={L('হাব', 'Hub')}><Combo value={hub} onChange={setHub} options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} /></Field>
+        <Field label={L('খুঁজুন', 'Search')}><input value={q} onChange={e => setQ(e.target.value)} disabled={!hub} placeholder={L('নাম, আইডি, মোবাইল, পদ', 'Name, ID, mobile, post')} /></Field></div>
+      {hub && <div className="br-list">
+        {list.length > 0 && <label className="br-row all"><input type="checkbox" checked={list.every(p => sel[p.id])} onChange={e => list.forEach(p => toggle(p, e.target.checked))} />
+          <b>{L(`সব (${n(list.length)})`, `All (${list.length})`)}</b></label>}
+        {people.loading ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : !list.length ? <p className="muted">{L('কাউকে পাওয়া যায়নি', 'Nobody found')}</p> :
+          list.map(p => <label key={p.id} className="br-row"><input type="checkbox" checked={!!sel[p.id]} onChange={e => toggle(p, e.target.checked)} />
+            <span><b>{p.full_name}</b> <small className="muted">{[p.employee_code && `#${p.employee_code}`, p.post, p.mobile].filter(Boolean).join(' · ')}</small></span></label>)}
+      </div>}
+    </> : <Field label={L('এমপ্লয়ি আইডি (কমা, স্পেস বা নতুন লাইনে আলাদা)', 'Employee IDs (comma, space or new line)')} wide>
+      <textarea rows={3} value={codes} onChange={e => setCodes(e.target.value)} placeholder="10086, 10087, 10090" />
+      <button type="button" className="soft sm" style={{ marginTop: 6 }} disabled={!codes.trim()} onClick={() => void addCodes()}>{L('খুঁজে যোগ করুন', 'Find and add')}</button></Field>}
+    {count > 0 && <div className="br-chips">{Object.entries(sel).map(([id, label]) => <span key={id} className="br-chip">{label}
+      <button type="button" aria-label={L('সরান', 'Remove')} onClick={() => setSel(s => { const x = { ...s }; delete x[id]; return x })}><Icon name="x" size={12} /></button></span>)}</div>}
+    <label className="ref-note"><span className="muted small">{L('HR-এর জন্য নোট (ইচ্ছা হলে)', 'Note for HR (optional)')}</span>
+      <input value={note} onChange={e => setNote(e.target.value)} /></label>
+    <p className="muted small"><Icon name="clock" size={12} /> {L('HR ছাড়া অন্যরা দিলে HR অনুমোদন দিলে তালিকায় বসবে; ততক্ষণ "অপেক্ষায়"।', 'Unless you are HR, it waits for HR approval.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }

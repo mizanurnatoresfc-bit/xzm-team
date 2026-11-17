@@ -332,3 +332,8 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Who may ask: the staff member on their own profile, or anyone with `hr.employee.view` for that employee (hub/zonal managers). Who decides: `hr.reference.approve` or `hr.referral.edit` for that employee. HR still sets directly (old `hr_set_reference`).
 - UI: profile রেফারেন্স panel shows "রেফারেন্স দিন" for staff/managers → sends to HR; a dashed "অপেক্ষায়" line shows the waiting name. `/app/references?tab=staff` (যিনি এনেছেন) lists them for HR with approve / "হবে না". `PersonPicker` hub list now reads `ref_hub_people` so staff can pick people too.
 - Tests: `supabase/tests/99zzzzzzzzz_employee_reference.sql`. Full suite 1282 pass.
+
+## 2026-11-17 — "যাঁদের এনেছেন": যোগ / বদল / সরানো, একসাথে অনেকজন
+- Migration `20261117000700_brought_people_many.sql` (applied live): `employee_reference_requests.action` ('set' | 'remove'), `hr_reference_many(p_employees[], p_action, p_referrer, p_note)` → `{applied, waiting}` (HR applies at once, others wait), `hr_reference_brought_pending(p_referrer)`, `private.ref_apply`. `ref_can_ask` now also lets the current referrer ask about the people they brought.
+- Profile: brought list is a compact card list with checkboxes, "সব বাছুন", "সরান (n)", per-row বদলান / সরান, "+ যোগ করুন" (hub → tick many, or paste many Employee IDs). Waiting adds/removals show as dashed "অপেক্ষায়" lines. HR's "যিনি এনেছেন" tab shows removal requests.
+- Tests: `99zzzzzzzzzz_brought_many.sql`. Full suite 1293 pass.

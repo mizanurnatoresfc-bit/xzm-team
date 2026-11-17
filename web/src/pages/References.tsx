@@ -131,7 +131,8 @@ export function References() {
       {!sr.length ? <p className="muted">কিছু নেই।</p> : <div className="rf-list">{sr.map(r => <article key={r.id} className="rf-card">
         <span className="rf-av">{r.employee.name.slice(0, 1)}</span>
         <div className="rf-t"><b>{r.employee.name}{r.employee.code ? <span className="muted small"> #{r.employee.code}</span> : null}</b>
-          <span className="small">যিনি এনেছেন: <b style={{ display: 'inline' }}>{r.person.name}</b> {[r.person.code && `#${r.person.code}`, r.person.position, r.person.hub].filter(Boolean).join(' · ')}{r.person.kind === 'manual' ? ' (নিজে লেখা)' : ''}</span>
+          {r.action === 'remove' && <span className="small bad">রেফারেন্স সরানোর অনুরোধ</span>}
+          <span className="small">{r.action === 'remove' ? 'সরাবে' : 'যিনি এনেছেন'}: <b style={{ display: 'inline' }}>{r.person.name}</b> {[r.person.code && `#${r.person.code}`, r.person.position, r.person.hub].filter(Boolean).join(' · ')}{r.person.kind === 'manual' ? ' (নিজে লেখা)' : ''}</span>
           {r.person.mobile && <Contact phone={r.person.mobile} />}
           {r.note && <span className="muted small">নোট: {r.note}</span>}</div>
         <div className="rf-st">{r.status === 'pending' ? <Badge tone="warn">অপেক্ষায়</Badge> : r.status === 'approved' ? <Badge tone="ok">অনুমোদিত</Badge> : r.status === 'rejected' ? <Badge tone="bad">হবে না</Badge> : <Badge tone="neutral">বদলানো</Badge>}
