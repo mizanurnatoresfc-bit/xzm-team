@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
+import { PulsePopup } from './PulsePopup'
 import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
@@ -420,6 +421,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       </header>
       <div className="scope-bar no-print"><strong>{L('কাজ করছেন:', 'Acting as:')}</strong> {scopeText} <span className="muted">— {L('এর বাইরের তথ্য দেখানো হয় না', 'data outside this scope is not shown')}</span></div>
       <main className="da-main">
+        <PulsePopup user={user} />
         <div className="da-head"><div><h1>{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div>
           {actions && <div className="da-actions no-print">{actions}</div>}</div>
         {children}

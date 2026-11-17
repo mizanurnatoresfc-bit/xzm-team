@@ -40,6 +40,7 @@ const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m 
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
 const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
 const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
+const MyProfileComplete = lazy(() => import('./pages/MyProfileComplete').then(m => ({ default: m.MyProfileComplete })))
 const MyProfile = lazy(() => import('./pages/MyProfile').then(m => ({ default: m.MyProfile })))
 const HubManagement = lazy(() => import('./pages/hub/HubManagement').then(m => ({ default: m.HubManagement })))
 const MyPermissions = lazy(() => import('./pages/MyPermissions').then(m => ({ default: m.MyPermissions })))
@@ -129,6 +130,7 @@ export default function App() {
       <Route path="/app/notifications" element={<Notifications />} />
       <Route path="/app/references" element={<References />} />
       <Route path="/app/me" element={<MyProfile />} />
+      <Route path="/app/me/complete" element={<MyProfileComplete />} />
       <Route path="/app/me/permissions" element={<MyPermissions />} />
       <Route path="/app/settings" element={<Settings />} />
       <Route path="/app/rollout" element={<Rollout />} />

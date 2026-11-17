@@ -8,6 +8,7 @@ import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { hrFriendly } from '../../lib/hr'
 import { PLAN_KIND, zonal, type Claim, type HubPerf, type PlanItem, type Recommendation, type TaskAcc, type Visit, type WorkDetail, type WorkStat } from '../../lib/zonal'
+import { PulsePanel } from './PulsePanel'
 import { useOrg } from '../hr/common'
 
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
@@ -82,6 +83,7 @@ export function ZonalDashboard() {
       {dash.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
     </section>
     {dash.error ? <p className="da-error">{hrFriendly(dash.error)}</p> : null}
+    {can('zonal.pulse.manage') && <PulsePanel zone={zone || (o.data?.zones.length === 1 ? o.data.zones[0].id : '')} />}
 
     {d && <>
       <section className="panel">
