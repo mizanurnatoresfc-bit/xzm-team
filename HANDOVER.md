@@ -404,8 +404,8 @@ make-android.bat       Android অ্যাপ (APK) বানায়
     removed, page lists, personal permissions) from `audit_logs`; filters, Excel / PDF / print. Needs `system.audit.view`.
   - `/app/access/super`: what full control guarantees, who holds it (add / remove — the database keeps the last one), view as a role,
     roles × permissions matrix as Excel, every personal permission in one list.
-- Migration `20261117004000_advanced_permissions.sql` — **not applied to live yet** (waiting for the owner's go-ahead; until then the personal-permission
-  part says "ডাটাবেস আপডেট বাকি" and everything else works on the live database as it is):
+- Migration `20261117004000_advanced_permissions.sql` — **applied to live 17 Nov (as `advanced_permissions`, owner said "করে দেও")**. Checked on live:
+  every account's permissions are exactly the same as before (102 of 102 rows), the Super Admin still holds everything:
   `user_permission_overrides` (grant at role places / company / zone / hub, or deny everywhere; never deleted, taken back with a reason; audited),
   `private.grants_of(user, live)` = the single place that works out what a person may do, `private.my_grants()` now calls it (so every RLS rule follows
   personal permissions; a Super Admin is never touched). Both are PL/pgSQL now, so the plan is kept between calls: measured on the test database one
@@ -415,6 +415,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `supabase/tests/99zzzzzzzzzzzzz_advanced_permissions.sql` (69); full SQL suite 1426 pass. `web/tests/smoke.mjs` +42 checks (471 pass).
   The pages were also driven in a real browser against the local test database through a small stand-in for the REST API (not in the repository):
   every step was checked in the database itself (role saved, page list, hub → zone limit, personal permissions and what `has_permission` then answers).
-- **To go live:** apply the migration on Supabase, then merge to `main` (the site deploys itself; no new APK needed).
+- **To go live:** the database part is live; merge this branch to `main` and the site deploys itself (no new APK needed).
 - Limits to know: a personal "বন্ধ" is for every place (not one hub); notifications that pick people by role permission do not look at personal permissions
   (what a person may do always does); parts of one page listed separately in the menu (accounts centre) cannot be switched off one by one.
