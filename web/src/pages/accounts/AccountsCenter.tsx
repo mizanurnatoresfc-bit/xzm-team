@@ -13,12 +13,13 @@ import { printVoucher } from '../../lib/voucher'
 import { downloadVoucherPng } from '../../lib/voucherImage'
 import { AccountsShell, Badge, ErrorNote, Field, StatusBadge, useLoad, useToast } from './ui'
 
-type Tab = 'overview' | 'expenses' | 'staff' | 'transport' | 'vouchers' | 'missing' | 'history' | 'new'
+type Tab = 'overview' | 'reports' | 'expenses' | 'merchant' | 'bank' | 'due' | 'staff' | 'transport' | 'vouchers' | 'missing' | 'history' | 'new'
 type XRow = { id: string; no: number; kind: 'transport' | 'employee'; expense_name: string; category: string; amount: number; bill_date: string
   voucher_no: string | null; attachment_path: string | null; claim_file: string | null; bill_no: string | null; employee_code: string | null; employee_name: string | null
   reference_name: string | null; hub_id: string; session_id: string; da_sessions: { account_date: string } | null }
 
-const TABS: Array<[Tab, string]> = [['overview', 'হাবের চিত্র'], ['expenses', 'হাবের খরচ'], ['staff', 'স্টাফ খরচ'], ['transport', 'যাতায়াত বিল'],
+const TABS: Array<[Tab, string]> = [['overview', 'হাবের চিত্র'], ['reports', 'দৈনিক রিপোর্ট'], ['expenses', 'হাবের খরচ'], ['merchant', 'মার্চেন্ট ক্যাশ পেমেন্ট'],
+  ['bank', 'ব্যাংকে জমা'], ['due', 'হাবের বকেয়া / ফান্ড'], ['staff', 'স্টাফ খরচ'], ['transport', 'যাতায়াত বিল'],
   ['vouchers', 'ভাউচার ম্যানেজমেন্ট'], ['missing', 'ভাউচার জমা হয়নি'], ['history', 'হিসাবের ইতিহাস'], ['new', 'নতুন ভাউচার']]
 const ACTION: Record<string, string> = { INSERT: 'তৈরি', UPDATE: 'বদল', DELETE: 'মুছে ফেলা', ARCHIVE: 'বাদ' }
 const TABLE: Record<string, string> = { da_sessions: 'হিসাব খাতা', da_rider_lines: 'রাইডারের হিসাব', da_merchant_payments: 'মার্চেন্ট ক্যাশ পেমেন্ট',
@@ -47,11 +48,11 @@ export function AccountsCenter() {
   const sum = (f: (r: CenterRow) => number) => rows.reduce((a, r) => a + Number(f(r) || 0), 0)
 
   const tiles: Array<[string, string, string, string, () => void]> = [
-    ['doc', 'দৈনিক রিপোর্ট', `${num(sum(r => r.reports))}টি · ${taka(sum(r => r.report_total))}`, 'b', () => go('overview')],
+    ['doc', 'দৈনিক রিপোর্ট', `${num(sum(r => r.reports))}টি · ${taka(sum(r => r.report_total))}`, 'b', () => go('reports')],
     ['receipt', 'হাবের খরচ', taka(sum(r => r.expense)), 'o', () => go('expenses')],
-    ['cash', 'মার্চেন্ট ক্যাশ পেমেন্ট', taka(sum(r => r.merchant)), 'p', () => go('overview')],
-    ['wallet', 'ব্যাংকে জমা', `${taka(sum(r => r.deposited))} · নিশ্চিত ${num(sum(r => r.bank_confirmed))}/${num(sum(r => r.deposits))}`, 'g', () => go('overview')],
-    ['ledger', 'হাবের বকেয়া / ফান্ড', taka(sum(r => r.session_id ? r.hub_due : 0)), 'r', () => go('overview')],
+    ['cash', 'মার্চেন্ট ক্যাশ পেমেন্ট', taka(sum(r => r.merchant)), 'p', () => go('merchant')],
+    ['wallet', 'ব্যাংকে জমা', `${taka(sum(r => r.deposited))} · নিশ্চিত ${num(sum(r => r.bank_confirmed))}/${num(sum(r => r.deposits))}`, 'g', () => go('bank')],
+    ['ledger', 'হাবের বকেয়া / ফান্ড', taka(sum(r => r.session_id ? r.hub_due : 0)), 'r', () => go('due')],
     ['file', 'ভাউচার ম্যানেজমেন্ট', 'তালিকা · প্রিন্ট · ছবি', 'b', () => go('vouchers')],
     ['alert', 'ভাউচার জমা হয়নি', `${num(sum(r => r.missing_vouchers))}টি`, sum(r => r.missing_vouchers) ? 'r' : 'g', () => go('missing')],
     ['users', 'স্টাফ খরচ', taka(sum(r => r.staff_expense)), 'p', () => go('staff')],
@@ -80,6 +81,10 @@ export function AccountsCenter() {
       {tab === 'overview' && <Overview rows={hub ? rows.filter(r => r.id === hub) : rows} loading={ov.loading} date={date} />}
       {(tab === 'expenses' || tab === 'staff' || tab === 'transport' || tab === 'vouchers' || tab === 'missing') &&
         <ExpenseList kind={tab} hub={hub} from={tab === 'missing' ? addDays(date, -30) : from} to={date} setFrom={setFrom} cats={cats} hubs={hubs} />}
+      {tab === 'reports' && <ReportList hub={hub} from={from} to={date} setFrom={setFrom} hubs={hubs} />}
+      {tab === 'merchant' && <MerchantList hub={hub} from={from} to={date} setFrom={setFrom} hubs={hubs} />}
+      {tab === 'bank' && <BankList hub={hub} from={from} to={date} setFrom={setFrom} hubs={hubs} />}
+      {tab === 'due' && <DueTable rows={hub ? rows.filter(r => r.id === hub) : rows} date={date} />}
       {tab === 'history' && <History hubs={hubs} hub={hub || hubs[0]?.id || ''} setHub={setHub} from={from} to={date} setFrom={setFrom} />}
       {tab === 'new' && canCreate && <NewVoucher cats={cats} done={msg => { toast(msg); void ov.reload() }} />}
     </div>
@@ -274,5 +279,111 @@ function NewVoucher({ cats, done }: { cats: Category[]; done: (msg: string) => v
     <div className="row"><button type="button" disabled={busy || !hub || !d.name.trim() || !d.cat || amount <= 0} onClick={() => void make()}>
       <Icon name="check" size={16} />{busy ? 'হচ্ছে…' : 'ভাউচার বানান'}</button></div>
     <p className="muted small">ভাউচার একবার বানালে নম্বর বদলায় না। ভুল হলে খাতায় খরচের লাইন এডিট করুন — আগের মান ইতিহাসে থেকে যায়।</p>
+  </section>
+}
+
+// ---- the parts that list lines of the sheets: reports, merchant cash, bank deposits ----
+type Range = { hub: string; from: string; to: string; setFrom: (d: string) => void; hubs: Array<{ id: string; name: string }> }
+function useLines<T>(table: string, cols: string, r: Range) {
+  return useLoad(async () => {
+    let q = supabase.from(table).select(`${cols}, hub_id, session_id, da_sessions!inner(account_date)`)
+      .is('removed_at', null).gte('da_sessions.account_date', r.from).lte('da_sessions.account_date', r.to).order('created_at', { ascending: false }).limit(500)
+    if (r.hub) q = q.eq('hub_id', r.hub)
+    const { data, error } = await q
+    if (error) throw error
+    return (data ?? []) as unknown as Array<T & { hub_id: string; session_id: string; da_sessions: { account_date: string } | null }>
+  }, [table, r.hub, r.from, r.to])
+}
+function ListHead({ title, count, total, lesson, r }: { title: string; count: number; total: number; lesson: ModuleKey; r: Range }) {
+  return <div className="da-bar"><h2 style={{ margin: 0 }}>{title} <span className="muted small">· {num(count)}টি · {taka(total)}</span></h2>
+    <span className="row"><LearnButton module={lesson} /><label className="ac-from small">শুরু <input type="date" value={r.from} max={r.to} onChange={e => r.setFrom(e.target.value || r.from)} /></label></span></div>
+}
+
+function ReportList(r: Range) {
+  type Row = { id: string; report_no: string; amount: number; remarks: string | null; file_path: string | null; raw_text: string | null }
+  const l = useLines<Row>('da_report_ids', 'id, report_no, amount, remarks, file_path, raw_text', r)
+  const rows = l.data ?? []
+  const hubName = new Map(r.hubs.map(h => [h.id, h.name]))
+  const [err, setErr] = useState<unknown>(null)
+  return <section className="panel">
+    <ListHead title="দৈনিক রিপোর্ট" count={rows.length} total={rows.reduce((a, x) => a + Number(x.amount), 0)} lesson="daily_report" r={r} />
+    <p className="muted small">মেইন সাইটের আপডেট রিপোর্ট আইডি ও টোটাল এমাউন্ট — হাব ও তারিখ অনুযায়ী। নতুন রিপোর্ট আইডি খাতার "ব্যাংক ডিপোজিট" অংশ থেকে দিন।</p>
+    <ErrorNote error={l.error || err} />
+    {l.loading && !l.data ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
+      <thead><tr><th>তারিখ</th><th>হাব</th><th>রিপোর্ট আইডি</th><th className="r">টোটাল এমাউন্ট</th><th>ফাইল / লেখা</th><th>মন্তব্য</th><th className="no-print" /></tr></thead>
+      <tbody>{rows.map(x => <tr key={x.id}><td data-l="তারিখ">{dateBn(x.da_sessions?.account_date ?? '')}</td><td data-l="হাব">{hubName.get(x.hub_id) ?? '—'}</td>
+        <td data-l="রিপোর্ট আইডি"><b>{x.report_no}</b></td><td data-l="টাকা" className="r">{taka(x.amount)}</td>
+        <td data-l="ফাইল / লেখা">{x.file_path ? <button type="button" className="link" onClick={() => void da.fileUrl(x.file_path!).then(u => window.open(u, '_blank', 'noopener')).catch(setErr)}>ফাইল দেখুন</button> : null}
+          {x.raw_text ? <span className="sec" title={x.raw_text.slice(0, 400)}>লেখা আছে</span> : null}{!x.file_path && !x.raw_text ? <span className="sec warn">ফাইল নেই</span> : null}</td>
+        <td data-l="মন্তব্য">{x.remarks ?? ''}</td>
+        <td className="no-print"><Link className="btn-link small" to={`/app/accounts/daily/${x.session_id}?tab=bank`}>খাতা</Link></td></tr>)}
+        {!rows.length && <tr><td colSpan={7} className="muted">এই সময়ে কোনো রিপোর্ট আইডি নেই।</td></tr>}</tbody></table></div>}
+  </section>
+}
+
+function MerchantList(r: Range) {
+  type Row = { id: string; merchant_name: string; payment_ref: string | null; transaction_id: string | null; amount: number; payment_date: string
+    screenshot_path: string | null; ocr: unknown; ocr_verified: boolean; remarks: string | null }
+  const l = useLines<Row>('da_merchant_payments', 'id, merchant_name, payment_ref, transaction_id, amount, payment_date, screenshot_path, ocr, ocr_verified, remarks', r)
+  const rows = l.data ?? []
+  const hubName = new Map(r.hubs.map(h => [h.id, h.name]))
+  const [err, setErr] = useState<unknown>(null)
+  return <section className="panel">
+    <ListHead title="মার্চেন্ট ক্যাশ পেমেন্ট" count={rows.length} total={rows.reduce((a, x) => a + Number(x.amount), 0)} lesson="merchant_payment" r={r} />
+    <ErrorNote error={l.error || err} />
+    {l.loading && !l.data ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
+      <thead><tr><th>তারিখ</th><th>হাব</th><th>Payment ID</th><th>মার্চেন্ট</th><th className="r">টাকা</th><th>স্ক্রিনশট</th><th>যাচাই</th><th className="no-print" /></tr></thead>
+      <tbody>{rows.map(x => <tr key={x.id}><td data-l="তারিখ">{dateBn(x.payment_date)}</td><td data-l="হাব">{hubName.get(x.hub_id) ?? '—'}</td>
+        <td data-l="Payment ID"><b>{x.payment_ref ?? '—'}</b>{x.transaction_id && <span className="sec">TrxID {x.transaction_id}</span>}</td>
+        <td data-l="মার্চেন্ট">{x.merchant_name}</td><td data-l="টাকা" className="r"><b>{taka(x.amount)}</b></td>
+        <td data-l="স্ক্রিনশট">{x.screenshot_path ? <button type="button" className="link" onClick={() => void da.fileUrl(x.screenshot_path!).then(u => window.open(u, '_blank', 'noopener')).catch(setErr)}>দেখুন</button> : <span className="sec warn">নেই</span>}</td>
+        <td data-l="যাচাই">{x.ocr ? (x.ocr_verified ? <Badge tone="ok">যাচাই করা</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>) : <Badge tone="neutral">হাতে লেখা</Badge>}</td>
+        <td className="no-print"><Link className="btn-link small" to={`/app/accounts/daily/${x.session_id}?tab=payment`}>খাতা</Link></td></tr>)}
+        {!rows.length && <tr><td colSpan={8} className="muted">এই সময়ে কোনো মার্চেন্ট ক্যাশ পেমেন্ট নেই।</td></tr>}</tbody></table></div>}
+  </section>
+}
+
+function BankList(r: Range) {
+  type Row = { id: string; method: string; bank_name: string | null; amount: number; charge: number; transport: number; ref_no: string | null; deposited_on: string
+    slip_path: string | null; slip_uploaded_at: string | null; slip_uploaded_by_name: string | null; slip_ocr_amount: number | null; slip_ocr_confidence: number | null
+    slip_match: 'match' | 'not_match' | 'review' | null; bank_confirmed_at: string | null; bank_confirmed_by_name: string | null; bank_confirm_note: string | null }
+  const l = useLines<Row>('da_deposits', 'id, method, bank_name, amount, charge, transport, ref_no, deposited_on, slip_path, slip_uploaded_at, slip_uploaded_by_name, slip_ocr_amount, slip_ocr_confidence, slip_match, bank_confirmed_at, bank_confirmed_by_name, bank_confirm_note', r)
+  const rows = l.data ?? []
+  const hubName = new Map(r.hubs.map(h => [h.id, h.name]))
+  const [err, setErr] = useState<unknown>(null)
+  const MATCH: Record<string, [string, 'ok' | 'bad' | 'warn']> = { match: ['MATCH', 'ok'], not_match: ['NOT MATCH', 'bad'], review: ['NEEDS REVIEW', 'warn'] }
+  return <section className="panel">
+    <ListHead title="ব্যাংকে জমা" count={rows.length} total={rows.reduce((a, x) => a + Number(x.amount), 0)} lesson="bank" r={r} />
+    <p className="muted small">স্লিপের টাকা মিলেছে কিনা (OCR) আর কেউ নিজে মিলিয়ে নিশ্চিত করেছেন কিনা — দুটো আলাদা। নিশ্চিত করতে খাতার "ব্যাংক ডিপোজিট" অংশে যান।</p>
+    <ErrorNote error={l.error || err} />
+    {l.loading && !l.data ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
+      <thead><tr><th>তারিখ</th><th>হাব</th><th>মাধ্যম / ব্যাংক</th><th className="r">টাকা</th><th>স্লিপ</th><th>স্লিপ মিল</th><th>ব্যাংকে নিশ্চিত</th><th className="no-print" /></tr></thead>
+      <tbody>{rows.map(x => <tr key={x.id}><td data-l="তারিখ">{dateBn(x.deposited_on)}</td><td data-l="হাব">{hubName.get(x.hub_id) ?? '—'}</td>
+        <td data-l="মাধ্যম / ব্যাংক">{x.bank_name ?? x.method}{x.ref_no && <span className="sec">রেফ {x.ref_no}</span>}</td>
+        <td data-l="টাকা" className="r"><b>{taka(x.amount)}</b><span className="sec">চার্জ {taka(x.charge)} · যাতায়াত {taka(x.transport)}</span></td>
+        <td data-l="স্লিপ">{x.slip_path ? <><button type="button" className="link" onClick={() => void da.fileUrl(x.slip_path!).then(u => window.open(u, '_blank', 'noopener')).catch(setErr)}>দেখুন</button>
+          <span className="sec">{x.slip_uploaded_by_name ?? ''}{x.slip_uploaded_at ? ` · ${timeBn(x.slip_uploaded_at)}` : ''}</span></> : <Badge tone="warn">স্লিপ বাকি</Badge>}</td>
+        <td data-l="স্লিপ মিল">{x.slip_match ? <Badge tone={MATCH[x.slip_match][1]}>{MATCH[x.slip_match][0]}</Badge> : x.slip_path ? <Badge tone="warn">পড়া হয়নি</Badge> : '—'}
+          {x.slip_ocr_amount !== null && <span className="sec">স্লিপে {taka(x.slip_ocr_amount)}{x.slip_ocr_confidence ? ` (${num(x.slip_ocr_confidence)}%)` : ''}</span>}</td>
+        <td data-l="ব্যাংকে নিশ্চিত">{x.bank_confirmed_at ? <><Badge tone="ok">নিশ্চিত</Badge><span className="sec">{x.bank_confirmed_by_name ?? ''} · {timeBn(x.bank_confirmed_at)}{x.bank_confirm_note ? ` · “${x.bank_confirm_note}”` : ''}</span></> : <Badge tone="neutral">এখনো না</Badge>}</td>
+        <td className="no-print"><Link className="btn-link small" to={`/app/accounts/daily/${x.session_id}?tab=bank`}>খাতা</Link></td></tr>)}
+        {!rows.length && <tr><td colSpan={8} className="muted">এই সময়ে কোনো ব্যাংক জমা নেই।</td></tr>}</tbody></table></div>}
+  </section>
+}
+
+// ---- hub due / add funds: what should have gone to the bank, what went, and the difference ----
+function DueTable({ rows, date }: { rows: CenterRow[]; date: string }) {
+  const open = rows.filter(r => r.session_id)
+  return <section className="panel">
+    <div className="da-bar"><h2 style={{ margin: 0 }}>হাবের বকেয়া / ফান্ড · {dateBn(date)}</h2><LearnButton module="hub_due" /></div>
+    <p className="muted small">ব্যাংকে যাওয়ার কথা = দৈনিক রিপোর্ট − মার্চেন্ট পেমেন্ট − খরচ − ব্যাংক চার্জ ও যাতায়াত। বকেয়া = যাওয়ার কথা − জমা। ঋণাত্মক হলে খরচ বেশি — হাবে ফান্ড দরকার (কীভাবে ফান্ড যাবে তা হেড অফিসের নিয়মে)।</p>
+    <div className="da-table-wrap"><table className="da-table">
+      <thead><tr><th>হাব</th><th className="r">দৈনিক রিপোর্ট</th><th className="r">পেমেন্ট</th><th className="r">খরচ</th><th className="r">চার্জ ও যাতায়াত</th><th className="r">ব্যাংকে যাওয়ার কথা</th><th className="r">জমা</th><th className="r">বকেয়া / ফান্ড</th><th className="no-print" /></tr></thead>
+      <tbody>{open.map(r => <tr key={r.id}><td data-l="হাব"><b>{r.name}</b><span className="sec">{r.zone}</span></td>
+        <td data-l="দৈনিক রিপোর্ট" className="r">{taka(r.report_total)}</td><td data-l="পেমেন্ট" className="r">{taka(r.merchant)}</td><td data-l="খরচ" className="r">{taka(r.expense)}</td>
+        <td data-l="চার্জ ও যাতায়াত" className="r">{taka(r.bank_costs)}</td><td data-l="ব্যাংকে যাওয়ার কথা" className="r">{taka(r.bank_amount)}</td><td data-l="জমা" className="r">{taka(r.deposited)}</td>
+        <td data-l="বকেয়া / ফান্ড" className="r">{r.hub_due === 0 ? <Badge tone="ok">মিলেছে</Badge> : r.hub_due > 0 ? <Badge tone="warn">বকেয়া {taka(r.hub_due)}</Badge> : <Badge tone="bad">ফান্ড দরকার {taka(-r.hub_due)}</Badge>}</td>
+        <td className="no-print"><Link className="btn-link small" to={`/app/accounts/daily/${r.session_id}?tab=bank`}>খাতা</Link></td></tr>)}
+        {!open.length && <tr><td colSpan={9} className="muted">এই দিনে কোনো হাবের খাতা খোলা হয়নি।</td></tr>}</tbody></table></div>
   </section>
 }

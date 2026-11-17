@@ -176,6 +176,10 @@ try {
           report_total: 0, reports: 0, merchant: 0, expense: 0, staff_expense: 0, transport_expense: 0, missing_vouchers: 0, deposited: 0, bank_costs: 0, deposits: 0, slips_missing: 0, slips_match: 0, slips_not_match: 0, slips_review: 0, bank_confirmed: 0, bills_waiting: 0, bank_amount: 0, hub_due: 0 }])
       if (u.includes('rpc/da_accounts_history')) return j([{ at: '2026-11-15T13:10:00Z', action: 'UPDATE', table: 'da_deposits', record: 'dp1', by: 'Owner', by_id: 'u1', fields: ['amount', 'updated_at'], old: { amount: 38000 }, new: { amount: 37550 } },
         { at: '2026-11-15T12:00:00Z', action: 'INSERT', table: 'da_report_ids', record: 'rp1', by: 'Owner', by_id: 'u1', fields: [], old: null, new: { report_no: '#743858', amount: 38000 } }])
+      if (u.includes('/rest/v1/da_report_ids') && u.includes('da_sessions')) return j([{ id: 'rp1', report_no: '#743858', amount: 100700, remarks: null, file_path: 'da/s2/r.pdf', raw_text: null, hub_id: 'h1', session_id: 's2', da_sessions: { account_date: '2026-11-15' } }])
+      if (u.includes('/rest/v1/da_merchant_payments') && u.includes('da_sessions')) return j([{ id: 'mp1', merchant_name: 'AFRIN Fashion', payment_ref: 'SFC-33223762', transaction_id: '52655971', amount: 15000, payment_date: '2026-11-15', screenshot_path: 'da/s2/p.png', ocr: { amount: 15000 }, ocr_verified: true, remarks: null, hub_id: 'h1', session_id: 's2', da_sessions: { account_date: '2026-11-15' } }])
+      if (u.includes('/rest/v1/da_deposits') && u.includes('da_sessions')) return j([{ id: 'dp1', method: 'bank', bank_name: 'DBBL', amount: 37550, charge: 23, transport: 50, ref_no: 'R-1', deposited_on: '2026-11-15', slip_path: 'da/s2/slip.jpg', slip_uploaded_at: '2026-11-15T13:05:00Z', slip_uploaded_by_name: 'Owner',
+        slip_ocr_amount: 35750, slip_ocr_confidence: 88, slip_match: 'not_match', bank_confirmed_at: null, bank_confirmed_by_name: null, bank_confirm_note: null, hub_id: 'h1', session_id: 's2', da_sessions: { account_date: '2026-11-15' } }])
       if (u.includes('/rest/v1/da_expenses') && u.includes('da_sessions')) return j([
         { id: 'x1', no: 1, kind: 'transport', expense_name: 'ভ্যান ভাড়া', category: 'transport', amount: 120, bill_date: '2026-11-15', voucher_no: 'V-2611-00007', attachment_path: null, claim_file: null, bill_no: null, employee_code: null, employee_name: null, reference_name: 'Owner', hub_id: 'h1', session_id: 's2', da_sessions: { account_date: '2026-11-15' } },
         { id: 'x2', no: 2, kind: 'employee', expense_name: 'চিকিৎসা', category: 'hr_treatment', amount: 500, bill_date: '2026-11-15', voucher_no: null, attachment_path: 'da/s2/m.jpg', claim_file: null, bill_no: 'M-9', employee_code: '6799', employee_name: 'Md Mahin', reference_name: null, hub_id: 'h1', session_id: 's2', da_sessions: { account_date: '2026-11-15' } }])
@@ -589,11 +593,30 @@ try {
       const inPanel = (k, t) => page.locator(`.side .ngrp[data-panel=${k}] a.nl`, { hasText: t }).count()
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
-      check(await panels() === 'self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 1,
-        `${size}: the Super Admin's menu is three panels (staff, manager, zonal manager)`)
+      check(await panels() === 'accounts,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 1,
+        `${size}: the Super Admin's menu is the accounts menu and three panels (staff, manager, zonal manager)`)
+      { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
+        const got = await Promise.all(want.map(t => inPanel('accounts', t)))
+        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
+          `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
+      if (size === 'phone') await page.locator('.bottom-nav button.bn-item').last().click()
+      await page.locator('.side .ngrp[data-panel=accounts] a.nl', { hasText: 'ব্যাংকে জমা' }).click()
+      await page.waitForSelector('.ac .da-table', { timeout: 10000 }).catch(() => {})
+      check(page.url().includes('/app/accounts/center?tab=bank') && (await page.locator('.ac .da-table').innerText().catch(() => '')).includes('NOT MATCH')
+        && await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').count() === 1 && (await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').innerText()).includes('ব্যাংকে জমা'),
+        `${size}: a menu entry opens its own part, and only that entry is marked`)
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-menu-bank.png` })
+      for (const [t, want] of [['দৈনিক রিপোর্ট', '#743858'], ['মার্চেন্ট ক্যাশ পেমেন্ট', 'SFC-33223762'], ['হাবের বকেয়া / ফান্ড', 'বকেয়া']]) {
+        await page.goto(`${BASE}/app/accounts/center?tab=${{ 'দৈনিক রিপোর্ট': 'reports', 'মার্চেন্ট ক্যাশ পেমেন্ট': 'merchant', 'হাবের বকেয়া / ফান্ড': 'due' }[t]}`)
+        await page.waitForSelector('.ac .da-table tbody tr', { timeout: 10000 }).catch(() => {})
+        check((await page.locator('.ac .da-table').innerText().catch(() => '')).includes(want), `${size}: "${t}" shows its own list`)
+      }
+      await page.goto(`${BASE}/app/accounts/learn?p=practice`); await page.waitForSelector('.lr-card')
+      check(await page.locator('.lr-card').count() === 7, `${size}: the practice menu entry lists the lessons that have practice`)
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       check(!links.includes('/app/hub/accounts') && !links.includes('/app/hr') && !links.includes('/app/issues?tab=orders') && new Set(links).size === links.length,
         `${size}: pages that repeat another page are off the menu, and no page is listed twice`)
-      check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel is split into headed parts`)
+      check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel is split into headed parts`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-super.png` })
       const extras = async () => [await page.locator('.side a.nl[href="/app/training"]').count(), await page.locator('.nodi-fab').count(), await page.locator('.side a.nl[href="/app/nodi/chat"]').count()].join()
       asEmployee = true
@@ -602,7 +625,8 @@ try {
       permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.home-tiles')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
-      check(await panels() === 'self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1,
+      check(await panels() === 'accounts,self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1
+        && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']

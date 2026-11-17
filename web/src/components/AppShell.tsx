@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
 import { PulsePopup } from './PulsePopup'
@@ -34,7 +34,6 @@ export const GROUPS: Group[] = [
   panel('self', 'user', 'স্টাফ প্যানেল', 'Staff panel', [
     { bn: '', en: '', items: [
       { to: '/app/staff', icon: 'grid', bn: 'আমার প্যানেল', en: 'My panel', perms: null },
-      { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা', en: 'My sheet today', perms: ['da.sheet.create'] },
       { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
       { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
       { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
@@ -52,11 +51,6 @@ export const GROUPS: Group[] = [
     ] },
     { bn: 'গাড়ি', en: 'Vehicles', items: [
       { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals', perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view'] },
-    ] },
-    { bn: 'হাবের হিসাব', en: 'Hub accounts', items: [
-      { to: '/app/accounts/daily', icon: 'ledger', bn: 'আজকের হাবের হিসাব খাতা', en: 'Hub accounts today', perms: null, count: 'sheets' },
-      { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (রিপোর্ট, ভাউচার, ব্যাংক)', en: 'Accounts centre', perms: ['da.sheet.view', 'da.sheet.create'] },
-      { to: '/app/accounts/learn', icon: 'book', bn: 'বাংলা শেখার কেন্দ্র (হিসাব)', en: 'Accounts learning centre', perms: ['da.sheet.view', 'da.sheet.create'] },
     ] },
     { bn: 'হাবের টিম', en: 'Hub team', items: [
       { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
@@ -84,10 +78,6 @@ export const GROUPS: Group[] = [
       { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
       { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
       { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
-    ] },
-    { bn: 'হিসাব', en: 'Accounts', items: [
-      { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
-      { to: '/app/accounts/settings', icon: 'gear', bn: 'হিসাব সেটিংস', en: 'Accounts settings', perms: ['da.settings.configure'] },
     ] },
     { bn: 'শটিং সেন্টার', en: 'Sorting centre', items: [
       { to: '/app/sorting/dashboard', icon: 'dash', bn: 'শটিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
@@ -124,6 +114,43 @@ export const GROUPS: Group[] = [
     ] },
   ]),
 ]
+/**
+ * হিসাব — a menu of its own (owner, 17 Nov 2026): every SteadFast accounts part one tap away, in the order of the day's work.
+ * It is not one of the three level panels: anyone whose role may do accounts work sees it, at the top.
+ */
+const DA = ['da.sheet.view', 'da.sheet.create']
+export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও নদী শিক্ষক', 'Accounts & Nodi teacher', [
+  { bn: 'প্রতিদিনের হিসাব', en: 'Every day', items: [
+    { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা (আমার)', en: 'My sheet today', perms: ['da.sheet.create'] },
+    { to: '/app/accounts/daily', icon: 'ledger', bn: 'হাবের দৈনিক হিসাব খাতা', en: 'Hub daily sheets', perms: DA, count: 'sheets' },
+    { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (সব হাবের চিত্র)', en: 'Accounts centre', perms: DA },
+  ] },
+  { bn: 'হিসাবের অংশ', en: 'Accounts parts', items: [
+    { to: '/app/accounts/center?tab=reports', icon: 'doc', bn: 'দৈনিক রিপোর্ট', en: 'Daily report', perms: DA },
+    { to: '/app/accounts/center?tab=expenses', icon: 'receipt', bn: 'হাবের খরচ', en: 'Hub expense', perms: DA },
+    { to: '/app/accounts/center?tab=merchant', icon: 'cash', bn: 'মার্চেন্ট ক্যাশ পেমেন্ট', en: 'Merchant cash payment', perms: DA },
+    { to: '/app/accounts/center?tab=bank', icon: 'wallet', bn: 'ব্যাংকে জমা', en: 'Bank deposit', perms: DA },
+    { to: '/app/accounts/center?tab=due', icon: 'ledger', bn: 'হাবের বকেয়া / ফান্ড', en: 'Hub due / add funds', perms: DA },
+    { to: '/app/accounts/center?tab=staff', icon: 'users', bn: 'স্টাফ খরচ', en: 'Staff expense', perms: DA },
+    { to: '/app/accounts/center?tab=transport', icon: 'truck', bn: 'যাতায়াত বিল', en: 'Transport bill', perms: DA },
+  ] },
+  { bn: 'ভাউচার', en: 'Vouchers', items: [
+    { to: '/app/accounts/center?tab=new', icon: 'plus', bn: 'নতুন ভাউচার', en: 'New voucher', perms: ['da.sheet.create'] },
+    { to: '/app/accounts/center?tab=vouchers', icon: 'file', bn: 'ভাউচার ম্যানেজমেন্ট', en: 'Voucher management', perms: DA },
+    { to: '/app/accounts/center?tab=missing', icon: 'alert', bn: 'ভাউচার জমা হয়নি', en: 'Missing voucher', perms: DA },
+  ] },
+  { bn: 'ইতিহাস ও রিপোর্ট', en: 'History & reports', items: [
+    { to: '/app/accounts/center?tab=history', icon: 'log', bn: 'হিসাবের ইতিহাস', en: 'Accounts history', perms: DA },
+    { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
+    { to: '/app/accounts/settings', icon: 'gear', bn: 'হিসাব সেটিংস', en: 'Accounts settings', perms: ['da.settings.configure'] },
+  ] },
+  { bn: 'শেখা', en: 'Learning', items: [
+    { to: '/app/accounts/learn', icon: 'book', bn: 'বাংলা শেখার কেন্দ্র', en: 'Bangla learning centre', perms: DA },
+    { to: '/app/accounts/learn?p=practice', icon: 'play', bn: 'অনুশীলন (নমুনা হিসাব)', en: 'Practice (sample data)', perms: DA },
+    { to: '/app/accounts/learn?p=ask', icon: 'sms', bn: 'নদী AI হিসাব শিক্ষক', en: 'Nodi AI accounts teacher', perms: DA },
+  ] },
+])
+
 /**
  * Pages taken off the menu because another page does the same job. The pages still open by their address;
  * they are to be removed for good once nobody misses them.
@@ -313,6 +340,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const brand = useBrandText()
   useEffect(() => { document.title = `${title} · ${brand.name}` }, [title, brand.name])
 
+  const loc = useLocation()
   const allowed = (p: string[] | null) => !p || p.some(x => can(x))
   const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (panelLevel(can) === 2 || !ZONE_ONLY.includes(i.to))
   const here = typeof location !== 'undefined' ? location.pathname : ''
@@ -338,8 +366,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i)
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
+  const accSecs = ACCOUNTS.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && (hit(i) || `${ACCOUNTS.bn} ${ACCOUNTS.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
-  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className="nl" title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
+  // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
+  const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
+    const want = new URLSearchParams(q ?? ''), cur = new URLSearchParams(loc.search)
+    return q ? [...want].every(([k, v]) => cur.get(k) === v) : !cur.get('tab') && !cur.get('p') }
+  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
     {i.count && cnt[i.count] ? <span className="count">{n(cnt[i.count])}</span> : null}</NavLink>
 
   return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
@@ -359,10 +392,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
       {HOME.filter(i => forMe(i) && hit(i)).map(link)}
-      {shown.map(({ g, secs }) => {
+      {[{ g: ACCOUNTS, secs: accSecs }, ...shown].map(({ g, secs }) => {
         const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
-        const has = vis.some(i => i.to === here)
+        const has = vis.some(i => i.to.split('?')[0] === here)
         const isOpen = groupOpen[g.key] ?? true
         const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
         return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`} data-panel={g.key}>
