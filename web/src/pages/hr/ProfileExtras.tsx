@@ -84,8 +84,11 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
     return { list, cols: cols.filter(c => !c.zone_id || c.zone_id === zoneId), pos }
   }, [employee, zoneId])
   const [setting, setSetting] = useState(false)
+  const pending = useLoad(() => referrals.pendingReference(employee).catch(() => null), [employee])
   const [editP, setEditP] = useState<Partial<Prospect> | null>(null)
   const canSetRef = can('hr.referral.edit') || can('hr.employee.edit')
+  // Everyone else (the staff member on their own profile, a manager on their staff) asks; HR approves.
+  const canAsk = !canSetRef && (self || can('hr.employee.view'))
   const canEditP = self || can('hr.referral.edit')
   const posName = (id: string | null) => pros.data?.pos.find(p => p.id === id)?.name ?? '—'
   const byPos = useMemo(() => {
@@ -96,7 +99,7 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
 
   return <section className="panel">
     <div className="da-bar"><h2 style={{ margin: 0 }}>{L('রেফারেন্স', 'Referrals')}</h2>
-      {canSetRef && !self && <button className="soft sm" onClick={() => setSetting(true)}><Icon name="edit" size={14} />{ref.data ? L('রেফারেন্স বদলান', 'Change') : L('রেফারেন্স দিন', 'Set referrer')}</button>}</div>
+      {(canSetRef && !self || canAsk) && <button className="soft sm" onClick={() => setSetting(true)}><Icon name="edit" size={14} />{ref.data ? L('রেফারেন্স বদলান', 'Change') : L('রেফারেন্স দিন', 'Set referrer')}</button>}</div>
     <div className="ref-who">{ref.data ? <>
       <span className={`pp-av${ref.data.kind === 'manual' ? ' m' : ''}`}>{ref.data.name.slice(0, 1).toUpperCase()}</span>
       <div style={{ minWidth: 0, flex: 1 }}><small className="muted">{L('যিনি এনেছেন', 'Referred by')}</small>
@@ -105,6 +108,10 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
         {ref.data.kind === 'manual' && <span className="pp-tag">{L('নিজে লেখা', 'Written by hand')}</span>}</div>
       {ref.data.mobile && <a className="ec-call static" href={`tel:${ref.data.mobile}`} aria-label="call"><Icon name="phone" size={16} /></a>}</>
       : <span className="muted">{L('যিনি এনেছেন: দেওয়া নেই', 'Referred by: not set')}</span>}</div>
+    {pending.data && <div className="ref-wait"><Badge tone="warn">{L('অপেক্ষায়', 'Waiting')}</Badge>
+      <span><b>{pending.data.person.name}</b> {[pending.data.person.position, pending.data.person.hub].filter(Boolean).join(' · ')}
+        <small className="muted"> — {L('HR অনুমোদন দিলে বসবে', 'shows once HR approves')}{pending.data.by ? ` · ${pending.data.by}` : ''}</small></span>
+      {pending.data.can_decide && <Link className="soft sm btn-link" to="/app/references?tab=staff">{L('দেখুন', 'Review')}</Link>}</div>}
 
     <h3>{self ? L('আমি যাঁদের এনেছি', 'People I brought') : L('যাঁদের এনেছেন', 'People they brought')} <span className="muted small">({n(brought.data?.length ?? 0)})</span></h3>
     {byPos.length > 0 && <div className="da-mini" style={{ marginBottom: 8 }}>{byPos.map(([p, c]) => <span key={p}>{p}: <strong>{n(c)}</strong></span>)}</div>}
@@ -125,34 +132,41 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
           <td><Badge tone={PROSPECT_STATUS[p.status][1]}>{PROSPECT_STATUS[p.status][0]}</Badge></td>
           <td style={{ textAlign: 'right' }}>{canEditP && <button className="secondary sm" onClick={() => setEditP(p)}>{L('বদলান', 'Edit')}</button>}</td></tr>)}</tbody></table></div>}
 
-    {setting && <SetReferrer employee={employee} current={ref.data ? (ref.data.kind === 'employee' ? { kind: 'employee', id: ref.data.id!, code: ref.data.code ?? null, name: ref.data.name, hub: ref.data.hub ?? '', position: ref.data.position ?? '', mobile: ref.data.mobile }
+    {setting && <SetReferrer employee={employee} ask={canAsk} current={ref.data ? (ref.data.kind === 'employee' ? { kind: 'employee', id: ref.data.id!, code: ref.data.code ?? null, name: ref.data.name, hub: ref.data.hub ?? '', position: ref.data.position ?? '', mobile: ref.data.mobile }
         : { kind: 'manual', name: ref.data.name, code: ref.data.code ?? '', hub: ref.data.hub ?? '', position: ref.data.position ?? '', mobile: ref.data.mobile ?? '' }) : null} onClose={() => setSetting(false)}
-      onDone={() => { setSetting(false); void ref.reload(); onSaved?.(L('রেফারেন্স সেভ হয়েছে', 'Referrer saved')) }} />}
+      onDone={() => { setSetting(false); void ref.reload(); void pending.reload()
+        onSaved?.(canAsk ? L('পাঠানো হয়েছে — HR অনুমোদন দিলে দেখাবে', 'Sent — shows once HR approves') : L('রেফারেন্স সেভ হয়েছে', 'Referrer saved')) }} />}
     {editP && pros.data && <ProspectForm p={editP} cols={pros.data.cols} positions={pros.data.pos} onClose={() => setEditP(null)}
       onDone={m => { setEditP(null); void pros.reload(); onSaved?.(m) }} />}
   </section>
 }
 
-function SetReferrer({ employee, current, onClose, onDone }: { employee: string; current: RefPerson | null; onClose: () => void; onDone: () => void }) {
+function SetReferrer({ employee, current, ask = false, onClose, onDone }: { employee: string; current: RefPerson | null; ask?: boolean; onClose: () => void; onDone: () => void }) {
   const { L } = usePrefs()
   const [v, setV] = useState<RefPerson | null>(current)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
   async function go(clear = false) {
     setErr(''); setBusy(true)
     try {
       const x = clear ? null : v
-      await referrals.setReference(employee, x?.kind === 'employee' ? x.id : null,
-        x?.kind === 'manual' ? { name: x.name, code: x.code, hub: x.hub, position: x.position, mobile: x.mobile } : null)
+      const manual = x?.kind === 'manual' ? { name: x.name, code: x.code, hub: x.hub, position: x.position, mobile: x.mobile } : null
+      if (ask) await referrals.requestReference(employee, x?.kind === 'employee' ? x.id : null, manual, note)
+      else await referrals.setReference(employee, x?.kind === 'employee' ? x.id : null, manual)
       onDone()
     } catch (e) { setErr(e instanceof Error && /[ঀ-৿]/.test(e.message) ? e.message : extraFriendly(e)) } finally { setBusy(false) }
   }
   return <Modal title={L('কে এনেছেন (রেফারেন্স)', 'Who referred (reference)')} onClose={onClose}
-    actions={<>{current && <button className="danger" disabled={busy} onClick={() => void go(true)}>{L('রেফারেন্স মুছুন', 'Remove')}</button>}
+    actions={<>{current && !ask && <button className="danger" disabled={busy} onClick={() => void go(true)}>{L('রেফারেন্স মুছুন', 'Remove')}</button>}
       <button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button>
-      <button disabled={busy || !v} onClick={() => void go()}>{L('সেভ করুন', 'Save')}</button></>}>
+      <button disabled={busy || !v} onClick={() => void go()}>{ask ? L('HR-এ পাঠান', 'Send to HR') : L('সেভ করুন', 'Save')}</button></>}>
+    {ask ? <p className="muted small">{L('যিনি আপনাকে এনেছেন তাঁকে বাছুন: সিস্টেমের লোক হলে হাব → পদ → নাম বা আইডি দিয়ে; বাইরের লোক হলে নাম, পদবি, নম্বর, হাবের নাম নিজে লিখুন। HR অনুমোদন দিলে প্রোফাইলে দেখাবে, তার আগে "অপেক্ষায়"।',
+      'Pick who referred: a person in the system, or write an outside person by hand. It shows once HR approves; until then it is waiting.')}</p> :
     <p className="muted small">{L('ভুল রেফারেন্স থাকলে এখান থেকে ঠিক করুন। সিস্টেমের লোক হলে হাব → পদ → নাম বা আইডি দিয়ে বাছুন; বাইরের লোক হলে নিজে লিখুন।',
-      'Fix a wrong reference here. Pick a person in the system, or write an outside person by hand.')}</p>
+      'Fix a wrong reference here. Pick a person in the system, or write an outside person by hand.')}</p>}
     <PersonPicker value={v} onChange={setV} exclude={employee} />
+    {ask && <label className="ref-note"><span className="muted small">{L('HR-এর জন্য নোট (ইচ্ছা হলে)', 'Note for HR (optional)')}</span>
+      <input value={note} onChange={e => setNote(e.target.value)} placeholder={L('যেমন: কীভাবে চেনেন', 'e.g. how you know them')} /></label>}
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }
