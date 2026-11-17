@@ -147,4 +147,5 @@ jobs:
             echo "::notice::No NETLIFY_AUTH_TOKEN secret, so the website was not published. Download the site-dist artifact and drop it on Netlify instead."
             exit 0
           fi
-          npx -y netlify-cli@latest deploy --prod --dir dist --site "$NETLIFY_SITE_ID" --message "GitHub build ${GITHUB_SHA:0:7}"
+          # --no-build: upload dist exactly as made above. Without it the CLI reads netlify.toml, runs the build again and drops dist/download (the APK).
+          npx -y netlify-cli@latest deploy --prod --no-build --dir dist --site "$NETLIFY_SITE_ID" --message "GitHub build ${GITHUB_SHA:0:7}"
