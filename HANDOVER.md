@@ -402,3 +402,4 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   big number boxes, reason chips, four one-tap attendance buttons per person, "বাকি সবাই উপস্থিত", "হাজিরা খাতা ও ছুটির আবেদন থেকে নিন",
   floating save bar above the phone menu, "পরের হাব →"). Menu: Zonal Manager panel → জোন ও হাব; shortcut on the Zonal dashboard.
 - Tests: `supabase/tests/99zzzzzzzzzzzzz_hub_operations.sql` (72). Browser check at 390 px and 1366 px against the real SQL functions on a local DB.
+- **17 Nov — live:** migration applied to Supabase as `hub_operations` (25 functions; fingerprint = repo), site released by merging to `main`.
