@@ -2115,3 +2115,46 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{border:1px solid va
   .da-table.da-close tr.ms-strong td{background:transparent!important}
   .da-table.da-close td.r{text-align:right!important;font-weight:700!important;font-size:17px!important;white-space:nowrap}
 }
+
+/* =====================================================================
+   Soft colour on cards — owner, 17 Nov: "কালার এড করে দেও কার্ডে যেন সুন্দর লাগে".
+   Each tile gets one tone: a very light tinted background, a tinted edge, the number in that colour and a small icon chip.
+   Warning / problem / ok tiles always take orange / red / green. color-mix keeps it right in dark mode too.
+   ===================================================================== */
+:root{--tone-g:#15803D;--tone-b:#2563EB;--tone-o:#C2410C;--tone-p:#7C3AED;--tone-c:#0F766E;--tone-r:#BE123C}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--tone-g:#4ADE80;--tone-b:#60A5FA;--tone-o:#FB923C;--tone-p:#A78BFA;--tone-c:#2DD4BF;--tone-r:#FB7185}}
+:root[data-theme="dark"]{--tone-g:#4ADE80;--tone-b:#60A5FA;--tone-o:#FB923C;--tone-p:#A78BFA;--tone-c:#2DD4BF;--tone-r:#FB7185}
+
+/* number tiles */
+.da-stats .da-stat,.net-kpis .nk{--tone:var(--tone-g);background:color-mix(in srgb,var(--tone) 8%,var(--surface))!important;border-color:color-mix(in srgb,var(--tone) 24%,var(--border))!important}
+.da-stats .da-stat:nth-child(6n+2),.net-kpis .nk:nth-child(6n+2){--tone:var(--tone-b)}
+.da-stats .da-stat:nth-child(6n+3),.net-kpis .nk:nth-child(6n+3){--tone:var(--tone-p)}
+.da-stats .da-stat:nth-child(6n+4),.net-kpis .nk:nth-child(6n+4){--tone:var(--tone-c)}
+.da-stats .da-stat:nth-child(6n+5),.net-kpis .nk:nth-child(6n+5){--tone:var(--tone-o)}
+.da-stats .da-stat:nth-child(6n+6),.net-kpis .nk:nth-child(6n+6){--tone:var(--tone-r)}
+.da-stats .da-stat.ok{--tone:var(--tone-g)}.da-stats .da-stat.warn{--tone:var(--tone-o)}.da-stats .da-stat.bad{--tone:var(--tone-r)}
+.da-stats .da-stat .val,.net-kpis .nk b{color:color-mix(in srgb,var(--tone) 82%,var(--text))!important}
+.da-stats .da-stat .ri,.net-kpis .nk .nk-i{display:grid!important;place-items:center;width:32px!important;height:32px!important;border-radius:10px;margin:0 0 6px!important;
+  background:color-mix(in srgb,var(--tone) 16%,var(--surface))!important;color:var(--tone)!important;box-shadow:none!important;order:0}
+
+/* staff panel tiles keep their own colour names */
+.sp-tile{--tone:var(--tone-g);background:color-mix(in srgb,var(--tone) 8%,var(--surface))!important;border-color:color-mix(in srgb,var(--tone) 24%,var(--border))!important}
+.sp-tile.t-b{--tone:var(--tone-b)}.sp-tile.t-o{--tone:var(--tone-o)}.sp-tile.t-p{--tone:var(--tone-p)}
+.sp-tile b{color:color-mix(in srgb,var(--tone) 82%,var(--text))}
+.sp-tile .i{display:grid!important;width:32px;height:32px;border-radius:10px;margin-bottom:6px;background:color-mix(in srgb,var(--tone) 16%,var(--surface))!important;color:var(--tone)!important;box-shadow:none!important}
+.sp-tile.off b{color:var(--muted)}
+
+/* home / quick tiles */
+.quick-tile{--tone:var(--tone-g);background:color-mix(in srgb,var(--tone) 8%,var(--surface))!important;border-color:color-mix(in srgb,var(--tone) 22%,var(--border))!important}
+.quick-tile.t-b{--tone:var(--tone-b)}.quick-tile.t-o{--tone:var(--tone-o)}.quick-tile.t-p{--tone:var(--tone-p)}.quick-tile.t-r{--tone:var(--tone-r)}
+.quick-tile .qi{background:color-mix(in srgb,var(--tone) 16%,var(--surface))!important;color:var(--tone)!important}
+
+/* big summary cards: a soft green wash, the four small numbers each in their own tone */
+.nv-hero,.sp-hero{background:color-mix(in srgb,var(--tone-g) 7%,var(--surface))!important;border-color:color-mix(in srgb,var(--tone-g) 22%,var(--border))!important}
+.nv-nums>div{--tone:var(--tone-g);background:var(--surface)!important;border-color:color-mix(in srgb,var(--tone) 28%,var(--border))!important}
+.nv-nums>div:nth-child(2){--tone:var(--tone-o)}.nv-nums>div:nth-child(3){--tone:var(--tone-p)}.nv-nums>div:nth-child(4){--tone:var(--tone-b)}
+.nv-nums b{color:color-mix(in srgb,var(--tone) 82%,var(--text))!important}
+
+/* list-row icons: one tone each */
+.nv-av.sd-i.p{background:color-mix(in srgb,var(--tone-p) 14%,var(--surface))!important;color:var(--tone-p)!important}
+.nv-av.sd-i.g{background:color-mix(in srgb,var(--tone-g) 14%,var(--surface))!important;color:var(--tone-g)!important}
