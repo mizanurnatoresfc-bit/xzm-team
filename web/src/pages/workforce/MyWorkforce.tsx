@@ -38,7 +38,7 @@ export function MyWorkforce() {
 
   return <AppShell title={L(m.bn, m.en)} subtitle={L(m.sbn, m.sen)}>
     <div className="wf">
-      <div className="nv-chips" role="tablist" aria-label={L('আমার লোক ও উপস্থিতি', 'My people & attendance')}>
+      <div className="nv-chips wf-tabs" role="tablist" aria-label={L('আমার লোক ও উপস্থিতি', 'My people & attendance')}>
         {TABS.map(t => <button key={t} type="button" role="tab" aria-selected={tab === t} className={`nv-chip${tab === t ? ' on' : ''}`}
           onClick={() => nav(`/app/workforce/${t}`, { replace: true })}>
           <Icon name={META[t].icon} size={15} />{L(META[t].bn, META[t].en)}

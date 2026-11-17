@@ -41,8 +41,8 @@
 .wf-alert-i{flex:none;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--warn-bg);color:var(--warn-fg)}
 .wf-alert.t-bad .wf-alert-i{background:var(--bad-bg);color:var(--bad-fg)}
 .wf-alert.t-info .wf-alert-i{background:var(--info-bg);color:var(--info-fg)}
-.wf-alert.t-bad{border-color:var(--bad-fg)}
-.wf-alert.t-warn{border-color:var(--warn-fg)}
+.wf-alert.t-bad{border-color:color-mix(in srgb,var(--bad-fg) 35%,var(--border))}
+.wf-alert.t-warn{border-color:color-mix(in srgb,var(--warn-fg) 35%,var(--border))}
 .wf-alert-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .wf-alert-t b{font-size:14.5px;line-height:1.3;font-weight:600}
 .wf-alert-t small{font-size:13px;color:var(--muted);line-height:1.3}
@@ -59,6 +59,12 @@
 .wf-note .tx b{font-size:14.5px}
 .wf-note .tx span{font-size:13px;color:var(--muted);line-height:1.35}
 .wf-note>svg:last-child{flex:none;color:var(--muted)}
+/* on a phone the three tabs sit side by side (icon over a two-line label) so none is hidden off the edge */
+@media (max-width:700px){
+  .wf .wf-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible}
+  .wf .wf-tabs .nv-chip{flex-direction:column;justify-content:center;gap:3px;min-height:58px;padding:6px 4px;white-space:normal;text-align:center;line-height:1.25;font-size:13px;position:relative}
+  .wf .wf-tabs .nv-chip b{position:absolute;top:4px;right:4px}
+}
 /* StaffDesk's two lists bring their own "back" button; here the tab bar is the way around */
 .wf-embed .sd-top>button.secondary{display:none}
 .wf-embed .sd{margin:0}

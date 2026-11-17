@@ -2,7 +2,7 @@
 // "card" is the big tile row of the staff panel and dashboard; "side" is the compact form under the name in the side menu.
 // The small alert numbers (WorkforceAlerts, the badge here) come from ONE live copy of wf_pending_counts(): AppShell mounts
 // <WfCountsHost /> once, every widget reads it with useWfCounts() — no widget fetches or subscribes on its own.
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { referrals } from '../lib/extra'
@@ -15,6 +15,7 @@ import '../workforce.css'
 type Snap = { user: string; data: PendingCounts | null; failed: boolean }
 const NONE: Snap = { user: '', data: null, failed: false }
 let snap: Snap = NONE
+let snapAt = 0   // when the last answer arrived
 const subs = new Set<() => void>()
 const listen = (f: () => void) => { subs.add(f); return () => { subs.delete(f) } }
 const publish = (next: Snap) => { snap = next; subs.forEach(f => f()) }
@@ -23,7 +24,14 @@ const publish = (next: Snap) => { snap = next; subs.forEach(f => f()) }
 export function WfCountsHost() {
   const { session } = useAuth()
   const user = session?.user.id ?? ''
-  const c = useLiveLoad(wf.counts, [user], LIVE.mine)
+  // Every page has its own AppShell, so this host starts again on each page: its first load reuses an answer that is only seconds old.
+  const first = useRef(true)
+  const load = () => {
+    const reuse = first.current && snap.user === user && !!snap.data && Date.now() - snapAt < 20_000
+    first.current = false
+    return reuse ? Promise.resolve(snap.data!) : wf.counts().then(d => { snapAt = Date.now(); return d })
+  }
+  const c = useLiveLoad(load, [user], LIVE.mine)
   useEffect(() => {
     if (!user) { publish(NONE); return }
     if (c.data) publish({ user, data: c.data, failed: false })
@@ -42,20 +50,28 @@ export function useWfCounts(): { data: PendingCounts | null; failed: boolean } {
 
 // ------------------------------------------------------------------ does the login have an employee id? (only asked when needed)
 const empCache = new Map<string, Promise<boolean>>()
-function useHasEmployee(need: boolean): boolean {
+/** null = not known yet (or not needed). */
+function useHasEmployee(need: boolean): boolean | null {
   const { session } = useAuth()
   const user = session?.user.id ?? ''
-  const [has, setHas] = useState(false)
+  const [has, setHas] = useState<{ user: string; v: boolean } | null>(null)
   useEffect(() => {
     if (!need || !user) return
     let live = true
     let p = empCache.get(user)
     if (!p) { p = referrals.myEmployeeId().then(id => !!id, () => false); empCache.set(user, p) }
-    void p.then(v => { if (live) setHas(v) })
+    void p.then(v => { if (live) setHas({ user, v }) })
     return () => { live = false }
   }, [need, user])
-  return need && has
+  return need && has?.user === user ? has.v : null
 }
+
+// What was shown last time (per person), so the menu does not blink in and out while the first answer is on its way.
+const LAST = 'xzm_wf_menu'
+const lastCount = (user: string): number | null => {
+  try { const v = JSON.parse(localStorage.getItem(LAST) ?? 'null') as { user?: string; n?: number } | null; return v && v.user === user && typeof v.n === 'number' ? v.n : null } catch { return null }
+}
+const rememberCount = (user: string, n: number) => { try { localStorage.setItem(LAST, JSON.stringify({ user, n })) } catch { /* private window: no memory, no harm */ } }
 
 // ------------------------------------------------------------------ the menu
 const ITEMS = [
@@ -70,11 +86,16 @@ const ITEMS = [
  */
 export function PersonalMenu({ variant = 'card', onNavigate }: { variant?: 'card' | 'side'; onNavigate?: () => void }) {
   const { L, n } = usePrefs()
+  const { session } = useAuth()
+  const user = session?.user.id ?? ''
   const { data, failed } = useWfCounts()
   const mine = data?.mine ?? null
   const settled = !!data || failed
   const hasEmployee = useHasEmployee(settled && !mine)
-  const items = !settled || mine ? ITEMS : hasEmployee ? ITEMS.slice(0, 2) : []
+  // How many entries: 3 with an active staff profile; 2 (the people lists) with only an employee id; 0 with neither. null = still finding out.
+  const count = !settled ? null : mine ? 3 : hasEmployee === null ? null : hasEmployee ? 2 : 0
+  useEffect(() => { if (count !== null && user) rememberCount(user, count) }, [count, user])
+  const items = ITEMS.slice(0, count ?? (user ? lastCount(user) : null) ?? 0)
   if (!items.length) return null
   const waiting = mine ? mine.missing_days + mine.returned_days : 0
   const badge = (key: string) => (key === 'attendance' && waiting > 0 ? waiting : 0)
