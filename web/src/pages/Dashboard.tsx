@@ -4,7 +4,7 @@ import { NodiGaps } from '../components/NodiGaps'
 import { Link } from 'react-router-dom'
 import { panelLevel } from '../lib/menu'
 import { useAuth } from '../auth/AuthProvider'
-import { AppShell, useMyPhoto } from '../components/AppShell'
+import { AppShell, useMyNav, useMyPhoto } from '../components/AppShell'
 import { Icon } from '../components/Icon'
 import { NetworkPanel } from '../components/NetworkPanel'
 import { HrReqPanel } from '../components/HrReqPanel'
@@ -15,20 +15,8 @@ import { HubTodayPanel, MyDayPanel } from '../components/HomePanels'
 import { MyApprovalCard } from '../components/MyApprovals'
 import { RiderSendCard } from '../components/RiderQuick'
 
-const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
-  ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
-  ['/app/org', 'org', 'এরিয়া, হাব ও পদ', 'Areas, hubs & posts', 'প্রতিষ্ঠান, এরিয়া, হাব, বিভাগ ও পদবি', 'Organisation, areas, hubs, departments, positions', ['org.zone.view', 'org.hub.view']],
-  ['/app/zonal/staff', 'users', 'হাব অনুযায়ী কর্মী', 'Staff by hub', 'হাবের হিসাব, বদলি, আইডি, এক্সপোর্ট', 'Hub figures, transfers, IDs, export', ['hr.employee.view']],
-  ['/app/hr/employees', 'users', 'কর্মী', 'Employees', 'তালিকা, প্রোফাইল, নতুন আইডি আবেদন', 'List, profiles, new ID application', ['hr.employee.view', 'hr.application.create']],
-  ['/app/hr/applications', 'form', 'আইডি আবেদন', 'ID applications', 'যাচাই করে এমপ্লয়ি আইডি দিন', 'Review and give Employee IDs', ['hr.application.view']],
-  ['/app/hr/attendance', 'cal', 'হাজিরা', 'Attendance', 'দৈনিক হাজিরা ও মাসিক হিসাব', 'Daily marking and monthly summary', ['hr.attendance.view', 'hr.attendance.create']],
-  ['/app/hr/leave', 'log', 'ছুটি', 'Leave', 'অনুরোধ ও অনুমোদন', 'Requests and approval', ['hr.leave.view', 'hr.leave.create']],
-  ['/app/accounts/daily', 'ledger', 'আজকের হিসাব খাতা', 'Daily accounts', 'হাবের দৈনিক হিসাব', 'Hub daily sheets', null],
-  ['/app/accounts/mine', 'wallet', 'আমার হিসাব', 'My accounts', 'নিজের লাইন ও খরচ', 'Your own lines and expenses', null],
-]
-
 export function Dashboard() {
-  const { session, grants, can, viewAs, isSuperAdmin } = useAuth()
+  const { session, grants, can, viewAs, isSuperAdmin, group } = useAuth()
   const { L, n, lang } = usePrefs()
   const home = useLoad(() => dashboard.home(), [])
   const d = home.data
@@ -74,7 +62,7 @@ export function Dashboard() {
     subtitle={d?.me?.employee_code ? `${L('আইডি', 'ID')} ${d.me.employee_code}${where ? ` — ${where}` : ''}` : L('আপনার রোল অনুযায়ী আজকের চিত্র', 'Today at a glance, for your role')}>
     {grants.length === 0 && <p className="notice">{L('আপনার অ্যাকাউন্টে এখনো কোনো রোল দেওয়া হয়নি। সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।', 'No role has been given to your account yet. Contact your system administrator.')}</p>}
     {home.error ? <p className="da-error">{dashboardFriendly(home.error)}</p> : null}
-    {panelLevel(can) === 2 && <FirstSteps photo={photo} />}
+    {panelLevel(can, group) === 2 && <FirstSteps photo={photo} />}
     <NodiGaps />
     {home.loading && !d ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : null}
 
@@ -104,6 +92,8 @@ export function Dashboard() {
 
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
     {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
+    {/* Every view ends with the person's features by group, unless the role already placed them (quick_links). */}
+    {!vis('quick_links') && <GroupFeatures />}
   </AppShell>
 
   function draw(p: PanelCode): ReactNode {
@@ -192,11 +182,7 @@ export function Dashboard() {
         <Stat icon="chart" tone={d.zonal_overview.metrics_waiting ? 'warn' : undefined} label={L('হাবের হিসাব যাচাই', 'Hub figures to check')} value={n(d.zonal_overview.metrics_waiting)} />
       </div>
     </Panel> : null
-      case 'quick_links': return <Panel code="quick_links">
-      <div className="da-cards">{CARDS.filter(c => !c[6] || c[6].some(p => can(p))).map(([to, ic, bn, en, dbn, den]) =>
-        <Link key={to} to={to} className="da-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <span className="ri"><Icon name={ic} /></span><strong>{L(bn, en)}</strong><span className="muted small">{L(dbn, den)}</span></Link>)}</div>
-    </Panel>
+      case 'quick_links': return <GroupFeatures />
       default: return null
     }
   }
@@ -231,5 +217,25 @@ function FirstSteps({ photo }: { photo: string | null | undefined }) {
     <h2>{L('শুরুর ধাপ', 'First steps')} <Link to="/app/training" className="link small">{L('ট্রেনিং সেন্টার →', 'Training centre →')}</Link></h2>
     <ul>{steps.map(([ok, text, to], i) => <li key={i} className={ok ? 'ok' : ''}><span className="fs-tick" aria-hidden="true">{ok ? '✓' : i + 1}</span>
       {ok || !to ? <span>{text}</span> : <Link to={to}>{text}</Link>}</li>)}</ul>
+  </section>
+}
+
+/**
+ * Group dashboard (auto): every page the person may open, by menu group (হিসাব · স্টাফ · ম্যানেজার · জোনাল), as cards.
+ * Built from the menu itself (useMyNav), so a new page, a role's group, its page list or a permission change shows here on its own.
+ */
+function GroupFeatures() {
+  const { L, n, lang } = usePrefs()
+  const { groups } = useMyNav()
+  const [pick, setPick] = useState<string | null>(null)
+  if (!groups.length) return null
+  const cur = groups.find(g => g.g.key === pick) ?? groups[groups.length - 1]
+  return <section className="panel" id="group-features">
+    <div className="da-bar"><h2 style={{ margin: 0 }}>{panelLabel('quick_links', lang)}</h2><span className="muted small">{L('গ্রুপ অনুযায়ী আপনার সব ফিচার', 'All your features, by group')}</span></div>
+    {groups.length > 1 && <div className="gf-tabs da-seg" role="tablist">{groups.map(({ g, secs }) =>
+      <button key={g.key} type="button" role="tab" aria-selected={cur.g.key === g.key} className={cur.g.key === g.key ? '' : 'secondary'} onClick={() => setPick(g.key)}>
+        <Icon name={g.icon} size={15} />{L(g.bn, g.en)} <span className="muted small">{n(secs.reduce((a, x) => a + x.items.length, 0))}</span></button>)}</div>}
+    <div className="gf-grid">{cur.secs.flatMap(x => x.items.map(i => <Link key={i.to} to={i.to} className="gf-card">
+      <span className="gi"><Icon name={i.icon} size={18} /></span><b>{L(i.bn, i.en)}</b>{x.bn ? <small>{L(x.bn, x.en)}</small> : null}</Link>))}</div>
   </section>
 }

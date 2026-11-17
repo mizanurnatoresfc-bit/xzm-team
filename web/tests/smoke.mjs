@@ -68,7 +68,7 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links']
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], groupNow = null
     const prospects = []
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -117,6 +117,12 @@ try {
       if (u.includes('rpc/hr_hub_profile_save') || u.includes('rpc/hr_request_submit')) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j('q1') }
       if (u.includes('/rest/v1/hr_request_formats') && u.includes('kind=eq.id_inactive')) return j({ id: 'f-inactive' })
       if (u.includes('rpc/my_menu')) return j(menuNow)
+      if (u.includes('rpc/my_panel_group')) return j(groupNow)
+      if (u.includes('rpc/role_group_list')) return j(roles.map(x => ({ role_id: x.id, code: x.code, name: x.name, name_bn: x.name_bn, is_super: x.is_super, is_system: x.is_system,
+        panel_group: x.is_super ? 'zone' : x.code === 'hub_manager' ? 'hub' : null, default_view: null, user_count: x.user_count, permissions: x.permissions })))
+      if (/rpc\/(role_group_set|role_aerv_save)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j(u.includes('aerv') ? 4 : null) }
+      if (u.includes('/rest/v1/permissions') && u.includes('select=code')) return j(['hr.attendance.view', 'hr.attendance.create', 'hr.attendance.edit', 'hr.employee.view', 'hr.employee.create', 'hr.employee.edit',
+        'hr.employee.archive', 'hr.leave.view', 'hr.leave.create', 'hr.leave.approve', 'hr.compensation.view', 'org.hub.view', 'org.hub.create', 'system.role.view', 'system.role.edit'].map(code => ({ code })))
       if (u.includes('rpc/role_menu_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, menu: null, user_count: 4 }])
       if (u.includes('rpc/role_menu_save')) { flowCalls.push({ fn: 'role_menu_save', ...r.request().postDataJSON() }); return j(null) }
       if (/rpc\/(fleet_set_crew|fleet_garage_save|fleet_approve|fleet_hub_report|fleet_request|vehicle_log_save|vehicle_configure|fleet_vehicle_save)(\?|$)/.test(u)) {
@@ -662,13 +668,49 @@ try {
     await page.locator('.da-modal-acts button').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
     check(flowCalls.at(-1)?.fn === 'role_dashboard_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_panels?.join() === 'quick_links,hub_today', `${size}: the arranged home page is saved for the role`)
     { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আমার কাজ' || t === 'দ্রুত যাওয়া').join(' > ')
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('#group-features .gf-card')
       const first = await order()
       check(await page.locator('.dash-edit').count() === 1, `${size}: the Super Admin's home has a shortcut to arrange dashboards`)
       homePanels = ['quick_links', 'my_work']
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('#group-features .gf-card')
       check(first === 'আমার কাজ > দ্রুত যাওয়া' && await order() === 'দ্রুত যাওয়া > আমার কাজ', `${size}: the home page shows panels in the saved order`)
       homePanels = ['my_work', 'quick_links'] }
+    // role groups + AERV: three group columns, move a role, tick Add/Edit/Remove/View and save only the change
+    await page.goto(`${BASE}/app/role-groups`); await page.waitForSelector('.rg-col[data-col=hub] [data-role=hub_manager]', { timeout: 10000 }).catch(() => {})
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-role-groups.png` })
+    check(await page.locator('.rg-col').count() === 4 && await page.locator('.rg-col[data-col=zone] [data-role=super_admin]').count() === 1
+      && await page.locator('.rg-col[data-col=hub] [data-role=hub_manager]').count() === 1 && await page.locator('.rg-col[data-col=auto] [data-role=rider]').count() === 1,
+      `${size}: role groups show Super Admin / zonal, manager, staff / rider and the roles not yet placed`)
+    await page.locator('[data-role=rider] select').selectOption('self'); await page.waitForTimeout(300)
+    check(flowCalls.at(-1)?.fn === 'role_group_set' && flowCalls.at(-1)?.p_role === 'r3' && flowCalls.at(-1)?.p_group === 'self', `${size}: a role is put in a group from its card`)
+    await page.locator('[data-role=hub_manager] .rg-acts button', { hasText: 'AERV' }).click(); await page.waitForSelector('#aerv .av-table tbody tr[data-row]', { timeout: 8000 }).catch(() => {})
+    { const row = page.locator('#aerv tr[data-row="hr.leave"]')
+      const cells = async () => (await row.locator('.av-cell').evaluateAll(b => b.map(x => x.className.replace('av-cell ', '')))).join()
+      const att = (await page.locator('#aerv tr[data-row="hr.attendance"] .av-cell').evaluateAll(x => x.map(e => e.className.replace('av-cell ', '')))).join()
+      check(att === 'on,off,na,on' && await cells() === 'off,off,na,off',
+        `${size}: AERV grid shows what the role has, per feature, and greys out what a feature does not have (${att} / ${await cells()})`)
+      await row.locator('.av-cell').nth(3).click(); await row.locator('.av-cell').nth(1).click()
+      check(await cells() === 'off,on,na,on' && await page.locator('#aerv tr.changed').count() === 1, `${size}: ticking marks the line as changed`)
+      check(await page.locator('#aerv tr[data-row="hr.compensation"]').count() === 1, `${size}: a permission no page names still shows up (auto) under other permissions`)
+      await fits('AERV grid')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-aerv.png`, fullPage: false })
+      await page.locator('#aerv .av-save button').first().click(); await page.waitForTimeout(400)
+      const c = flowCalls.at(-1) ?? {}
+      check(c.fn === 'role_aerv_save' && c.p_role === 'r2' && [...c.p_grant].sort().join() === 'hr.leave.approve,hr.leave.view' && c.p_revoke.length === 0, `${size}: AERV saves only what changed`) }
+    if (!phone) {
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.grp-bar .grp-btn')
+      await page.locator('.grp-bar .grp-btn[data-group=hub]').click(); await page.waitForSelector('.grp-dd a')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-dropdown.png` })
+      check(await page.locator('.grp-dd a', { hasText: 'আমার হাব টিম' }).count() === 1 && (await page.locator('.grp-me').innerText()).includes('সুপার অ্যাডমিন'), `${size}: the dropdown menu bar opens a group's pages`)
+      await page.keyboard.press('Escape'); check(await page.locator('.grp-dd').count() === 0, `${size}: Esc closes the dropdown`)
+    } else check(!(await page.locator('.grp-bar').isVisible().catch(() => false)), `${size}: phones keep the drawer, no dropdown bar`)
+    // a role group drives the menu: the same permissions give the manager panel by themselves, one panel in the staff group, all three in the zonal group
+    { const panelsNow = () => page.locator('.side .ngrp').evaluateAll(els => els.map(e => e.dataset.panel).join())
+      permsNow = ['hr.attendance.create']
+      const seen = []
+      for (const g of [null, 'self', 'zone']) { groupNow = g; await page.goto(`${BASE}/app/hr/requests`); await page.waitForSelector('.side .ngrp', { timeout: 8000 }).catch(() => {}); seen.push(await panelsNow()) }
+      check(seen.join(' | ') === 'self,hub | self | self,hub,zone', `${size}: the role group decides how far up the menu goes (${seen.join(' | ')})`) }
+    permsNow = null; groupNow = null
     // which pages a role sees: the Super Admin ticks them; a limited role gets nothing else
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
     await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')

@@ -78,3 +78,5 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261117000200_phone_push.sql` | 20261117042720 phone_push |
 | `20261117000300_sync_live_functions.sql` | 20261117000300 sync_live_functions |
 | `20261117000400_foreign_key_indexes_2.sql` | foreign_key_indexes_2 |
+
+**Not live yet:** `20261117010000_role_groups_aerv.sql` (role groups + AERV). Until it is applied, the app works as before (no group = from permissions) and `/app/role-groups` says the database part is missing.

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
+import { inMenu, panelLevel, ZONE_ONLY, type PanelGroup } from '../lib/menu'
 import { PulsePopup } from './PulsePopup'
 import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
@@ -15,9 +15,9 @@ import { hrReq } from '../lib/hrreq'
 import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 
-type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
-type Sec = { bn: string; en: string; items: Item[] }
-type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; items: Item[] }
+export type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
+export type Sec = { bn: string; en: string; items: Item[] }
+export type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; items: Item[] }
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
 
@@ -105,6 +105,7 @@ export const GROUPS: Group[] = [
     { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
       { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
       { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
+      { to: '/app/role-groups', icon: 'shield', bn: 'রোল গ্রুপ ও AERV অনুমতি', en: 'Role groups & AERV', perms: ['system.role.edit'] },
       { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
       { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
       { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
@@ -159,6 +160,29 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
  *   /app/issues?tab=orders   -> a tab inside /app/issues
  */
 export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders']
+
+export type NavGroup = { g: Group; secs: Sec[] }
+/**
+ * The menu as one person gets it — one place, used by the side menu, the dropdown menu bar and the home page's group cards.
+ * Accounts first, then the three panels up to the person's level (their role group, else worked out from permissions);
+ * a page from a higher panel that their role may open is listed in their own top panel, so a rider never gets a
+ * "manager" heading for one page. `match` narrows it (the menu search).
+ */
+export function buildNav(can: (p: string) => boolean, menu: string[] | null, group: PanelGroup | null,
+  match: (i: Item, g: Group, s: Sec) => boolean = () => true): { level: 0 | 1 | 2; home: Item[]; groups: NavGroup[] } {
+  const level = panelLevel(can, group)
+  const allowed = (p: string[] | null) => !p || p.some(x => can(x))
+  const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (level === 2 || !ZONE_ONLY.includes(i.to))
+  const pick = (g: Group): NavGroup => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && match(i, g, x)) })).filter(x => x.items.length) })
+  const panels = GROUPS.map(pick)
+  for (let i = level + 1; i < panels.length; i++) { panels[level].secs.push(...panels[i].secs); panels[i].secs = [] }
+  return { level, home: HOME.filter(forMe), groups: [pick(ACCOUNTS), ...panels].filter(x => x.secs.length) }
+}
+/** The signed-in person's menu (no search). */
+export function useMyNav() {
+  const { can, menu, group } = useAuth()
+  return buildNav(can, menu, group)
+}
 
 // ---- small caches so the frame does not refetch on every page ----
 type MyRole = { code: string; name: string; scope_type: string; zone: string | null; hub: string | null }
@@ -280,7 +304,7 @@ function roleClass(code: string) {
 
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  const { can, signOut, session, isSuperAdmin, menu } = useAuth()
+  const { can, signOut, session, isSuperAdmin, menu, group } = useAuth()
   const { L, n, lang, setLang, theme, setTheme } = usePrefs()
   const [asRole, setAsRole] = useState(false)
   const nav = useNavigate()
@@ -342,7 +366,6 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
 
   const loc = useLocation()
   const allowed = (p: string[] | null) => !p || p.some(x => can(x))
-  const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (panelLevel(can) === 2 || !ZONE_ONLY.includes(i.to))
   const here = typeof location !== 'undefined' ? location.pathname : ''
   const mq = menuQ.trim().toLowerCase()
   const hit = (i: Item) => !mq || `${i.bn} ${i.en}`.toLowerCase().includes(mq)
@@ -360,13 +383,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     setPop(null); clearFresh(); void markRead([x.id])
     if (x.link) nav(x.link)
   }
-  // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
-  // may open are listed in their own top panel, so a rider never gets a "manager" heading for one page.
-  const level = panelLevel(can)
-  const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i)
-    && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) }))
-  for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
-  const accSecs = ACCOUNTS.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && (hit(i) || `${ACCOUNTS.bn} ${ACCOUNTS.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length)
+  // Three panels, lowest first, after the accounts menu (see buildNav). The dropdown bar uses the same menu, unsearched.
+  const nav0 = buildNav(can, menu, group)
+  const level = nav0.level
+  const navShown = mq ? buildNav(can, menu, group, (i, g, x) => hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)) : nav0
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
   const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
@@ -391,8 +411,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
-      {HOME.filter(i => forMe(i) && hit(i)).map(link)}
-      {[{ g: ACCOUNTS, secs: accSecs }, ...shown].map(({ g, secs }) => {
+      {navShown.home.filter(hit).map(link)}
+      {navShown.groups.map(({ g, secs }) => {
         const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
         const has = vis.some(i => i.to.split('?')[0] === here)
@@ -454,6 +474,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           </div>}
         </div>
       </header>
+      <GroupBar groups={nav0.groups} cnt={cnt} level={level} group={group} />
       <div className="scope-bar no-print"><strong>{L('কাজ করছেন:', 'Acting as:')}</strong> {scopeText} <span className="muted">— {L('এর বাইরের তথ্য দেখানো হয় না', 'data outside this scope is not shown')}</span></div>
       <main className="da-main">
         <PulsePopup user={user} />
@@ -481,4 +502,53 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       </div>
     </div>}
   </div>
+}
+
+const GROUP_NAME: Record<PanelGroup, [string, string]> = {
+  zone: ['সুপার অ্যাডমিন / জোনাল ম্যানেজার', 'Super Admin / Zonal manager'], hub: ['ম্যানেজার', 'Manager'], self: ['স্টাফ / রাইডার', 'Staff / Rider'],
+}
+const LEVEL_NAME: PanelGroup[] = ['self', 'hub', 'zone']
+/**
+ * Dropdown menu bar (PC and tablet): one button per menu group the person has, each opening its sections and pages.
+ * Built from the same menu as the side menu (buildNav), so a new page, a role's page list or a permission change shows
+ * up here on its own. Phones keep the side drawer and the bottom tabs.
+ */
+function GroupBar({ groups, cnt, level, group }: { groups: NavGroup[]; cnt: Record<CountKey, number>; level: 0 | 1 | 2; group: PanelGroup | null }) {
+  const { L, n } = usePrefs()
+  const [open, setOpen] = useState<string | null>(null)
+  const ref = useRef<HTMLElement>(null)
+  const loc = useLocation()
+  useEffect(() => { setOpen(null) }, [loc.pathname, loc.search])
+  useEffect(() => {
+    if (!open) return
+    const f = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(null) }
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(null) }
+    document.addEventListener('mousedown', f); document.addEventListener('keydown', k)
+    return () => { document.removeEventListener('mousedown', f); document.removeEventListener('keydown', k) }
+  }, [open])
+  if (!groups.length) return null
+  const mine = group ?? LEVEL_NAME[level]
+  return <nav className="grp-bar no-print" ref={ref} aria-label={L('মেনু গ্রুপ', 'Menu groups')}>
+    {groups.map(({ g, secs }) => {
+      const items = secs.flatMap(x => x.items)
+      const on = items.some(i => i.to.split('?')[0] === loc.pathname)
+      const badge = items.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
+      const isOpen = open === g.key
+      return <div key={g.key} className={`grp-dd-wrap${isOpen ? ' open' : ''}`}>
+        <button type="button" className={`grp-btn${on ? ' on' : ''}`} aria-haspopup="menu" aria-expanded={isOpen} data-group={g.key}
+          onClick={() => setOpen(isOpen ? null : g.key)}>
+          <Icon name={g.icon} size={16} /><span>{L(g.bn, g.en)}</span>
+          {badge > 0 && <span className="count">{n(badge)}</span>}<Icon name="chev" size={13} /></button>
+        {isOpen && <div className={`grp-dd${secs.length > 2 ? ' wide' : ''}`} role="menu">
+          {secs.map((x, i) => <div key={i} className="grp-sec">
+            {x.bn && <div className="grp-sec-h">{L(x.bn, x.en)}</div>}
+            {x.items.map(it => <Link key={it.to} to={it.to} role="menuitem" className={it.to.split('?')[0] === loc.pathname ? 'on' : ''}>
+              <Icon name={it.icon} size={15} /><span>{L(it.bn, it.en)}</span>{it.count && cnt[it.count] ? <span className="count">{n(cnt[it.count])}</span> : null}</Link>)}
+          </div>)}
+        </div>}
+      </div>
+    })}
+    <span className="grp-me" title={group ? L('সুপার অ্যাডমিন রোলটি এই গ্রুপে রেখেছেন', 'Set by the Super Admin') : L('অনুমতি দেখে ঠিক হয়েছে', 'Worked out from permissions')}>
+      <Icon name="shield" size={13} />{L('গ্রুপ:', 'Group:')} <b>{L(...GROUP_NAME[mine])}</b></span>
+  </nav>
 }

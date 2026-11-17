@@ -39,6 +39,7 @@ const ZonalFiles = lazy(() => import('./pages/zonal/ZonalFiles').then(m => ({ de
 const Manpower = lazy(() => import('./pages/Manpower').then(m => ({ default: m.Manpower })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
+const RoleGroups = lazy(() => import('./pages/users/RoleGroups').then(m => ({ default: m.RoleGroups })))
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
 const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
 const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
@@ -86,8 +87,8 @@ const Loading = () => <div className="page-loading" role="status"><span classNam
 
 /** The home page: a staff member gets the staff panel, everyone else the dashboard. */
 function HomeOrPanel() {
-  const { grants, can } = useAuth()
-  return grants.length > 0 && panelLevel(can) === 0 ? <StaffPanel /> : <Dashboard />
+  const { grants, can, group } = useAuth()
+  return grants.length > 0 && panelLevel(can, group) === 0 ? <StaffPanel /> : <Dashboard />
 }
 
 export default function App() {
@@ -156,6 +157,7 @@ export default function App() {
       <Route path="/app/roles" element={<Roles />} />
       <Route path="/app/roles/:id" element={<RoleEditor />} />
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
+      <Route path="/app/role-groups" element={<RoleGroups />} />
       <Route path="/app/nodi/chat" element={<NodiChat />} />
       <Route path="/app/nodi" element={<NodiSettings />} />
       <Route path="/app/branding" element={<BrandingSettings />} />

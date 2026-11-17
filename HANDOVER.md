@@ -378,3 +378,19 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - UI: page `/app/me/complete` (always open: how full, what is missing, the hub profile form for oneself, photo / NID uploads shrunk to 1600 px);
   staff panel card "আমার প্রোফাইল X% পূর্ণ"; My Profile button. `components/PulsePopup.tsx` in AppShell (once per session);
   `pages/zonal/PulsePanel.tsx` on the zonal dashboard (new question with whole zone / hubs / posts, cards with counts, answers table, close).
+
+## 2026-11-17 — Role groups, dropdown menu, auto features, AERV permissions
+- Owner: "Role-Based Group Dashboard + Dynamic Dropdown Menu + Auto Feature System — সুপারএডমিন / জোনাল ম্যানেজার, ম্যানেজার, স্টাফ/রাইডার — AERV পারমিশন".
+  Read AERV as **A**dd (create, post) · **E**dit (edit, approve, reject, verify, configure, manage) · **R**emove (archive, delete) · **V**iew (view, export, print).
+- Migration `20261117010000_role_groups_aerv.sql` (**not applied to the live project yet**): `role_dashboards.panel_group` ('zone' | 'hub' | 'self', null = from permissions),
+  `my_panel_group()` (highest group among the caller's roles; Super Admin always 'zone'), `role_group_list()` / `role_group_set(role, group)` (sets the home view too) /
+  `role_aerv_save(role, grant[], revoke[])` — all Super Admin only, Super Admin role cannot be changed. Tests `99zzzzzzzzzzzzzz_role_groups_aerv.sql` (24). Full suite passes.
+- Page `/app/role-groups` (সেটিং ও অনুমতি → রোল গ্রুপ ও AERV অনুমতি): three group columns + "no group"; move a role with its dropdown; 👁 previews the role;
+  **AERV** opens the grid: one line per feature (pages with the same permissions share a line), A/E/R/V boxes (— = the feature has no such permission),
+  column and row "all", search, group filter, "শুধু চালু", "অটো: গ্রুপের সব পাতা দেখা" (stages V for every page of the group's menu). Only the changed codes are saved.
+- Auto feature system: `web/src/lib/features.ts` builds every feature from the menu itself (AppShell `ACCOUNTS` + `GROUPS`); `buildNav()` / `useMyNav()` in AppShell
+  is the one menu used by the side menu, the new **dropdown menu bar** (PC/tablet, under the top bar, with the person's group on the right) and the home page's
+  **দ্রুত যাওয়া** cards (now by group, tabs per group). A new page added to the menu shows up everywhere — and in the AERV grid — with no other list to edit.
+  Permission resources no page names (salary, NID, ops…) show at the end of the AERV grid, read from the `permissions` table.
+- `panelLevel(can, group)`: the role group, when set, decides how far up the menu panels go, the staff panel home, and the tab bar; else permissions as before.
+- Smoke test: new checks for groups, AERV, dropdown and group-driven menu (448 checks pass). Note: `web/node_modules` was a broken self-link in this checkout; `npm ci` fixed it.

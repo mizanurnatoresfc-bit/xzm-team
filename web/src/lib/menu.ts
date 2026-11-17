@@ -34,8 +34,39 @@ export const menuApi = {
  * Which of the three panels a person belongs to, from what their role may do: 0 = staff, 1 = manager, 2 = zonal manager.
  * The menu shows the panels up to this level; a few things (training centre, the AI helper, the first-steps box) are for level 2 only.
  */
-export const panelLevel = (can: (p: string) => boolean): 0 | 1 | 2 =>
-  can('zonal.dashboard.view') || can('system.user.view') || can('hr.request.approve') ? 2
+export const panelLevel = (can: (p: string) => boolean, group?: PanelGroup | null): 0 | 1 | 2 =>
+  group ? GROUP_LEVEL[group]
+    : can('zonal.dashboard.view') || can('system.user.view') || can('hr.request.approve') ? 2
     : can('hr.employee.view') || can('hr.attendance.create') || can('da.sheet.approve') ? 1 : 0
+/**
+ * The three role groups (owner, 17 Nov 2026). A Super Admin puts each role in one on "রোল গ্রুপ ও AERV";
+ * a role with no group set falls back to its permissions (above).
+ *   zone = সুপার অ্যাডমিন / জোনাল ম্যানেজার · hub = ম্যানেজার · self = স্টাফ / রাইডার
+ */
+export type PanelGroup = 'self' | 'hub' | 'zone'
+export const GROUP_LEVEL: Record<PanelGroup, 0 | 1 | 2> = { self: 0, hub: 1, zone: 2 }
+export const LEVEL_GROUP: PanelGroup[] = ['self', 'hub', 'zone']
+export const groupApi = {
+  /** The caller's group (highest of their roles); null = none set, work it out from permissions. */
+  mine: async (): Promise<PanelGroup | null> => { const { data, error } = await supabase.rpc('my_panel_group'); if (error) return null; const g = data as string | null; return g === 'self' || g === 'hub' || g === 'zone' ? g : null },
+}
 /** Pages only the zonal manager's level gets in the menu (the owner asked for them to be off the manager's and staff's screens). */
 export const ZONE_ONLY = ['/app/training', '/app/nodi/chat']
+
+/** Super Admin: roles with their group and permission codes; set a group; AERV add / take away (role_groups_aerv migration). */
+export type RoleGroupRow = { role_id: string; code: string; name: string; name_bn: string | null; is_super: boolean; is_system: boolean
+  panel_group: PanelGroup | null; default_view: PanelGroup | null; user_count: number; permissions: string[] }
+
+const fail = (e: { message: string; code?: string } | null) => { if (e) throw Object.assign(new Error(e.message), { code: e.code }) }
+export const groupAdmin = {
+  list: async (): Promise<RoleGroupRow[]> => { const { data, error } = await supabase.rpc('role_group_list'); fail(error); return (data ?? []) as RoleGroupRow[] },
+  set: async (role: string, group: PanelGroup | null) => { const { error } = await supabase.rpc('role_group_set', { p_role: role, p_group: group }); fail(error) },
+  saveAerv: async (role: string, grant: string[], revoke: string[]): Promise<number> => {
+    const { data, error } = await supabase.rpc('role_aerv_save', { p_role: role, p_grant: grant, p_revoke: revoke }); fail(error); return Number(data ?? 0)
+  },
+  allCodes: async (): Promise<string[]> => {
+    const { data, error } = await supabase.from('permissions').select('code').order('code'); fail(error)
+    return ((data ?? []) as Array<{ code: string }>).map(r => r.code)
+  },
+}
+
