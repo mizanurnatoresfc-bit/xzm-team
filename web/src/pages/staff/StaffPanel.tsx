@@ -226,6 +226,19 @@ export function StaffPanel() {
       </div>
       </>}
 
+      <>
+      <h2 className="sd-h">{L('আরও কাজ', 'More work')}</h2>
+      <div className="nv-rows">
+        {can('office.notice.create') && row('/app/office/notices', 'r', 'bell', L('নষ্ট / লাগবে জানান', 'Report broken / needed'), L('অফিসের নষ্ট বা দরকারি জিনিস জোনাল ম্যানেজারকে জানান', 'Tell the zonal manager what is broken or needed'))}
+        {(can('sorting.fuel.view') || can('sorting.fuel.create')) && row('/app/sorting/fuel', 'o', 'receipt', L('তেলের স্লিপ ও খরচ', 'Fuel slips & expenses'), L('তেলের স্লিপ ও খরচের রিকুয়েস্ট', 'Fuel slips and expense requests'))}
+        {(can('sorting.driver.view') || can('sorting.driver.create')) && row('/app/sorting/drivers', 'p', 'truck', L('ড্রাইভার রিপোর্ট', 'Driver report'), L('আজকের ট্রিপের রিপোর্ট দিন', "Give today's trip report"))}
+        {(can('sorting.parcel.view') || can('sorting.parcel.create')) && row('/app/sorting/parcels', 'b', 'box', L('পার্সেল আদান-প্রদান', 'Parcel handover'), L('শটিং ও হাবের মধ্যে পার্সেল বুঝে নেওয়া ও দেওয়া', 'Receive and hand over parcels'))}
+        {row('/app/references', 'g', 'users', L('রেফারেন্স তালিকা', 'Reference list'), L('যাঁদের রেফারেন্স দিয়েছেন', 'People you gave as reference'))}
+        {row('/app/training', 'b', 'book', L('ট্রেনিং সেন্টার', 'Training centre'), L('আপনার কাজের ধাপে ধাপে নির্দেশনা', 'Step-by-step help for your work'))}
+        {row('/app/me/permissions', 'p', 'shield', L('আমার অনুমতি', 'My permissions'), L('আমি কী কী করতে পারি', 'What I may do'))}
+      </div>
+      </>
+
       <h2 className="sd-h">{L('ইস্যু ও যোগাযোগ', 'Issues & contact')}</h2>
       <div className="nv-rows">
         {row('/app/issues?tab=mine', 'o', 'tasks', L('আমাকে দেওয়া ইস্যু', 'Issues given to me'), myIssues.length ? L(`${n(myIssues.length)}টি কাজ বাকি`, `${myIssues.length} to do`) : L('কোনো কাজ বাকি নেই', 'Nothing to do'), cnt(myIssues.length, myIssues.some(i => i.overdue) ? 'bad' : 'warn'))}
