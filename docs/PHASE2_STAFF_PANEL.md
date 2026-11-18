@@ -35,7 +35,7 @@ and the Naldanga logins exist.
 | | |
 |---|---|
 | `supabase/migrations/20261119000300_staff_panel_gaps.sql` | migration |
-| `supabase/tests/99zzzzzzzzzzzzzzzzzz_staff_panel_gaps.sql` | 23 new tests |
+| `supabase/tests/99zzzzzzzzzzzzzzzzzz_staff_panel_gaps.sql` | 22 new tests |
 | `supabase/tests/99x_attendance_gaps.sql` | updated for the rule "no leave request" and "the hub manager approves" |
 | `web/src/components/NodiGaps.tsx`, `web/src/lib/gaps.ts`, `web/src/pages/staff/StaffPanel.tsx`, `web/src/theme.css` | the screens |
 | `web/tests/smoke.mjs` | the gap card check follows the new flow (dates relative to today) |
