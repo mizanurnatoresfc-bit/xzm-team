@@ -281,6 +281,7 @@ export function StaffPanel() {
       <>
       <h2 className="sd-h">{L('আরও কাজ', 'More work')}</h2>
       <div className="nv-rows">
+        {row('/app/dispatch', 'g', 'truck', L('রুট থেকে পাঠাচ্ছি / আসছে', 'Sending from route / incoming'), L('পার্সেল ও জিনিস পাঠান — গন্তব্য বুঝে নিলে দেখাবে', 'Send parcels and items — see when received'))}
         {can('office.notice.create') && row('/app/office/notices', 'r', 'bell', L('নষ্ট / লাগবে জানান', 'Report broken / needed'), L('অফিসের নষ্ট বা দরকারি জিনিস জোনাল ম্যানেজারকে জানান', 'Tell the zonal manager what is broken or needed'))}
         {(can('sorting.fuel.view') || can('sorting.fuel.create')) && row('/app/sorting/fuel', 'o', 'receipt', L('তেলের স্লিপ ও খরচ', 'Fuel slips & expenses'), L('তেলের স্লিপ ও খরচের রিকুয়েস্ট', 'Fuel slips and expense requests'))}
         {(can('sorting.driver.view') || can('sorting.driver.create')) && row('/app/sorting/drivers', 'p', 'truck', L('ড্রাইভার রিপোর্ট', 'Driver report'), L('আজকের ট্রিপের রিপোর্ট দিন', "Give today's trip report"))}

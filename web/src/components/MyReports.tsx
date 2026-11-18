@@ -3,6 +3,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { FUEL_KIND, FUEL_STATUS, type Fuel } from '../lib/sorting'
 import { NOTICE_STATUS, type Notice } from '../lib/officeOps'
 import { hrReq } from '../lib/hrreq'
+import { dispatch, DISPATCH_STATUS } from '../lib/dispatch'
 import { issues, type IssueStatus } from '../lib/issues'
 import { pageAllowed } from '../lib/menu'
 import { usePrefs } from '../lib/prefs'
@@ -33,7 +34,7 @@ export function MyReports() {
     const me = await quiet(hrReq.myEmployee(), null)
     const since = new Date(Date.now() - 30 * 864e5).toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
     const mine = me ? `employee_id.eq.${me.id},created_by.eq.${uid}` : `created_by.eq.${uid}`
-    const [ops, fuel, trips, hand, notes, given] = await Promise.all([
+    const [ops, fuel, trips, hand, notes, given, sent] = await Promise.all([
       quiet(wf.myOps(30), null),
       can('sorting.fuel.view') || can('sorting.fuel.create') ? quiet(supabase.from('sorting_fuel_requests').select('id,no,kind,request_date,amount,status,review_note').or(mine).gte('request_date', since).order('request_date', { ascending: false }).limit(15).then(r => (r.data ?? []) as unknown as Fuel[]), [] as Fuel[]) : [],
       can('sorting.driver.view') || can('sorting.driver.create') ? quiet(supabase.from('sorting_driver_reports').select('id,work_date,status,note,parcels_out,parcels_in').eq('created_by', uid).gte('work_date', since).order('work_date', { ascending: false }).limit(15)
@@ -42,8 +43,9 @@ export function MyReports() {
         .then(r => (r.data ?? []) as Array<{ id: string; no: number; work_date: string; direction: string; status: string; parcel_count: number; note: string | null }>), []) : [],
       can('office.notice.create') ? quiet(supabase.from('office_notices').select('id,notice_no,title,kind,status,reply,created_at').eq('created_by', uid).gte('created_at', since).order('created_at', { ascending: false }).limit(15).then(r => (r.data ?? []) as unknown as Notice[]), [] as Notice[]) : [],
       quiet(issues.panels().then(p => p?.given ?? []), []),
+      quiet(dispatch.list('mine', 30).then(l => l.filter(x => x.mine)), []),
     ])
-    return { ops, fuel, trips, hand, notes, given }
+    return { ops, fuel, trips, hand, notes, given, sent }
   }, [uid])
   const v = d.data
   if (!v) return null
@@ -60,6 +62,8 @@ export function MyReports() {
   for (const n of v.notes) rows.push({ key: 'n' + n.id, date: n.created_at, icon: 'bell', title: n.title, sub: `${n.notice_no} · ${n.kind === 'broken' ? L('নষ্ট', 'Broken') : n.kind === 'need' ? L('লাগবে', 'Needed') : L('অন্যান্য', 'Other')}`,
     status: NOTICE_STATUS[n.status] ?? ['—', '—', 'neutral'], note: n.status === 'rejected' ? n.reply : null, to: '/app/office/notices', fix: n.status === 'rejected' })
   for (const i of v.given) rows.push({ key: 'i' + i.id, date: i.created_at, icon: 'alert', title: i.title, sub: `${i.issue_no}${i.hub ? ' · ' + i.hub : ''}`, status: ISSUE_ST[i.status] ?? ['—', '—', 'neutral'], to: '/app/issues?tab=given' })
+  for (const s of v.sent) rows.push({ key: 's' + s.id, date: s.date, icon: 'truck', title: L(`পাঠিয়েছি → ${s.to ?? ''}`, `Sent → ${s.to ?? ''}`), sub: L(`#${s.no} · ${s.parcels}টি পার্সেল${s.items.length ? ` · ${s.items.length}টি জিনিস` : ''}`, `#${s.no} · ${s.parcels} parcels${s.items.length ? ` · ${s.items.length} items` : ''}`),
+    status: DISPATCH_STATUS[s.status], note: s.status === 'disputed' ? s.receive_note : null, to: '/app/dispatch', fix: s.status === 'disputed' })
   rows.sort((a, b) => b.date.localeCompare(a.date))
   const shown = rows.filter(r => pageAllowed(menu, r.to.split('#')[0].split('?')[0])).slice(0, 12)
   const back = shown.filter(r => r.fix).length

@@ -84,7 +84,7 @@ export function useNotices(): State {
 export const NOTICE_KIND: Record<string, [string, string, string]> = {
   hr_request: ['এইচআর রিকুয়েস্ট', 'HR requests', 'form'], issue: ['ইস্যু ও কাজ', 'Issues & tasks', 'tasks'], vehicle: ['গাড়ি', 'Vehicles', 'truck'],
   office: ['অফিস', 'Office', 'home'], attendance: ['হাজিরা', 'Attendance', 'cal'], manpower: ['লোক লাগবে', 'Manpower', 'users'],
-  da_reminder: ['হিসাব খাতা', 'Daily sheet', 'ledger'], nodi: ['সিস্টেম', 'System', 'bell'], hub_ops: ['হাব অপারেশন রিপোর্ট', 'Hub operation reports', 'chart'],
+  da_reminder: ['হিসাব খাতা', 'Daily sheet', 'ledger'], nodi: ['সিস্টেম', 'System', 'bell'], dispatch: ['পাঠাচ্ছি', 'Dispatch', 'box'], hub_ops: ['হাব অপারেশন রিপোর্ট', 'Hub operation reports', 'chart'],
 }
 export const kindOf = (k: string | null) => NOTICE_KIND[k ?? ''] ?? ['অন্যান্য', 'Other', 'bell']
 
