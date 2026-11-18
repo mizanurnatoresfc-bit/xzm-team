@@ -568,7 +568,8 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
--- 8. Who may call what (same rule as the module): public wf_* for signed-in people only; private helpers for the functions only.
+-- 8. Who may call what (same rule as the module): public wf_* for signed-in people (and the service role, as live migration
+--    staff_app_rls_revoke_anon_definer_execute set for every definer function); private helpers for the functions only.
 -- ---------------------------------------------------------------------
 do $$
 declare f record;
@@ -577,7 +578,7 @@ begin
             where n.nspname in ('public', 'private') and p.proname like 'wf\_%' loop
     if f.ns = 'public' then
       execute format('revoke all on function %s from public, anon', f.sig);
-      execute format('grant execute on function %s to authenticated', f.sig);
+      execute format('grant execute on function %s to authenticated, service_role', f.sig);
     else
       execute format('revoke all on function %s from public, anon, authenticated', f.sig);
     end if;
