@@ -215,6 +215,7 @@ function DayRow({ day, book, first, onOpen, refFn }: { day: BookDay; book: MyBoo
   const lines: Array<{ t: string; c?: string }> = []
   // an approved date that is simply "present" on the register needs no "you gave" line: the register line says it
   if (day.kind && !(rec && day.kind === 'present')) lines.push({ t: `${L('আপনি দিয়েছেন', 'You gave')}: ${kindText(day.kind, L)}${day.kind === 'absent' && day.applied_on_site ? ` · ${L(SITE_NOTE, 'applied on the website')}` : ''}` })
+  if (day.kind === 'absent' && day.applied_on_site && day.site_ref) lines.push({ t: `${L('ওয়েবসাইটের আবেদন নম্বর', 'Website application no.')} ${day.site_ref}${day.site_applied_on ? ` · ${shortDate(day.site_applied_on, lang)}` : ''}` })
   if (day.application_no) lines.push({ t: `${L('আবেদন', 'Application')} ${day.application_no}${day.application_status ? ` · ${L(APP_META[day.application_status].bn, APP_META[day.application_status].en)}` : ''}` })
   if (day.kind === 'absent' && day.note && day.note !== SITE_NOTE) lines.push({ t: `${L('কারণ', 'Reason')}: ${day.note}` })
   if (rec) lines.push({ t: `${L('খাতায়', 'On the register')}: ${recordText(rec, L)}${day.decided_by_name ? ` · ${day.decided_by_name}` : ''}`, c: 'ok' })
@@ -250,6 +251,10 @@ function GiveSheet({ book, day, onClose, onDone, onFail }: { book: MyBook; day: 
   const changing = day.state === 'waiting'
   const [step, setStep] = useState<Step>('choose')
   const [note, setNote] = useState(day.kind === 'absent' && day.applied_on_site && day.note !== SITE_NOTE ? day.note ?? '' : '')
+  // the website application: its number and the day it was made (a day after today is not allowed)
+  const [siteRef, setSiteRef] = useState(day.site_ref ?? '')
+  const [siteDate, setSiteDate] = useState(day.site_applied_on ?? (day.date <= book.today ? day.date : book.today))
+  const siteReady = siteRef.trim() !== '' && siteDate !== '' && siteDate <= book.today
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const run = async (call: () => Promise<unknown>, msg: string) => {
@@ -268,7 +273,7 @@ function GiveSheet({ book, day, onClose, onDone, onFail }: { book: MyBook; day: 
   const back = <button type="button" className="secondary" disabled={busy} onClick={() => { setErr(''); setStep(step === 'yes' ? 'ask' : 'choose') }}>{L('আগের ধাপ', 'Back')}</button>
   const actions = step === 'choose' ? <button type="button" className="secondary" onClick={onClose} disabled={busy}>{L('বাতিল', 'Cancel')}</button>
     : step === 'ask' ? back
-    : <>{back}<button type="button" disabled={busy} onClick={() => void run(() => wf.submit(day.date, 'absent', true, note.trim() || null),
+    : <>{back}<button type="button" disabled={busy || !siteReady} onClick={() => void run(() => wf.submit(day.date, 'absent', true, note.trim() || null, { ref: siteRef, applied_on: siteDate }),
         changing ? L('হাজিরা বদলানো হয়েছে', 'Attendance changed') : L('জমা হয়েছে — ম্যানেজার দেখবেন', 'Sent — your manager will see it'))}>
         {busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('জমা দিন', 'Confirm')}</button></>
 
@@ -301,6 +306,12 @@ function GiveSheet({ book, day, onClose, onDone, onFail }: { book: MyBook; day: 
 
     {step === 'yes' && <>
       <p className="wf-sh-q2">{L('অনুপস্থিত — ওয়েবসাইটে আবেদন করা আছে', 'Absent — applied on the website')}</p>
+      <Field label={L('ওয়েবসাইটের আবেদন নম্বর', 'Website application number')}>
+        <input value={siteRef} maxLength={60} required autoFocus placeholder={L('যেমন: ১২৩৪৫', 'e.g. 12345')} onChange={e => setSiteRef(e.target.value)} />
+      </Field>
+      <Field label={L('কোন তারিখে আবেদন করেছেন', 'Date you applied')}>
+        <input type="date" value={siteDate} max={book.today} required onChange={e => setSiteDate(e.target.value)} />
+      </Field>
       <Field label={L('নোট (ইচ্ছা হলে)', 'Note (optional)')}>
         <textarea rows={2} value={note} maxLength={300} placeholder={L(SITE_NOTE, 'Applied on the website')} onChange={e => setNote(e.target.value)} />
       </Field>

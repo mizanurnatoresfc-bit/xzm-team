@@ -226,3 +226,9 @@ button.wf-op-send.secondary{background:var(--surface);color:var(--text);border-c
 .wf-fill-rest span{padding:4px 10px;border-radius:999px;background:var(--canvas);color:var(--muted);font-size:13.5px}
 .wf-fill-rest span.on{background:var(--ok-bg);color:var(--ok-fg)}
 .wf-bk-banner>button.secondary{background:transparent}
+/* one website application inside "give all at once": its dates, number and date (migration 20261118210000) */
+.wf-fill-app{display:grid;gap:8px;padding:10px 12px;border:1.5px dashed var(--border);border-radius:12px}
+.wf-fill-app-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.wf-fill-app-f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.wf-fill-app-f label{margin:0}
+@media(max-width:520px){.wf-fill-app-f{grid-template-columns:minmax(0,1fr)}}

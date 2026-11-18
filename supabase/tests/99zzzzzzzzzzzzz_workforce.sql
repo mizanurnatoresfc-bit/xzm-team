@@ -142,7 +142,7 @@ select tests.ok(tests.bd(10) ->> 'state' = 'waiting' and tests.bd(10) ->> 'kind'
 select tests.ok(public.wf_att_submit(tests.day(10), 'present') = tests.id('m1')
             and (select count(*) from public.attendance_self_marks where employee_id = tests.id('e1') and work_date = tests.day(10)) = 1
             and tests.n_hist(tests.id('m1')) = 1, 'duplicate prevention: the same date twice is one input and one history line');
-select tests.ok(public.wf_att_submit(tests.day(10), 'absent', true) = tests.id('m1'), 'absent + "applied on the website" is accepted for the same date');
+select tests.ok(public.wf_att_submit(tests.day(10), 'absent', true, null, tests.day(9), 'SF-1001') = tests.id('m1'), 'absent + "applied on the website" (with its date and number) is accepted for the same date');
 select tests.ok((select kind = 'absent' and applied_on_site and note = 'ওয়েবসাইটে আবেদন করা আছে' and status = 'waiting' from public.attendance_self_marks where id = tests.id('m1')),
   'absent + "applied on the website": the answer is kept and the note defaults');
 select tests.ok(tests.n_hist(tests.id('m1'), 'edited') = 1 and tests.bd(10) ->> 'applied_on_site' = 'true', 'a waiting input can be changed by the person, and it is in the history');
@@ -180,7 +180,7 @@ insert into tests.ids values ('m4_6', public.wf_att_submit(tests.day(6), 'presen
 select tests.login(tests.id('hub_mgr'));
 insert into public.attendance_records (employee_id, work_date, status, source) values (tests.id('e4'), tests.day(6), 'late', 'manual');
 select tests.login(tests.id('u_s4'));
-select tests.ok(tests.bd(6) ->> 'state' = 'approved' and tests.bd(6) ->> 'record_status' = 'late' and tests.err($$select public.wf_att_submit(tests.day(6), 'absent', true)$$) ~ '^23505 .*already on the register',
+select tests.ok(tests.bd(6) ->> 'state' = 'approved' and tests.bd(6) ->> 'record_status' = 'late' and tests.err($$select public.wf_att_submit(tests.day(6), 'absent', true, null, tests.day(1), 'SF-1')$$) ~ '^23505 .*already on the register',
   'a register row beats a waiting input on the book');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok(public.att_self_decide(array[tests.id('m4_6')], true, 'late') = 1, 'the waiting input is closed by the manager (who decides as late, like the register)');

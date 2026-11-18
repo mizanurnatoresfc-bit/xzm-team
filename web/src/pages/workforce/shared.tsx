@@ -149,6 +149,9 @@ export const MARK_STATUS: Record<MarkStatus, { bn: string; en: string; tone: Ton
 }
 export const siteText = (a: boolean | null | undefined, lang: Lang) =>
   a === true ? (lang === 'bn' ? 'ওয়েবসাইটে আবেদন করা আছে' : 'Applied on the website') : a === false ? (lang === 'bn' ? 'ওয়েবসাইটে আবেদন নেই' : 'No website application') : ''
+/** The website application of an absent "applied on the website" date: "নম্বর 12345 · 3 নভেম্বর" ('' when there is none). */
+export const siteDetail = (m: { site_ref?: string | null; site_applied_on?: string | null }, lang: Lang) =>
+  m.site_ref ? `${lang === 'bn' ? 'নম্বর' : 'No.'} ${m.site_ref}${m.site_applied_on ? ` · ${fmtDay(m.site_applied_on, lang)}` : ''}` : ''
 export const AS_OPTIONS: Array<{ key: Decided; bn: string; en: string }> = [
   { key: 'present', bn: 'উপস্থিত', en: 'Present' }, { key: 'late', bn: 'দেরি', en: 'Late' }, { key: 'half_day', bn: 'অর্ধদিবস', en: 'Half day' }, { key: 'absent', bn: 'অনুপস্থিত', en: 'Absent' },
 ]

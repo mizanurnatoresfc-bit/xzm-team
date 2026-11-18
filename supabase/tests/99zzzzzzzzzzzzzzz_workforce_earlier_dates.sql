@@ -141,13 +141,14 @@ select tests.ok(not (public.wf_my_book() ->> 'open')::boolean and public.wf_my_b
 -- ---------------------------------------------------------------- many dates in one step
 select tests.login(tests.id('u_a1'));
 select tests.ok(tests.err($$select public.wf_book_fill()$$) ~ '^22023 .*at least one date', 'nothing chosen: refused');
-select tests.ok(tests.err($$select public.wf_book_fill(array[tests.day(15)], array[tests.day(15)])$$) ~ '^22023 .*chosen twice', 'one date in two places: refused');
+select tests.ok(tests.err($$select public.wf_book_fill(array[tests.day(15)], jsonb_build_array(jsonb_build_object('ref', 'SF-1', 'applied_on', tests.day(15), 'dates', jsonb_build_array(tests.day(15)))))$$) ~ '^22023 .*chosen twice', 'one date in two places: refused');
 select tests.ok(tests.err($$select public.wf_book_fill(null, null, array[tests.day(15)])$$) ~ '^22023 .*reason', 'absent without applying needs a reason');
 select tests.ok(tests.err($$select public.wf_book_fill(array[tests.day(15), tests.day(21)])$$) ~ ('^22023 On ' || tests.day(21) || ': A future date'),
   'a date that has not come: the error names the date');
 select tests.ok(tests.bd(15) ->> 'state' = 'missing', 'all or nothing: the good date of the refused call was not saved');
 select tests.ok(public.wf_book_fill(array[tests.day(1), tests.day(2), tests.day(4), tests.day(5), tests.day(6), tests.day(7), tests.day(8), tests.day(9), tests.day(10)],
-                                    array[tests.day(11), tests.day(12)], array[tests.day(13), tests.day(14)], 'জ্বর ছিল', 'Steadfast-এ আবেদন করা')
+                                    jsonb_build_array(jsonb_build_object('ref', 'SF-2211', 'applied_on', tests.day(12), 'dates', jsonb_build_array(tests.day(11), tests.day(12)))),
+                                    array[tests.day(13), tests.day(14)], 'জ্বর ছিল', 'Steadfast-এ আবেদন করা')
                   - 'application_id' = '{"present": 9, "site": 2, "absent": 2}'::jsonb, 'fill: 9 present, 2 applied on the Steadfast website, 2 in an application');
 select tests.ok(tests.bd(11) ->> 'kind' = 'absent' and (tests.bd(11) ->> 'applied_on_site')::boolean and tests.bd(11) ->> 'note' = 'Steadfast-এ আবেদন করা'
             and tests.bd(11) ->> 'application_id' is null, 'a website date: absent, applied on the website, with the note');
@@ -180,7 +181,7 @@ select tests.ok((select status from public.attendance_records where employee_id 
             and (select status from public.attendance_records where employee_id = tests.id('ea1') and work_date = tests.day(11)) = 'absent',
   'they are on the register: present, and absent for the website date');
 select tests.login(tests.id('u_a1'));
-select tests.ok(tests.err($$select public.wf_att_submit(tests.day(1), 'absent', true)$$) ~ '^23505', 'an approved date stays as it is');
+select tests.ok(tests.err($$select public.wf_att_submit(tests.day(1), 'absent', true, null, tests.day(1), 'SF-1')$$) ~ '^23505', 'an approved date stays as it is');
 
 -- ---------------------------------------------------------------- the daily reminder while a window is open
 select tests.logout();

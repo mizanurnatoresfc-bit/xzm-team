@@ -7,7 +7,7 @@ import { usePrefs } from '../../lib/prefs'
 import { ACTION_META, APP_META, LIVE, monthOf, useLiveLoad, wf, wfFriendly,
   type AbsenceApp, type AppStatus, type History, type Mark, type OpsReport, type OpsTotals, type ZoneHubRow, type ZoneOverview } from '../../lib/workforce'
 import { Badge, Field, Stat } from '../accounts/ui'
-import { ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, RangeBar, Section, Who, WmTable, fmtDay, fmtStamp, fmtWeekday, monthName, recordLabel, siteText, useHubList, useRange,
+import { ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, RangeBar, Section, Who, WmTable, fmtDay, fmtStamp, fmtWeekday, monthName, recordLabel, siteDetail, siteText, useHubList, useRange,
   type WCol } from './shared'
 import { ZoneWindows } from './ZoneWindows'
 
@@ -156,7 +156,8 @@ function ZoneApps({ zone, from, to, range, onHub }: { zone: string; from: string
     { key: 'date', label: L('তারিখ', 'Date'), sort: true, text: m => m.work_date, cell: m => <span className="wm-dt"><b>{fmtDay(m.work_date, lang)}</b><small>{fmtWeekday(m.work_date, lang)}</small></span> },
     { key: 'who', label: L('কর্মী', 'Person'), primary: true, sort: true, text: m => m.full_name, cell: m => <Who name={m.full_name} code={m.employee_code} position={m.position} /> },
     { key: 'hub', label: L('হাব', 'Hub'), sort: true, text: m => m.hub_name ?? '', cell: m => m.hub_name ?? '—' },
-    { key: 'site', label: L('ওয়েবসাইটে আবেদন', 'Website application'), text: m => siteText(m.applied_on_site, 'bn'), cell: m => siteText(m.applied_on_site, lang) || '—' },
+    { key: 'site', label: L('ওয়েবসাইটে আবেদন', 'Website application'), text: m => [siteText(m.applied_on_site, 'bn'), siteDetail(m, 'bn')].filter(Boolean).join(' · '),
+      cell: m => [siteText(m.applied_on_site, lang), siteDetail(m, lang)].filter(Boolean).join(' · ') || '—' },
     { key: 'no', label: L('আবেদন নম্বর', 'Application'), text: m => m.application_no ?? '', cell: m => m.application_no ? <b className="wm-no">{m.application_no}</b> : <span className="muted">—</span> },
     { key: 'st', label: L('অবস্থা', 'Status'), sort: true, text: m => m.status, cell: m => <span className="wm-given"><MarkBadge s={m.status} />
       {m.status !== 'waiting' && m.decided_as ? <small>{recordLabel(m.decided_as, lang)}{m.decided_by_name ? ` · ${m.decided_by_name}` : ''}</small> : null}</span> },
