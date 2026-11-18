@@ -11,7 +11,7 @@ import { ACTION_META, APP_META, CELL_META, LIVE, monthOf, useLiveLoad, wf, wfFri
   type IsoDate, type Mark, type MarkStatus, type OpsReport, type OpsTotals } from '../../lib/workforce'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { AS_OPTIONS, ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, NoteDialog, Notice, RangeBar, Section, Who, WmTable, decideMarks, exportRows,
-  fmtDay, fmtLong, fmtStamp, fmtTime, fmtTsDay, fmtWeekday, lastMonths, monthName, prevMonth, recordLabel, rememberHub, siteText, storedHub, toneOfRecord, useHubList, useRange,
+  fmtDay, fmtLong, fmtStamp, fmtTime, fmtTsDay, fmtWeekday, lastMonths, monthName, prevMonth, recordLabel, rememberHub, siteDetail, siteText, storedHub, toneOfRecord, useHubList, useRange,
   type WCol } from './shared'
 
 /**
@@ -317,7 +317,7 @@ function DaySheet({ hubId, can, person, date, cell, go, onClose, onChanged }: {
     {d.loading && !d.data ? <Loading /> : d.error ? <p className="da-error" role="alert">{wfFriendly(d.error)}</p> : <>
       {mark ? <dl className="wm-dl">
         <dt>{L('কর্মী যা দিয়েছেন', 'What the person gave')}</dt><dd><KindBadge k={mark.kind} /> <MarkBadge s={mark.status} /></dd>
-        {mark.kind === 'absent' && <><dt>{L('ওয়েবসাইটে আবেদন', 'Website application')}</dt><dd>{mark.applied_on_site === true ? L('হ্যাঁ, করা আছে', 'Yes') : mark.applied_on_site === false ? L('না — এখান থেকে আবেদন পাঠিয়েছেন', 'No — applied here') : '—'}</dd></>}
+        {mark.kind === 'absent' && <><dt>{L('ওয়েবসাইটে আবেদন', 'Website application')}</dt><dd>{mark.applied_on_site === true ? `${L('হ্যাঁ, করা আছে', 'Yes')}${siteDetail(mark, lang) ? ` · ${siteDetail(mark, lang)}` : ''}` : mark.applied_on_site === false ? L('না — এখান থেকে আবেদন পাঠিয়েছেন', 'No — applied here') : '—'}</dd></>}
         {mark.note && <><dt>{L('কর্মীর কথা', 'Their note')}</dt><dd>{mark.note}</dd></>}
         <dt>{L('কখন দিয়েছেন', 'Given at')}</dt><dd>{fmtStamp(mark.marked_at, lang)} · {mark.via === 'book' ? L('হাজিরা বই থেকে', 'from the book') : L('আজকের এক ট্যাপে', 'one tap')}</dd>
         {mark.status !== 'waiting' && <><dt>{L('সিদ্ধান্ত', 'Decision')}</dt><dd>{mark.decided_as ? recordLabel(mark.decided_as, lang) : MARK_TEXT(mark.status, lang)}{mark.decided_by_name ? ` · ${mark.decided_by_name}` : ''}{mark.decided_at ? ` · ${fmtStamp(mark.decided_at, lang)}` : ''}</dd></>}
@@ -392,8 +392,9 @@ function ApproveTab({ hubId, can, go, onChanged }: { hubId: string; can: Can; go
       ? <label className="wm-ck"><input type="checkbox" checked={sel.has(m.id)} onChange={() => toggle(m.id)} aria-label={L(`${m.full_name} বাছুন`, `Select ${m.full_name}`)} /></label> : null },
     { key: 'who', label: L('কর্মী', 'Person'), primary: true, sort: true, text: m => m.full_name, cell: m => <Who name={m.full_name} code={m.employee_code} position={m.position} /> },
     { key: 'date', label: L('তারিখ', 'Date'), sort: true, text: m => m.work_date, cell: m => <span className="wm-dt"><b>{fmtDay(m.work_date, lang)}</b><small>{fmtWeekday(m.work_date, lang)}</small></span> },
-    { key: 'kind', label: L('কর্মী দিয়েছেন', 'Given'), text: m => `${m.kind === 'present' ? 'উপস্থিত' : 'অনুপস্থিত'} ${siteText(m.applied_on_site, 'bn')}`.trim(),
+    { key: 'kind', label: L('কর্মী দিয়েছেন', 'Given'), text: m => `${m.kind === 'present' ? 'উপস্থিত' : 'অনুপস্থিত'} ${siteText(m.applied_on_site, 'bn')} ${siteDetail(m, 'bn')}`.trim(),
       cell: m => <span className="wm-given"><KindBadge k={m.kind} />{m.kind === 'absent' && m.applied_on_site !== null && <small>{siteText(m.applied_on_site, lang)}</small>}
+        {m.kind === 'absent' && m.site_ref && <span className="wm-no">{siteDetail(m, lang)}</span>}
         {m.application_no && <span className="wm-no">{m.application_no}</span>}</span> },
     { key: 'note', label: L('কথা', 'Note'), text: m => m.note ?? '', cell: m => m.note ? <span className="wm-wrap">{m.note}</span> : <span className="muted">—</span> },
     { key: 'st', label: L('অবস্থা', 'Status'), text: m => MARK_TEXT(m.status, 'bn'), cell: m => <span className="wm-given"><MarkBadge s={m.status} />

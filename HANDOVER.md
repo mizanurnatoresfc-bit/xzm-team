@@ -485,3 +485,16 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - New workflow `.github/workflows/tests.yml` ("Tests"): on every push and pull request, all migrations + SQL tests on a throwaway PostgreSQL 16
   (`scripts/test-db.sh`) and the TypeScript check. The site build/publish workflow is unchanged. The `web/node_modules` link committed by mistake in
   `0fa563d` is removed from git, and `.gitignore` now says `node_modules` (the old `node_modules/` matched folders only, so the link slipped in).
+
+## 2026-11-18 — অনুপস্থিত: ওয়েবসাইটের আবেদন নম্বর ও তারিখ
+- Owner: absent inputs "applied on the website" must carry that application's date — "আবেদন নম্বরও লাগবে".
+- Migration `20261118210000_workforce_site_application.sql`: columns `attendance_self_marks.site_applied_on` / `site_ref` (only with `applied_on_site = true`,
+  kept empty by the trigger otherwise). `wf_att_submit` +2 parameters (both required for absent + website; date not after today, at most 62 days before the absent date;
+  number 1–60 characters). `wf_book_fill.p_site` is now a list of website applications (number, date, dates). `wf_my_book` days and `wf_marks` return both fields.
+  Replaced from the repository text (equal to live on 18 Nov): `wf_mark_before`, `wf_mark_after`, `wf_marks`, `wf_my_book`; old `wf_att_submit` / `wf_book_fill` signatures dropped.
+- Pages: the one-date sheet asks for the number and the date after "হ্যাঁ"; "একসাথে সব দিন" asks per application (with "+ আরেকটি ওয়েবসাইট আবেদন");
+  the book, the hub manager's list and day sheet, and the zonal list show "নম্বর … · তারিখ".
+- Tests: new file (33); the two older workforce files now pass the number and date; whole suite 1902 pass. Typecheck and build pass.
+- **18 Nov — live:** applied to Supabase as `workforce_site_application` (20261118230228). Before applying, the six replaced functions were checked equal to the
+  repository on live; after, all 53 `wf_*` function bodies equal the tested file by hash, anon can run none, private helpers closed, both table rules validated.
+  Site released by merging to `main` right after (the old site's absent + website call is refused until then).

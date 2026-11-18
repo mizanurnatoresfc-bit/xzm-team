@@ -35,6 +35,8 @@ export type BookDay = {
   state: DayState
   kind: Kind | null                                  // what the staff member gave (null = nothing / manager wrote it)
   applied_on_site: boolean | null                    // "ওয়েবসাইটে আবেদন করেছেন?" answer, for an absent day
+  /** Absent and applied on the website: the day applied there and the website's application number. Migration 20261118210000. */
+  site_applied_on: IsoDate | null; site_ref: string | null
   note: string | null                                // the staff member's own note / reason
   mark_id: string | null
   decided_as: Decided | null; decide_note: string | null; decided_by_name: string | null
@@ -62,6 +64,11 @@ export type WindowsPage = {
   zones: Array<{ id: string; name: string; can_configure: boolean }>
   rows: WindowRow[]                                  // open ones first, then the latest history (30 rows at most)
 }
+/** One application made on the (Steadfast) website: the day it was made and the website's application number. */
+export type SiteApplication = { applied_on: IsoDate; ref: string }
+/** `wf_book_fill(p_site)` — one website application and the absent dates it covers. */
+export type SiteGroup = SiteApplication & { dates: IsoDate[] }
+
 /** `wf_book_fill(...)` — how many dates of each kind were saved; the new application when some dates needed one. */
 export type FillResult = { present: number; site: number; absent: number; application_id: string | null }
 
@@ -143,6 +150,7 @@ export type Mark = {
   id: string; employee_id: string; employee_code: string | null; full_name: string; position: string | null
   hub_id: string | null; hub_name: string | null; zone_id: string | null
   work_date: IsoDate; kind: Kind; applied_on_site: boolean | null; note: string | null
+  site_applied_on: IsoDate | null; site_ref: string | null      // the website application's date and number (migration 20261118210000)
   status: MarkStatus; via: 'today' | 'book'; marked_at: string
   decided_as: Decided | null; decide_note: string | null; decided_at: string | null; decided_by_name: string | null
   application_id: string | null; application_no: string | null; record_status: string | null
@@ -206,13 +214,15 @@ type Range = { zone?: string | null; hub?: string | null }
 export const wf = {
   // staff — attendance book
   myBook: (month?: IsoDate | null) => rpc<MyBook | null>('wf_my_book', { p_month: month ?? null }),
-  /** present, or absent with `appliedOnSite = true`. Absent with `false` goes through `apply` (it needs dates and a reason). */
-  submit: (date: IsoDate, kind: Kind, appliedOnSite?: boolean | null, note?: string | null) =>
-    rpc<string>('wf_att_submit', { p_date: date, p_kind: kind, p_applied_on_site: appliedOnSite ?? null, p_note: note || null }),
+  /** present, or absent with `appliedOnSite = true` plus the website application (its date and number, both required).
+   *  Absent with `false` goes through `apply` (it needs dates and a reason). */
+  submit: (date: IsoDate, kind: Kind, appliedOnSite?: boolean | null, note?: string | null, site?: SiteApplication | null) =>
+    rpc<string>('wf_att_submit', { p_date: date, p_kind: kind, p_applied_on_site: appliedOnSite ?? null, p_note: note || null,
+      p_site_date: site?.applied_on || null, p_site_ref: site?.ref.trim() || null }),
   apply: (dates: IsoDate[], reason: string) => rpc<string>('wf_absence_apply', { p_dates: dates, p_reason: reason }),
   cancelApplication: (id: string) => rpc<void>('wf_absence_cancel', { p_application: id }),
   /** Many dates in one step, all or nothing: present, absent with "applied on the Steadfast website", and absent without applying (one application). */
-  fill: (f: { present: IsoDate[]; site: IsoDate[]; absent: IsoDate[]; reason?: string | null; note?: string | null }) =>
+  fill: (f: { present: IsoDate[]; site: SiteGroup[]; absent: IsoDate[]; reason?: string | null; note?: string | null }) =>
     rpc<FillResult>('wf_book_fill', { p_present: f.present, p_site: f.site, p_absent: f.absent, p_reason: f.reason || null, p_note: f.note || null }),
   // zonal setting — earlier dates of the book for one zone
   windows: (zone?: string | null) => rpc<WindowsPage>('wf_windows', { p_zone: zone ?? null }),
@@ -254,6 +264,11 @@ const BN: Array<[RegExp, string]> = [
   [/chosen twice/i, 'একই তারিখ দুই জায়গায় বাছা হয়েছে'],
   [/future/i, 'আগামী তারিখের হাজিরা এখন দেওয়া যায় না'],
   [/website question|applied on site/i, 'ওয়েবসাইটে আবেদন করেছেন কি না — আগে সেটা বলুন'],
+  [/website application number is too long/i, 'ওয়েবসাইটের আবেদন নম্বর সর্বোচ্চ ৬০ অক্ষর'],
+  [/application number/i, 'ওয়েবসাইটের আবেদন নম্বর লিখুন'],
+  [/date you applied/i, 'ওয়েবসাইটে কোন তারিখে আবেদন করেছেন — সেই তারিখ দিন'],
+  [/application date cannot be after today/i, 'আবেদনের তারিখ আজকের পরে হতে পারে না'],
+  [/more than 62 days before/i, 'আবেদনের তারিখ অনুপস্থিতির ৬২ দিনের বেশি আগে হতে পারে না'],
   [/needs an application|use wf_absence_apply/i, 'ওয়েবসাইটে আবেদন না করে থাকলে অনুপস্থিতির তারিখ বেছে আবেদন পাঠান'],
   [/already in an application/i, 'এই তারিখ আরেকটি আবেদনে আছে'],
   [/write the reason|reason is required/i, 'কারণ লিখুন'],

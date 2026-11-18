@@ -34,6 +34,18 @@ Migration `20261118200000_workforce_earlier_dates.sql` · tests `supabase/tests/
 | বন্ধ | `wf_window_end(id, কারণ)` আগেই বন্ধ করে; শেষ দিন পেরোলে নিজে বন্ধ। যা দেওয়া হয়ে গেছে তা অনুমোদনের অপেক্ষায় থাকে। |
 | ফিরিয়ে নিতে | `wf_book_fill`, `wf_window_save/end`, `wf_windows`, `private.wf_zone_of/wf_date_open/wf_window_json/wf_live_window` মুছুন; ছয়টি বদলানো ফাংশন `20261117010000_workforce_attendance.sql` থেকে আবার চালান; টেবিল `wf_book_windows` ও অনুমতি `hr.attendance.configure` সরান। |
 
+## ওয়েবসাইটের আবেদন নম্বর ও তারিখ / Website application number and date (18 Nov 2026)
+Migration `20261118210000_workforce_site_application.sql` · tests `supabase/tests/99zzzzzzzzzzzzzzzz_workforce_site_application.sql` (33 checks).
+মালিক: অনুপস্থিত ইনপুটে ওয়েবসাইটের আবেদনের তারিখ — "আবেদন নম্বরও লাগবে"।
+
+| বিষয় | কীভাবে |
+|---|---|
+| কোথায় থাকে | `attendance_self_marks.site_applied_on` (ওয়েবসাইটে কোন দিন আবেদন) ও `site_ref` (ওয়েবসাইটের আবেদন নম্বর, ১–৬০ অক্ষর)। শুধু "উপস্থিত ছিলাম না — ওয়েবসাইটে আবেদন করেছি"-তে থাকে; অন্য সব ইনপুটে ট্রিগার দুটোই খালি রাখে (টেবিলের নিয়ম `att_self_site_details`)। আগের ইনপুটে দুটোই খালি। |
+| একটি তারিখ | `wf_att_submit(তারিখ, 'absent', true, নোট, আবেদনের_তারিখ, নম্বর)` — দুটোই বাধ্যতামূলক; আবেদনের তারিখ আজকের পরে নয়, অনুপস্থিতির ৬২ দিনের বেশি আগে নয়। নম্বর/তারিখ বদলালে ইতিহাসে "edited"। আজকের তারিখ হলে হাব ম্যানেজারের নোটিশে নম্বর থাকে। |
+| একসাথে সব দিন | `wf_book_fill(p_site)` এখন আবেদনের তালিকা: `[{"ref": "…", "applied_on": "YYYY-MM-DD", "dates": [...]}]` — এক আবেদনে অনেক তারিখ; পাতায় "+ আরেকটি ওয়েবসাইট আবেদন"। |
+| কে দেখেন | কর্মী (হাজিরা বইয়ে প্রতিটি দিনে), হাব ম্যানেজার (অনুমোদন তালিকা ও দিনের বিস্তারিত), জোনাল (ইনপুটের তালিকা) — `wf_my_book.days[]` ও `wf_marks` এ `site_applied_on`, `site_ref`। |
+| ফিরিয়ে নিতে | মাইগ্রেশনের মাথায় লেখা: বদলানো ফাংশনগুলো আগের ফাইল থেকে আবার চালান (নতুন সিগনেচার আগে মুছে), তারপর দুটি কলাম মুছুন। |
+
 ## রোল ও অনুমতি / Permissions
 নতুন: `ops.staff_daily.view` (admin, head_office_manager, operations_manager, zonal_manager, hub_manager, pickup_manager, delivery_manager, auditor, hr_manager),
 `ops.staff_daily.edit` (admin, hub_manager). বাকি সব পুরোনো কোড: `hr.attendance.view` (বই, ইনপুট, আবেদন, ইতিহাস দেখা), `hr.attendance.create` (অনুমোদন),
