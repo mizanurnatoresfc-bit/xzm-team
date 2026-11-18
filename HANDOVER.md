@@ -474,5 +474,8 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `can_give`. The website question now says "Steadfast ওয়েবসাইটে". Manager's hub book and the staff alert card mention the open window.
 - Tests: new file (80), the workforce file's function count 19 → 23; whole suite 1869 pass. Smoke test passes. Screens checked in a browser at 390 px and 1366 px against
   the real functions on a local database (no sideways scroll, no script errors): open window → fill 13 present + 2 Steadfast + 1 application → 0 left, 17 waiting.
+- **18 Nov — live:** migration applied to Supabase as `workforce_earlier_dates` (20261118201608); after applying, all 53 `wf_*` function bodies
+  were checked equal to the tested file by hash, anon can run none of them, the private helpers are closed, RLS is on. Site released by merging to `main`.
+  No window is open yet: the Super Admin or the zonal manager opens one from জোনাল ওয়ার্কফোর্স রিপোর্ট → সেটিং.
 - Live has three migrations of 18 Nov that are not in the repository yet (`hub_manager_more_pages`, `remove_nodi_ai_a_rename`, `staff_app_rls_revoke_anon_definer_execute`);
   none touches the workforce functions. They should be brought into the repository like the 17 Nov sync.

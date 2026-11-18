@@ -81,3 +81,4 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261117004000_hub_operations.sql` | hub_operations (function fingerprints match the repo) |
 | `20261117010000_workforce_attendance.sql` | 20261117222925 workforce_attendance_a + 20261117223049 workforce_attendance_b1 + 20261117231526 workforce_attendance_b2 (one file, applied in three parts through the MCP client; all 45 `wf_*` function bodies checked equal to the tested file by hash) |
 | `20261117004500_advanced_permissions.sql` | advanced_permissions |
+| `20261118200000_workforce_earlier_dates.sql` | 20261118201608 workforce_earlier_dates (one part; all 53 `wf_*` function bodies checked equal to the tested file by hash after applying) |
