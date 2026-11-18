@@ -16,7 +16,6 @@ const ADMIN: Array<[bn: string, en: string, rows: Row[]]> = [
     ['/app/roles', 'shield', 'রোল ও অনুমতি', 'Roles & permissions', ['system.role.view']],
     ['/app/role-dashboards', 'chart', 'রোল অনুযায়ী ড্যাশবোর্ড', 'Dashboard by role', ['system.role.edit']],
     ['/app/branding', 'form', 'নাম, লোগো ও রঙ', 'Name, logo & colour', ['system.settings.configure']],
-    ['/app/nodi', 'gear', 'নদী AI (API ও সীমা)', 'Nodi AI (API & limits)', ['nodi.settings.configure']],
   ]],
   ['প্রতিষ্ঠান', 'Organisation', [
     ['/app/org', 'org', 'এরিয়া, হাব ও পদ', 'Areas, hubs & posts', ['org.zone.view', 'org.hub.view', 'org.department.view']],

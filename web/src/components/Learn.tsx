@@ -1,18 +1,17 @@
-// হিসাব শেখা — one lesson on screen (six parts + practice + ask the AI), the instruction button every accounts
-// section carries, the official-rules box, and the "নদী AI হিসাব শিক্ষক" chat.
-import { useEffect, useRef, useState } from 'react'
+// হিসাব শেখা — one lesson on screen (six parts + practice), the instruction button every accounts
+// section carries, and the official-rules box.
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { LESSONS, OFFICIAL_NOTE, allLessonsText, lessonOf, lessonText, type Lesson, type ModuleKey } from '../lib/accountsGuide'
+import { LESSONS, OFFICIAL_NOTE, lessonOf, type Lesson, type ModuleKey } from '../lib/accountsGuide'
 import { da } from '../lib/dailyAccounts'
-import { nodi, type ChatMsg } from '../lib/nodi'
 import { ErrorNote, Modal, useLoad } from '../pages/accounts/ui'
 import { Icon } from './Icon'
 import { PracticeBox } from './Practice'
 
-type Part = 'how' | 'steps' | 'sample' | 'docs' | 'mistakes' | 'practice' | 'ask'
+type Part = 'how' | 'steps' | 'sample' | 'docs' | 'mistakes' | 'practice'
 const PARTS: Array<[Part, string]> = [['how', 'কীভাবে কাজ করবেন?'], ['steps', 'ধাপে ধাপে নির্দেশনা'], ['sample', 'নমুনা হিসাব'],
-  ['docs', 'প্রয়োজনীয় কাগজপত্র'], ['mistakes', 'সাধারণ ভুল'], ['practice', 'অনুশীলন'], ['ask', 'AI-কে প্রশ্ন করুন']]
+  ['docs', 'প্রয়োজনীয় কাগজপত্র'], ['mistakes', 'সাধারণ ভুল'], ['practice', 'অনুশীলন']]
 
 /** Head office's official SteadFast rule for this module (and the general one), kept apart from the internal guide. */
 export function OfficialBox({ module }: { module: string }) {
@@ -33,7 +32,7 @@ export function OfficialBox({ module }: { module: string }) {
     <div className="lr-src"><Icon name="shield" size={16} /><b>SteadFast অফিশিয়াল (হেড অফিস)</b>
       {canWrite && edit === null && <button type="button" className="link small" onClick={() => setEdit(all[module] ?? '')}>{text ? 'বদলান' : 'লিখে দিন'}</button>}</div>
     {edit !== null ? <>
-      <textarea rows={5} value={edit} onChange={e => setEdit(e.target.value)} placeholder="SteadFast-এর অফিশিয়াল নিয়ম যেভাবে আছে হুবহু লিখুন — নদী AI এটাকেই অফিশিয়াল ধরবে।" />
+      <textarea rows={5} value={edit} onChange={e => setEdit(e.target.value)} placeholder="SteadFast-এর অফিশিয়াল নিয়ম যেভাবে আছে হুবহু লিখুন — এটাকেই অফিশিয়াল ধরা হবে।" />
       <ErrorNote error={err} />
       <div className="row"><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : 'সংরক্ষণ'}</button><button type="button" className="secondary" onClick={() => setEdit(null)}>বাতিল</button></div>
     </> : text ? <p className="lr-pre">{text}</p>
@@ -41,7 +40,7 @@ export function OfficialBox({ module }: { module: string }) {
   </div>
 }
 
-/** One lesson: the six parts, practice and the AI teacher. */
+/** One lesson: the six parts and practice. */
 export function LessonView({ lesson, start }: { lesson: Lesson; start?: Part }) {
   const parts = PARTS.filter(([p]) => p !== 'practice' || lesson.practice)
   const [part, setPart] = useState<Part>(start ?? 'how')
@@ -49,7 +48,7 @@ export function LessonView({ lesson, start }: { lesson: Lesson; start?: Part }) 
   return <div className="lr-lesson" data-lesson={lesson.key}>
     <p className="lr-what">{lesson.what}{lesson.where && <> · <Link to={lesson.where.to}>{lesson.where.label} →</Link></>}</p>
     <OfficialBox module={lesson.key} />
-    <div className="lr-src internal"><Icon name="book" size={16} /><b>নদী AI-র অভ্যন্তরীণ নির্দেশনা</b><span className="muted small">— এই সিস্টেম কীভাবে কাজ করে</span></div>
+    <div className="lr-src internal"><Icon name="book" size={16} /><b>সিস্টেমের অভ্যন্তরীণ নির্দেশনা</b><span className="muted small">— এই সিস্টেম কীভাবে কাজ করে</span></div>
     <nav className="lr-parts" aria-label="শেখার অংশ">{parts.map(([p, l]) =>
       <button key={p} type="button" className={part === p ? 'on' : ''} aria-pressed={part === p} onClick={() => setPart(p)}>{l}</button>)}</nav>
 
@@ -70,42 +69,6 @@ export function LessonView({ lesson, start }: { lesson: Lesson; start?: Part }) 
     {part === 'mistakes' && <div className="lr-body"><div className="lr-mist">{lesson.mistakes.map(([m, f]) =>
       <div key={m}><p className="bad"><Icon name="x" size={15} />{m}</p><p className="good"><Icon name="check" size={15} />{f}</p></div>)}</div></div>}
     {part === 'practice' && lesson.practice && <div className="lr-body"><PracticeBox kind={lesson.practice} /></div>}
-    {part === 'ask' && <div className="lr-body"><Teacher lesson={lesson} /></div>}
-  </div>
-}
-
-/** নদী AI হিসাব শিক্ষক — answers from the official rules and this guide only. */
-export function Teacher({ lesson }: { lesson: Lesson | null }) {
-  const [msgs, setMsgs] = useState<ChatMsg[]>([])
-  const [q, setQ] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
-  const end = useRef<HTMLDivElement>(null)
-  useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }) }, [msgs, busy])
-  async function ask(text: string) {
-    const t = text.trim(); if (!t || busy) return
-    const next = [...msgs, { role: 'user' as const, content: t }]
-    setMsgs(next); setQ(''); setBusy(true); setErr(null)
-    try {
-      const r = await nodi.teach(next, lesson?.key ?? 'general', lesson?.title ?? 'সাধারণ প্রশ্ন', lesson ? lessonText(lesson) : allLessonsText())
-      setMsgs([...next, { role: 'assistant', content: r.text || 'উত্তর পাওয়া যায়নি।' }])
-    } catch (e) { setErr(e instanceof Error ? e.message : String(e)); setMsgs(msgs) ; setQ(t) } finally { setBusy(false) }
-  }
-  return <div className="lr-teacher">
-    <div className="lr-t-head"><span className="lr-t-av"><Icon name="book" size={18} /></span><div><b>নদী AI হিসাব শিক্ষক</b>
-      <small>বাংলায় প্রশ্ন করুন। উত্তর আসে শুধু হেড অফিসের অফিশিয়াল নিয়ম আর এই সিস্টেমের নির্দেশনা থেকে — না জানলে বলে দেবে, বানাবে না।</small></div></div>
-    <div className="lr-t-msgs" aria-live="polite">
-      {!msgs.length && <div className="lr-t-sugg">{(lesson?.ask ?? ['দৈনিক হিসাব কোন ক্রমে করব?', 'বিল না থাকলে খরচ কীভাবে লিখব?', 'ব্যাংক স্লিপ NOT MATCH হলে কী করব?']).map(s =>
-        <button key={s} type="button" className="secondary sm" onClick={() => void ask(s)}>{s}</button>)}</div>}
-      {msgs.map((m, i) => <div key={i} className={`lr-t-msg ${m.role}`}>{m.content}</div>)}
-      {busy && <div className="lr-t-msg assistant muted">লিখছে…</div>}
-      <div ref={end} />
-    </div>
-    {err && <p className="da-error">{err}</p>}
-    <form className="lr-t-ask" onSubmit={e => { e.preventDefault(); void ask(q) }}>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder={lesson ? `${lesson.title} নিয়ে প্রশ্ন লিখুন…` : 'হিসাব নিয়ে প্রশ্ন লিখুন…'} aria-label="প্রশ্ন" />
-      <button type="submit" disabled={busy || !q.trim()}><Icon name="play" size={16} />পাঠান</button>
-    </form>
   </div>
 }
 

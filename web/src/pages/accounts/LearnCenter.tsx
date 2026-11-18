@@ -1,18 +1,18 @@
-// বাংলা শেখার কেন্দ্র — every accounts lesson in one place, with practice and the AI teacher.
+// বাংলা শেখার কেন্দ্র — every accounts lesson in one place, with practice.
 import { Link, useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { LessonView, OfficialBox, Teacher } from '../../components/Learn'
+import { LessonView, OfficialBox } from '../../components/Learn'
 import { LESSONS, OFFICIAL_NOTE, lessonOf } from '../../lib/accountsGuide'
 import { AccountsShell } from './ui'
 
 export function LearnCenter() {
   const [sp, setSp] = useSearchParams()
   const lesson = lessonOf(sp.get('m'))
-  const part = sp.get('p') === 'practice' ? 'practice' : sp.get('p') === 'ask' ? 'ask' : undefined
+  const part = sp.get('p') === 'practice' ? 'practice' : undefined
   const open = (k: string | null, p?: string) => { const n = new URLSearchParams(); if (k) n.set('m', k); if (p) n.set('p', p); setSp(n); window.scrollTo({ top: 0 }) }
 
-  return <AccountsShell title={lesson ? lesson.title : part === 'practice' ? 'অনুশীলন (নমুনা হিসাব)' : part === 'ask' ? 'নদী AI হিসাব শিক্ষক' : 'হিসাব শেখার কেন্দ্র'}
-    subtitle={lesson ? 'বাংলা নির্দেশনা · নমুনা · অনুশীলন · AI শিক্ষক' : 'SteadFast হাবের হিসাব — ধাপে ধাপে বাংলায় শিখুন'}
+  return <AccountsShell title={lesson ? lesson.title : part === 'practice' ? 'অনুশীলন (নমুনা হিসাব)' : 'হিসাব শেখার কেন্দ্র'}
+    subtitle={lesson ? 'বাংলা নির্দেশনা · নমুনা · অনুশীলন' : 'SteadFast হাবের হিসাব — ধাপে ধাপে বাংলায় শিখুন'}
     actions={<Link className="btn-ghost" to="/app/accounts/center">হিসাব কেন্দ্র →</Link>}>
     <div className="lr">
       {lesson ? <>
@@ -25,9 +25,6 @@ export function LearnCenter() {
         <p className="notice lr-note">অনুশীলন মোড — নমুনা তথ্য দিয়ে শিখুন, আসল হিসাবে কিছু সেভ হয় না। একটা বিষয় বাছুন।</p>
         <div className="lr-grid">{LESSONS.filter(l => l.practice).map(l => <button key={l.key} type="button" className="lr-card" data-module={l.key} onClick={() => open(l.key, 'practice')}>
           <span className="lr-ic"><Icon name={l.icon} size={22} /></span><span className="tx"><b>{l.title}</b><span>{l.what}</span></span><span className="lr-tag">অনুশীলন</span></button>)}</div>
-      </> : part === 'ask' ? <>
-        <p className="notice lr-note">{OFFICIAL_NOTE}</p>
-        <section className="panel"><Teacher lesson={null} /></section>
       </> : <>
         <p className="notice lr-note">{OFFICIAL_NOTE}</p>
         <section className="panel"><OfficialBox module="general" /></section>
@@ -37,8 +34,6 @@ export function LearnCenter() {
           <span className="tx"><small>{(i + 1).toLocaleString('bn-BD')}</small><b>{l.title}</b><span>{l.what}</span></span>
           {l.practice && <span className="lr-tag">অনুশীলন আছে</span>}
         </button>)}</div>
-        <h2 className="sd-h">AI-কে প্রশ্ন করুন</h2>
-        <section className="panel"><Teacher lesson={null} /></section>
       </>}
     </div>
   </AccountsShell>

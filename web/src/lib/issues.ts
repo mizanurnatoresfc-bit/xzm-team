@@ -33,7 +33,7 @@ export const KIND_BN: Record<IssueKind, string> = { parcel: 'পার্সে�
 export const PRIORITY_BN: Record<Priority, string> = { low: 'কম', normal: 'সাধারণ', high: 'জরুরি', urgent: 'অতি জরুরি' }
 export const EMOJIS = ['👍', '❤️', '😮', '😢', '✅', '🙏']
 export const ACTION_BN: Record<string, string> = {
-  created: 'ইস্যু তৈরি', assigned: 'কাজ দেওয়া', assigned_by_nodi: 'নদী AI কাজ দিল', started: 'কাজ শুরু', solved: 'সমাধান জানানো',
+  created: 'ইস্যু তৈরি', assigned: 'কাজ দেওয়া', assigned_by_nodi: 'সিস্টেম কাজ দিল', started: 'কাজ শুরু', solved: 'সমাধান জানানো',
   approved: 'অনুমোদন', reopened: 'আবার করতে বলা', cancelled: 'বাতিল',
 }
 

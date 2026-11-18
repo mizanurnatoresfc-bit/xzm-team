@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { hrReq } from '../lib/hrreq'
-import { NodiGaps } from '../components/NodiGaps'
+import { AttendanceGaps } from '../components/AttendanceGaps'
 import { Link } from 'react-router-dom'
 import { panelLevel } from '../lib/menu'
 import { useAuth } from '../auth/AuthProvider'
@@ -77,7 +77,7 @@ export function Dashboard() {
     {grants.length === 0 && <p className="notice">{L('আপনার অ্যাকাউন্টে এখনো কোনো রোল দেওয়া হয়নি। সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।', 'No role has been given to your account yet. Contact your system administrator.')}</p>}
     {home.error ? <p className="da-error">{dashboardFriendly(home.error)}</p> : null}
     {panelLevel(can) === 2 && <FirstSteps photo={photo} />}
-    <NodiGaps />
+    <AttendanceGaps />
     {home.loading && !d ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : null}
 
     <div className="greet">

@@ -1,4 +1,4 @@
-// হিসাব কেন্দ্র — the manager's accounts dashboard inside Nodi: one day across the hubs a person may see.
+// হিসাব কেন্দ্র — the manager's accounts dashboard: one day across the hubs a person may see.
 // Hub manager: their hub, with create actions. Zonal manager: every assigned hub, deposit and voucher status,
 // submission and approval times. Head office: every hub. What each sees is decided by the database (da_center_overview).
 import { useMemo, useState } from 'react'
@@ -60,7 +60,7 @@ export function AccountsCenter() {
     ['log', 'হিসাবের ইতিহাস', 'কে কখন কী বদলালেন', 'b', () => go('history')],
   ]
 
-  return <AccountsShell title="হিসাব কেন্দ্র" subtitle="নদী AI · SteadFast হাবের হিসাব — দৈনিক রিপোর্ট থেকে ব্যাংকে জমা পর্যন্ত"
+  return <AccountsShell title="হিসাব কেন্দ্র" subtitle="SteadFast হাবের হিসাব — দৈনিক রিপোর্ট থেকে ব্যাংকে জমা পর্যন্ত"
     actions={<Link className="btn-ghost" to="/app/accounts/learn"><Icon name="book" size={16} />বাংলা শেখার কেন্দ্র</Link>}>
     {node}
     <div className="ac">

@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AppShell } from '../components/AppShell'
 import { Icon } from '../components/Icon'
-import { NodiAvatar } from '../components/NodiAvatar'
 import { GROUPS, GUIDES, askGuides, type Guide, type GuideGroup } from '../lib/guides'
 
 const KEY = 'xzm_training_done'
 const readDone = (): string[] => { try { const v = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] } }
 
-/** Training Centre: a short lesson for every job in the system, only the ones this person's role can do, with Nodi to ask. */
+/** Training Centre: a short lesson for every job in the system, only the ones this person's role can do, with a search box. */
 export function Training() {
   const { can } = useAuth()
   const mine = useMemo(() => GUIDES.filter(g => !g.perms || g.perms.some(p => can(p))), [can])
@@ -36,8 +35,8 @@ export function Training() {
 
   return <AppShell title="ট্রেনিং সেন্টার" subtitle="প্রতিটা কাজ ধাপে ধাপে। আপনার রোলে যে কাজগুলো আছে শুধু সেগুলোই এখানে দেখাচ্ছে।">
     <section className="panel tr-ask">
-      <div className="tr-ask-head"><NodiAvatar size={44} /><div><b>নদীকে জিজ্ঞেস করুন</b><div className="muted small">কী করতে চান লিখুন — নদী ঠিক পাঠটা বের করে দেবে</div></div></div>
-      <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="যেমন: ছুটির আবেদন কীভাবে দেব? / পাসওয়ার্ড ভুলে গেছি" aria-label="নদীকে জিজ্ঞেস করুন" />
+      <div className="tr-ask-head"><div><b>পাঠ খুঁজুন</b><div className="muted small">কী করতে চান লিখুন — ঠিক পাঠটা বের করে দেওয়া হবে</div></div></div>
+      <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="যেমন: ছুটির আবেদন কীভাবে দেব? / পাসওয়ার্ড ভুলে গেছি" aria-label="পাঠ খুঁজুন" />
       {q.trim().length >= 2 && (answers.length ? <div className="tr-answers" role="status">{answers.map(g => <button key={g.id} type="button" className="tr-answer" onClick={() => { setGroup(''); setOpen(g.id); setQ(''); window.setTimeout(() => document.getElementById(`g-${g.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }}>
           <b>{g.title}</b><span>{g.steps[0]}</span></button>)}</div>
         : <p className="muted small" role="status">এই নিয়ে কোনো পাঠ পাইনি। অন্য শব্দে লিখে দেখুন, অথবা আপনার ম্যানেজারকে জিজ্ঞেস করুন।</p>)}

@@ -1,4 +1,4 @@
-// নদী: days without attendance — a person's own gaps and answers, and the Zonal Assistant's report.
+// Days without attendance — a person's own gaps and answers, and the Zonal Assistant's report.
 import { supabase } from './supabase'
 import { HrError } from './hr'
 

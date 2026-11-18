@@ -42,7 +42,6 @@ export const MODULE_LABEL: Record<string, [string, string]> = {
   office: ['অফিস ম্যানেজমেন্ট', 'Office management'],
   vehicle: ['গাড়ি', 'Vehicles'],
   issue: ['ইস্যু ও হাব গ্রুপ', 'Issues & hub group'],
-  nodi: ['নদী AI', 'Nodi AI'],
 }
 export const ACTION_LABEL: Record<string, [string, string]> = {
   view: ['দেখা', 'View'], create: ['তৈরি / জমা', 'Create'], edit: ['সম্পাদনা', 'Edit'], archive: ['আর্কাইভ', 'Archive'],
@@ -73,7 +72,7 @@ export const RESOURCE_LABEL: Record<string, string> = {
   'zonal.report': 'জোনাল রিপোর্ট', 'zonal.task': 'কাজ (টাস্ক)', 'zonal.visit': 'হাব ভিজিট',
   'da.import': 'আপডেট রিপোর্ট আপলোড', 'hr.attendance_gap': 'হাজিরার ফাঁকা দিন', 'hr.employee_profile': 'কর্মীর প্রোফাইল পূরণ',
   'hr.reference': 'রেফারেন্স তালিকার অনুমোদন', 'hr.request': 'এইচআর রিকুয়েস্ট', 'hr.transfer': 'হাব বদলি',
-  'issue.group': 'হাব গ্রুপ', 'issue.issue': 'ইস্যু', 'nodi.assistant': 'নদী AI-র সাথে কথা', 'nodi.settings': 'নদী AI সেটিংস',
+  'issue.group': 'হাব গ্রুপ', 'issue.issue': 'ইস্যু',
   'office.bill': 'ভাড়া, বিদ্যুৎ ও ওয়াইফাই বিল', 'office.notice': 'নষ্ট / লাগবে রিপোর্ট', 'office.secret': 'সিসি / রাউটার পাসওয়ার্ড',
   'org.region': 'রিজিওন', 'system.user_hub': 'নিজের হাবের লগইন', 'zonal.pulse': 'পপআপ প্রশ্ন',
   'vehicle.vehicle': 'গাড়ি', 'vehicle.holder': 'গাড়ি কার দায়িত্বে', 'vehicle.log': 'তেল ও গাড়ির খরচ', 'vehicle.khoraki': 'খোরাকি',

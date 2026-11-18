@@ -1041,27 +1041,6 @@ button.sm{min-height:32px;border-radius:8px}
   .is-composer{margin-inline:-4px}
 }
 
-/* ---------- নদী AI ---------- */
-.nodi-av{display:inline-grid;place-items:center;border-radius:50%;flex:none;position:relative}
-.nodi-av.listen::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:3px solid var(--primary);animation:nodi-pulse 1.1s ease-out infinite}
-.nodi-av.talk .mouth{animation:nodi-mouth .28s ease-in-out infinite alternate;transform-origin:32px 40px}
-@keyframes nodi-pulse{from{transform:scale(.9);opacity:1}to{transform:scale(1.25);opacity:0}}
-@keyframes nodi-mouth{from{transform:scaleY(.4)}to{transform:scaleY(1.2)}}
-.nodi-fab{position:fixed;right:14px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:30;border-radius:50%;box-shadow:0 6px 20px rgba(0,0,0,.28);background:var(--surface);display:grid;place-items:center}
-@media (min-width:900px){.nodi-fab{bottom:22px}}
-.nodi-chat{display:flex;flex-direction:column;gap:10px;max-width:760px;margin:0 auto}
-.nodi-top{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:10px 12px}
-.nodi-log{display:flex;flex-direction:column;gap:10px;min-height:42vh}
-.nodi-msg{display:flex;gap:8px;align-items:flex-end}.nodi-msg.user{justify-content:flex-end}
-.nodi-msg .bub{max-width:84%;white-space:pre-wrap;line-height:1.5;padding:10px 12px;border-radius:16px;background:var(--surface);border:1px solid var(--border)}
-.nodi-msg.user .bub{background:var(--primary);color:#fff;border-color:var(--primary);border-bottom-right-radius:4px}
-.nodi-msg.assistant .bub{border-bottom-left-radius:4px}.nodi-msg.err .bub{background:var(--bad-bg);color:var(--bad-fg)}
-.nodi-msg .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.nodi-msg .chip{font-size:13.5px;padding:3px 9px;border-radius:999px;background:var(--ok-bg);color:var(--ok-fg);text-decoration:none}.nodi-msg .chip.bad{background:var(--bad-bg);color:var(--bad-fg)}
-.nodi-hints{display:grid;gap:6px}.nodi-hints button{text-align:left;justify-content:flex-start;min-height:44px}
-.nodi-in{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:8px;box-shadow:0 6px 24px rgba(0,0,0,.15)}
-.nodi-in textarea{width:100%;border:0;outline:0;resize:none;background:transparent;color:var(--text);font:inherit;font-size:16px}
-.nodi-in .row{display:flex;gap:8px;align-items:center}.nodi-in .row button{min-height:44px}
 
 /* ------------------------------------------------------------------
    Clean form style (labels above, white boxed inputs, thin border,
@@ -1226,13 +1205,13 @@ button.chip-toggle:hover:not(:disabled){background:var(--primary-50);border-colo
 .dv-bulk strong{margin-right:4px}
 @media (max-width:700px){.emp-board .emp-search{flex-basis:100%}.emp-board .eb-filters .da-field{flex:1 1 100%}}
 
-/* ---- নদী: attendance gaps ---- */
-.nodi-gaps .ng-head,.za-intro{display:flex;align-items:center;gap:12px}
-.nodi-gaps .ng-head{margin-bottom:10px}
+/* ---- attendance gaps ---- */
+.att-gaps .ng-head,.za-intro{display:flex;align-items:center;gap:12px}
+.att-gaps .ng-head{margin-bottom:10px}
 .za-intro p{margin:0;color:var(--muted);font-size:14px}
-.nodi-gaps .ng-days{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.nodi-gaps .ng-past{margin-top:10px;font-size:13.5px}
-.nodi-gaps .ng-past ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
+.att-gaps .ng-days{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.att-gaps .ng-past{margin-top:10px;font-size:13.5px}
+.att-gaps .ng-past ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
 .za-hubs{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
 .za-hub{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);min-height:0;box-shadow:none;font-weight:500}
 .za-hub:hover:not(:disabled),.za-hub.on{background:var(--primary-50);border-color:var(--primary);color:var(--text)}
@@ -1553,7 +1532,7 @@ button.nv-row:disabled{opacity:1}
 .fl-people .nv-row.viewing{background:var(--primary-50)}
 .fl .da-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .kh .da-tabs button{flex:1 1 0}
-/* the fixed Submit bar keeps clear of the floating Nodi button at the bottom right */
+/* the fixed Submit bar keeps clear of the floating buttons at the bottom right */
 @media (min-width:900px){.da-actionbar{padding-right:96px!important}}
 
 /* ---- attendance days to compare; role pages picker; small helpers ---- */
@@ -1659,7 +1638,7 @@ button.nv-row:disabled{opacity:1}
 .sp-box h3{display:flex;align-items:center;gap:6px;font-size:14px;margin:0 0 8px}.sp-box h3 .cnt{margin-left:auto;font-size:13.5px;color:var(--muted)}
 .sp-box ul{margin:0;padding-left:18px;font-size:13.5px;display:flex;flex-direction:column;gap:4px}
 .sp-box .myday-chips span{background:var(--canvas)}
-.sp .nodi-gaps{margin:0}
+.sp .att-gaps{margin:0}
 @media (max-width:700px){.sp-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.sp-two{grid-template-columns:1fr}}
 @media (max-width:380px){.sp-att{display:none}}
 @media (prefers-reduced-motion:reduce){.sp-hero,.sp-tile,.sp-cta,.sp .nv-row{transition:none;transform:none!important}}
@@ -1763,8 +1742,6 @@ button.nv-row:disabled{opacity:1}
 .oo-uprow{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:12px}
 .oo-check{display:inline-flex;align-items:center;gap:6px;margin:0;font-weight:600}
 .oo-check input{width:auto;margin:0}
-.oo-ai{margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
-.oo-ai-out{margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--primary-50);border:1px solid var(--border);font-size:14px;line-height:1.7}
 .oo-contract{width:100%;margin-top:10px;font:inherit;font-size:13px;line-height:1.6;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface);color:var(--text)}
 .oo-save{color:var(--ok-fg,#15803d);font-weight:700}
 .oo-bars{display:flex;flex-direction:column;gap:8px}
@@ -1903,12 +1880,6 @@ button.link-btn{background:none!important;border:0!important;padding:0!important
 .chip-toggle .ic{margin-right:-2px}
 
 /* ---- phone polish (17 Nov): nothing covers a button, every tap target is a thumb's size, no text under 12px ---- */
-@media (max-width:899px){
-  /* নদী AI moves to the left and gets smaller, so it never sits on a page's own "+ new" button on the right */
-  .nodi-fab{right:auto;left:12px;transform:scale(.82);transform-origin:bottom left;opacity:.96}
-  /* lift it when a page has its own floating button too */
-  body:has(.nv-fab) .nodi-fab{bottom:calc(150px + env(safe-area-inset-bottom))}
-}
 @media (max-width:700px){
   /* attendance: all six choices visible as a 3 × 2 grid, no hidden sideways scroll */
   .att-table .att-btns,.att-btns{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible!important;gap:6px}
@@ -2402,7 +2373,6 @@ input:not([type=checkbox]):not([type=radio]),select,textarea{border:1px solid va
 /* the phone's floating bottom menu shows up to 960px: the save bar floats just above it */
 @media (max-width:960px){
   .hop-bar{bottom:calc(80px + env(safe-area-inset-bottom));padding:10px 12px;margin:12px 0 0;border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 22px rgba(0,0,0,.14)}
-  body:has(.hop-bar) .nodi-fab{bottom:calc(158px + env(safe-area-inset-bottom))}
 }
 @media (max-width:560px){
   .hop-nums input{font-size:22px!important;min-height:52px}
@@ -2661,6 +2631,3 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
   .ax-notes li{flex-wrap:wrap}
 }
 @media print{.ax-savebar,.ax-quick,.ax-pagemode{display:none!important}}
-/* the নদী AI bubble steps aside while the "not saved" bar is on screen */
-body:has(.ax-savebar:not(.inline)) .nodi-fab{bottom:calc(150px + env(safe-area-inset-bottom))}
-@media (min-width:900px){body:has(.ax-savebar:not(.inline)) .nodi-fab{bottom:86px}}

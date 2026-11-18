@@ -52,17 +52,6 @@ function Upload({ property, value, onChange, label, onFile }: { property: string
     {err && <p className="da-error">{err}</p>}
   </div>
 }
-/** The AI's answer under a button; when the AI is not set up the page's own answer stays. */
-function AiBox({ label, run, hint }: { label: string; run: () => Promise<string>; hint?: string }) {
-  const [busy, setBusy] = useState(false); const [text, setText] = useState(''); const [err, setErr] = useState('')
-  return <div className="oo-ai">
-    <div className="row-acts"><button type="button" disabled={busy} onClick={() => { setBusy(true); setErr(''); void run().then(setText).catch(e => setErr(opsFriendly(e))).finally(() => setBusy(false)) }}>
-      <Icon name="play" size={14} />{busy ? 'নদী AI ভাবছে…' : label}</button>{hint && <span className="muted small">{hint}</span>}</div>
-    {err && <p className="notice small">{err} — উপরের হিসাবটা AI ছাড়াই ডাটা থেকে বের করা, সেটা ব্যবহার করুন।</p>}
-    {text && <div className="oo-ai-out pre-wrap">{text}</div>}
-  </div>
-}
-
 // ================================================================ bills (rent / electricity / wifi)
 type BF = { id?: string; kind: BillKind; month: string; amount: string; paid_on: string; method: string; txn: string; payee: string; phone: string; units: string
   has_memo: boolean; memo_file: string | null; proof: string | null; exp: string; note: string }
@@ -274,10 +263,6 @@ export function Rent({ ctx }: { ctx: Ctx }) {
         <Field label={L('এডভান্স (৳)', 'Advance (৳)')}><input inputMode="decimal" value={c.advance} onChange={e => { const x = { ...c, advance: e.target.value }; setC({ ...x, text: redraft(x) }) }} /></Field>
       </div>
       <textarea className="oo-contract" rows={16} value={c.text} onChange={e => setC({ ...c, text: e.target.value })} />
-      <AiBox label={L('নদী AI দিয়ে পুরো চুক্তি লিখুন', 'Write the full contract with Nodi AI')} hint={L('উপরের খসড়াটা অফিসের তথ্য থেকে তৈরি; AI আরও বিস্তারিত লিখে দেয়।', 'The draft above is built from the office data; the AI writes a fuller one.')}
-        run={async () => { const t = await ops.ai('contract', { landlord: p.owner_name, landlord_phone: p.owner_phone, tenant: `XZM-TEAM${p.hub_id ? ' — ' + ctx.hubName(p.hub_id) : ''}`,
-          place: p.name, kind: PLACE_KIND[p.kind][0], address: p.address, floor: p.floor_note, rooms_office: split.office, rooms_residential: split.living, rooms_other: split.other,
-          from: c.from, to: c.to, monthly_rent: c.rent || null, advance: c.advance || null, rent_day: p.rent_due_day, meter_no: p.meter_no }); if (t) setC(x => x ? { ...x, text: t } : x); return '' }} />
       <p className="muted small">{L('এটা খসড়া — সই করার আগে দুই পক্ষ পড়ে মিলিয়ে নিন। সই হলে ছবি তুলে "তথ্য বদলান" থেকে চুক্তির ছবি ও নতুন মেয়াদ বসান।', 'This is a draft — both sides must read it before signing. Once signed, add its photo and the new dates under "Edit".')}</p>
     </Modal>}
   </>
@@ -361,9 +346,6 @@ export function Power({ ctx }: { ctx: Ctx }) {
         : <ul className="duty-list">{tips.map((t, i) => <li key={i} className="duty"><Badge tone={t.tone}>{t.tone === 'bad' ? '!' : t.tone === 'warn' ? '•' : 'i'}</Badge>
           <span>{t.text}{t.save ? <b className="oo-save"> {L(`— মাসে প্রায় ${tk(t.save * rate)} কম`, `— about ${tk(t.save * rate)} less a month`)}</b> : null}</span></li>)}
           {!tips.length && <li className="muted">{L('চোখে পড়ার মতো কিছু নেই — ব্যবহার ঠিক আছে।', 'Nothing stands out.')}</li>}</ul>}
-      {rows.length > 0 && <AiBox label={L('নদী AI-র পরামর্শ নিন', 'Ask Nodi AI')} run={() => ops.ai('power', { office: p.name, kind: p.kind, unit_rate: rate, estimated_units: Math.round(units), estimated_bill: Math.round(est),
-        last_bill: last ? { month: last.bill_month, amount: last.amount, units: last.units } : null,
-        devices: rows.map(r => ({ name: r.asset.name, kind: r.asset.kind, room: r.asset.room_id ? roomName[r.asset.room_id] : null, qty: r.asset.quantity, watt: r.watt, hours_per_day: r.hours, units_month: Math.round(r.units), assumed: r.guessed })) })} />}
     </section>
     {rows.length > 0 && <section className="panel">
       <div className="da-bar"><h2>{L('কোন রুমে কত', 'By room')}</h2></div>
@@ -719,12 +701,6 @@ export function Zone({ ctx }: { ctx: Ctx }) {
       <h2>{L('আগে যা করা দরকার', 'What to do first')} <span className="count-pill">{n(todo.length)}</span></h2>
       <p className="muted small">{L('অপারেশনের ডাটা দেখে নিজে থেকে বের করা — চুক্তি, বিল, নষ্ট জিনিস, অপেক্ষায় থাকা রিপোর্ট।', 'Worked out from the operational data: contracts, broken items, waiting reports.')}</p>
       {todo.length ? <ul className="duty-list">{todo.slice(0, 30).map(([t, tone], i) => <li key={i} className="duty"><Badge tone={tone}>{tone === 'bad' ? '!' : tone === 'warn' ? '•' : 'i'}</Badge> <span>{t}</span></li>)}</ul> : <p className="muted">{L('সব ঠিক আছে।', 'All good.')}</p>}
-      {can('nodi.assistant.view') && <AiBox label={L('নদী AI-র অপারেশন পরামর্শ', 'Nodi AI operations advice')} run={() => ops.ai('insight', {
-        offices: all.map(x => ({ name: x.name, kind: x.kind, hub: x.hub_id ? ctx.hubName(x.hub_id) : null, rent: x.rent, advance: x.advance, contract_to: x.contract_to, contract_days_left: daysLeft(x.contract_to), has_contract_photo: !!x.contract_file,
-          items: Object.fromEntries(ZONE_KINDS.map(k => [k, A.filter(a => a.property_id === x.id && a.kind === k).reduce((s, a) => s + a.quantity, 0)]).filter(([, v]) => v)),
-          broken: A.filter(a => a.property_id === x.id && a.condition !== 'good').map(a => `${a.name} (${a.condition})`) })),
-        loans: LN.map(l => ({ item: l.asset_name, qty: l.quantity, owner: l.from_name, used_by: l.to_name, since: l.since })),
-        open_reports: open.map(x => ({ no: x.notice_no, office: all.find(q => q.id === x.property_id)?.name, kind: x.kind, title: x.title, qty: x.quantity, urgent: x.priority === 'urgent', since: x.created_at.slice(0, 10) })) })} />}
     </section>
     <section className="panel">
       <div className="da-bar"><h2>{L('হাব অনুযায়ী জিনিসপত্র', 'Items by hub')}</h2></div>

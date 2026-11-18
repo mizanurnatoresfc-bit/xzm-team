@@ -183,7 +183,6 @@ export const opsFriendly = (e: unknown) => {
   return BN.find(([re]) => re.test(m))?.[1] ?? m
 }
 
-export type AiTask = 'contract' | 'power' | 'insight'
 
 export const ops = {
   // every place the person may see, with all its items — for the zone picture
@@ -237,16 +236,5 @@ export const ops = {
   },
   fileUrl: async (path: string) => {
     const { data, error } = await supabase.storage.from('office-docs').createSignedUrl(path, 300); fail(error as { message: string } | null); return data!.signedUrl
-  },
-  /** Ask নদী AI (the key lives only in the Edge Function). Throws when the AI is not set up — the page then keeps its own worked-out answer. */
-  ai: async (task: AiTask, data: unknown): Promise<string> => {
-    const { data: out, error } = await supabase.functions.invoke('nodi-ai', { body: { action: 'office', task, data } })
-    if (error) {
-      let b: { message?: string; error?: string } = {}
-      const ctx = (error as { context?: Response }).context
-      try { if (ctx && typeof ctx.json === 'function') b = await ctx.json() } catch { /* not JSON */ }
-      throw new Error(b.error === 'bad_request' ? 'AI-র অফিস অংশ এখনো সার্ভারে বসানো হয়নি' : b.message || b.error || error.message)
-    }
-    return String((out as { text?: string })?.text ?? '').trim()
   },
 }

@@ -102,10 +102,6 @@ export const MODULES: ModuleDef[] = [
   { key: 'issues', icon: 'tasks', bn: 'ইস্যু ও হাব গ্রুপ', en: 'Issues & hub group', db: ['issue'], subs: [
     { to: '/app/issues', res: ['issue.issue', 'issue.group'] },
   ] },
-  { key: 'nodi', icon: 'sms', bn: 'নদী AI', en: 'Nodi AI', db: ['nodi'], subs: [
-    { to: '/app/nodi/chat', res: ['nodi.assistant'] },
-    { to: '/app/nodi', res: ['nodi.settings'] },
-  ] },
   { key: 'system', icon: 'shield', bn: 'সিস্টেম, ইউজার ও অনুমতি', en: 'System, users & permissions', db: ['system'], subs: [
     { to: '/app/users', res: ['system.user', 'system.user_role'] },
     { to: '/app/access', res: ['system.role'] },

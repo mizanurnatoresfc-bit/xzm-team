@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Badge, Field, useLoad } from '../pages/accounts/ui'
 import { hr } from '../lib/hr'
 import { GAP_STATUS, KIND_BN, LEAVE_BN, dayBn, gaps, type GapKind } from '../lib/gaps'
-import { NodiAvatar } from './NodiAvatar'
+import { Icon } from './Icon'
 
-/** Home card: Nodi asks a person about their own days without attendance, and takes the answer (leave is filed from here). */
-export function NodiGaps() {
+/** Home card: the system asks a person about their own days without attendance, and takes the answer (leave is filed from here). */
+export function AttendanceGaps() {
   const mine = useLoad(() => gaps.mine().catch(() => []), [])
   const types = useLoad(() => hr.leaveTypes().catch(() => []), [])
   const rows = mine.data ?? []
@@ -34,8 +34,8 @@ export function NodiGaps() {
       setNote(''); setDone(kind === 'leave' ? 'ছুটির আবেদন জমা হয়েছে — ম্যানেজার অনুমোদন দিলে হাজিরায় বসে যাবে' : 'উত্তর জমা হয়েছে'); await mine.reload()
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }
   }
-  return <section className="panel nodi-gaps">
-    <div className="ng-head"><NodiAvatar size={40} /><div><b>নদী জিজ্ঞেস করছে</b>
+  return <section className="panel att-gaps">
+    <div className="ng-head"><Icon name="cal" size={28} /><div><b>হাজিরা নেই — কারণ জানান</b>
       <div className="muted small">{open.length ? `আপনার ${open.length.toLocaleString('bn-BD')} দিনের হাজিরা নেই — কারণ জানান` : 'আপনার সব ফাঁকা দিনের উত্তর দেওয়া আছে'}
         {waitingCheck > 0 && ` · ${waitingCheck.toLocaleString('bn-BD')} দিনের উত্তর যাচাইয়ের অপেক্ষায়`}</div></div></div>
     {open.length > 0 && <>

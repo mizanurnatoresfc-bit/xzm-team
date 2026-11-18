@@ -190,7 +190,7 @@ function Board({ rows, empty, open, onOpen, onChanged }: { rows: IssueRow[]; emp
       <button type="button" className="bd-open" onClick={() => onOpen(r.id)}>
         <span className="t"><i>{KIND_ICON[r.kind]}</i>{r.title}</span>
         <small>{r.issue_no} · {r.hub}{r.parcel_ref ? ` · ${r.parcel_ref}` : ''}</small>
-        <small>কাকে: {r.assignee ? `${r.assignee}${r.assignee_code ? ` (${r.assignee_code})` : ''}` : 'কাউকে দেওয়া হয়নি'}{r.assigned_by_nodi ? ' · নদী AI বেছেছে' : ''} · দিয়েছে: {r.assigned_by_name ?? '—'}</small>
+        <small>কাকে: {r.assignee ? `${r.assignee}${r.assignee_code ? ` (${r.assignee_code})` : ''}` : 'কাউকে দেওয়া হয়নি'}{r.assigned_by_nodi ? ' · সিস্টেম বেছেছে' : ''} · দিয়েছে: {r.assigned_by_name ?? '—'}</small>
         <span className="tags">{r.priority !== 'normal' && <Badge tone={r.priority === 'low' ? 'neutral' : 'bad'}>{PRIORITY_BN[r.priority]}</Badge>}{r.overdue && <Badge tone="bad">সময় পার</Badge>}
           {r.reopen_count > 0 && <Badge tone="warn">ফেরত {r.reopen_count}</Badge>}<time>{short(r.created_at)}</time></span></button>
       {r.is_mine && r.status === 'open' && <button type="button" className="sm" disabled={busy === r.id} onClick={() => void quick(r, 'start')}>{isOrder(r.kind) ? '▶ প্রস্তুত করছি' : '▶ শুরু করলাম'}</button>}
@@ -335,7 +335,7 @@ function GroupChat({ hub, ui, onBack, onOpenIssue, onNew, onSeen }: { hub: Group
       {posts.map(p => <div key={p.id} className={`mg-msg ${p.mine ? 'me' : 'them'}${p.is_nodi ? ' nodi' : ''}`}>
         {!p.mine && <span className="mg-av sm">{p.is_nodi ? '🤖' : (p.author_name || '?').slice(0, 1)}</span>}
         <div className="mg-col">
-          {!p.mine && <small className="by">{p.is_nodi ? 'নদী AI' : p.author_name}</small>}
+          {!p.mine && <small className="by">{p.is_nodi ? 'সিস্টেম' : p.author_name}</small>}
           <div className="mg-b">{p.body && <span className="tx">{p.body}</span>}
             {p.photo_path && <Photo path={p.photo_path} />}
             {p.issue && <button type="button" className="mg-link" onClick={() => onOpenIssue(p.issue!.id)}>

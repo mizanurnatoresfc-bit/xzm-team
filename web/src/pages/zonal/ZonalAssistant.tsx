@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
+import { Icon } from '../../components/Icon'
 import { Combo } from '../../components/inputs'
-import { NodiAvatar } from '../../components/NodiAvatar'
 import { GAP_STATUS, KIND_BN, LEAVE_BN, dayBn, gaps, type GapRow } from '../../lib/gaps'
 import { hrFriendly } from '../../lib/hr'
 import { usePrefs } from '../../lib/prefs'
@@ -12,7 +12,7 @@ import { useOrg } from '../hr/common'
 
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
-/** The Zonal Assistant's panel: Nodi finds the days without attendance and asks; here the answers are checked and people are reminded. */
+/** The Zonal Assistant's panel: the system finds the days without attendance and asks; here the answers are checked and people are reminded. */
 export function ZonalAssistant() {
   const { can } = useAuth()
   const { n } = usePrefs()
@@ -49,14 +49,14 @@ export function ZonalAssistant() {
   }
   async function remind() {
     setBusy(true); setErr('')
-    try { const k = await gaps.remind(from, to, hub || null); toast(k ? `${n(k)} জনকে নদী তাগাদা পাঠিয়েছে` : 'তাগাদা দেওয়ার মতো কেউ নেই (লগইন আছে এমন কারো উত্তর বাকি নেই)') }
+    try { const k = await gaps.remind(from, to, hub || null); toast(k ? `${n(k)} জনকে তাগাদা পাঠানো হয়েছে` : 'তাগাদা দেওয়ার মতো কেউ নেই (লগইন আছে এমন কারো উত্তর বাকি নেই)') }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
 
-  return <AppShell title="জোনাল অ্যাসিস্ট্যান্ট — হাজিরার ফাঁকা দিন" subtitle="নদী প্রতিদিন দেখে কার কোন তারিখের হাজিরা নেই, আর তাঁকে কারণ জিজ্ঞেস করে। এখানে উত্তরগুলো যাচাই করুন, বাকিদের তাগাদা দিন।"
-    actions={mayCheck ? <button disabled={busy} onClick={() => void remind()}>নদীকে দিয়ে তাগাদা পাঠান</button> : null}>
+  return <AppShell title="জোনাল অ্যাসিস্ট্যান্ট — হাজিরার ফাঁকা দিন" subtitle="সিস্টেম প্রতিদিন দেখে কার কোন তারিখের হাজিরা নেই, আর তাঁকে কারণ জিজ্ঞেস করে। এখানে উত্তরগুলো যাচাই করুন, বাকিদের তাগাদা দিন।"
+    actions={mayCheck ? <button disabled={busy} onClick={() => void remind()}>তাগাদা পাঠান</button> : null}>
     {node}
-    <section className="panel za-intro"><NodiAvatar size={44} /><p>যেদিনের কোনো হাজিরাই ওঠেনি সেটাই “ফাঁকা দিন” (অনুপস্থিত, ছুটি বা সাপ্তাহিক বন্ধ দেওয়া থাকলে ফাঁকা নয়)। কর্মী নিজের ড্যাশবোর্ডে প্রশ্ন পান: ছুটিতে ছিলেন, কাজে ছিলেন, নাকি অন্য কারণ।
+    <section className="panel za-intro"><Icon name="cal" size={32} /><p>যেদিনের কোনো হাজিরাই ওঠেনি সেটাই “ফাঁকা দিন” (অনুপস্থিত, ছুটি বা সাপ্তাহিক বন্ধ দেওয়া থাকলে ফাঁকা নয়)। কর্মী নিজের ড্যাশবোর্ডে প্রশ্ন পান: ছুটিতে ছিলেন, কাজে ছিলেন, নাকি অন্য কারণ।
       ছুটি বললে সেখান থেকেই আবেদন জমা হয়; হাব ম্যানেজার অনুমোদন দিলে দিনটা নিজে থেকেই তালিকা ছেড়ে যায়।</p></section>
     <section className="da-filters panel no-print">
       <Field label="থেকে"><input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></Field>

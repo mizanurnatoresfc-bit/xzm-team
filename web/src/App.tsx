@@ -41,8 +41,6 @@ const HubOps = lazy(() => import('./pages/zonal/HubOps').then(m => ({ default: m
 const HubOpsPanel = lazy(() => import('./pages/zonal/HubOpsPanel').then(m => ({ default: m.HubOpsPanel })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
-const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
-const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
 const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
 const MyProfileComplete = lazy(() => import('./pages/MyProfileComplete').then(m => ({ default: m.MyProfileComplete })))
 const MyProfile = lazy(() => import('./pages/MyProfile').then(m => ({ default: m.MyProfile })))
@@ -197,8 +195,6 @@ export default function App() {
       <Route path="/app/access/user/:id" element={<AccessPage><UserAccess /></AccessPage>} />
       <Route path="/app/access/:section" element={<AccessPage><AccessCenter /></AccessPage>} />
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
-      <Route path="/app/nodi/chat" element={<NodiChat />} />
-      <Route path="/app/nodi" element={<NodiSettings />} />
       <Route path="/app/branding" element={<BrandingSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>

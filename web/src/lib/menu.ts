@@ -47,4 +47,4 @@ export const panelLevel = (can: (p: string) => boolean): 0 | 1 | 2 =>
   can('zonal.dashboard.view') || can('system.user.view') || can('hr.request.approve') ? 2
     : can('hr.employee.view') || can('hr.attendance.create') || can('da.sheet.approve') ? 1 : 0
 /** Pages only the zonal manager's level gets in the menu (the owner asked for them to be off the manager's and staff's screens). */
-export const ZONE_ONLY = ['/app/training', '/app/nodi/chat']
+export const ZONE_ONLY = ['/app/training']

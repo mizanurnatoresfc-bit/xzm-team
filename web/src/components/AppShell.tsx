@@ -6,7 +6,6 @@ import { PulsePopup } from './PulsePopup'
 import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
-import { NodiAvatar } from './NodiAvatar'
 import { clearFresh, kindOf, markAllRead, markRead, savePushDevice, startNotices, useNotices, type Notice as LiveNotice } from '../lib/notices'
 import { advancedAccessHere, setupPush } from '../lib/native'
 import { Icon } from './Icon'
@@ -115,8 +114,6 @@ export const GROUPS: Group[] = [
       { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
       { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
       { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
-      { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
-      { to: '/app/nodi', icon: 'gear', bn: 'নদী AI (API ও সীমা)', en: 'Nodi AI (API & limits)', perms: ['nodi.settings.configure'] },
       { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
     ] },
   ]),
@@ -126,7 +123,7 @@ export const GROUPS: Group[] = [
  * It is not one of the three level panels: anyone whose role may do accounts work sees it, at the top.
  */
 const DA = ['da.sheet.view', 'da.sheet.create']
-export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও নদী শিক্ষক', 'Accounts & Nodi teacher', [
+export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও শেখা', 'Accounts & learning', [
   { bn: 'প্রতিদিনের হিসাব', en: 'Every day', items: [
     { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা (আমার)', en: 'My sheet today', perms: ['da.sheet.create'] },
     { to: '/app/accounts/daily', icon: 'ledger', bn: 'হাবের দৈনিক হিসাব খাতা', en: 'Hub daily sheets', perms: DA, count: 'sheets' },
@@ -154,7 +151,6 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
   { bn: 'শেখা', en: 'Learning', items: [
     { to: '/app/accounts/learn', icon: 'book', bn: 'বাংলা শেখার কেন্দ্র', en: 'Bangla learning centre', perms: DA },
     { to: '/app/accounts/learn?p=practice', icon: 'play', bn: 'অনুশীলন (নমুনা হিসাব)', en: 'Practice (sample data)', perms: DA },
-    { to: '/app/accounts/learn?p=ask', icon: 'sms', bn: 'নদী AI হিসাব শিক্ষক', en: 'Nodi AI accounts teacher', perms: DA },
   ] },
 ])
 
@@ -475,7 +471,6 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <span className="nt-ic"><Icon name={kindOf(nt.fresh.kind)[2]} size={18} /></span>
       <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
       <span className="nt-x" role="button" aria-label={L('বন্ধ', 'Close')} onClick={e => { e.stopPropagation(); clearFresh() }}><Icon name="x" size={14} /></span></button>}
-    {can('nodi.assistant.view') && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
       {(dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}

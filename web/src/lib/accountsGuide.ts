@@ -1,8 +1,7 @@
 // হিসাব শেখার কেন্দ্র — the Bangla lessons for SteadFast hub accounts, as this system does them.
-// Everything here is "নদী AI-র অভ্যন্তরীণ নির্দেশনা": how XZM-TEAM's own screens and rules work.
+// Everything here is "সিস্টেমের অভ্যন্তরীণ নির্দেশনা": how XZM-TEAM's own screens and rules work.
 // SteadFast's official rules are NOT written here: head office writes them per module in
 // Accounts settings (setting da.learn_official), and they are shown apart, marked "অফিশিয়াল".
-// The AI teacher gets this text as its internal source; it reads the official text from the database itself.
 
 export type ModuleKey = 'start' | 'rider' | 'daily_report' | 'merchant_payment' | 'expense' | 'staff_expense' | 'transport'
   | 'voucher' | 'missing_voucher' | 'bank' | 'hub_due' | 'close' | 'uploads' | 'history'
@@ -29,11 +28,11 @@ export type Lesson = {
   mistakes: Array<[string, string]>
   /** a practice task with sample data, if this part has one */
   practice?: Practice
-  /** questions a new manager usually asks, ready to send to the AI teacher */
+  /** questions a new manager usually asks */
   ask: string[]
 }
 
-export const OFFICIAL_NOTE = 'এই পাতার নির্দেশনা XZM-TEAM সিস্টেমের নিজস্ব (নদী AI-র অভ্যন্তরীণ নির্দেশনা)। SteadFast-এর অফিশিয়াল নিয়ম শুধু "SteadFast অফিশিয়াল" চিহ্নিত বাক্সে দেখায় — যা হেড অফিস নিজে লিখে দেয়। দুটোতে অমিল দেখলে অফিশিয়াল নিয়ম মানুন ও হেড অফিসকে জানান।'
+export const OFFICIAL_NOTE = 'এই পাতার নির্দেশনা XZM-TEAM সিস্টেমের নিজস্ব (সিস্টেমের অভ্যন্তরীণ নির্দেশনা)। SteadFast-এর অফিশিয়াল নিয়ম শুধু "SteadFast অফিশিয়াল" চিহ্নিত বাক্সে দেখায় — যা হেড অফিস নিজে লিখে দেয়। দুটোতে অমিল দেখলে অফিশিয়াল নিয়ম মানুন ও হেড অফিসকে জানান।'
 
 export const LESSONS: Lesson[] = [
   {
@@ -368,7 +367,7 @@ export const LESSONS: Lesson[] = [
 
 export const lessonOf = (k: string | null | undefined) => LESSONS.find(l => l.key === k) ?? null
 
-/** The lesson as plain text: what the AI teacher gets as "নদী AI-র অভ্যন্তরীণ নির্দেশনা". */
+/** The lesson as plain text. */
 export function lessonText(l: Lesson): string {
   const out = [`বিষয়: ${l.title} — ${l.what}`]
   if (l.where) out.push(`কোথায় করবেন: ${l.where.label}`)

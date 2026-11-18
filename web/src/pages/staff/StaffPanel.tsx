@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
-import { NodiGaps } from '../../components/NodiGaps'
+import { AttendanceGaps } from '../../components/AttendanceGaps'
 import { DailyOpsCard } from '../../components/DailyOpsCard'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
@@ -190,7 +190,7 @@ export function StaffPanel() {
         <p className="muted small">{L('হাব ম্যানেজার অনুমোদন দিলে আজ "অনুপস্থিত" হিসেবে খাতায় উঠবে।', 'Once your hub manager approves, today goes on the register as absent.')}</p>
         {attErr && <p className="da-error">{attErr}</p>}
       </Modal>}
-      <NodiGaps />
+      <AttendanceGaps />
 
       <h2 className="sd-h">{L('আমার বিল', 'My bill')}</h2>
       <Link to="/app/accounts/mine?bill=1" className="sp-cta"><Icon name="plus" size={20} />{L('আজকের খরচের বিল দিন', "Put up today's bill")}</Link>

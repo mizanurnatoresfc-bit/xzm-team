@@ -219,8 +219,6 @@ try {
       if (/rpc\/(da_deposit_slip_read|da_deposit_confirm|da_report_attach|da_save_expense|da_make_voucher|da_set_expense_reference)(\?|$)/.test(u)) {
         const fn = u.split('rpc/')[1].split('?')[0]; flowCalls.push({ fn, ...r.request().postDataJSON() })
         return j(fn === 'da_make_voucher' ? 'V-2611-00009' : fn === 'da_save_expense' ? 'x9' : fn === 'da_deposit_slip_read' ? { match: 'review', amount: 1, ocr_amount: null } : null) }
-      if (u.includes('/functions/v1/nodi-ai')) { const b = r.request().postDataJSON(); flowCalls.push({ fn: 'nodi-ai', ...b })
-        return j(b?.action === 'teach' ? { text: 'নদী AI অভ্যন্তরীণ নির্দেশনা: স্লিপের টাকা আর লেখা টাকা মেলেনি। আগে স্লিপ নিজে দেখুন, তারপর মন্তব্য লিখে "ব্যাংকে নিশ্চিত করুন" দিন।' } : { configured: true }) }
       if (u.includes('rpc/da_settings')) return j(daSettings)
       if (u.includes('rpc/da_flow_list')) return j([{ session_id: 's1', hub_id: 'h1', needed: 2, people: 2, submitted: 2, accepted: 2, checked_at: '2026-11-15T13:00:00Z', report_ok_at: null, report_diff: null, bank_done_at: null },
         { session_id: 's2', hub_id: 'h2', needed: 1, people: 2, submitted: 2, accepted: 1, checked_at: null, report_ok_at: null, report_diff: null, bank_done_at: null }])
@@ -338,16 +336,16 @@ try {
     check(flowCalls.some(c => c.fn === 'da_claim_reject' && c.p_claim === 'c2' && c.p_note === 'বিল ঝাপসা') && await page.locator('.myapp .ap-clear').count() === 1,
       `${size}: a bill is turned down with the reason, and the card says all clear`)
 
-    // ---- হিসাব শেখার কেন্দ্র: lessons, practice (nothing saved), AI teacher ----
+    // ---- হিসাব শেখার কেন্দ্র: lessons, practice (nothing saved) ----
     await page.goto(`${BASE}/app/accounts/learn`); await page.waitForSelector('.lr-card')
-    check(await page.locator('.lr-card').count() === 14 && await page.locator('.lr-official').count() === 1 && await page.locator('.lr-teacher').count() === 1,
-      `${size}: the learning centre lists every lesson, the official-rules box and the AI teacher`)
+    check(await page.locator('.lr-card').count() === 14 && await page.locator('.lr-official').count() === 1 ,
+      `${size}: the learning centre lists every lesson, and the official-rules box`)
     await fits('learning centre')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-learn.png`, fullPage: false })
     await page.locator('.lr-card[data-module=bank]').click(); await page.waitForSelector('.lr-lesson[data-lesson=bank]')
     { const parts = await page.locator('.lr-parts button').allInnerTexts()
-      check(['কীভাবে কাজ করবেন?', 'ধাপে ধাপে নির্দেশনা', 'নমুনা হিসাব', 'প্রয়োজনীয় কাগজপত্র', 'সাধারণ ভুল', 'অনুশীলন', 'AI-কে প্রশ্ন করুন'].every(p => parts.includes(p)),
-        `${size}: a lesson has how, steps, sample, papers, mistakes, practice and ask-the-AI`) }
+      check(['কীভাবে কাজ করবেন?', 'ধাপে ধাপে নির্দেশনা', 'নমুনা হিসাব', 'প্রয়োজনীয় কাগজপত্র', 'সাধারণ ভুল', 'অনুশীলন'].every(p => parts.includes(p)),
+        `${size}: a lesson has how, steps, sample, papers, mistakes, and practice`) }
     await page.locator('.lr-parts button', { hasText: 'ধাপে ধাপে' }).click()
     check(await page.locator('.lr-steps li').count() >= 4 && await page.locator('.lr-field').count() >= 4, `${size}: steps and every field explained with an example`)
     await page.locator('.lr-parts button', { hasText: 'অনুশীলন' }).click(); await page.waitForSelector('.pr-banner')
@@ -362,13 +360,6 @@ try {
       check(m1.startsWith('MATCH') && m2.startsWith('NOT MATCH') && m4.startsWith('NEEDS REVIEW') && flowCalls.length === before,
         `${size}: bank practice shows MATCH / NOT MATCH / NEEDS REVIEW and saves nothing${m3 ? '' : ''}`) }
     if (process.env.SHOTS) await page.locator('.lr-lesson').screenshot({ path: `${process.env.SHOTS}/${size}-learn-practice.png` })
-    await page.locator('.lr-parts button', { hasText: 'AI-কে প্রশ্ন' }).click(); await page.locator('.lr-t-sugg button').first().click()
-    await page.waitForSelector('.lr-t-msg.assistant:not(.muted)', { timeout: 8000 }).catch(() => {})
-    { const c = flowCalls.filter(x => x.fn === 'nodi-ai').at(-1) ?? {}
-      check(c.action === 'teach' && c.module === 'bank' && String(c.guide ?? '').includes('ব্যাংকে জমা') && !('official' in c)
-        && (await page.locator('.lr-t-msg.assistant').last().innerText()).includes('নদী AI অভ্যন্তরীণ নির্দেশনা'),
-        `${size}: the AI teacher gets the lesson as its internal guide (official rules are read by the server) and answers in Bangla`) }
-    if (process.env.SHOTS) await page.locator('.lr-lesson').screenshot({ path: `${process.env.SHOTS}/${size}-learn-teacher.png` })
     // expense practice: automatic sorting and the checks
     await page.goto(`${BASE}/app/accounts/learn?m=expense&p=practice`); await page.waitForSelector('.pr-banner')
     { const g = page.locator('.pr-task .pr-grid'); await g.locator('input').nth(0).fill('ভ্যান ভাড়া'); await g.locator('select').selectOption('transport'); await g.locator('input').nth(1).fill('120')
@@ -628,7 +619,7 @@ try {
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
       check(await panels() === 'accounts,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
         `${size}: the Super Admin's menu is the accounts menu and three panels (staff, manager, zonal manager)`)
-      { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
+      { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
         check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
           `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
@@ -651,18 +642,18 @@ try {
         `${size}: pages that repeat another page are off the menu, and no page is listed twice`)
       check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel is split into headed parts`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-super.png` })
-      const extras = async () => [await page.locator('.side a.nl[href="/app/training"]').count(), await page.locator('.nodi-fab').count(), await page.locator('.side a.nl[href="/app/nodi/chat"]').count()].join()
+      const extras = async () => [await page.locator('.side a.nl[href="/app/training"]').count()].join()
       asEmployee = true
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.first-steps', { timeout: 5000 }).catch(() => {})
-      check(await extras() === '1,1,1' && await page.locator('.first-steps').count() === 1, `${size}: the zonal level keeps the training centre, the AI helper and the first-steps box`)
-      permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
+      check(await extras() === '1' && await page.locator('.first-steps').count() === 1, `${size}: the zonal level keeps the training centre and the first-steps box`)
+      permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.home-tiles')
-      check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
+      check(await extras() === '0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre or first-steps box`)
       check(await panels() === 'accounts,self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1
         && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
-      permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
+      permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       await page.waitForSelector('.sp-hero')
       await page.waitForSelector('.rsend .rs-grid input', { timeout: 8000 }).catch(() => {})
@@ -677,7 +668,7 @@ try {
       { const c = flowCalls.filter(x => x.fn === 'da_rider_submit').at(-1) ?? {}
         check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false && await page.locator('.rsend .rs-done').count() === 1,
           `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
-      check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
+      check(await extras() === '0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
       check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
         `${size}: a rider gets one panel only, with everything they may open inside it`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
@@ -806,15 +797,15 @@ try {
     await fits('orders tab')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-orders.png`, fullPage: true })
 
-    // Nodi asks a person about their days without attendance; leave is filed from the same card
+    // The system asks a person about their days without attendance; leave is filed from the same card
     withGaps = true
-    await page.goto(`${BASE}/app`); await page.waitForSelector('.nodi-gaps .ng-days')
-    check(await page.locator('.nodi-gaps .ng-days .chip-toggle.on').count() === 3, `${size}: Nodi's card lists the person's days without attendance, all ticked`)
-    await page.locator('.nodi-gaps select').selectOption('lt1'); await page.locator('.nodi-gaps .da-form input').fill('জ্বর ছিল')
-    await fits('dashboard with Nodi card')
-    if (process.env.SHOTS) await page.locator('.nodi-gaps').screenshot({ path: `${process.env.SHOTS}/${size}-nodi.png` })
-    await page.locator('.nodi-gaps .row-acts button').click()
-    await page.waitForFunction(() => !!document.querySelector('.nodi-gaps .notice'), null, { timeout: 5000 }).catch(() => {})
+    await page.goto(`${BASE}/app`); await page.waitForSelector('.att-gaps .ng-days')
+    check(await page.locator('.att-gaps .ng-days .chip-toggle.on').count() === 3, `${size}: the gaps card lists the person's days without attendance, all ticked`)
+    await page.locator('.att-gaps select').selectOption('lt1'); await page.locator('.att-gaps .da-form input').fill('জ্বর ছিল')
+    await fits('dashboard with the gaps card')
+    if (process.env.SHOTS) await page.locator('.att-gaps').screenshot({ path: `${process.env.SHOTS}/${size}-gaps.png` })
+    await page.locator('.att-gaps .row-acts button').click()
+    await page.waitForFunction(() => !!document.querySelector('.att-gaps .notice'), null, { timeout: 5000 }).catch(() => {})
     check(answered.length === 1 && answered[0].p_kind === 'leave' && answered[0].p_leave_type === 'lt1' && answered[0].p_dates.length === 3 && answered[0].p_note === 'জ্বর ছিল',
       `${size}: the answer files leave for the ticked days`)
     withGaps = false
@@ -831,11 +822,11 @@ try {
     await fits('assistant panel')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-assistant.png`, fullPage: true })
 
-    // training centre: lessons for this role, Nodi finds the right one, a lesson can be ticked as learned
+    // training centre: lessons for this role, the search finds the right one, a lesson can be ticked as learned
     await page.goto(`${BASE}/app/training`); await page.waitForSelector('.tr-card')
     check(await page.locator('.tr-card').count() >= 12, `${size}: the training centre lists the lessons`)
     await page.locator('.tr-ask input').fill('ছুটির আবেদন কীভাবে দেব')
-    check((await page.locator('.tr-answer').first().innerText().catch(() => '')).includes('ছুটি'), `${size}: asking Nodi finds the leave lesson`)
+    check((await page.locator('.tr-answer').first().innerText().catch(() => '')).includes('ছুটি'), `${size}: searching finds the leave lesson`)
     await page.locator('.tr-answer').first().click(); await page.waitForSelector('.tr-card.open .tr-body')
     await page.locator('.tr-card.open .row-acts button').click()
     check(await page.locator('.tr-card.done').count() === 1, `${size}: a lesson can be ticked as learned`); await fits('training centre')
