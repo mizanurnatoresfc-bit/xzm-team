@@ -486,5 +486,5 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Where: the chat page header ("🟢 স্ক্রিনে বোতাম চালু / ⚪ বন্ধ", next to the voice button) and সেটিং → "স্ক্রিনে নদী AI বোতাম" চালু / বন্ধ.
   Kept on this device only (`localStorage` `xzm_nodi_fab`, like language/theme/font in `lib/prefs.tsx`); default on. No database change, no new APK.
 - Smoke test: turns it off on the chat page, checks the button is gone (menu entry stays), turns it on in Setting, checks it is back (PC and phone). 473 checks pass.
-- Repository note: `web/node_modules` is committed as a symlink to itself (since `0fa563d`; `.gitignore`'s `node_modules/` misses symlinks). CI is fine because
-  `npm ci` replaces it, but on a fresh checkout delete it before `npm install`. Removing it from git (`git rm --cached web/node_modules`) is a safe follow-up.
+- Repository fix: `web/node_modules` had been committed as a symlink to itself (since `0fa563d`; `.gitignore`'s `node_modules/` only matched folders), which broke
+  `npm install` on a fresh checkout. It is removed from git and `.gitignore` now says `node_modules`, so a link cannot be committed again. CI is unaffected (`npm ci`).
