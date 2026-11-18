@@ -34,14 +34,23 @@ export const HOME: Item[] = [
  */
 export const GROUPS: Group[] = [
   panel('self', 'user', 'স্টাফ প্যানেল', 'Staff panel', [
-    { bn: '', en: '', items: [
+    { bn: 'আমার কাজ', en: 'My work', items: [
       { to: '/app/staff', icon: 'grid', bn: 'আমার প্যানেল', en: 'My panel', perms: null },
-      { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
       { to: '/app/workforce/attendance', icon: 'cal', bn: 'আমার উপস্থিতি', en: 'My attendance', perms: null },
+      { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
+    ] },
+    { bn: 'আবেদন ও অনুরোধ', en: 'Requests & leave', items: [
       { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
       { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
+    ] },
+    { bn: 'ইস্যু ও গাড়ি', en: 'Issues & vehicle', items: [
       { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
       { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
+    ] },
+    { bn: 'আমার তথ্য', en: 'About me', items: [
+      { to: '/app/me', icon: 'user', bn: 'আমার প্রোফাইল', en: 'My profile', perms: null },
+      { to: '/app/notifications', icon: 'bell', bn: 'নোটিফিকেশন', en: 'Notifications', perms: null },
+      { to: '/app/password', icon: 'key', bn: 'পাসওয়ার্ড বদল', en: 'Change password', perms: null },
     ] },
   ]),
   panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
@@ -121,6 +130,37 @@ export const GROUPS: Group[] = [
     ] },
   ]),
 ]
+/**
+ * সুপার অ্যাডমিন প্যানেল — only for a Super Admin, with a sub-menu per job. For a Super Admin it takes the place of the
+ * zonal panel's "সেটিং ও অনুমতি" part (that part stays for anyone else whose role may open those pages).
+ * The advanced access pages are website only; inside the Android app the older "রোল ও অনুমতি" page stands in.
+ */
+export const SETTINGS_SEC = 'Settings & permissions'
+export const SUPER: Group = panel('super', 'key', 'সুপার অ্যাডমিন প্যানেল', 'Super Admin panel', [
+  { bn: 'রোল ও পারমিশন', en: 'Roles & permissions', items: [
+    { to: '/app/access', icon: 'shield', bn: 'অ্যাডভান্সড রোল ও পারমিশন', en: 'Advanced roles & permissions', perms: ['system.role.view'], only: 'web' },
+    { to: '/app/access/roles', icon: 'grid', bn: 'রোল বানানো ও অনুমতি', en: 'Roles & permission builder', perms: ['system.role.view'], only: 'web' },
+    { to: '/app/access/users', icon: 'users', bn: 'ইউজারের অ্যাক্সেস', en: 'User access', perms: ['system.role.view'], only: 'web' },
+    { to: '/app/access/scope', icon: 'map', bn: 'হাব ও জোনের সীমা', en: 'Hub & zone limits', perms: ['system.role.view'], only: 'web' },
+    { to: '/app/access/history', icon: 'log', bn: 'অনুমতি বদলের ইতিহাস', en: 'Permission change history', perms: ['system.role.view'], only: 'web' },
+    { to: '/app/access/super', icon: 'key', bn: 'সুপার অ্যাডমিন নিয়ন্ত্রণ', en: 'Super Admin control', perms: ['system.role.view'], only: 'web' },
+    { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'], only: 'app' },
+  ] },
+  { bn: 'ইউজার ও ড্যাশবোর্ড', en: 'Users & dashboards', items: [
+    { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
+    { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
+  ] },
+  { bn: 'কর্মীর তথ্য', en: 'Staff data', items: [
+    { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
+    { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
+  ] },
+  { bn: 'সিস্টেম ও নদী AI', en: 'System & Nodi AI', items: [
+    { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
+    { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
+    { to: '/app/nodi', icon: 'gear', bn: 'নদী AI (API ও সীমা)', en: 'Nodi AI (API & limits)', perms: ['nodi.settings.configure'] },
+  ] },
+])
+
 /**
  * হিসাব — a menu of its own (owner, 17 Nov 2026): every SteadFast accounts part one tap away, in the order of the day's work.
  * It is not one of the three level panels: anyone whose role may do accounts work sees it, at the top.
@@ -370,9 +410,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
   // may open are listed in their own top panel, so a rider never gets a "manager" heading for one page.
   const level = panelLevel(can)
-  const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i)
+  const shown = GROUPS.map(g => ({ g, secs: g.secs.filter(x => !(isSuperAdmin && x.en === SETTINGS_SEC)).map(x => ({ ...x, items: x.items.filter(i => forMe(i)
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
+  const supSecs = isSuperAdmin ? SUPER.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && (hit(i) || `${SUPER.bn} ${SUPER.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) : []
   const accSecs = ACCOUNTS.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && (hit(i) || `${ACCOUNTS.bn} ${ACCOUNTS.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
@@ -401,7 +442,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
       <input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
       {HOME.filter(i => forMe(i) && hit(i)).map(link)}
-      {[{ g: ACCOUNTS, secs: accSecs }, ...shown].map(({ g, secs }) => {
+      {[{ g: ACCOUNTS, secs: accSecs }, ...shown, { g: SUPER, secs: supSecs }].map(({ g, secs }) => {
         const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
         const has = vis.some(i => i.to.split('?')[0] === here)

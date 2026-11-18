@@ -626,8 +626,9 @@ try {
       const inPanel = (k, t) => page.locator(`.side .ngrp[data-panel=${k}] a.nl`, { hasText: t }).count()
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
-      check(await panels() === 'accounts,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
-        `${size}: the Super Admin's menu is the accounts menu and three panels (staff, manager, zonal manager)`)
+      check(await panels() === 'accounts,self,hub,zone,super' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('super', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('super', 'বদলের ইতিহাস') === 1
+        && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 0 && await inPanel('super', 'রোল ও অনুমতি') === 0 && await page.locator('.side .ngrp[data-panel=super] .nsec').count() === 4,
+        `${size}: the Super Admin's menu is the accounts menu, three panels (staff, manager, zonal manager) and the Super Admin panel with its sub-menus`)
       { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
         check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
@@ -649,7 +650,7 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       check(!links.includes('/app/hub/accounts') && !links.includes('/app/hr') && !links.includes('/app/issues?tab=orders') && new Set(links).size === links.length,
         `${size}: pages that repeat another page are off the menu, and no page is listed twice`)
-      check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel is split into headed parts`)
+      check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 4 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 4, `${size}: the staff and zonal panels are split into headed parts`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-super.png` })
       const extras = async () => [await page.locator('.side a.nl[href="/app/training"]').count(), await page.locator('.nodi-fab').count(), await page.locator('.side a.nl[href="/app/nodi/chat"]').count()].join()
       asEmployee = true
@@ -714,8 +715,8 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references', '/app/workforce/attendance'].every(x => sideLinks.includes(x)),
-      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle, references and attendance book (${sideLinks.length})`)
+    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 11 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references', '/app/workforce/attendance', '/app/me', '/app/notifications', '/app/password'].every(x => sideLinks.includes(x)),
+      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle, references, attendance book, profile, notifications and password (${sideLinks.length})`)
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})

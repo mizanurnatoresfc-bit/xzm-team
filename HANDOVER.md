@@ -498,3 +498,11 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **18 Nov — live:** applied to Supabase as `workforce_site_application` (20261118230228). Before applying, the six replaced functions were checked equal to the
   repository on live; after, all 53 `wf_*` function bodies equal the tested file by hash, anon can run none, private helpers closed, both table rules validated.
   Site released by merging to `main` right after (the old site's absent + website call is refused until then).
+
+## 2026-11-18 — Staff panel menu in parts; Super Admin panel with sub-menus
+- `components/AppShell.tsx`: the staff panel now has four headed parts — আমার কাজ (প্যানেল, উপস্থিতি, হিসাব) · আবেদন ও অনুরোধ (রিকুয়েস্ট, ছুটি) ·
+  ইস্যু ও গাড়ি · আমার তথ্য (প্রোফাইল, নোটিফিকেশন, পাসওয়ার্ড বদল; all three were already always-open pages).
+- New group `SUPER` "সুপার অ্যাডমিন প্যানেল" (last in the menu, Super Admin only), sub-menus: রোল ও পারমিশন (each `/app/access/*` tab one tap away,
+  website only; `/app/roles` inside the app) · ইউজার ও ড্যাশবোর্ড · কর্মীর তথ্য · সিস্টেম ও নদী AI. For a Super Admin the zonal panel's
+  "সেটিং ও অনুমতি" part is left out (no page listed twice); anyone else who may open those pages still finds them there.
+- `tests/smoke.mjs` updated: panels `accounts,self,hub,zone,super`, staff panel 4 parts, zonal 4 parts for the Super Admin, limited-role menu 11 links.
