@@ -20,7 +20,7 @@ import { hr } from '../../lib/hr'
 import { issues } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
-import { fleet } from '../../lib/fleet'
+import { fleet, ROLE_BN } from '../../lib/fleet'
 import { useLiveLoad, wf } from '../../lib/workforce'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
@@ -49,7 +49,7 @@ export function StaffPanel() {
   const today = todayDhaka()
   const d = useLoad(async () => {
     const [home, me] = await Promise.all([quiet(dashboard.home(), null), quiet(hrReq.myEmployee(), null)])
-    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car] = await Promise.all([
+    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car, assets] = await Promise.all([
       quiet(da.myAccounts(addDays(today, -30), today), null),
       quiet(da.myClaims(30), [] as Claim[]),
       quiet(issues.panels(), null),
@@ -61,8 +61,10 @@ export function StaffPanel() {
       me ? quiet(referrals.prospects(me.id).then(x => x.length), 0) : 0,
       me ? quiet(referrals.brought(me.id).then(x => x.length), 0) : 0,
       quiet(fleet.mine(), null),
+      me ? quiet(supabase.from('office_assets').select('name, quantity, condition').eq('holder_id', me.id).is('archived_at', null)
+        .then(r => ((r.data ?? []) as Array<{ name: string; quantity: number; condition: string }>)), [] as Array<{ name: string; quantity: number; condition: string }>) : [],
     ])
-    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car }
+    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car, assets }
   }, [])
   const v = d.data
   // Today's four numbers (My Workforce): the returns tile reads them; the input card below saves them. Live, so a submit shows here at once.
@@ -88,9 +90,6 @@ export function StaffPanel() {
   const mine = lines.filter(l => l.account_date === today)
   const sum = (f: (l: (typeof lines)[number]) => number, rows = mine) => rows.reduce((a, l) => a + f(l), 0)
   const due = sum(l => Number(l.line.due), lines)
-  const moneyToday = sum(l => Number(l.line.amount))
-  const week = Array.from({ length: 7 }, (_, i) => { const dd = addDays(today, i - 6); return lines.filter(l => l.account_date === dd).reduce((a, l) => a + Number(l.line.amount), 0) })
-  const weekMax = Math.max(1, ...week)
   const pickToday = sum(l => l.line.pickup_qty), delToday = sum(l => l.line.delivery_qty)
   // Today's attendance: on the register (approved or marked by the manager), or my own input waiting / returned.
   const rec = v?.att?.record ?? null, mark = v?.att?.mark ?? null
@@ -106,8 +105,6 @@ export function StaffPanel() {
     : returned ? `${L('কারণ', 'Reason')}: ${returned.decide_note ?? ''} · ${L('আবার দিন', 'give it again')}` : L('হাবে এসে নিচের বোতাম চাপুন', 'Tap the button below when you reach the hub')
   const attTone = a?.[2] ?? (waiting ? 'w' : returned ? 'r' : 'w')
   const { toast, node } = useToast()
-  const [hideAmt, setHideAmt] = useState(() => { try { return localStorage.getItem('xzm_hide_amt') !== '0' } catch { return true } })
-  const toggleAmt = () => setHideAmt(h => { const v = !h; try { localStorage.setItem('xzm_hide_amt', v ? '1' : '0') } catch { /* ignore */ } return v })
   const [nudgeOff, setNudgeOff] = useState(() => { try { return sessionStorage.getItem('xzm_nudge_off') === '1' } catch { return false } })
   const [people, setPeople] = useState<'hand' | 'gave' | null>(null)
   const [busy, setBusy] = useState(false)
@@ -167,25 +164,28 @@ export function StaffPanel() {
           : ok('/app/workforce/attendance') ? <Link to="/app/workforce/attendance" className="gbtn out"><Icon name="cal" size={19} />{L('আমার উপস্থিতি', 'My attendance')}</Link> : <span />}
       </div>
 
-      {/* the wallet card: today's account, hidden until the eye is tapped */}
-      <section className="sp-wal" aria-label={L('আজকের হিসাব', "Today's account")}>
-        <i className="ring" /><i className="ring r2" /><i className="ring r3" />
-        <div className="row"><span className="k"><Icon name="wallet" size={22} />{L('আজকের হিসাব', "Today's account")}</span><span className="chipg">BDT</span></div>
-        <div className="amt"><b>{hideAmt ? '৳ ●●●●●●' : taka(moneyToday)}</b>
-          <button type="button" className="eye" onClick={toggleAmt} aria-pressed={!hideAmt} aria-label={hideAmt ? L('টাকা দেখান', 'Show amount') : L('টাকা লুকান', 'Hide amount')}><Icon name={hideAmt ? 'eye' : 'eyeoff'} size={22} /></button></div>
-        <div className="wk" role="img" aria-label={L('গত ৭ দিনের টাকা', 'Money, last 7 days')}>{week.map((x, i) => <i key={i} style={{ height: `${Math.max(8, (x / weekMax) * 100)}%` }} />)}</div>
-        <hr />
-        <div className="row small"><span className="muted">{L('হাবে জমা দিতে হবে', 'To hand over at the hub')}</span><b>{hideAmt ? '৳ ●●●' : taka(moneyToday)} · {n(delToday)} {L('ডেলিভারি', 'deliveries')}</b></div>
-        <div className="mb">
-          <Link to="/app/accounts/mine" className="c1"><small>{L('পিকআপ', 'Pickups')}</small><b>{n(pickToday)}</b></Link>
-          <Link to={ok('/app/me') ? '/app/me' : '/app/staff'} className="rt"><small>{L('আমার রুট', 'My route')}</small>
-            <svg className="mini" viewBox="0 0 140 76" aria-hidden="true"><path d="M12 62 C30 52 36 24 62 30 S100 52 122 12" fill="none" stroke="var(--border)" strokeWidth="5" strokeLinecap="round" /><path d="M12 62 C30 52 36 24 62 30 S90 44 98 38" fill="none" stroke="var(--primary)" strokeWidth="5" strokeLinecap="round" /><circle cx="12" cy="62" r="6" fill="var(--text)" /><circle cx="98" cy="38" r="7" fill="var(--primary)" stroke="var(--surface)" strokeWidth="3" /><circle cx="122" cy="12" r="6" fill="none" stroke="var(--muted)" strokeWidth="3" /></svg>
-            <span className="rn">{routes[0]?.name ?? L('রুট দেওয়া হয়নি', 'No route yet')}</span></Link>
-          <Link to="/app/accounts/mine" className="c2"><small>{L('ডেলিভারি', 'Deliveries')}</small><b>{n(delToday)}</b></Link>
-        </div>
-        <div className="btns"><Link to="/app/accounts/mine" className="gbtn deep"><Icon name="receipt" size={18} />{L('হিসাবের বিস্তারিত', 'Details')}</Link>
-          <Link to="/app/accounts/mine" className="gbtn out"><Icon name="ledger" size={18} />{due > 0 ? L(`বকেয়া ${taka(due)}`, `Due ${taka(due)}`) : L('আগের হিসাব', 'Earlier')}</Link></div>
-      </section>
+      {/* হাব ওয়ালেট: everything the hub has put in my name — vehicle, route, duties, items, issues, today's work */}
+      {(() => {
+        const car = v?.car?.vehicles[0] ?? null, held = v?.assets ?? []
+        const heldQty = held.reduce((a, x) => a + (x.quantity || 1), 0), brokenQty = held.filter(x => x.condition !== 'good').length
+        const total = (v?.car?.vehicles.length ?? 0) + routes.length + duties.length + heldQty + myIssues.length
+        return <section className="sp-wal" aria-label={L('আমার হাব ওয়ালেট', 'My hub wallet')}>
+          <i className="ring" /><i className="ring r2" /><i className="ring r3" />
+          <div className="row"><span className="k"><Icon name="hub" size={22} />{L('আমার হাব ওয়ালেট', 'My hub wallet')}</span><span className="chipg">{v?.home?.me?.hub ?? L('হাব নেই', 'No hub')}</span></div>
+          <div className="amt"><b>{n(total)}</b><span className="muted">{L('টি জিনিস ও কাজ আমার নামে', 'things and jobs in my name')}</span></div>
+          <hr />
+          <div className="hw">
+            <Link to={ok('/app/fleet/mine') ? '/app/fleet/mine' : '/app/staff'} className="c1"><small>{L('আমার গাড়ি', 'My vehicle')}</small><b>{car ? car.name : '—'}</b><i>{car ? [car.reg_no, ROLE_BN[car.role]].filter(Boolean).join(' · ') : L('দেওয়া হয়নি', 'None given')}</i></Link>
+            <Link to="/app/me" className="c2"><small>{L('আমার রুট', 'My route')}</small><b>{routes[0]?.name ?? '—'}</b><i>{routes.length > 1 ? L(`আরও ${n(routes.length - 1)}টি`, `+${routes.length - 1} more`) : routes[0] ? routes[0].areas.slice(0, 2).join(', ') : L('দেওয়া হয়নি', 'None given')}</i></Link>
+            <Link to="/app/me" className="c3"><small>{L('আমার দায়িত্ব', 'My duties')}</small><b>{n(duties.length)}</b><i>{duties[0]?.title ?? L('কোনো দায়িত্ব লেখা নেই', 'None written')}</i></Link>
+            <Link to={ok('/app/office/notices') ? '/app/office/notices' : '/app/staff'} className="c4"><small>{L('হাবের জিনিস', 'Hub items')}</small><b>{n(heldQty)}</b><i>{held.length ? (brokenQty ? L(`${n(brokenQty)}টি ঠিক নেই`, `${brokenQty} need attention`) : held.slice(0, 2).map(x => x.name).join(', ')) : L('কিছু দেওয়া হয়নি', 'None given')}</i></Link>
+            <Link to="/app/issues?tab=mine" className="c5"><small>{L('আমাকে দেওয়া ইস্যু', 'Issues given to me')}</small><b>{n(myIssues.length)}</b><i>{myIssues.length ? L('কাজ বাকি', 'to do') : L('কিছু বাকি নেই', 'nothing left')}</i></Link>
+            <Link to="/app/accounts/mine" className="c6"><small>{L('আজকের কাজ', "Today's work")}</small><b>{n(pickToday)} / {n(delToday)}</b><i>{L('পিকআপ / ডেলিভারি', 'pickups / deliveries')}</i></Link>
+          </div>
+          <div className="btns"><Link to="/app/issues?tab=group" className="gbtn deep"><Icon name="hub" size={18} />{L('হাব গ্রুপ', 'Hub group')}</Link>
+            <Link to="/app/accounts/mine" className="gbtn out"><Icon name="ledger" size={18} />{due > 0 ? L('হিসাবের পাতা · বকেয়া আছে', 'Accounts · due') : L('হিসাবের পাতা', 'Accounts')}</Link></div>
+        </section>
+      })()}
       <RiderSendCard onSent={() => d.reload()} />
 
       <HubCarRoute level="staff" />

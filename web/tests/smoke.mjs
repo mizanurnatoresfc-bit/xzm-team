@@ -907,9 +907,9 @@ try {
     // staff panel: one screen with the person's whole day, in the owner's order
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
-    { const sp = await page.locator('.sp').innerText()
+    { const sp0 = await page.locator('.sp').innerText(); const sp = sp0.slice(Math.max(0, sp0.indexOf('আমার লোক')))   // the alert cards above the wallet come first
       const order = ['আমার লোক', 'আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ'].map(x => sp.indexOf(x))
-      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['পিকআপ', 'ডেলিভারি', 'আজকের হিসাব', 'আমি যাদের দিয়েছি', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
+      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['পিকআপ', 'ডেলিভারি', 'আমার হাব ওয়ালেট', 'আমি যাদের দিয়েছি', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp0.includes(x)),
         `${size}: the staff panel shows my people, accounts, attendance, bill, route, complaint and issues, in that order`)
       check(await page.locator('.sp .pc', { hasText: 'আমার হাতে লোক আছে' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
     { const before = flowCalls.length

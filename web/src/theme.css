@@ -2708,3 +2708,15 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
 .ppl-add{width:100%;margin-top:12px;min-height:50px;border-radius:25px}
 .ok-note{color:var(--ok-fg);font-size:13.5px;margin:8px 0 0}
 @media (max-width:480px){.ppl-form{grid-template-columns:1fr}}
+/* হাব ওয়ালেট tiles */
+.sp-wal .amt .muted{font-size:14px;max-width:11em;line-height:1.25}
+.sp-wal .hw{display:grid;grid-template-columns:1fr 1fr;gap:8px;position:relative}
+.sp-wal .hw a{border-radius:20px;padding:10px 12px;display:flex;flex-direction:column;gap:1px;min-width:0;text-decoration:none;color:var(--text);background:var(--surface);border:1px solid var(--border)}
+.sp-wal .hw small{font-size:12px;color:var(--muted)}.sp-wal .hw b{font-size:17px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-wal .hw i{font-style:normal;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-wal .hw .c1{background:var(--warn-bg);border-color:transparent}.sp-wal .hw .c1 small,.sp-wal .hw .c1 b{color:var(--warn-fg)}
+.sp-wal .hw .c2{background:var(--info-bg);border-color:transparent}.sp-wal .hw .c2 small,.sp-wal .hw .c2 b{color:var(--info-fg)}
+.sp-wal .hw .c3{background:var(--primary-50);border-color:transparent}.sp-wal .hw .c3 small,.sp-wal .hw .c3 b{color:var(--primary)}
+.sp-wal .hw .c5{background:var(--bad-bg);border-color:transparent}.sp-wal .hw .c5 small,.sp-wal .hw .c5 b{color:var(--bad-fg)}
+.sp-wal .hw .c6{background:var(--ok-bg);border-color:transparent}.sp-wal .hw .c6 small,.sp-wal .hw .c6 b{color:var(--ok-fg)}
+.sp-wal .hw .c1 i,.sp-wal .hw .c2 i,.sp-wal .hw .c3 i,.sp-wal .hw .c5 i,.sp-wal .hw .c6 i{color:inherit;opacity:.8}
