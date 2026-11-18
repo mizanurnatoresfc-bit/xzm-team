@@ -2644,3 +2644,55 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
 .p-hero .p-photo-edit input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border-radius:50%}
 .p-hero .p-photo-edit.busy{opacity:.6}
 .p-hero .p-photo-edit .p-cam{position:absolute;left:6px;bottom:6px;width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;border:3px solid var(--surface)}
+
+/* ---- স্টাফ প্যানেল: wallet-style home (alerts, greeting, today's account card, my people) — same on web and the Android app ---- */
+.gbtn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 18px;border-radius:22px;border:0;background:var(--primary);color:#fff;font:inherit;font-weight:700;font-size:14.5px;text-decoration:none;cursor:pointer}
+.gbtn:disabled{opacity:.6}.gbtn:active{transform:scale(.98)}
+.gbtn.out{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.gbtn.deep{background:var(--primary-700,var(--primary));color:#fff;filter:brightness(.82)}
+.gbtn.ghost{background:none;color:var(--text);padding:0;min-height:44px;font-weight:600}
+.sp-alert{display:flex;gap:11px;padding:13px 14px;border-radius:20px;border:1px solid transparent}
+.sp-alert .ai{flex:none;margin-top:1px}
+.sp-alert b{display:block;font-size:15px;margin-bottom:2px}.sp-alert p{margin:0;font-size:13.5px;opacity:.88}
+.sp-alert .ab{display:flex;gap:14px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.sp-alert.r{background:var(--bad-bg);color:var(--text);border-color:color-mix(in srgb,var(--bad-fg) 28%,transparent)}.sp-alert.r .ai{color:var(--bad-fg)}
+.sp-alert.y{background:var(--warn-bg);color:var(--text);border-color:color-mix(in srgb,var(--warn-fg) 28%,transparent)}.sp-alert.y .ai{color:var(--warn-fg)}
+.sp-date{margin:6px 2px 0;font-size:13px;color:var(--muted)}
+.sp-hello{margin:0 2px;font-size:24px;font-weight:700;line-height:1.2;color:var(--text);text-decoration:none;overflow-wrap:anywhere}
+.sp-who{margin:-6px 2px 0;font-size:13px;color:var(--muted)}
+.sp-two2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.sp-two2 .gbtn{min-height:48px;border-radius:24px}
+.sp-wal{position:relative;overflow:hidden;border-radius:28px;padding:16px;background:linear-gradient(160deg,var(--primary-50),var(--surface));border:1px solid var(--border)}
+.sp-wal .ring{position:absolute;right:-60px;top:-50px;width:190px;height:190px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--primary) 28%,transparent);pointer-events:none}
+.sp-wal .ring.r2{right:-95px;top:-85px;width:260px;height:260px}.sp-wal .ring.r3{right:-130px;top:-120px;width:330px;height:330px}
+.sp-wal .row{display:flex;justify-content:space-between;align-items:center;gap:10px;position:relative}.sp-wal .row.small{font-size:14px}
+.sp-wal .k{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:14px}
+.sp-wal .chipg{background:var(--primary-50);color:var(--primary);border-radius:999px;padding:4px 12px;font-weight:700;font-size:12.5px;border:1px solid color-mix(in srgb,var(--primary) 25%,transparent)}
+.sp-wal .amt{display:flex;align-items:center;gap:12px;margin:12px 0 10px;position:relative}
+.sp-wal .amt b{font-size:34px;font-weight:800;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.sp-wal .eye{width:44px;height:44px;border-radius:50%;border:1.5px solid var(--primary);background:none;color:var(--text);display:grid;place-items:center;cursor:pointer}
+.sp-wal .wk{display:flex;gap:5px;align-items:flex-end;height:38px;margin:0 0 12px;position:relative}
+.sp-wal .wk i{flex:1;border-radius:4px;background:var(--primary);opacity:.3}.sp-wal .wk i:last-child{opacity:1}
+.sp-wal hr{border:0;border-top:1px solid var(--border);margin:0 0 12px}
+.sp-wal .mb{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;position:relative}
+.sp-wal .mb a{border-radius:20px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0;text-decoration:none;color:var(--text);background:var(--surface);border:1px solid var(--border)}
+.sp-wal .mb small{font-size:12px;color:var(--muted)}.sp-wal .mb b{font-size:21px;font-variant-numeric:tabular-nums}
+.sp-wal .mb .c1{background:var(--info-bg);border-color:transparent}.sp-wal .mb .c1 small,.sp-wal .mb .c1 b{color:var(--info-fg)}
+.sp-wal .mb .c2{background:var(--ok-bg);border-color:transparent}.sp-wal .mb .c2 small,.sp-wal .mb .c2 b{color:var(--ok-fg)}
+.sp-wal .mb .rt{grid-column:2;grid-row:1 / span 2;justify-content:space-between}.sp-wal .mb .rt .mini{width:100%;height:auto}.sp-wal .mb .rn{font-weight:700;font-size:13.5px}
+.sp-wal .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;position:relative}.sp-wal .btns .gbtn{min-height:48px;border-radius:14px;font-size:14px;padding:0 8px}
+.sp-ppl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sp-ppl .pc{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:4px;min-width:0;text-decoration:none;color:var(--text);transition:transform .12s}
+.sp-ppl .pc:active{transform:scale(.98)}
+.sp-ppl .pc .i{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;background:var(--primary-50);color:var(--primary);margin-bottom:4px}
+.sp-ppl .pc b{font-size:26px;line-height:1;font-variant-numeric:tabular-nums}.sp-ppl .pc .t{font-weight:700;font-size:14px}.sp-ppl .pc .s{font-size:12.5px;color:var(--muted)}
+/* hub · vehicle · route cards: a swipe row on phones, three columns on wider screens */
+@media (max-width:640px){
+  .hcr-grid{display:flex;gap:10px;overflow-x:auto;margin:0 -14px;padding:2px 14px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .hcr-grid::-webkit-scrollbar{display:none}
+  .hcr-grid .sp-tile.hcr{flex:0 0 76%;scroll-snap-align:start;flex-direction:column;flex-wrap:nowrap;align-items:stretch}
+  .hcr-grid .sp-tile.hcr .i{margin-bottom:8px}
+}
+.gbtn.ghost:hover:not(:disabled),.gbtn.ghost:active:not(:disabled){background:none;border:0;color:var(--text)}
+.gbtn.out:hover:not(:disabled){background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.sp-wal .eye:hover:not(:disabled){background:none;border:1.5px solid var(--primary);color:var(--text)}
+.gbtn:not(.out):not(.ghost):hover:not(:disabled){color:#fff}

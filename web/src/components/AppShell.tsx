@@ -246,8 +246,8 @@ const HOME_TAB: Tab = { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', p
 const PROFILE_TAB: Tab = { to: '/app/me', icon: 'user', bn: 'প্রোফাইল', en: 'Profile', perms: null, match: '/app/me' }
 const VIEW_TABS: Record<DashView, Tab[]> = {
   self: [HOME_TAB,
-    { to: '/app/staff', icon: 'user', bn: 'আমার প্যানেল', en: 'My panel', perms: null, match: '/app/staff' },
     { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null, match: '/app/accounts' },
+    { to: '/app/workforce/attendance', icon: 'cal', bn: 'উপস্থিতি', en: 'Attendance', perms: null, match: '/app/workforce' },
     { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' },
   ],
   hub: [HOME_TAB,

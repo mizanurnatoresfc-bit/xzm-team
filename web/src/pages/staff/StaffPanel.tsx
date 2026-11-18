@@ -87,6 +87,10 @@ export function StaffPanel() {
   const mine = lines.filter(l => l.account_date === today)
   const sum = (f: (l: (typeof lines)[number]) => number, rows = mine) => rows.reduce((a, l) => a + f(l), 0)
   const due = sum(l => Number(l.line.due), lines)
+  const moneyToday = sum(l => Number(l.line.amount))
+  const week = Array.from({ length: 7 }, (_, i) => { const dd = addDays(today, i - 6); return lines.filter(l => l.account_date === dd).reduce((a, l) => a + Number(l.line.amount), 0) })
+  const weekMax = Math.max(1, ...week)
+  const pickToday = sum(l => l.line.pickup_qty), delToday = sum(l => l.line.delivery_qty)
   // Today's attendance: on the register (approved or marked by the manager), or my own input waiting / returned.
   const rec = v?.att?.record ?? null, mark = v?.att?.mark ?? null
   const a = rec ? ATT[rec.status] ?? null : null
@@ -101,6 +105,9 @@ export function StaffPanel() {
     : returned ? `${L('কারণ', 'Reason')}: ${returned.decide_note ?? ''} · ${L('আবার দিন', 'give it again')}` : L('হাবে এসে নিচের বোতাম চাপুন', 'Tap the button below when you reach the hub')
   const attTone = a?.[2] ?? (waiting ? 'w' : returned ? 'r' : 'w')
   const { toast, node } = useToast()
+  const [hideAmt, setHideAmt] = useState(() => { try { return localStorage.getItem('xzm_hide_amt') !== '0' } catch { return true } })
+  const toggleAmt = () => setHideAmt(h => { const v = !h; try { localStorage.setItem('xzm_hide_amt', v ? '1' : '0') } catch { /* ignore */ } return v })
+  const [nudgeOff, setNudgeOff] = useState(() => { try { return sessionStorage.getItem('xzm_nudge_off') === '1' } catch { return false } })
   const [busy, setBusy] = useState(false)
   const [absent, setAbsent] = useState<string | null>(null)
   const [attErr, setAttErr] = useState('')
@@ -136,11 +143,61 @@ export function StaffPanel() {
   return <AppShell title={L('স্টাফ প্যানেল', 'Staff panel')} subtitle={who || L('আমার আজকের সব কাজ এক জায়গায়', 'My whole day in one place')}>
     <div className="sd sp">
       {node}
-      <Link to="/app/me" className="sp-hero">
-        <span className="nv-av">{String(name).slice(0, 1).toUpperCase()}</span>
-        <span className="tx"><small>{day}</small><b>{name}</b>{who && <span>{who}</span>}</span>
-        <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>
-      </Link>
+      {!rec && !waiting && <div className="sp-alert r" role="alert">
+        <span className="ai"><Icon name={returned ? 'alert' : 'clock'} size={24} /></span>
+        <div><b>{returned ? L('হাজিরা ফেরত দেওয়া হয়েছে', 'Attendance was returned') : L('আজকের হাজিরা এখনো দেননি', 'Attendance not given yet')}</b>
+          <p>{returned ? `${L('কারণ', 'Reason')}: ${returned.decide_note ?? ''}` : L('হাবে এসে হাজিরা দিন, নইলে আজ অনুপস্থিত ধরা হতে পারে।', 'Give it at the hub, or today may count as absent.')}</p>
+          <div className="ab"><button type="button" className="gbtn" disabled={busy || !v?.me} onClick={() => void give('present')}><Icon name="check" size={17} />{L('হাজিরা দিন', 'Give attendance')}</button>
+            <button type="button" className="gbtn ghost" disabled={busy || !v?.me} onClick={() => { setAttErr(''); setAbsent('') }}>{L('আজ আসব না', 'Not coming')}</button></div></div></div>}
+      {profilePct !== null && profilePct < 100 && !nudgeOff && <div className="sp-alert y">
+        <span className="ai"><Icon name="user" size={24} /></span>
+        <div><b>{L(`আপনার প্রোফাইল ${n(profilePct)}% পূর্ণ`, `Your profile is ${profilePct}% complete`)}</b>
+          <p>{L('ছবি, এনআইডি ও জরুরি যোগাযোগ নিজেই দিন — সাথে সাথে সেভ হবে।', 'Add photo, NID and emergency contact yourself — it saves at once.')}</p>
+          <div className="ab"><Link to="/app/me/complete" className="gbtn">{L('প্রোফাইল পূর্ণ করুন', 'Complete profile')}</Link>
+            <button type="button" className="gbtn ghost" onClick={() => { setNudgeOff(true); try { sessionStorage.setItem('xzm_nudge_off', '1') } catch { /* ignore */ } }}>{L('এখন নয়', 'Not now')}</button></div></div></div>}
+
+      <div className="sp-date">{day}</div>
+      <Link to="/app/me" className="sp-hello">{L('স্বাগতম', 'Welcome')}, {name}</Link>
+      {who && <div className="sp-who">{who}</div>}
+      <div className="sp-two2">
+        {ok('/app/accounts/mine') && <Link to="/app/accounts/mine?bill=1" className="gbtn"><Icon name="plus" size={19} />{L('বিল দিন', 'Put up a bill')}</Link>}
+        {canLeave && ok('/app/hr/leave') ? <Link to="/app/hr/leave" className="gbtn out"><Icon name="cal" size={19} />{L('ছুটির আবেদন', 'Apply for leave')}</Link>
+          : ok('/app/workforce/attendance') ? <Link to="/app/workforce/attendance" className="gbtn out"><Icon name="cal" size={19} />{L('আমার উপস্থিতি', 'My attendance')}</Link> : <span />}
+      </div>
+
+      {/* the wallet card: today's account, hidden until the eye is tapped */}
+      <section className="sp-wal" aria-label={L('আজকের হিসাব', "Today's account")}>
+        <i className="ring" /><i className="ring r2" /><i className="ring r3" />
+        <div className="row"><span className="k"><Icon name="wallet" size={22} />{L('আজকের হিসাব', "Today's account")}</span><span className="chipg">BDT</span></div>
+        <div className="amt"><b>{hideAmt ? '৳ ●●●●●●' : taka(moneyToday)}</b>
+          <button type="button" className="eye" onClick={toggleAmt} aria-pressed={!hideAmt} aria-label={hideAmt ? L('টাকা দেখান', 'Show amount') : L('টাকা লুকান', 'Hide amount')}><Icon name={hideAmt ? 'eye' : 'eyeoff'} size={22} /></button></div>
+        <div className="wk" role="img" aria-label={L('গত ৭ দিনের টাকা', 'Money, last 7 days')}>{week.map((x, i) => <i key={i} style={{ height: `${Math.max(8, (x / weekMax) * 100)}%` }} />)}</div>
+        <hr />
+        <div className="row small"><span className="muted">{L('হাবে জমা দিতে হবে', 'To hand over at the hub')}</span><b>{hideAmt ? '৳ ●●●' : taka(moneyToday)} · {n(delToday)} {L('ডেলিভারি', 'deliveries')}</b></div>
+        <div className="mb">
+          <Link to="/app/accounts/mine" className="c1"><small>{L('পিকআপ', 'Pickups')}</small><b>{n(pickToday)}</b></Link>
+          <Link to={ok('/app/me') ? '/app/me' : '/app/staff'} className="rt"><small>{L('আমার রুট', 'My route')}</small>
+            <svg className="mini" viewBox="0 0 140 76" aria-hidden="true"><path d="M12 62 C30 52 36 24 62 30 S100 52 122 12" fill="none" stroke="var(--border)" strokeWidth="5" strokeLinecap="round" /><path d="M12 62 C30 52 36 24 62 30 S90 44 98 38" fill="none" stroke="var(--primary)" strokeWidth="5" strokeLinecap="round" /><circle cx="12" cy="62" r="6" fill="var(--text)" /><circle cx="98" cy="38" r="7" fill="var(--primary)" stroke="var(--surface)" strokeWidth="3" /><circle cx="122" cy="12" r="6" fill="none" stroke="var(--muted)" strokeWidth="3" /></svg>
+            <span className="rn">{routes[0]?.name ?? L('রুট দেওয়া হয়নি', 'No route yet')}</span></Link>
+          <Link to="/app/accounts/mine" className="c2"><small>{L('ডেলিভারি', 'Deliveries')}</small><b>{n(delToday)}</b></Link>
+        </div>
+        <div className="btns"><Link to="/app/accounts/mine" className="gbtn deep"><Icon name="receipt" size={18} />{L('হিসাবের বিস্তারিত', 'Details')}</Link>
+          <Link to="/app/accounts/mine" className="gbtn out"><Icon name="ledger" size={18} />{due > 0 ? L(`বকেয়া ${taka(due)}`, `Due ${taka(due)}`) : L('আগের হিসাব', 'Earlier')}</Link></div>
+      </section>
+      <RiderSendCard onSent={() => d.reload()} />
+
+      <HubCarRoute level="staff" />
+
+      {ok(desk ? desk + 'hand' : '/app/me') && <>
+      <h2 className="sd-h">{L('আমার লোক', 'My people')}</h2>
+      <div className="sp-ppl">
+        <Link to={desk ? desk + 'hand' : '/app/me'} className="pc"><span className="i"><Icon name="plus" size={20} /></span><b>{n(v?.hand ?? 0)}</b>
+          <span className="t">{L('আমার হাতে লোক আছে', 'People I have in hand')}</span><span className="s">{L('কাজ করতে চায় এমন কারো নাম দিন', 'Add someone who wants work')}</span></Link>
+        <Link to={desk ? desk + 'brought' : '/app/me'} className="pc"><span className="i"><Icon name="users" size={20} /></span><b>{n(v?.brought ?? 0)}</b>
+          <span className="t">{L('আমি যাদের দিয়েছি', 'People I brought')}</span><span className="s">{L('আমার আনা লোকের তালিকা', 'Who joined through me')}</span></Link>
+      </div>
+      </>}
+
       <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       {profilePct !== null && profilePct < 100 && <Link to="/app/me/complete" className="sp-card t-w mpc-nudge">
@@ -149,18 +206,7 @@ export function StaffPanel() {
           <span>{L('ছবি, এনআইডি, জরুরি যোগাযোগ — নিজেই দিন, সাথে সাথে সেভ হবে', 'Photo, NID, emergency contact — add them yourself, they save at once')}</span></div>
         <Icon name="chev" size={18} /></Link>}
 
-      <HubCarRoute level="staff" />
-
       <h2 className="sd-h">{L('আমার হিসাব', 'My accounts')}</h2>
-      <div className="sp-tiles">
-        <Link to="/app/accounts/mine" className="sp-tile t-b"><span className="i"><Icon name="box" size={20} /></span><b>{n(sum(l => l.line.pickup_qty))}</b><small>{L('আজকের পিকআপ', 'Pickups today')}</small></Link>
-        <Link to="/app/accounts/mine" className="sp-tile t-g"><span className="i"><Icon name="truck" size={20} /></span><b>{n(sum(l => l.line.delivery_qty))}</b><small>{L('আজকের ডেলিভারি', 'Deliveries today')}</small></Link>
-        {opsHere
-          ? <a href="#wf-ops" className="sp-tile t-o" onClick={toOps}><span className="i"><Icon name="back" size={20} /></span><b>{returnsToday === null ? '—' : n(returnsToday)}</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></a>
-          : <div className="sp-tile t-o off"><span className="i"><Icon name="back" size={20} /></span><b>—</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></div>}
-        <Link to="/app/accounts/mine" className="sp-tile t-p"><span className="i"><Icon name="cash" size={20} /></span><b>{taka(sum(l => Number(l.line.amount)))}</b><small>{L('আজকের টাকা', 'Money today')}</small></Link>
-      </div>
-      <RiderSendCard onSent={() => d.reload()} />
       <div className="nv-rows">
         {row('/app/accounts/mine', 'g', 'wallet', L('আমার হিসাব', 'My accounts'), mine.length ? L('আজকের হিসাব খাতায় উঠেছে', "Today's line is on the sheet") : L('আজ এখনো আমার নামে হিসাব ওঠেনি', 'No line in my name yet today'))}
         {row('/app/accounts/mine', due > 0 ? 'o' : 'b', 'ledger', L('আমার আগের হিসাব', 'My earlier accounts'), due > 0 ? L(`৩০ দিনে বকেয়া ${taka(due)}`, `Due in 30 days ${taka(due)}`) : L('৭ দিন, ৩০ দিন, এ মাস বা তারিখ বেছে', '7 days, 30 days, this month or pick dates'))}
@@ -247,13 +293,6 @@ export function StaffPanel() {
         {row(null, 'p', 'phone', L('জোনাল ম্যানেজার', 'Zonal manager'), L('সরাসরি জোনাল ম্যানেজারকে জানান', 'Reach the zonal manager directly'))}
       </div>
 
-      {ok(desk ? desk + 'hand' : '/app/me') && <>
-      <h2 className="sd-h">{L('আমার লোক', 'My people')}</h2>
-      <div className="nv-rows">
-        {row(desk ? desk + 'hand' : '/app/me', 'b', 'plus', L('আমার হাতে লোক আছে', 'I have people in hand'), `${L('কাজ করতে চায় এমন কারো নাম দিন', 'Add someone who wants work')} · ${people(v?.hand ?? 0)}`)}
-        {row(desk ? desk + 'brought' : '/app/me', 'g', 'users', L('আমি যাদের দিয়েছি', 'People I brought'), `${L('আমার আনা লোকের তালিকা', 'Who joined through me')} · ${people(v?.brought ?? 0)}`)}
-      </div>
-      </>}
     </div>
   </AppShell>
 }

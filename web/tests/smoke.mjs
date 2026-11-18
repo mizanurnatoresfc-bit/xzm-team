@@ -655,7 +655,7 @@ try {
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
-      await page.waitForSelector('.sp-hero')
+      await page.waitForSelector('.sp-wal')
       await page.waitForSelector('.rsend .rs-grid input', { timeout: 8000 }).catch(() => {})
       check(await page.locator('.rsend').count() === 1 && await page.locator('.rsend .rs-send').isDisabled() && await page.locator('.rsend .rs-list li').count() === 1,
         `${size}: a rider sees the send card and today's line; send waits for a manager and a number`)
@@ -903,15 +903,15 @@ try {
     plainStaff = true
     // a staff member's home page is the staff panel
     await page.goto(`${BASE}/app`); await page.waitForSelector('.sp .nv-row', { timeout: 10000 }).catch(() => {})
-    check(await page.locator('.sp-hero').count() === 1 && await page.locator('.bottom-nav a[href="/app/staff"]').count() === 0, `${size}: a staff member's home is the staff panel`)
+    check(await page.locator('.sp-wal').count() === 1 && await page.locator('.bottom-nav a[href="/app/staff"]').count() === 0, `${size}: a staff member's home is the staff panel`)
     // staff panel: one screen with the person's whole day, in the owner's order
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
     { const sp = await page.locator('.sp').innerText()
-      const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
-      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
-        `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
-      check(await page.locator('.sp a.nv-row[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
+      const order = ['আমার লোক', 'আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ'].map(x => sp.indexOf(x))
+      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['পিকআপ', 'ডেলিভারি', 'আজকের হিসাব', 'আমি যাদের দিয়েছি', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
+        `${size}: the staff panel shows my people, accounts, attendance, bill, route, complaint and issues, in that order`)
+      check(await page.locator('.sp a.pc[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
     { const before = flowCalls.length
       await page.locator('.sp button.nv-row', { hasText: 'হাবে এসেছি' }).click(); await page.waitForTimeout(400)
       check(flowCalls.length === before + 1 && flowCalls.at(-1)?.fn === 'att_self_mark' && flowCalls.at(-1)?.p_kind === 'present', `${size}: one tap gives today's attendance for the manager to approve`)
