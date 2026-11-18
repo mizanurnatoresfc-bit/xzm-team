@@ -2734,3 +2734,7 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
 .as-add{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px;align-items:center}
 .as-add input,.as-add select{min-height:44px;font-size:16px}.as-add button{min-height:44px}
 .as-chips{display:flex;flex-wrap:wrap;gap:8px}
+/* আমার রিপোর্ট (MyReports.tsx) */
+.mrp-note{color:var(--bad-fg)!important;font-size:13px}
+.mrp-fix{display:inline-flex;align-items:center;gap:5px;color:var(--primary)!important;font-weight:700;font-size:13px}
+.mrp .nv-row .end{flex:none}

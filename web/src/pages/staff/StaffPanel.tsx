@@ -7,6 +7,7 @@ import { Icon } from '../../components/Icon'
 import { AttendanceGaps } from '../../components/AttendanceGaps'
 import { HubCarRoute } from '../../components/HubCarRoute'
 import { PeopleSheet } from '../../components/PeopleSheet'
+import { MyReports } from '../../components/MyReports'
 import { DailyOpsCard } from '../../components/DailyOpsCard'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
@@ -218,6 +219,8 @@ export function StaffPanel() {
         <h2 className="sd-h">{L('আজকের কাজের হিসাব', "Today's work count")}</h2>
         <DailyOpsCard />
       </section>}
+
+      <MyReports />
 
       <h2 className="sd-h">{L('আজকের হাজিরা', "Today's attendance")}</h2>
       <div className={`sp-card t-${attTone}`} id="sp-att">
