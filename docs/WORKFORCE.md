@@ -20,6 +20,20 @@ Additive only. Nothing is stored twice; the staff, manager and zonal panels all 
 | সতর্কতা | `wf_pending_counts()` (মেনু/ঘণ্টা/ড্যাশবোর্ড)। `private.wf_remind()` প্রতিদিন ১০:০০ UTC = ১৬:০০ ঢাকা (pg_cron `wf-remind`): আজকের হাজিরা বাকি, ফেরত তারিখ (বই খোলা থাকলে), আজকের সংখ্যা বাকি (যিনি আগের ১৪ দিনে দিয়েছেন), ম্যানেজারদের জন্য একটি সারাংশ। প্রতি জন প্রতি দিনে একবার। |
 | লাইভ | `attendance_self_marks`, `attendance_records`, `wf_absence_applications`, `wf_daily_ops` Realtime-এ যোগ (শুধু Supabase-এ; সাধারণ Postgres-এ বাদ)। প্রতিটি টেবিলের RLS প্রযোজ্য। |
 
+## আগের তারিখ খোলা ও একসাথে পূরণ / Earlier dates and filling many at once (18 Nov 2026)
+Migration `20261118200000_workforce_earlier_dates.sql` · tests `supabase/tests/99zzzzzzzzzzzzzzz_workforce_earlier_dates.sql` (80 checks).
+মালিক: "Steadfast ওয়েবসাইটে এই এই তারিখে আবেদন করেছে … সাইট রেডি করতে লেট হচ্ছে, তাই এবার আগের সব তারিখে ডাটা ফিলাপ করে দেয়" — "জোনাল সেটিং এ রাখলে ভালো হয়"; এক পাতায় একসাথে; শুধু হাজিরা (চারটি সংখ্যার নিয়ম বদলায়নি)।
+
+| বিষয় | কীভাবে |
+|---|---|
+| জোনাল সেটিং | `/app/workforce/zone?tab=setting` (জোনাল ড্যাশবোর্ডে "হাজিরা: আগের তারিখ খোলা")। অনুমতি `hr.attendance.configure` (admin, zonal_manager, hr_manager; জোন অনুযায়ী)। `wf_window_save(জোন, প্রথম, শেষ, কত পর্যন্ত, নোট)` → টেবিল `wf_book_windows`। |
+| নিয়ম | এক মাসের ভেতরে, বইয়ের দিনগুলো (১–১৭) থেকে, আজ পর্যন্ত; সর্বোচ্চ দুই মাস আগে; শেষ দিন আজ থেকে ৩১ দিনের মধ্যে। প্রতি জোন-মাসে একটিই খোলা; নতুন সেটিং আগেরটা বন্ধ করে (ইতিহাস থাকে)। একই সেটিং দুবার = কিছু বদলায় না। কিছু মোছা যায় না; অডিট লগে থাকে। |
+| খোলা মানে | `private.wf_date_open(জোন, তারিখ)` — এই মাসের বই খোলা (আগের নিয়ম), **অথবা** জোনাল ম্যানেজারের খোলা তারিখ এবং শেষ দিন পেরোয়নি। `wf_check_date`, `wf_grid` ("বাকি" অবস্থা), `wf_my_book` (`open`, `catch_up`, `open_months`, প্রতিদিনের `can_give`), `wf_hub_book` (`catch_up`), `wf_pending_counts` (`mine.catch_up_until`) সব এটাই মানে। `open` (counts) এখনো মানে "আজকের বই খোলা"। |
+| একসাথে পূরণ | `wf_book_fill(উপস্থিত[], Steadfast-এ আবেদন[], আবেদন ছাড়া অনুপস্থিত[], কারণ, নোট)` — সব নয়তো কিছুই না; প্রতিটি তারিখ আগের `wf_att_submit` / `wf_absence_apply` দিয়েই যায়, তাই আগের সব নিয়ম থাকে; ভুল হলে তারিখসহ বলে ("On 2026-11-05: …")। পাতা: হাজিরা বই → "একসাথে সব দিন" (`BookFill.tsx`): ১. Steadfast-এ আবেদনের তারিখ · ২. আবেদন ছাড়া অনুপস্থিত + কারণ · ৩. বাকি দিন উপস্থিত (টিক তুলে দেওয়া যায়)। |
+| জানানো | খোলার সাথে সাথে জোনের যে স্টাফদের তারিখ বাকি তারা নোটিফিকেশন পান; খোলা থাকা পর্যন্ত `wf_remind` প্রতিদিন একবার "আগের তারিখের হাজিরা বাকি"। একসাথে পূরণ করলে হাব ম্যানেজার একটি নোট পান। অনুমোদন আগের মতোই হাব ম্যানেজারের। |
+| বন্ধ | `wf_window_end(id, কারণ)` আগেই বন্ধ করে; শেষ দিন পেরোলে নিজে বন্ধ। যা দেওয়া হয়ে গেছে তা অনুমোদনের অপেক্ষায় থাকে। |
+| ফিরিয়ে নিতে | `wf_book_fill`, `wf_window_save/end`, `wf_windows`, `private.wf_zone_of/wf_date_open/wf_window_json/wf_live_window` মুছুন; ছয়টি বদলানো ফাংশন `20261117010000_workforce_attendance.sql` থেকে আবার চালান; টেবিল `wf_book_windows` ও অনুমতি `hr.attendance.configure` সরান। |
+
 ## রোল ও অনুমতি / Permissions
 নতুন: `ops.staff_daily.view` (admin, head_office_manager, operations_manager, zonal_manager, hub_manager, pickup_manager, delivery_manager, auditor, hr_manager),
 `ops.staff_daily.edit` (admin, hub_manager). বাকি সব পুরোনো কোড: `hr.attendance.view` (বই, ইনপুট, আবেদন, ইতিহাস দেখা), `hr.attendance.create` (অনুমোদন),

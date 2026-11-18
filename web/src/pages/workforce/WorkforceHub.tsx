@@ -241,7 +241,9 @@ function BookTab({ hubId, can, today, go }: { hubId: string; can: Can; today: Is
       <Field label={L('মাস (আর্কাইভ)', 'Month (archive)')}><select value={month} onChange={e => setMonth(e.target.value)}>
         {months.map(m => <option key={m} value={m}>{monthName(m, lang)}</option>)}</select></Field>
       {b && <button type="button" className="secondary sm" onClick={excel}><Icon name="xls" size={15} />{L('এক্সেল', 'Excel')}</button>}</>}
-      hint={b ? (b.open ? L(`বই খোলা আছে — প্রতি মাসের ${n(b.window.from_day)}–${n(b.window.to_day)} তারিখ পর্যন্ত কর্মীরা নিজে দেন। ঘরে ট্যাপ করলে বিস্তারিত।`, `The book is open (days ${b.window.from_day}–${b.window.to_day}). Tap a cell for details.`)
+      hint={b ? (b.catch_up ? L(`জোনাল ম্যানেজার আগের তারিখ খুলে দিয়েছেন — ${fmtDay(b.catch_up.date_from, lang)} থেকে ${fmtDay(b.catch_up.date_to, lang)}, ${fmtDay(b.catch_up.open_until, lang)} পর্যন্ত কর্মীরা দিতে পারবেন। যা আসবে, অনুমোদন তালিকায় পাবেন।`,
+          `The zonal manager opened earlier dates — ${fmtDay(b.catch_up.date_from, lang)} to ${fmtDay(b.catch_up.date_to, lang)}, until ${fmtDay(b.catch_up.open_until, lang)}. Inputs arrive in the approval list.`)
+        : b.open ? L(`বই খোলা আছে — প্রতি মাসের ${n(b.window.from_day)}–${n(b.window.to_day)} তারিখ পর্যন্ত কর্মীরা নিজে দেন। ঘরে ট্যাপ করলে বিস্তারিত।`, `The book is open (days ${b.window.from_day}–${b.window.to_day}). Tap a cell for details.`)
         : L('এই মাসের বই বন্ধ (আর্কাইভ) — দেখা যায়, দরকারে সংশোধন করা যায়। ঘরে ট্যাপ করলে বিস্তারিত।', 'This month is closed (archive) — corrections still possible. Tap a cell.')) : undefined}>
       {q.error && !b ? <p className="da-error" role="alert">{wfFriendly(q.error)}</p> : null}
       {!b && !q.error ? <Loading /> : null}

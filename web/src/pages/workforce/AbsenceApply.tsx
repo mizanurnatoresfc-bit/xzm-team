@@ -30,9 +30,13 @@ export const clock = (ts: string, lang: Lang) => {
   return `${part} ${`${h % 12 || 12}:${m}`.replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[+d])}`
 }
 
-/** A date the person can still give (or change) by an application: the book is open and the date waits, was returned, or was changed before. */
+/** May this date be given now? The database says so per day (this month's open book, or an earlier date the zonal manager opened);
+ *  a server without that field falls back to the book being open. */
+export const canGive = (book: MyBook, d: BookDay) => d.can_give ?? book.open
+
+/** A date the person can still give (or change) by an application: it may be given now and it waits, was returned, or was changed before. */
 export const canApply = (book: MyBook, d: BookDay) =>
-  book.open && (d.state === 'missing' || d.state === 'returned' || (d.state === 'waiting' && !d.application_id))
+  canGive(book, d) && (d.state === 'missing' || d.state === 'returned' || (d.state === 'waiting' && !d.application_id))
 
 /**
  * "উপস্থিত ছিলাম না" and "ওয়েবসাইটে আবেদন করিনি": choose the absence dates (the one just tapped is already chosen), write the reason and send.
@@ -74,8 +78,8 @@ export function AbsenceApply({ book, date, onBack, onClose, onSent }: {
       <button type="button" className="secondary" onClick={onBack ?? onClose} disabled={busy}>{onBack ? L('আগের ধাপ', 'Back') : L('বাতিল', 'Cancel')}</button>
       <button type="button" disabled={busy || !ready} onClick={() => void send()}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('আবেদন পাঠান', 'Send application')}</button>
     </>}>
-    <p className="wf-ap-lead">{L('ওয়েবসাইটে আবেদন না করে থাকলে এখানে তারিখ বেছে কারণ লিখে আবেদন পাঠান। হাব ম্যানেজার দেখে সিদ্ধান্ত দেবেন।',
-      'If you did not apply on the website, pick the dates and write the reason. Your hub manager will decide.')}</p>
+    <p className="wf-ap-lead">{L('Steadfast ওয়েবসাইটে আবেদন না করে থাকলে এখানে তারিখ বেছে কারণ লিখে আবেদন পাঠান। হাব ম্যানেজার দেখে সিদ্ধান্ত দেবেন।',
+      'If you did not apply on the Steadfast website, pick the dates and write the reason. Your hub manager will decide.')}</p>
 
     {options.length === 0
       ? <div className="notice" role="status">{L('এখন আবেদন করার মতো কোনো তারিখ নেই।', 'There is no date you can apply for right now.')}</div>

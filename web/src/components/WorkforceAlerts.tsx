@@ -9,6 +9,8 @@ import { useWfCounts } from './PersonalMenu'
 import '../workforce.css'
 
 type Row = { key: string; to: string; tone: 'warn' | 'bad' | 'info'; icon: string; title: string; sub?: string; scrollTo?: string }
+/** '2026-11-25' -> "২৫ নভেম্বর" */
+const dayBn = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString('bn-BD', { timeZone: 'UTC', day: 'numeric', month: 'long' })
 
 export function WorkforceAlerts() {
   const { L, n } = usePrefs()
@@ -17,7 +19,9 @@ export function WorkforceAlerts() {
   const rows: Row[] = []
   if (mine && mine.missing_days > 0) rows.push({ key: 'missing', to: '/app/workforce/attendance', tone: 'warn', icon: 'clock',
     title: L(`${n(mine.missing_days)} দিনের হাজিরা বাকি`, `${mine.missing_days} day${mine.missing_days === 1 ? '' : 's'} of attendance not given`),
-    sub: L('হাজিরা বইয়ে প্রতিটি তারিখ আলাদা করে দিন', 'Give each date in the attendance book') })
+    sub: mine.catch_up_until
+      ? L(`জোনাল ম্যানেজার আগের তারিখ খুলে দিয়েছেন — ${dayBn(mine.catch_up_until)} পর্যন্ত, হাজিরা বইয়ে একসাথে দিন`, `Earlier dates are open until ${mine.catch_up_until} — give them all at once in the book`)
+      : L('হাজিরা বইয়ে প্রতিটি তারিখ আলাদা করে দিন', 'Give each date in the attendance book') })
   if (mine && mine.returned_days > 0) rows.push({ key: 'returned', to: '/app/workforce/attendance', tone: 'bad', icon: 'alert',
     title: L(`${n(mine.returned_days)} দিনের হাজিরা ফেরত এসেছে`, `${mine.returned_days} day${mine.returned_days === 1 ? '' : 's'} of attendance returned`),
     sub: L('কারণ দেখে আবার দিন', 'See the reason and give it again') })

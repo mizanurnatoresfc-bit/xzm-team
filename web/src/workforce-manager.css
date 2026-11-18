@@ -242,3 +242,18 @@ label.wm-ck.all{display:inline-flex;gap:8px;width:auto;padding-right:8px;font-we
   .wm-tbl.grid td:not(.pri):not(.act):not(.num)::before{margin-right:auto;padding-right:8px}
   .wm-tbl.grid td.ck+td{padding-right:44px}
 }
+
+/* ---- জোনাল সেটিং: আগের তারিখ খোলা (ZoneWindows, migration 20261118200000) */
+.wm-win-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.wm-win-form .da-field.wide{grid-column:1 / -1}
+.wm-win-prev{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--primary-50);color:var(--text);font-weight:600;line-height:1.45}
+.wm-win-act{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.wm-win-act button{min-height:44px;display:inline-flex;align-items:center;gap:6px}
+.wm-win-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.wm-win{padding:12px 14px;border:1px solid var(--border);border-radius:14px;display:flex;flex-direction:column;gap:4px}
+.wm-win.s-open{border-color:var(--primary)}
+.wm-win p{margin:0;line-height:1.5}
+.wm-win-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.wm-win-prog{font-weight:600;color:var(--warn-fg)}
+@media (max-width:520px){.wm-win-act button{flex:1 1 100%;justify-content:center}}
+.wm-win-top{scroll-margin-top:72px}

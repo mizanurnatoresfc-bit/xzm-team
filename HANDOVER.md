@@ -460,3 +460,19 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **To go live:** the database part is live; merge this branch to `main` and the site deploys itself (no new APK needed).
 - Limits to know: a personal "বন্ধ" is for every place (not one hub); notifications that pick people by role permission do not look at personal permissions
   (what a person may do always does); parts of one page listed separately in the menu (accounts centre) cannot be switched off one by one.
+
+## 2026-11-18 — হাজিরা: আগের তারিখ খোলা (জোনাল সেটিং) ও একসাথে সব দিন
+- Owner: "Steadfast ওয়েবসাইটে এই এই তারিখে আবেদন করেছে … সাইট রেডি করতে লেট হচ্ছে, তাই এবার আগের সব তারিখে ডাটা ফিলাপ করে দেয়"; decisions: the zonal manager decides it
+  in a zonal setting; staff fill everything on one page; attendance only (the four daily numbers keep their one-day rule).
+- Migration `20261118200000_workforce_earlier_dates.sql`: table `wf_book_windows` (zone, dates inside one month's book days, open until; one live per zone and month,
+  history kept, audited, never deleted), permission `hr.attendance.configure` (admin, zonal manager, HR manager), `wf_window_save` / `wf_window_end` / `wf_windows`,
+  `wf_book_fill` (present + "applied on the Steadfast website" + not-applied absent dates with one application, all or nothing, through the old one-date functions),
+  `private.wf_date_open` = the one "may this date be given now" rule. Six functions replaced with the same signature and behaviour plus the windows:
+  `wf_check_date`, `wf_grid`, `wf_my_book`, `wf_hub_book`, `wf_pending_counts`, `wf_remind` (their live text was checked equal to the repository first).
+- Pages: `/app/workforce/zone?tab=setting` (tab "সেটিং: আগের তারিখ খোলা", shortcut on the zonal dashboard): form + list with progress (who still has dates, how many wait for approval), close early.
+  Attendance book: status line and the zonal manager's note, "একসাথে সব দিন" (`pages/workforce/BookFill.tsx`), a banner when another month is open, every date follows the database's
+  `can_give`. The website question now says "Steadfast ওয়েবসাইটে". Manager's hub book and the staff alert card mention the open window.
+- Tests: new file (80), the workforce file's function count 19 → 23; whole suite 1869 pass. Smoke test passes. Screens checked in a browser at 390 px and 1366 px against
+  the real functions on a local database (no sideways scroll, no script errors): open window → fill 13 present + 2 Steadfast + 1 application → 0 left, 17 waiting.
+- Live has three migrations of 18 Nov that are not in the repository yet (`hub_manager_more_pages`, `remove_nodi_ai_a_rename`, `staff_app_rls_revoke_anon_definer_execute`);
+  none touches the workforce functions. They should be brought into the repository like the 17 Nov sync.

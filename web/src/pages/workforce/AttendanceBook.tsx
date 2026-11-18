@@ -5,15 +5,17 @@ import { usePrefs } from '../../lib/prefs'
 import { ACTION_META, APP_META, LIVE, RECORD_META, STATE_META, announceWfChange, dayLabel, monthLabel, monthOf, useLiveLoad, wf, wfFriendly,
   type AbsenceApp, type BookDay, type IsoDate, type Kind, type MyBook } from '../../lib/workforce'
 import { Badge, Field, Modal, useToast } from '../accounts/ui'
-import { AbsenceApply, longDate, shortDate, stamp, weekdayShort } from './AbsenceApply'
+import { AbsenceApply, canGive, longDate, shortDate, stamp, weekdayShort } from './AbsenceApply'
+import { BookFill } from './BookFill'
 import '../../workforce-book.css'
 
 /**
  * আমার উপস্থিতি — the monthly attendance book of one staff member.
  * The book is open from day 1 to day 17 (settings); each date is given separately: "উপস্থিত ছিলাম" or "উপস্থিত ছিলাম না".
- * Absent asks "ওয়েবসাইটে আবেদন করেছেন কি?": yes -> one tap; no -> pick the absence dates and send an application.
- * Everything is read through wf.myBook (one call) and written through wf.submit / wf.apply / wf.cancelApplication; the rules live in the database.
- * Past months are an archive (read only). Usable on its own inside any page (no page frame here).
+ * Absent asks "Steadfast ওয়েবসাইটে আবেদন করেছেন কি?": yes -> one tap; no -> pick the absence dates and send an application.
+ * Earlier dates the zonal manager opened (book.catch_up) can be given the same way, or all at once with "একসাথে সব দিন" (BookFill).
+ * Everything is read through wf.myBook (one call) and written through wf.submit / wf.apply / wf.fill / wf.cancelApplication; the rules live in the database.
+ * Past months are an archive (read only) unless a window opened them. Usable on its own inside any page (no page frame here).
  */
 const SITE_NOTE = 'ওয়েবসাইটে আবেদন করা আছে'
 type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'neutral'
@@ -32,6 +34,7 @@ export function AttendanceBook() {
   const [wdBusy, setWdBusy] = useState(false)
   const [wdErr, setWdErr] = useState('')
   const [histOpen, setHistOpen] = useState(false)
+  const [fillOpen, setFillOpen] = useState(false)
   const rows = useRef<Record<string, HTMLElement | null>>({})
   // The staff panel's "আজ আসব না" arrives as ?give=today: open today's sheet once (it asks the website question).
   const [sp, setSp] = useSearchParams()
@@ -58,8 +61,11 @@ export function AttendanceBook() {
   const wanted = month ?? thisMonth
   const mismatch = book.month !== wanted                      // the picker moved; the new month is on its way (or could not be loaded)
   const stale = mismatch && (q.loading || !!q.error)
-  const archive = book.month !== thisMonth
-  const todo = book.open ? book.days.filter(d => d.state === 'missing' || d.state === 'returned') : []
+  const archive = book.month !== thisMonth && !book.open
+  const todo = book.days.filter(d => canGive(book, d) && (d.state === 'missing' || d.state === 'returned'))
+  const cu = book.catch_up ?? null
+  // another month can be given right now (an earlier month the zonal manager opened): offer to go there
+  const otherOpen = (book.open_months ?? []).filter(m => m !== book.month)
   const first = todo[0] ?? null
   const missingN = todo.filter(d => d.state === 'missing').length
   const returnedN = todo.length - missingN
@@ -83,7 +89,10 @@ export function AttendanceBook() {
     [L('ফেরত', 'Returned'), s.returned, 'bad'], [L('বাকি', 'Missing'), s.missing, 'warn'],
   ]
 
-  const status = book.open
+  const status = cu
+    ? { cls: 'on', t: L(`আগের তারিখ খোলা — ${shortDate(cu.date_from, lang)} থেকে ${shortDate(cu.date_to, lang)}, ${shortDate(cu.open_until, lang)} পর্যন্ত দেওয়া যাবে`,
+        `Earlier dates open — ${shortDate(cu.date_from, lang)} to ${shortDate(cu.date_to, lang)}, until ${shortDate(cu.open_until, lang)}`) }
+    : book.open
     ? { cls: 'on', t: L(`বই চালু আছে — ${n(book.window.from_day)}–${n(book.window.to_day)} তারিখ`, `Book is open — day ${book.window.from_day}–${book.window.to_day}`) }
     : archive ? { cls: 'arch', t: L('আর্কাইভ — শুধু দেখা যাবে, বদলানো যাবে না', 'Archive — view only') }
     : new Date(`${book.today}T00:00:00Z`).getUTCDate() < book.window.from_day
@@ -102,7 +111,8 @@ export function AttendanceBook() {
           <span className="wf-bk-sr">{L('মাস বেছে নিন', 'Choose a month')}</span>
           <select value={wanted} onChange={e => setMonth(e.target.value === thisMonth ? null : e.target.value)}>
             {(book.months.includes(thisMonth) ? book.months : [thisMonth, ...book.months]).map(m =>
-              <option key={m} value={m}>{monthLabel(m, lang)}{m !== thisMonth ? ` · ${L('আর্কাইভ', 'Archive')}` : ''}</option>)}
+              <option key={m} value={m}>{monthLabel(m, lang)}{(book.open_months ?? []).includes(m) && m !== thisMonth ? ` · ${L('খোলা', 'Open')}`
+                : m !== thisMonth ? ` · ${L('আর্কাইভ', 'Archive')}` : ''}</option>)}
           </select>
         </label>
       </div>
@@ -110,6 +120,8 @@ export function AttendanceBook() {
         <i aria-hidden="true" />{status.t}
         {q.live && <span className="wf-bk-live" title={L('বদল সাথে সাথে দেখা যায়', 'Changes show up at once')}>{L('লাইভ', 'Live')}</span>}
       </p>
+      {cu && <p className="muted small wf-bk-cu">{L('জোনাল ম্যানেজার খুলে দিয়েছেন', 'Opened by the zonal manager')}{cu.by_name ? ` (${cu.by_name})` : ''}
+        {cu.note ? ` — ${cu.note}` : ''}</p>}
       <div className="wf-bk-sum" role="list">
         {chips.map(([label, v, tone]) => <div key={label} role="listitem" className={`wf-bk-chip t-${tone}${v === 0 ? ' z' : ''}`}><b>{n(v)}</b><span>{label}</span></div>)}
       </div>
@@ -122,16 +134,27 @@ export function AttendanceBook() {
       ? <><p className="da-error" role="alert">{wfFriendly(q.error)}</p><button type="button" className="secondary wf-bk-btn" onClick={() => void q.reloadLoud()}>{L('আবার চেষ্টা করুন', 'Try again')}</button></>
       : <p className="muted" role="status">{L('লোড হচ্ছে…', 'Loading…')}</p> : <>
 
+      {/* ---- another month is open right now (earlier dates the zonal manager opened) */}
+      {otherOpen.length > 0 && <div className="wf-bk-banner" role="status">
+        <span className="wf-bk-bi"><Icon name="cal" size={20} /></span>
+        <div className="tx">
+          <b>{L(`${otherOpen.map(m => monthLabel(m, lang)).join(', ')} মাসের হাজিরা দেওয়া যাবে`, `${otherOpen.map(m => monthLabel(m, lang)).join(', ')}: dates can be given`)}</b>
+          <span>{L('জোনাল ম্যানেজার আগের তারিখ খুলে দিয়েছেন', 'The zonal manager opened earlier dates')}</span>
+        </div>
+        <button type="button" onClick={() => setMonth(otherOpen[0] === thisMonth ? null : otherOpen[0])}>{L('ওই মাসে যান', 'Go to that month')}</button>
+      </div>}
+
       {/* ---- the nudge: what is still to give */}
       {first ? <div className="wf-bk-banner" role="status">
         <span className="wf-bk-bi"><Icon name={returnedN && !missingN ? 'back' : 'alert'} size={20} /></span>
         <div className="tx">
-          <b>{missingN && returnedN ? L(`${n(missingN)} দিনের হাজিরা বাকি, ${n(returnedN)} দিন ফেরত এসেছে — প্রথমটা দিন`, `${missingN} day(s) missing, ${returnedN} returned — start with the first`)
-            : missingN ? L(`${n(missingN)} দিনের হাজিরা বাকি — প্রথমটা দিন`, `${missingN} day(s) not given — start with the first`)
+          <b>{missingN && returnedN ? L(`${n(missingN)} দিনের হাজিরা বাকি, ${n(returnedN)} দিন ফেরত এসেছে`, `${missingN} day(s) missing, ${returnedN} returned`)
+            : missingN ? L(`${n(missingN)} দিনের হাজিরা বাকি`, `${missingN} day(s) not given`)
             : L(`${n(returnedN)} দিনের হাজিরা ফেরত এসেছে — আবার দিন`, `${returnedN} day(s) came back — give them again`)}</b>
-          <span>{L('প্রথম', 'First')}: {longDate(first.date, lang)}</span>
+          <span>{todo.length > 1 ? L('একসাথে সব দিন, অথবা একটা একটা করে', 'All at once, or one by one') : `${L('প্রথম', 'First')}: ${longDate(first.date, lang)}`}</span>
         </div>
-        <button type="button" onClick={() => openDay(first)}>{L('প্রথমটা দিন', 'Give the first')}</button>
+        {todo.length > 1 && <button type="button" onClick={() => setFillOpen(true)}>{L('একসাথে সব দিন', 'Give all at once')}</button>}
+        <button type="button" className={todo.length > 1 ? 'secondary' : undefined} onClick={() => openDay(first)}>{L('প্রথমটা দিন', 'Give the first')}</button>
       </div> : book.open && book.days.some(d => d.state !== 'future') && <div className="wf-bk-banner ok" role="status">
         <span className="wf-bk-bi"><Icon name="check" size={20} /></span>
         <div className="tx"><b>{L('আজ পর্যন্ত সব হাজিরা দেওয়া আছে', 'Every date up to today is given')}</b>
@@ -165,6 +188,8 @@ export function AttendanceBook() {
 
     {/* ---- sheets */}
     {sheetDay && <GiveSheet key={sheetDay.date} book={book} day={sheetDay} onClose={() => setSheet(null)} onDone={after} onFail={() => void q.reload()} />}
+    {fillOpen && <BookFill book={book} onClose={() => setFillOpen(false)} onFail={() => void q.reload()}
+      onDone={async msg => { setFillOpen(false); await q.reload(); announceWfChange(); toast(msg) }} />}
     {withdraw && <Modal title={L('আবেদন তুলে নেবেন?', 'Withdraw the application?')} onClose={() => !wdBusy && setWithdraw(null)}
       actions={<>
         <button type="button" className="secondary" disabled={wdBusy} onClick={() => setWithdraw(null)}>{L('না, থাক', 'No, keep it')}</button>
@@ -183,7 +208,7 @@ function DayRow({ day, book, first, onOpen, refFn }: { day: BookDay; book: MyBoo
   const { L, n, lang } = usePrefs()
   const meta = STATE_META[day.state]
   const locked = day.state === 'waiting' && !!day.application_id           // inside a pending application: change it through the application
-  const open = book.open && (day.state === 'missing' || day.state === 'returned' || (day.state === 'waiting' && !locked))
+  const open = canGive(book, day) && (day.state === 'missing' || day.state === 'returned' || (day.state === 'waiting' && !locked))
   const rec = day.state === 'approved' ? day.record_status ?? day.decided_as : null
   // a week-off, holiday or approved-leave day says what it is, not just "approved"
   const shown = rec && ['leave', 'holiday', 'weekly_off'].includes(rec) && RECORD_META[rec] ? RECORD_META[rec] : meta
@@ -266,8 +291,8 @@ function GiveSheet({ book, day, onClose, onDone, onFail }: { book: MyBook; day: 
     </>}
 
     {step === 'ask' && <>
-      <h3 className="wf-sh-q">{L('ওয়েবসাইটে আবেদন করেছেন কি?', 'Did you apply on the website?')}</h3>
-      <p className="muted small wf-sh-sub">{L('অনুপস্থিতির আবেদন ওয়েবসাইটে আগেই করা থাকলে "হ্যাঁ" বলুন। না করে থাকলে "না" বলে এখান থেকেই আবেদন পাঠান।', 'If you already applied on the website, say yes. If not, say no and send the application from here.')}</p>
+      <h3 className="wf-sh-q">{L('Steadfast ওয়েবসাইটে আবেদন করেছেন কি?', 'Did you apply on the Steadfast website?')}</h3>
+      <p className="muted small wf-sh-sub">{L('অনুপস্থিতির আবেদন Steadfast ওয়েবসাইটে আগেই করা থাকলে "হ্যাঁ" বলুন। না করে থাকলে "না" বলে এখান থেকেই আবেদন পাঠান।', 'If you already applied on the Steadfast website, say yes. If not, say no and send the application from here.')}</p>
       <div className="wf-sh-opts two">
         <button type="button" className="wf-opt yes" onClick={() => { setErr(''); setStep('yes') }}><span className="wf-opt-i"><Icon name="check" size={24} /></span><b>{L('হ্যাঁ', 'Yes')}</b><small>{L('আবেদন করা আছে', 'I applied')}</small></button>
         <button type="button" className="wf-opt no" onClick={() => { setErr(''); setStep('apply') }}><span className="wf-opt-i"><Icon name="note" size={24} /></span><b>{L('না', 'No')}</b><small>{L('এখন আবেদন পাঠাব', 'I will apply now')}</small></button>

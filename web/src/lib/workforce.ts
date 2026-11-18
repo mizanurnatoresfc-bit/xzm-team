@@ -40,7 +40,30 @@ export type BookDay = {
   decided_as: Decided | null; decide_note: string | null; decided_by_name: string | null
   record_status: string | null                       // attendance_records.status for the date (present, late, half_day, absent, leave, holiday, weekly_off), whoever wrote it
   application_id: string | null; application_no: string | null; application_status: AppStatus | null
+  /** may this date be given (or changed) now: this month's open book, or an earlier date the zonal manager opened. Migration 20261118200000. */
+  can_give?: boolean
 }
+
+/** আগের তারিখ খোলা — earlier dates of the book a zonal manager opened for one zone (`wf_book_windows`). */
+export type WindowState = 'open' | 'expired' | 'ended'
+export type BookWindow = {
+  id: string; zone_id: string; zone_name: string | null
+  month: IsoDate; date_from: IsoDate; date_to: IsoDate; open_until: IsoDate; note: string | null
+  state: WindowState; by_name: string | null; created_at: string
+  ended_at: string | null; ended_by_name: string | null; end_note: string | null
+}
+/** A row of the zonal setting page; the progress numbers are filled for an open window only (null otherwise). */
+export type WindowRow = BookWindow & { people: number | null; people_left: number | null; days_left: number | null; days_waiting: number | null }
+/** `wf_windows(p_zone)` — the zonal setting page. */
+export type WindowsPage = {
+  today: IsoDate; window: { from_day: number; to_day: number }
+  earliest: IsoDate                                  // the first date that may be opened (two months back)
+  latest_until: IsoDate                              // the last "open until" day allowed (31 days ahead)
+  zones: Array<{ id: string; name: string; can_configure: boolean }>
+  rows: WindowRow[]                                  // open ones first, then the latest history (30 rows at most)
+}
+/** `wf_book_fill(...)` — how many dates of each kind were saved; the new application when some dates needed one. */
+export type FillResult = { present: number; site: number; absent: number; application_id: string | null }
 
 export type BookSummary = { present: number; late: number; half_day: number; absent: number; leave: number; other: number
   waiting: number; returned: number; missing: number; total_days: number }
@@ -60,7 +83,9 @@ export type MyBook = {
   employee: { id: string; code: string | null; name: string; position: string | null } & Scope
   month: IsoDate; today: IsoDate
   window: { from_day: number; to_day: number }       // default 1 … 17 (settings workforce.book_from_day / book_to_day)
-  open: boolean                                      // the month is the current one and today is inside the window: dates can be given
+  open: boolean                                      // dates of this month can be given now: today is inside this month's window, or a window opened it
+  catch_up?: BookWindow | null                       // the earlier dates the zonal manager opened for this month (null when none)
+  open_months?: IsoDate[]                            // every month in which something can be given right now, newest first
   days: BookDay[]                                    // every date of the window, in order (including future ones)
   summary: BookSummary
   applications: AbsenceApp[]                         // my applications that touch this month
@@ -110,6 +135,7 @@ export type BookCell = { s: CellCode; k: Kind | null; a: boolean | null; id: str
 export type HubBookPerson = { employee_id: string; code: string | null; name: string; position: string | null; cells: BookCell[]; summary: BookSummary }
 /** `wf_hub_book(p_hub, p_month)` — everyone of the hub across the month's window. `cells[i]` is date `dates[i]`. */
 export type HubBook = { hub: HubRef; month: IsoDate; today: IsoDate; window: { from_day: number; to_day: number }; open: boolean
+  catch_up?: BookWindow | null
   can: Can; dates: IsoDate[]; people: HubBookPerson[]; totals: BookSummary }
 
 /** `wf_marks(...)` — the approval queue / list of staff inputs (rows of attendance_self_marks). */
@@ -164,7 +190,8 @@ export type ZoneOverview = {
 export type PendingCounts = {
   today: IsoDate; open: boolean
   mine: null | { missing_days: number; returned_days: number; waiting_days: number; applications_pending: number
-    ops_expected: boolean; ops_submitted_today: boolean }   // null when the login has no active staff profile
+    ops_expected: boolean; ops_submitted_today: boolean     // null when the login has no active staff profile
+    catch_up_until?: IsoDate | null }                       // the last day of an open window of the person's zone (missing_days includes its dates)
   manage: null | { marks_waiting: number; applications_pending: number; ops_missing_today: number }   // null when the caller manages nobody
 }
 
@@ -184,6 +211,14 @@ export const wf = {
     rpc<string>('wf_att_submit', { p_date: date, p_kind: kind, p_applied_on_site: appliedOnSite ?? null, p_note: note || null }),
   apply: (dates: IsoDate[], reason: string) => rpc<string>('wf_absence_apply', { p_dates: dates, p_reason: reason }),
   cancelApplication: (id: string) => rpc<void>('wf_absence_cancel', { p_application: id }),
+  /** Many dates in one step, all or nothing: present, absent with "applied on the Steadfast website", and absent without applying (one application). */
+  fill: (f: { present: IsoDate[]; site: IsoDate[]; absent: IsoDate[]; reason?: string | null; note?: string | null }) =>
+    rpc<FillResult>('wf_book_fill', { p_present: f.present, p_site: f.site, p_absent: f.absent, p_reason: f.reason || null, p_note: f.note || null }),
+  // zonal setting — earlier dates of the book for one zone
+  windows: (zone?: string | null) => rpc<WindowsPage>('wf_windows', { p_zone: zone ?? null }),
+  windowSave: (zone: string, from: IsoDate, to: IsoDate, until: IsoDate, note?: string | null) =>
+    rpc<string>('wf_window_save', { p_zone: zone, p_from: from, p_to: to, p_until: until, p_note: note || null }),
+  windowEnd: (id: string, note?: string | null) => rpc<void>('wf_window_end', { p_window: id, p_note: note || null }),
   // staff — the four numbers
   myOps: (days = 14) => rpc<MyOps | null>('wf_ops_mine', { p_days: days }),
   submitOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
@@ -215,7 +250,8 @@ export const wf = {
 const BN: Array<[RegExp, string]> = [
   [/already on the register/i, 'এই তারিখের হাজিরা আগেই খাতায় উঠেছে'],
   [/already approved/i, 'এই তারিখের হাজিরা আগেই অনুমোদিত — বদলাতে ম্যানেজারকে বলুন'],
-  [/book is closed|window/i, 'এই তারিখের হাজিরা বই বন্ধ (প্রতি মাসের ১–১৭ তারিখ পর্যন্ত চালু)'],
+  [/book is closed/i, 'এই তারিখের হাজিরা বই বন্ধ — বই প্রতি মাসের ১–১৭ তারিখ চালু থাকে, আগের তারিখ শুধু জোনাল ম্যানেজার খুলে দিলে দেওয়া যায়'],
+  [/chosen twice/i, 'একই তারিখ দুই জায়গায় বাছা হয়েছে'],
   [/future/i, 'আগামী তারিখের হাজিরা এখন দেওয়া যায় না'],
   [/website question|applied on site/i, 'ওয়েবসাইটে আবেদন করেছেন কি না — আগে সেটা বলুন'],
   [/needs an application|use wf_absence_apply/i, 'ওয়েবসাইটে আবেদন না করে থাকলে অনুপস্থিতির তারিখ বেছে আবেদন পাঠান'],
@@ -239,8 +275,12 @@ const banglaTail = (m: string): string | null => {
   const t = m.split(' — ').slice(1).join(' — ').trim()
   return /[\u0980-\u09FF]/.test(t) ? t : null
 }
+/** wf_book_fill names the date that failed: "On 2026-11-05: …" -> "৫ নভেম্বর: …". */
+const ON_DATE = /^On (\d{4}-\d{2}-\d{2}): /
 export const wfFriendly = (e: unknown): string => {
   const m = e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e)
+  const on = ON_DATE.exec(m)
+  if (on) return `${new Date(`${on[1]}T00:00:00Z`).toLocaleDateString('bn-BD', { timeZone: 'UTC', day: 'numeric', month: 'long' })}: ${wfFriendly(m.slice(on[0].length))}`
   const known = BN.find(([re]) => re.test(m))?.[1]
   if (known) return known
   const bn = banglaTail(m)
