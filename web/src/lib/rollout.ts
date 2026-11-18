@@ -19,7 +19,15 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 const LOGIN_DOMAIN = 'xzmteam.com'
 export const loginEmail = (code: string) => `id-${code.toLowerCase().replace(/[^a-z0-9]/g, '')}@${LOGIN_DOMAIN}`
 
+/** A login whose post's role is not held: it needed someone allowed to give that role (bn: পদবির রোল বাকি). */
+export type RoleGap = { employee_id: string; employee_code: string | null; full_name: string; hub_id: string | null; hub_name: string | null
+  position_name: string | null; position_name_bn: string | null; role_id: string; role_code: string; role_name_bn: string | null; scope_type: 'hub' | 'zone' }
+
 export const rollout = {
+  /** People whose post's role is missing (in the caller's scope). */
+  roleGaps: () => rpc<RoleGap[]>('position_role_gaps'),
+  /** Gives one person the role of their post. */
+  applyRole: (employee: string) => rpc<string>('position_role_apply', { p_employee: employee }),
   progress: (zone?: string | null) => rpc<HubProgress[]>('rollout_progress', { p_zone: zone ?? null }),
   people: (hub: string) => rpc<PersonProgress[]>('rollout_people', { p_hub: hub }),
   /** Saves the signed-in person's own mobile number; from then on it also works as their login. */

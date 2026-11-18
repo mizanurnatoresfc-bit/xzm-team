@@ -34,8 +34,10 @@ select tests.login(tests.id('super'));
 select public.role_dashboard_save((select id from public.roles where code = 'rider'), array['quick_links','zonal_overview','my_work']);
 select tests.logout();
 insert into tests.ids values ('do1', tests.active_employee('Order Rider', '611', tests.id('hub_a1'), '01711000611', '6110101010'));
+update public.positions set default_role_id = (select id from public.roles where code = 'rider') where id = tests.id('pos_rider');
 update public.employees set profile_id = tests.id('rider_login') where id = tests.id('do1');
-select tests.grant_role(tests.id('rider_login'), 'rider', 'hub', null, tests.id('hub_a1'));
+-- the rider role now comes with the post (migration 20261119000200)
+select tests.ok(exists (select 1 from public.user_roles ur join public.roles r on r.id = ur.role_id where ur.user_id = tests.id('rider_login') and r.code = 'rider' and ur.hub_id = tests.id('hub_a1') and ur.granted_via = 'position' and ur.revoked_at is null), 'linking the login gives the rider role of the post');
 select tests.login(tests.id('rider_login'));
 select tests.ok(public.dashboard_panels() = array['quick_links','my_work'], 'a panel without permission is left out and the order holds');
 

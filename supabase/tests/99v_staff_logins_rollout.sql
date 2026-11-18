@@ -15,10 +15,12 @@ select tests.ok((select count(*) = 2 from public.role_permissions rp join public
 select tests.ok((select count(*) = 1 from public.role_dashboards d join public.roles r on r.id = d.role_id where r.code = 'staff'), 'it has a home dashboard');
 
 -- ---------- a role per post ----------
+-- a new post starts with the plain staff role (migration 20261119000200)
+select tests.ok((select default_role_id = (select id from public.roles where code = 'staff') from public.positions where id = tests.id('pos_rider')), 'a new post starts with the staff role');
 select tests.login(tests.id('hub_mgr'));
-update public.positions set default_role_id = (select id from public.roles where code = 'staff') where id = tests.id('pos_rider');
+update public.positions set default_role_id = (select id from public.roles where code = 'rider') where id = tests.id('pos_rider');
 select tests.logout();
-select tests.ok((select default_role_id is null from public.positions where id = tests.id('pos_rider')), 'a hub manager cannot change the role of a post');
+select tests.ok((select default_role_id = (select id from public.roles where code = 'staff') from public.positions where id = tests.id('pos_rider')), 'a hub manager cannot change the role of a post');
 select tests.login(tests.id('super'));
 update public.positions set default_role_id = (select id from public.roles where code = 'rider') where id = tests.id('pos_rider');
 select tests.logout();

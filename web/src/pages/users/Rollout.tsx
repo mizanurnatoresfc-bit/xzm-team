@@ -5,7 +5,7 @@ import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { hrFriendly } from '../../lib/hr'
 import { usePrefs } from '../../lib/prefs'
-import { rollout, type HubProgress, type PersonProgress } from '../../lib/rollout'
+import { rollout, type HubProgress, type PersonProgress, type RoleGap } from '../../lib/rollout'
 import { Badge, Stat, useLoad } from '../accounts/ui'
 
 const stage = (p: PersonProgress) => !p.has_login ? 'লগইন নেই' : !p.signed_in_at ? 'এখনো ঢোকেননি' : !p.password_set ? 'পাসওয়ার্ড বদলাননি' : !p.mobile ? 'মোবাইল দেননি' : 'সম্পূর্ণ'
@@ -18,6 +18,16 @@ export function Rollout() {
   const prog = useLoad(() => rollout.progress(), [])
   const [hub, setHub] = useState<HubProgress | null>(null)
   const people = useLoad(() => hub ? rollout.people(hub.hub_id) : Promise.resolve([] as PersonProgress[]), [hub?.hub_id])
+  const [gapTick, setGapTick] = useState(0)
+  const gaps = useLoad(() => can('system.user_role.view') ? rollout.roleGaps() : Promise.resolve([] as RoleGap[]), [gapTick])
+  const [busy, setBusy] = useState('')
+  const [gapMsg, setGapMsg] = useState('')
+  const giveRole = async (g: RoleGap) => {
+    setBusy(g.employee_id); setGapMsg('')
+    try { await rollout.applyRole(g.employee_id); setGapMsg(`${g.full_name}: ${g.role_name_bn ?? g.role_code} রোল দেওয়া হয়েছে / role given`); setGapTick(t => t + 1) }
+    catch (e) { setGapMsg(hrFriendly(e)) }
+    finally { setBusy('') }
+  }
   const rows = prog.data ?? []
   const sum = (k: 'staff' | 'with_login' | 'signed_in' | 'password_set' | 'with_mobile') => rows.reduce((a, r) => a + r[k], 0)
   const of = (a: number, b: number) => `${n(a)} / ${n(b)}`
@@ -44,6 +54,19 @@ export function Rollout() {
       <Stat icon="phone" label="মোবাইল দিয়েছেন" value={of(sum('with_mobile'), sum('staff'))} />
     </div>
     {prog.error ? <p className="da-error">{hrFriendly(prog.error)}</p> : null}
+    {(gaps.data?.length ?? 0) > 0 && <section className="panel">
+      <div className="da-bar"><h2 style={{ margin: 0 }}>পদবির রোল বাকি <span className="muted small">/ Post role missing</span></h2><Badge tone="warn">{n(gaps.data!.length)}</Badge></div>
+      <p className="muted small">এঁদের পদবি বদলেছে, কিন্তু নতুন পদবির রোল যিনি বদলেছেন তিনি দিতে পারেন না (যেমন হাব ম্যানেজার)। দেখে “রোল দিন” চাপুন। / Their post changed, but the person who changed it may not give the new post's role.</p>
+      {gapMsg && <p className="small">{gapMsg}</p>}
+      <DataTable<RoleGap> title="পদবির রোল বাকি" file="post-role-missing" prefKey="post-role-gaps" rows={gaps.data} rowKey={g => g.employee_id} cols={[
+        { key: 'code', label: 'আইডি', value: g => g.employee_code ?? '' },
+        { key: 'name', label: 'নাম', primary: true, value: g => g.full_name },
+        { key: 'hub', label: 'হাব', value: g => g.hub_name ?? '' },
+        { key: 'pos', label: 'পদবি', value: g => g.position_name_bn || g.position_name || '' },
+        { key: 'role', label: 'যে রোল লাগবে', value: g => g.role_name_bn || g.role_code },
+        { key: 'act', label: '', value: () => '', render: g => <button type="button" className="sm" disabled={!!busy} onClick={() => void giveRole(g)}>{busy === g.employee_id ? '…' : 'রোল দিন'}</button> },
+      ]} />
+    </section>}
     <section className="panel">
       <div className="da-bar"><h2 style={{ margin: 0 }}>হাব অনুযায়ী</h2>{prog.loading && <span className="muted small">লোড হচ্ছে…</span>}</div>
       <DataTable<HubProgress> title="চালু করার অগ্রগতি" file="rollout" rows={rows} rowKey={r => r.hub_id} onRowClick={setHub}

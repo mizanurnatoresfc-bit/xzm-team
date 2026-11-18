@@ -6,12 +6,14 @@ insert into tests.ids values
   ('d1', tests.active_employee('Dash Rider One', '601', tests.id('hub_a1'), '01711000601', '6010101010')),
   ('d2', tests.active_employee('Dash Rider Two', '602', tests.id('hub_b1'), '01711000602', '6020202020'));
 -- give the rider a login of their own, so "my work" has an owner
+update public.positions set default_role_id = (select id from public.roles where code = 'rider') where id = tests.id('pos_rider');
 update public.employees set profile_id = tests.id('rider_login') where id = tests.id('d1');
-select tests.grant_role(tests.id('rider_login'), 'rider', 'hub', null, tests.id('hub_a1'));
+-- the rider role now comes with the post (migration 20261119000200)
+select tests.ok(exists (select 1 from public.user_roles ur join public.roles r on r.id = ur.role_id where ur.user_id = tests.id('rider_login') and r.code = 'rider' and ur.hub_id = tests.id('hub_a1') and ur.granted_via = 'position' and ur.revoked_at is null), 'linking the login gives the rider role of the post');
 
 -- ---------- the catalogue and the seeded layouts ----------
 select tests.ok((select count(*) from private.dashboard_catalogue()) = 14, 'fourteen panels exist');
-select tests.ok((select count(*) from public.role_dashboards) = 15, 'every shipped role starts with a layout');
+select tests.ok((select count(*) from public.role_dashboards) = 20, 'every shipped role starts with a layout (15 + the five own-work roles of 20261119000200)');
 select tests.ok((select panels from public.role_dashboards d join public.roles r on r.id = d.role_id where r.code = 'rider')
                 = '["my_day","my_requests","my_work","quick_links"]'::jsonb, 'a rider starts with their own day, requests and work');
 
@@ -93,7 +95,7 @@ select tests.login(tests.id('super'));
 select public.role_dashboard_save((select id from public.roles where code = 'rider'), array['my_work','ops_today','quick_links']);
 select tests.ok((select panels from public.role_dashboards d join public.roles r on r.id = d.role_id where r.code = 'rider')
                 = '["my_work","ops_today","quick_links"]'::jsonb, 'super admin sets what a role sees');
-select tests.ok((select count(*) from public.role_dashboard_list()) = 15, 'the layout list shows every role');
+select tests.ok((select count(*) from public.role_dashboard_list()) = 20, 'the layout list shows every role (with the five own-work roles)');
 select tests.throws($$select public.role_dashboard_save((select id from public.roles where code = 'rider'), array['no_such_panel'])$$,
   'an unknown panel is refused', '22023');
 select tests.throws($$update public.role_dashboards set panels = '["my_work","my_work"]'::jsonb

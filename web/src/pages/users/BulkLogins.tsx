@@ -26,7 +26,8 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
   const [run, setRun] = useState<{ at: number; total: number; made: Made[]; bad: string[]; done: boolean } | null>(null)
   const stop = useRef(false)
 
-  const usable = (roleList.data ?? []).filter(r => !r.archived_at && !r.is_super)
+  // A switched-off role is never offered: a login given one would open nothing.
+  const usable = (roleList.data ?? []).filter(r => !r.archived_at && !r.is_super && r.status === 'active')
   const roleName = (id: string) => { const r = usable.find(x => x.id === id); return r ? r.name_bn || r.name : '' }
   const positions = o.data?.positions ?? []
   const roleOf = (pos: string | null) => (pos ? picked[pos] ?? positions.find(p => p.id === pos)?.default_role_id ?? '' : '')
@@ -56,7 +57,8 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
     for (const [i, c] of ready.entries()) {
       if (stop.current) break
       const role = roleOf(c.position_id)
-      const zoneWide = usable.find(r => r.id === role)?.code === 'zonal_manager'
+      // A zone-level post (or the zonal manager role) gets its role for the whole zone, as the database does.
+      const zoneWide = positions.find(p => p.id === c.position_id)?.level === 'zone' || usable.find(r => r.id === role)?.code === 'zonal_manager'
       const pw = mode === 'common' ? password : tempPassword()
       try {
         const r = await users.create({ email: loginEmail(c.employee_code!), full_name: c.full_name, phone: c.mobile ?? '', password: pw, role_id: role,
