@@ -27,17 +27,21 @@ function applyFont(key: FontKey) {
   root.style.setProperty('--font-display', `"${f.family}","Hind Siliguri","Inter",system-ui,sans-serif`)
 }
 
-type Prefs = { lang: Lang; theme: Theme; font: FontKey; setLang: (l: Lang) => void; setTheme: (t: Theme) => void; setFont: (f: FontKey) => void; L: (bn: string, en: string) => string; n: (v: number | string) => string }
+type Prefs = { lang: Lang; theme: Theme; font: FontKey; setLang: (l: Lang) => void; setTheme: (t: Theme) => void; setFont: (f: FontKey) => void
+  /** নদী AI's floating button on every screen: the person may switch it off (on by default). */
+  nodiFab: boolean; setNodiFab: (on: boolean) => void; L: (bn: string, en: string) => string; n: (v: number | string) => string }
 
 const read = (k: string, d: string) => { try { return localStorage.getItem('xzm_' + k) ?? d } catch { return d } }
 const write = (k: string, v: string) => { try { localStorage.setItem('xzm_' + k, v) } catch { /* private mode */ } }
 const Ctx = createContext<Prefs | null>(null)
 
-/** Language (বাংলা / English) and light/dark theme, remembered on this device. */
+/** Language (বাংলা / English), light/dark theme, font and the নদী button, remembered on this device. */
 export function PrefsProvider({ children }: PropsWithChildren) {
   const [lang, setLangS] = useState<Lang>(() => (read('lang', 'bn') === 'en' ? 'en' : 'bn'))
   const [theme, setThemeS] = useState<Theme>(() => { const t = read('theme', 'system'); return t === 'dark' || t === 'light' ? t : 'system' })
   const [font, setFontS] = useState<FontKey>(() => okFont(read('font', 'hind')))
+  const [nodiFab, setNodiFabS] = useState(() => read('nodi_fab', '1') !== '0')
+  const setNodiFab = useCallback((on: boolean) => { setNodiFabS(on); write('nodi_fab', on ? '1' : '0') }, [])
   useEffect(() => { applyFont(font) }, [font])
   const setFont = useCallback((f: FontKey) => { setFontS(f); write('font', f) }, [])
   useEffect(() => { document.documentElement.lang = lang }, [lang])
@@ -45,10 +49,10 @@ export function PrefsProvider({ children }: PropsWithChildren) {
   const setLang = useCallback((l: Lang) => { setLangS(l); write('lang', l) }, [])
   const setTheme = useCallback((t: Theme) => { setThemeS(t); write('theme', t) }, [])
   const value = useMemo<Prefs>(() => ({
-    lang, theme, font, setLang, setTheme, setFont,
+    lang, theme, font, setLang, setTheme, setFont, nodiFab, setNodiFab,
     L: (bn, en) => lang === 'bn' ? bn : en,
     n: v => lang === 'bn' ? String(v).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[+d]) : String(v),
-  }), [lang, theme, font, setLang, setTheme, setFont])
+  }), [lang, theme, font, setLang, setTheme, setFont, nodiFab, setNodiFab])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

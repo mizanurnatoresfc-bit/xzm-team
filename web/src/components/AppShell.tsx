@@ -288,7 +288,7 @@ function roleClass(code: string) {
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   const { can, signOut, session, isSuperAdmin, menu } = useAuth()
-  const { L, n, lang, setLang, theme, setTheme } = usePrefs()
+  const { L, n, lang, setLang, theme, setTheme, nodiFab } = usePrefs()
   const [asRole, setAsRole] = useState(false)
   const nav = useNavigate()
   const user = session?.user.id ?? ''
@@ -475,7 +475,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <span className="nt-ic"><Icon name={kindOf(nt.fresh.kind)[2]} size={18} /></span>
       <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
       <span className="nt-x" role="button" aria-label={L('বন্ধ', 'Close')} onClick={e => { e.stopPropagation(); clearFresh() }}><Icon name="x" size={14} /></span></button>}
-    {can('nodi.assistant.view') && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
+    {nodiFab && can('nodi.assistant.view') && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
       {(dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}

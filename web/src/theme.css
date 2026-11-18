@@ -1050,7 +1050,8 @@ button.sm{min-height:32px;border-radius:8px}
 .nodi-fab{position:fixed;right:14px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:30;border-radius:50%;box-shadow:0 6px 20px rgba(0,0,0,.28);background:var(--surface);display:grid;place-items:center}
 @media (min-width:900px){.nodi-fab{bottom:22px}}
 .nodi-chat{display:flex;flex-direction:column;gap:10px;max-width:760px;margin:0 auto}
-.nodi-top{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:10px 12px}
+.nodi-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:10px 12px}
+.nodi-top-btns{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .nodi-log{display:flex;flex-direction:column;gap:10px;min-height:42vh}
 .nodi-msg{display:flex;gap:8px;align-items:flex-end}.nodi-msg.user{justify-content:flex-end}
 .nodi-msg .bub{max-width:84%;white-space:pre-wrap;line-height:1.5;padding:10px 12px;border-radius:16px;background:var(--surface);border:1px solid var(--border)}

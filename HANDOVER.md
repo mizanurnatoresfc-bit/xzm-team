@@ -479,3 +479,12 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   No window is open yet: the Super Admin or the zonal manager opens one from জোনাল ওয়ার্কফোর্স রিপোর্ট → সেটিং.
 - Live has three migrations of 18 Nov that are not in the repository yet (`hub_manager_more_pages`, `remove_nodi_ai_a_rename`, `staff_app_rls_revoke_anon_definer_execute`);
   none touches the workforce functions. They should be brought into the repository like the 17 Nov sync.
+
+## 2026-11-18 — নদী AI floating button: on/off per person (website only)
+- Owner: "can this (`/app/nodi/chat`) be switched on/off on screen?" Each person can now hide the round নদী button that floats in the corner of every page
+  (shown to zonal-level people with `nodi.assistant.view`). নদী still opens from the menu; the company-wide on/off stays in নদী AI সেটিংস (`/app/nodi`).
+- Where: the chat page header ("🟢 স্ক্রিনে বোতাম চালু / ⚪ বন্ধ", next to the voice button) and সেটিং → "স্ক্রিনে নদী AI বোতাম" চালু / বন্ধ.
+  Kept on this device only (`localStorage` `xzm_nodi_fab`, like language/theme/font in `lib/prefs.tsx`); default on. No database change, no new APK.
+- Smoke test: turns it off on the chat page, checks the button is gone (menu entry stays), turns it on in Setting, checks it is back (PC and phone). 473 checks pass.
+- Repository note: `web/node_modules` is committed as a symlink to itself (since `0fa563d`; `.gitignore`'s `node_modules/` misses symlinks). CI is fine because
+  `npm ci` replaces it, but on a fresh checkout delete it before `npm install`. Removing it from git (`git rm --cached web/node_modules`) is a safe follow-up.
