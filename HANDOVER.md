@@ -495,4 +495,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Pages: the one-date sheet asks for the number and the date after "হ্যাঁ"; "একসাথে সব দিন" asks per application (with "+ আরেকটি ওয়েবসাইট আবেদন");
   the book, the hub manager's list and day sheet, and the zonal list show "নম্বর … · তারিখ".
 - Tests: new file (33); the two older workforce files now pass the number and date; whole suite 1902 pass. Typecheck and build pass.
-- **Not live yet.** Apply the migration on Supabase first, then release the site (the old site would send absent + website without a number and be refused).
+- **18 Nov — live:** applied to Supabase as `workforce_site_application` (20261118230228). Before applying, the six replaced functions were checked equal to the
+  repository on live; after, all 53 `wf_*` function bodies equal the tested file by hash, anon can run none, private helpers closed, both table rules validated.
+  Site released by merging to `main` right after (the old site's absent + website call is refused until then).
