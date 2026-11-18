@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 import { isDark, usePrefs } from '../lib/prefs'
 import { NodiAvatar } from './NodiAvatar'
 import { clearFresh, kindOf, markAllRead, markRead, savePushDevice, startNotices, useNotices, type Notice as LiveNotice } from '../lib/notices'
-import { setupPush } from '../lib/native'
+import { advancedAccessHere, setupPush } from '../lib/native'
 import { Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq } from '../lib/hrreq'
@@ -16,7 +16,8 @@ import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 import { PersonalMenu, WfCountsHost } from './PersonalMenu'
 
-type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey }
+type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey
+  /** 'web' = the website only, 'app' = the Android app only (see advancedAccessHere). */ only?: 'web' | 'app' }
 type Sec = { bn: string; en: string; items: Item[] }
 type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; items: Item[] }
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
@@ -109,7 +110,8 @@ export const GROUPS: Group[] = [
     ] },
     { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
       { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
-      { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'] },
+      { to: '/app/access', icon: 'shield', bn: 'অ্যাডভান্সড রোল ও পারমিশন', en: 'Advanced roles & permissions', perms: ['system.role.view'], only: 'web' },
+      { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'], only: 'app' },
       { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
       { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
       { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
@@ -347,7 +349,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
 
   const loc = useLocation()
   const allowed = (p: string[] | null) => !p || p.some(x => can(x))
-  const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (panelLevel(can) === 2 || !ZONE_ONLY.includes(i.to))
+  const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (panelLevel(can) === 2 || !ZONE_ONLY.includes(i.to)) && (!i.only || (i.only === 'web') === advancedAccessHere())
   const here = typeof location !== 'undefined' ? location.pathname : ''
   const mq = menuQ.trim().toLowerCase()
   const hit = (i: Item) => !mq || `${i.bn} ${i.en}`.toLowerCase().includes(mq)

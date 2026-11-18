@@ -25,6 +25,27 @@ const hubRows = hubNames.map((name, i) => ({ id: `h${i + 1}`, name, code: String
 const staffRows = Array.from({ length: 12 }, (_, i) => ({ id: `e${String(i).padStart(2, '0')}`, employee_code: String(1000 + i), full_name: `Staff ${String(i).padStart(2, '0')}`,
   hub_id: 'h2', position_id: 'p1', mobile: `017110000${String(i).padStart(2, '0')}`, status: 'active' }))
 
+// Advanced role & permission pages: the permissions the fake roles above use, a few accounts, and a little audit history
+const permRows = [['org.hub.view', 'View hubs'], ['hr.attendance.view', 'View attendance'], ['hr.attendance.create', 'Record attendance'], ['hr.attendance.edit', 'Correct attendance'],
+  ['hr.employee.view', 'View employees in scope'], ['hr.employee.edit', 'Edit employee details'], ['hr.leave.view', 'View leave requests'], ['hr.leave.approve', 'Approve leave'], ['hr.leave.reject', 'Reject leave'],
+  ['da.sheet.view', 'View daily account sheets'], ['da.sheet.create', 'Fill in daily account sheets'], ['da.report.view', 'View reports'], ['da.report.export', 'Export reports'],
+  ['system.role.view', 'View roles'], ['system.role.edit', 'Edit roles'], ['system.audit.view', 'View audit log']]
+  .map(([code, description], i) => { const [module, resource, action] = code.split('.'); return { id: `p${i + 1}`, code, module, resource, action, description } })
+const grant = (id, role, scope, zone, hub) => ({ id, role_id: role.id, code: role.code, name: role.name, name_bn: role.name_bn, is_super: role.is_super, scope_type: scope,
+  zone_id: zone, hub_id: hub, zone: zone ? 'Natore Area' : null, hub: hub ? hubNames[Number(hub.slice(1)) - 1] : null, valid_from: '2026-11-01', valid_to: null })
+const account = (id, full_name, email, grants) => ({ id, full_name, email, phone: null, status: 'active', archived_at: null, locked: false, locked_until: null, failed_login_count: 0, last_login_at: null,
+  must_change_password: false, created_at: '2026-11-01T00:00:00Z', employee_id: null, employee_code: null, roles: grants, can_manage: id !== 'u1' })
+const accounts4 = [account('u1', 'Owner', 'owner@example.com', [grant('a1', roles[0], 'global', null, null)]),
+  account('u2', 'Sohel Sardar', 'sohel@example.com', [grant('a2', roles[2], 'hub', null, 'h1')]),
+  account('u3', 'Zonal Karim', 'karim@example.com', [grant('a3', roles[2], 'zone', 'z1', null)]),
+  account('u4', 'New Joiner', 'new@example.com', [])]
+const auditRows = [
+  { id: 9, occurred_at: '2026-11-16T10:00:00Z', actor_id: 'u1', action: 'INSERT', table_name: 'role_permissions', record_id: null, old_data: null, new_data: { role_id: 'r2', permission_id: 'p8' }, changed_fields: null, reason: 'Role permissions set by Super Admin' },
+  { id: 8, occurred_at: '2026-11-16T10:00:00Z', actor_id: 'u1', action: 'DELETE', table_name: 'role_permissions', record_id: null, old_data: { role_id: 'r2', permission_id: 'p4' }, new_data: null, changed_fields: null, reason: 'Role permissions set by Super Admin' },
+  { id: 7, occurred_at: '2026-11-15T09:00:00Z', actor_id: 'u1', action: 'INSERT', table_name: 'user_roles', record_id: 'a2', old_data: null, new_data: { id: 'a2', user_id: 'u2', role_id: 'r2', scope_type: 'hub', zone_id: null, hub_id: 'h1' }, changed_fields: null, reason: null }]
+const ownRows = [{ id: 'o1', user_id: 'u2', user_name: 'Sohel Sardar', permission: 'da.report.export', effect: 'grant', scope_type: 'hub', zone_id: null, hub_id: 'h2', zone: null, hub: 'Lalpur',
+  valid_from: '2026-11-10', valid_to: '2099-12-31', reason: 'রিপোর্ট দেখবেন', created_at: '2026-11-10T05:00:00Z', created_by_name: 'Owner', revoked_at: null, revoke_reason: null, live: true }]
+
 const fails = []
 const check = (ok, what) => { if (!ok) fails.push(what); console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`) }
 
@@ -68,7 +89,7 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links']
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false
     const prospects = []
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -94,6 +115,18 @@ try {
       if (u.includes('rpc/hr_referrals')) return j([{ id: 'e07', employee_code: '1007', full_name: 'Karim Mia', position_name: 'Rider', hub_name: 'Lalpur', zone_name: 'Natore', status: 'active', joining_date: '2026-10-01' }])
       if (u.includes('/rest/v1/referral_prospects') && r.request().method() === 'POST') { prospects.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('rpc/role_admin_list')) return j(roles)
+      // advanced role & permission pages
+      if (u.includes('/rest/v1/permissions')) return j(permRows)
+      if (u.includes('rpc/user_admin_list')) return j(accounts4)
+      if (u.includes('/rest/v1/audit_logs')) return j(auditRows)
+      if (/rpc\/(access_overrides|access_user_grants)(\?|$)/.test(u) && !ownInstalled)   // the database part is not applied yet
+        return r.fulfill({ status: 404, contentType: 'application/json', headers: cors, body: JSON.stringify({ code: 'PGRST202', message: 'Could not find the function in the schema cache' }) })
+      if (/rpc\/access_overrides(\?|$)/.test(u)) { const who = r.request().postDataJSON()?.p_user; return j(ownRows.filter(o => !who || o.user_id === who)) }
+      if (u.includes('rpc/access_user_grants')) return j([{ permission_code: 'hr.attendance.view', scope_type: 'hub', zone_id: null, hub_id: 'h1', is_super: false },
+        { permission_code: 'hr.attendance.create', scope_type: 'hub', zone_id: null, hub_id: 'h1', is_super: false }, { permission_code: 'hr.employee.view', scope_type: 'hub', zone_id: null, hub_id: 'h1', is_super: false },
+        { permission_code: 'da.report.export', scope_type: 'hub', zone_id: null, hub_id: 'h2', is_super: false }])
+      if (/rpc\/(role_admin_save|access_overrides_save|user_admin_assign_role|user_admin_revoke_role)(\?|$)/.test(u)) { const fn = u.split('rpc/')[1].split('?')[0]
+        flowCalls.push({ fn, ...r.request().postDataJSON() }); return j(fn === 'role_admin_save' ? r.request().postDataJSON()?.p_id ?? 'r9' : fn === 'access_overrides_save' ? { added: 1, kept: 1, removed: 0 } : fn === 'user_admin_assign_role' ? 'a9' : null) }
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
@@ -593,7 +626,7 @@ try {
       const inPanel = (k, t) => page.locator(`.side .ngrp[data-panel=${k}] a.nl`, { hasText: t }).count()
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
-      check(await panels() === 'accounts,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 1,
+      check(await panels() === 'accounts,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
         `${size}: the Super Admin's menu is the accounts menu and three panels (staff, manager, zonal manager)`)
       { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
@@ -967,6 +1000,75 @@ try {
     check((await page.locator('.da-modal .dup-note').innerText().catch(() => '')).includes('Staff 01'), `${size}: a mobile number that is already used is flagged with the person's name`)
     await fits('new staff form')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff.png` })
+
+    // ---- Advanced role & permission management (website only for now) ----
+    { const box = (sub, i) => page.locator(`.ax-row[data-sub="${sub}"] .ax-c`).nth(i).locator('button')
+      const closed = () => page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+      await page.goto(`${BASE}/app/access`); await page.waitForSelector('.ax-guide .ax-g')
+      check(await page.locator('.ax-guide .ax-g').count() === 10 && await page.locator('.ax-tabs a').count() === 6, `${size}: the access centre lists the ten functions and its six parts`)
+      await fits('access centre')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-access.png` })
+      await page.goto(`${BASE}/app/roles`); await page.waitForSelector('.ax-role')
+      check(/\/app\/access\/roles$/.test(page.url()) && await page.locator('.ax-role').count() === 3, `${size}: the old role address opens the new role list`)
+      // a role: module -> sub-menu -> view / create / edit / delete / approve / export, and its pages
+      await page.locator('.ax-role[data-role=hub_manager]').click(); await page.waitForSelector('.ax-mod button.ax-box')
+      check((await page.locator('.ax-mod[data-module=hr] .ax-row.ax-head span').allTextContents()).join('|') === 'সাব-মেনু|পাতা|দেখা|তৈরি|এডিট|ডিলিট|অনুমোদন|এক্সপোর্ট'
+        && await page.locator('.ax-mod').count() >= 10, `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access`)
+      await box('/app/hr/leave', 4).click()   // approve: gives hr.leave.approve + hr.leave.reject
+      await page.getByRole('button', { name: 'শুধু টিক দেওয়া পাতা' }).click()
+      await page.locator('.ax-row[data-sub="/app/hr/attendance"] .ax-pg button').click()
+      check((await page.locator('.ax-savebar .tx').innerText()).includes('+২') && await box('/app/hr/leave', 4).evaluate(e => e.classList.contains('m-plus')), `${size}: unsaved changes are counted and marked on the box`)
+      await fits('role builder')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-access-role.png` })
+      await page.locator('.ax-savebar button', { hasText: 'দেখে সেভ করুন' }).click(); await page.waitForSelector('.da-modal .ax-review')
+      check(await page.locator('.da-modal .ax-review li').count() === 2 && (await page.locator('.da-modal .ax-review-pages').innerText()).includes('হাজিরা'), `${size}: the review lists what is given and which page goes off`)
+      await page.locator('.da-modal-acts button').last().click(); await closed()
+      { const save = flowCalls.filter(c => c.fn === 'role_admin_save').at(-1) ?? {}, menu = flowCalls.filter(c => c.fn === 'role_menu_save').at(-1) ?? {}
+        check(save.p_id === 'r2' && ['hr.leave.approve', 'hr.leave.reject', 'hr.attendance.view'].every(x => save.p_permissions?.includes(x)) && save.p_permissions?.length === 5
+          && menu.p_role === 'r2' && menu.p_menu?.includes('/app/hr/leave') && !menu.p_menu?.includes('/app/hr/attendance') && menu.p_menu?.includes('/app/access') && menu.p_menu?.includes('/app/roles'),
+          `${size}: the role's permissions and its page list are saved`) }
+      // one person: hub / zone limit and personal permissions
+      await page.goto(`${BASE}/app/access/users`); await page.waitForSelector('main :text("Sohel Sardar")')
+      check((await page.locator('main').innerText()).includes('পুরো কোম্পানি') || (await page.locator('main').innerText()).includes('সব ক্ষমতা'), `${size}: the user list shows how far each person's data reaches`)
+      await page.goto(`${BASE}/app/access/user/u2`); await page.waitForSelector('.ax-urole'); await page.waitForSelector('#own .ax-mod, #own .notice')
+      check(await page.locator('#own .notice').count() === 1 && await page.locator('[data-own-edit]').count() === 0 && await page.locator('#own .ax-mod').count() >= 1,
+        `${size}: before the database update, personal permissions say so and the rest still shows`)
+      await page.locator('.ax-urole button', { hasText: 'সীমা বদলান' }).click(); await page.waitForSelector('.da-modal .ax-place .chip-toggle')
+      await page.locator('.da-modal .chip-toggle', { hasText: 'Lalpur' }).click()
+      await fits('data limit dialog')
+      if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: `${process.env.SHOTS}/${size}-access-limit.png` }) }
+      await page.locator('.da-modal-acts button').last().click(); await closed()
+      { const c = flowCalls.filter(x => x.fn === 'user_admin_assign_role').at(-1) ?? {}
+        check(c.p_user === 'u2' && c.p_role === 'r2' && c.p_scope === 'hub' && c.p_hub === 'h2' && !flowCalls.some(x => x.fn === 'user_admin_revoke_role'), `${size}: hub-wise limit — a second hub is added to the role, nothing removed`) }
+      ownInstalled = true
+      await page.goto(`${BASE}/app/access/user/u2`); await page.waitForSelector('[data-own-edit]')
+      check(await page.locator('[data-own-list] .ax-ownchip.plus').count() === 1, `${size}: a personal extra shows as a chip with its place and end date`)
+      await page.locator('[data-own-edit]').click(); await page.waitForSelector('.ax-ownedit')
+      await box('/app/hr/attendance', 1).click()   // the role gives "create": unticking switches it off for this person
+      await page.locator('.ax-savebar.inline input').fill('পরীক্ষা'); await page.locator('[data-own-save]').click()
+      await page.waitForFunction(() => !document.querySelector('.ax-ownedit'), null, { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'access_overrides_save').at(-1) ?? {}
+        check(c.p_user === 'u2' && c.p_reason === 'পরীক্ষা' && c.p_items?.length === 2 && c.p_items.some(i => i.effect === 'deny' && i.permission === 'hr.attendance.create')
+          && c.p_items.some(i => i.effect === 'grant' && i.permission === 'da.report.export' && i.scope_type === 'hub' && i.hub_id === 'h2'), `${size}: individual override — one switched off, the extra kept, saved with the reason`) }
+      ownInstalled = false
+      // by hub, history, super admin
+      await page.goto(`${BASE}/app/access/scope?kind=hub&id=h1`); await page.waitForSelector('.ax-via')
+      { const t = await page.locator('[data-scope-detail]').innerText()
+        check(t.includes('Sohel Sardar') && t.includes('Zonal Karim') && t.includes('শুধু এই হাবে সীমিত') && t.includes('জোনের মাধ্যমে পান'), `${size}: by hub — who is limited to it and who gets it through the zone`) }
+      await fits('hub and zone limits')
+      await page.goto(`${BASE}/app/access/history`); await page.waitForSelector('main :text("রোলের অনুমতি বদল")')
+      { const t = await page.locator('main').innerText()
+        check(t.includes('রোলের অনুমতি বদল (+১ −১)') && t.includes('রোল দেওয়া') && t.includes('Owner') && t.includes('Sohel Sardar'), `${size}: the change history says who changed what for whom`) }
+      await fits('change history')
+      await page.goto(`${BASE}/app/access/super`); await page.waitForSelector('.ax-people.big li')
+      check(await page.locator('.ax-people.big li').count() === 1 && await page.locator('.ax-rules li').count() === 5 && (await page.locator('main').innerText()).includes('মাত্র একজন'), `${size}: the Super Admin page lists who holds full control and warns when it is one person`)
+      await fits('super admin page')
+      // inside the Android app the older page stays for now
+      const app = await ctx.newPage()
+      await app.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {} } })
+      await app.goto(`${BASE}/app/access`); await app.waitForURL(/\/app\/roles$/, { timeout: 8000 }).catch(() => {})
+      check(/\/app\/roles$/.test(app.url()), `${size}: inside the Android app the advanced pages are not shown yet (the older role page opens)`)
+      await app.close() }
 
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
     await ctx.close()

@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { lazy, Suspense, type ReactNode } from 'react'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -11,7 +11,7 @@ import './theme.css'
 import { PrefsProvider } from './lib/prefs'
 import { Home } from './pages/Home'
 import { Terms } from './pages/Terms'
-import { isNativeApp } from './lib/native'
+import { advancedAccessHere, isNativeApp } from './lib/native'
 
 // Pages load on first visit, so the first screen downloads only what it needs.
 const DailyDashboard = lazy(() => import('./pages/accounts/DailyDashboard').then(m => ({ default: m.DailyDashboard })))
@@ -62,6 +62,9 @@ const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default:
 const UserDetail = lazy(() => import('./pages/users/UserDetail').then(m => ({ default: m.UserDetail })))
 const RoleEditor = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.RoleEditor })))
 const Roles = lazy(() => import('./pages/users/Roles').then(m => ({ default: m.Roles })))
+const AccessCenter = lazy(() => import('./pages/access/AccessCenter').then(m => ({ default: m.AccessCenter })))
+const RoleBuilder = lazy(() => import('./pages/access/RoleBuilder').then(m => ({ default: m.RoleBuilder })))
+const UserAccess = lazy(() => import('./pages/access/UserAccess').then(m => ({ default: m.UserAccess })))
 const Fleet = lazy(() => import('./pages/fleet/Fleet').then(m => ({ default: m.Fleet })))
 const FleetMine = lazy(() => import('./pages/fleet/FleetMine').then(m => ({ default: m.FleetMine })))
 const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ default: m.StaffPanel })))
@@ -90,6 +93,16 @@ if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
 
 const Loading = () => <div className="page-loading" role="status"><span className="spin" />লোড হচ্ছে…</div>
 
+/** Advanced role & permission pages: on the website; inside the Android app the older role page stays for now. */
+function AccessPage({ children }: { children: ReactNode }) {
+  return advancedAccessHere() ? <>{children}</> : <Navigate to="/app/roles" replace />
+}
+/** The older role page: where the advanced pages are shown, its addresses lead to them. */
+function OldRolePage() {
+  const { id } = useParams()
+  if (!advancedAccessHere()) return id ? <RoleEditor /> : <Roles />
+  return <Navigate to={id ? `/app/access/role/${id}` : '/app/access/roles'} replace />
+}
 /** A page open to anyone who holds at least one of the permissions (ProtectedRoute takes a single one). The database re-checks every call. */
 function AnyOf({ perms }: { perms: string[] }) {
   const { can } = useAuth()
@@ -177,8 +190,12 @@ export default function App() {
       <Route path="/app/hr/import" element={<ImportEmployees />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.role.view" />}>
-      <Route path="/app/roles" element={<Roles />} />
-      <Route path="/app/roles/:id" element={<RoleEditor />} />
+      <Route path="/app/roles" element={<OldRolePage />} />
+      <Route path="/app/roles/:id" element={<OldRolePage />} />
+      <Route path="/app/access" element={<AccessPage><AccessCenter /></AccessPage>} />
+      <Route path="/app/access/role/:id" element={<AccessPage><RoleBuilder /></AccessPage>} />
+      <Route path="/app/access/user/:id" element={<AccessPage><UserAccess /></AccessPage>} />
+      <Route path="/app/access/:section" element={<AccessPage><AccessCenter /></AccessPage>} />
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
       <Route path="/app/nodi/chat" element={<NodiChat />} />
       <Route path="/app/nodi" element={<NodiSettings />} />
