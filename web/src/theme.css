@@ -2720,3 +2720,17 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
 .sp-wal .hw .c5{background:var(--bad-bg);border-color:transparent}.sp-wal .hw .c5 small,.sp-wal .hw .c5 b{color:var(--bad-fg)}
 .sp-wal .hw .c6{background:var(--ok-bg);border-color:transparent}.sp-wal .hw .c6 small,.sp-wal .hw .c6 b{color:var(--ok-fg)}
 .sp-wal .hw .c1 i,.sp-wal .hw .c2 i,.sp-wal .hw .c3 i,.sp-wal .hw .c5 i,.sp-wal .hw .c6 i{color:inherit;opacity:.8}
+/* জিনিস বণ্টন (pages/hub/AssignHub.tsx) */
+.as{display:flex;flex-direction:column;gap:12px;max-width:760px}
+.as-people{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:10px;max-height:260px;overflow-y:auto}
+.as-p{display:flex;gap:10px;align-items:center;text-align:left;padding:8px 10px;border-radius:16px;background:var(--surface);border:1.5px solid var(--border);color:var(--text);min-height:48px}
+.as-p.on{border-color:var(--primary);background:var(--primary-50)}
+.as-p:hover:not(:disabled){background:var(--primary-50);color:var(--text);border-color:var(--primary)}
+.as-p .av{width:34px;height:34px;border-radius:50%;background:var(--primary-50);color:var(--primary);display:grid;place-items:center;font-weight:700;flex:none}
+.as-p .t{min-width:0}.as-p .t b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.as-p .t small{color:var(--muted);font-size:12px}
+.as-blk h3{display:flex;align-items:center;gap:7px;margin:0 0 8px;font-size:15px}
+.as-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}.as-row:last-of-type{border:0}
+.as-row .t{flex:1;min-width:0}.as-row .t b{display:block;font-size:14.5px}.as-row .t small{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.as-add{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:10px;align-items:center}
+.as-add input,.as-add select{min-height:44px;font-size:16px}.as-add button{min-height:44px}
+.as-chips{display:flex;flex-wrap:wrap;gap:8px}

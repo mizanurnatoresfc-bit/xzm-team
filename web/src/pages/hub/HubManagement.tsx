@@ -3,6 +3,7 @@ import { Contact } from '../../components/Contact'
 import { inMenu } from '../../lib/menu'
 import { AttendanceDays } from './AttendanceDays'
 import { HubLogins } from './HubLogins'
+import { AssignHub } from './AssignHub'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
@@ -18,7 +19,7 @@ import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type 
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 import { selfAtt, selfAttFriendly, type Decided, type SelfMark } from '../../lib/selfAtt'
 
-export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'days' | 'logins' | 'routes'
+export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'days' | 'logins' | 'routes' | 'assign'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
@@ -32,6 +33,7 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
   { key: 'logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
   { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
+  { key: 'assign', icon: 'box', bn: 'জিনিস বণ্টন (নামে দিন)', en: 'Assign (put in a name)', perms: ['vehicle.holder.edit', 'ops.route.edit', 'hr.duty.edit', 'office.asset.edit'] },
 ]
 
 const HUB_KEY = 'xzm_hub'
@@ -84,6 +86,7 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
     case 'days': return <AttendanceDays hub={hub} />
     case 'logins': return <HubLogins hub={hub} />
     case 'routes': return <RiderRoutes hub={hub} />
+    case 'assign': return <AssignHub hub={hub} />
   }
 }
 

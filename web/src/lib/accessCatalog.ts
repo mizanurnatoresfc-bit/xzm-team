@@ -63,6 +63,7 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/hub/ops', res: ['zonal.hub_metric'] },
     { to: '/app/hub/team', codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.employee_profile.edit', 'hr.application.create'] },
     { to: '/app/hub/logins', res: ['system.user_hub'] },
+    { to: '/app/hub/assign', codes: ['vehicle.holder.edit', 'ops.route.edit', 'hr.duty.edit', 'office.asset.edit'] },
     { to: '/app/hub/routes', res: ['ops.route'] },
   ] },
   { key: 'ops', icon: 'box', bn: 'কুরিয়ার অপারেশন', en: 'Courier operations', db: ['ops'], subs: [] },

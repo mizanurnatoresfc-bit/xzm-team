@@ -60,6 +60,7 @@ export const GROUPS: Group[] = [
       { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
       { to: '/app/hub/days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
+      { to: '/app/hub/assign', icon: 'box', bn: 'জিনিস বণ্টন (নামে দিন)', en: 'Assign (put in a name)', perms: ['vehicle.holder.edit', 'ops.route.edit', 'hr.duty.edit', 'office.asset.edit'] },
       { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
       { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
     ] },
