@@ -1,10 +1,11 @@
-import { AppShell, useMyPhoto } from '../components/AppShell'
+import { AppShell, refreshMyPhoto, useMyPhoto } from '../components/AppShell'
 import { Icon } from '../components/Icon'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { useLoad, useToast } from './accounts/ui'
 import { usePrefs } from '../lib/prefs'
-import { dmy, hr } from '../lib/hr'
+import { dmy, docs, hr, hrFriendly } from '../lib/hr'
+import { shrink } from './MyProfileComplete'
 import { referrals } from '../lib/extra'
 import { supabase } from '../lib/supabase'
 import { ExtraFields, ReferralPanel } from './hr/ProfileExtras'
@@ -26,7 +27,11 @@ export function MyProfile() {
     return id ? await hr.employee(id) : null
   }, [])
   const e = me.data
-  const photo = useMyPhoto()
+  const savedPhoto = useMyPhoto()
+  const [fresh, setFresh] = useState<string | null>(null)   // the picture just taken, shown before the saved copy reloads
+  const [pbusy, setPbusy] = useState(false)
+  const [perr, setPerr] = useState('')
+  const photo = fresh ?? savedPhoto
   const { session, can } = useAuth()
   const roles = useLoad(async () => {
     const { data } = await supabase.from('user_roles').select('roles(name)').eq('user_id', session?.user.id ?? '').is('revoked_at', null)
@@ -34,6 +39,14 @@ export function MyProfile() {
   }, [session?.user.id])
   const duties = useLoad(() => e ? dutiesApi.mine(e.id).catch(() => []) : Promise.resolve([]), [e?.id])
   const myRoutes = useLoad(() => e ? routesApi.mine().catch(() => []) : Promise.resolve([]), [e?.id])
+  async function changePhoto(f: File | undefined) {
+    if (!f || !e) return
+    setPbusy(true); setPerr('')
+    try {
+      await docs.upload(e.id, 'photo', await shrink(f))
+      refreshMyPhoto(); setFresh(URL.createObjectURL(f)); toast(L('ছবি বদলানো হয়েছে', 'Photo updated'))
+    } catch (x) { setPerr(hrFriendly(x)) } finally { setPbusy(false) }
+  }
   return <AppShell title={L('আমার প্রোফাইল', 'My profile')} subtitle={e ? <>{e.employee_code ? <>{L('এমপ্লয়ি আইডি', 'Employee ID')} <strong>{e.employee_code}</strong> · </> : null}<EmpBadge status={e.status} /></> : undefined}>
     {node}
     {me.loading ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
@@ -43,7 +56,11 @@ export function MyProfile() {
         <div className="p-hero">
           <div className="p-band" />
           <div className="p-body">
-            <div className="p-photo">{photo ? <img src={photo} alt="" /> : (e.full_name || '?').slice(0, 2).toUpperCase()}<span className="p-dot" /></div>
+            <label className={`p-photo p-photo-edit${pbusy ? ' busy' : ''}`} title={L('ছবি বদলান', 'Change photo')}>
+              {photo ? <img src={photo} alt="" /> : (e.full_name || '?').slice(0, 2).toUpperCase()}<span className="p-cam"><Icon name="upload" size={16} /></span>
+              <input type="file" accept="image/*" disabled={pbusy} aria-label={L('নিজের ছবি দিন বা বদলান', 'Add or change my photo')}
+                onChange={ev => { const f = ev.target.files?.[0]; ev.target.value = ''; void changePhoto(f) }} /></label>
+            {perr && <p className="da-error" role="alert">{perr}</p>}
             <h2>{e.full_name} <EmpBadge status={e.status} /></h2>
             <div className="p-meta">
               {e.employee_code && <span><b>#</b> {e.employee_code}</span>}
@@ -57,7 +74,7 @@ export function MyProfile() {
               : <p className="muted small">{L('কোনো তথ্য ভুল থাকলে এইচআর-কে জানান।', 'Tell HR if anything is wrong.')}</p>}
           </div>
         </div>
-        {photo === null && <div className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span><span>{L('আপনার প্রোফাইলের ছবি নেই — এইচআর-কে ছবি দিন', 'Your profile photo is missing — give one to HR')}</span></div>}
+        {photo === null && <div className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span><span>{L('আপনার প্রোফাইলের ছবি নেই — উপরের ছবির ঘরে চেপে নিজেই দিন', 'Your photo is missing — tap the picture above and add it yourself')}</span></div>}
         <section className="panel">
           <h2>{L('আমার তথ্য', 'My details')}</h2>
           <dl className="hr-kv">

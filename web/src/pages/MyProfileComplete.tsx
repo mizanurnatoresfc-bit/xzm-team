@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AppShell } from '../components/AppShell'
+import { AppShell, refreshMyPhoto } from '../components/AppShell'
 import { Icon } from '../components/Icon'
 import { docs, hr, hrFriendly, MISSING } from '../lib/hr'
 import { hrReq } from '../lib/hrreq'
@@ -14,7 +14,7 @@ import { ProfileFill } from './hr/ProfileFill'
  */
 const PICS: Array<[type: string, bn: string, en: string]> = [['photo', 'নিজের ছবি', 'Your photo'], ['nid_front', 'এনআইডি — সামনে', 'NID — front'], ['nid_back', 'এনআইডি — পেছনে', 'NID — back']]
 
-async function shrink(file: File): Promise<File> {
+export async function shrink(file: File): Promise<File> {
   if (!file.type.startsWith('image/') || file.size < 700_000) return file
   try {
     const bmp = await createImageBitmap(file)
@@ -41,7 +41,7 @@ export function MyProfileComplete() {
   async function upload(type: string, f: File | undefined) {
     if (!f || !id) return
     setBusy(type); setErr('')
-    try { await docs.upload(id, type, await shrink(f)); await Promise.all([files.reload(), gap.reload()]); toast(L('ছবি জমা হয়েছে', 'Uploaded')) }
+    try { await docs.upload(id, type, await shrink(f)); if (type === 'photo') refreshMyPhoto(); await Promise.all([files.reload(), gap.reload()]); toast(L('ছবি জমা হয়েছে', 'Uploaded')) }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy('') }
   }
   return <AppShell title={L('আমার প্রোফাইল পূর্ণ করুন', 'Complete my profile')} subtitle={L('যা দেবেন সাথে সাথে সেভ হবে', 'Everything saves at once')}>

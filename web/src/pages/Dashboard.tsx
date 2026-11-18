@@ -106,7 +106,7 @@ export function Dashboard() {
     {d?.my_work && d.my_work.tasks_due > 0 && <Link to="/app/hub/tasks" className="alert-card bad"><span className="ai"><Icon name="alert" size={20} /></span>
       <span>{L(`${n(d.my_work.tasks_due)}টা কাজের সময় পেরিয়ে গেছে`, `${d.my_work.tasks_due} tasks are overdue`)}</span></Link>}
     {d?.me && photo === null && <Link to="/app/me" className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span>
-      <span>{L('আপনার প্রোফাইলে ছবি নেই — এইচআর-কে ছবি দিন', 'Your profile has no photo — give one to HR')}</span></Link>}
+      <span>{L('আপনার প্রোফাইলে ছবি নেই — প্রোফাইলে গিয়ে নিজেই দিন', 'Your profile has no photo — add it yourself on your profile')}</span></Link>}
     {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
     <MyApprovalCard />
     {panelLevel(can) > 0 && <HubCarRoute level={panelLevel(can) === 2 ? 'zone' : 'manager'} />}
@@ -239,7 +239,7 @@ function FirstSteps({ photo }: { photo: string | null | undefined }) {
   const steps: Array<[boolean, string, string | null]> = [
     [true, L('নিজের পাসওয়ার্ড বসানো হয়েছে', 'Your own password is set'), null],
     [!!e.mobile, e.mobile ? L('মোবাইল নম্বর দেওয়া আছে', 'Mobile number given') : L('মোবাইল নম্বর দিন — তারপর নম্বর দিয়েও লগইন হবে', 'Give your mobile number — then you can sign in with it too'), '/app/me'],
-    [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — এইচআর-কে ছবি দিন', 'No profile photo — give one to HR'), '/app/me'],
+    [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — নিজেই দিন', 'No profile photo — add it yourself'), '/app/me'],
   ]
   return <section className="panel first-steps">
     <h2>{L('শুরুর ধাপ', 'First steps')} <Link to="/app/training" className="link small">{L('ট্রেনিং সেন্টার →', 'Training centre →')}</Link></h2>

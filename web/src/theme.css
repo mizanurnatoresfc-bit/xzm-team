@@ -2638,3 +2638,9 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
 .sp-tile.hcr .hcr-sub{font-size:13px;color:var(--muted);line-height:1.35;margin-top:2px}
 .sp-tile.hcr.t-g{background:var(--t-g)}.sp-tile.hcr.t-g .i{color:var(--t-g-fg)}
 @media (max-width:640px){.hcr-grid{grid-template-columns:1fr}.sp-tile.hcr{flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:10px}.sp-tile.hcr .i{margin-bottom:0}}
+
+/* ---- own photo: tap the picture on "my profile" to change it ---- */
+.p-hero .p-photo-edit{cursor:pointer;overflow:visible}
+.p-hero .p-photo-edit input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border-radius:50%}
+.p-hero .p-photo-edit.busy{opacity:.6}
+.p-hero .p-photo-edit .p-cam{position:absolute;left:6px;bottom:6px;width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;border:3px solid var(--surface)}
