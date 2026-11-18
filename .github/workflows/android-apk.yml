@@ -35,6 +35,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
 
       - uses: actions/setup-java@v4
         if: github.event_name == 'workflow_dispatch'
@@ -66,7 +68,14 @@ jobs:
       # If a screen is broken the run stops here and the live website is left as it was.
       - name: Smoke test
         run: |
-          npx playwright install --with-deps chromium
+          # GitHub's machines already have Google Chrome; using it saves ~3 minutes of browser download.
+          # Only if it is missing is Playwright's own browser installed.
+          if [ -x /usr/bin/google-chrome ]; then
+            export CHROME=/usr/bin/google-chrome
+            echo "using the machine's Chrome: $($CHROME --version)"
+          else
+            npx playwright install --with-deps chromium
+          fi
           npm run test:smoke
 
       # The Android app loads the live site, so page updates reach it without a new APK; the app offers "আপডেট করুন".
