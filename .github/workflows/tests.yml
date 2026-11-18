@@ -1,0 +1,62 @@
+# Checks every push and pull request, so a broken change is caught before it reaches main:
+#   1. Database: every migration in order on a throwaway PostgreSQL 16, then all SQL tests (scripts/test-db.sh).
+#   2. Website: TypeScript check of the React app.
+# The site itself is still built, smoke-tested and published by "Android APK and site build" (pushes to main only).
+# Nothing here touches the live Supabase project; no secrets are used.
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Migrations and SQL tests
+        run: bash scripts/test-db.sh
+
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install packages
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run typecheck

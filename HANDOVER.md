@@ -482,3 +482,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `99zzzzzzzzzzzzzz_advanced_permissions.sql` now uses `hr.document.archive` for its "not started yet" check (the hub manager role holds `hr.duty.edit` since 18 Nov).
 - Two releases (#102 advanced permissions, #103 earlier dates) stopped at the smoke test on CI: the CI browser's wider Bangla font made a long
   migration name in a notice push the phone page to 414 px. Fixed with `body{overflow-wrap:break-word}` at the end of `theme.css`.
+- New workflow `.github/workflows/tests.yml` ("Tests"): on every push and pull request, all migrations + SQL tests on a throwaway PostgreSQL 16
+  (`scripts/test-db.sh`) and the TypeScript check. The site build/publish workflow is unchanged. The `web/node_modules` link committed by mistake in
+  `0fa563d` is removed from git, and `.gitignore` now says `node_modules` (the old `node_modules/` matched folders only, so the link slipped in).
