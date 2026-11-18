@@ -1,7 +1,14 @@
 # Phase 0 — পরিষ্কারের পরিকল্পনা / Cleanup plan (18 Nov 2026)
 
-**অবস্থা / Status:** প্রস্তাব মাত্র — কিছু মোছা বা বদলানো হয়নি। মালিকের অনুমোদনের অপেক্ষায় (GATE)।
-Proposal only. Nothing was deleted or changed. Waiting for the owner's approval (GATE).
+**অবস্থা / Status:** মালিক অনুমোদন দিয়েছেন (১৮ নভেম্বর)। migration ফাইল `supabase/migrations/20261119000100_phase0_cleanup.sql` লেখা ও টেস্ট করা আছে; **লাইভে এখনো চালানো হয়নি** (মালিক: "এখন চালিও না")।
+Approved by the owner (18 Nov). The migration file is written and tested; **not yet applied** (owner: "not now").
+
+**মালিকের সিদ্ধান্ত / Owner's decisions (18 Nov 2026):**
+- The test applicant "Mizanur Rahaman" → turned down and archived. ✅ In the migration.
+- The salary record of 93869 → copied to 520 (it has no pay items). ✅ In the migration.
+- MD Rabbi `62204` and MD. RABBI `30634` (Singra) → **two different people**. No change.
+- Keep `issues`, retire `parcel_issues` → in Phase 7.
+- Test logins for Naldanga → yes, **after** the Phase 0 and Phase 1 migrations are applied (otherwise a Data Entry login would get the switched-off role).
 
 Everything below was read from Supabase project **`ndgnhvbpmtxrpplgsslz` (xzm-team-erp-dev)** with read-only queries.
 
