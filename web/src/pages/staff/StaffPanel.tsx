@@ -25,7 +25,7 @@ import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
 /**
  * স্টাফ প্যানেল — one phone screen for a staff member's own day, in the order the owner asked for:
- * my accounts, today's attendance, my bill, my route and duties, my complaint, issues and contact, my people.
+ * my accounts, today's attendance and the gap report (no separate leave form), my bill, my route and duties, my complaint, issues and contact, my people.
  * It only reads what the person may already see and links into the pages that do the work; nothing new is stored.
  * A row marked "শীঘ্রই" has no database behind it yet.
  */
@@ -117,7 +117,6 @@ export function StaffPanel() {
   const unseen = (v?.groups ?? []).reduce((s, g) => s + g.unseen, 0)
   const people = (c: number) => (c ? L(`${n(c)} জন`, `${c} people`) : L('এখনো কেউ নেই', 'Nobody yet'))
   const desk = can('hr.request.create') ? null : '/app/hr/requests?tab=new&do='   // the plain-words staff desk; others keep these on their profile
-  const canLeave = can('hr.leave.create') || can('hr.leave.view')
 
   const row = (to: string | null, tone: string, icon: string, title: string, sub: string, end?: ReactNode) => {
     if (to && !ok(to)) return null
@@ -182,7 +181,7 @@ export function StaffPanel() {
           : act('p', 'log', L('আজ আসব না — কারণ জানাই', 'Not coming — give the reason'), L('কারণ লিখুন, হাব ম্যানেজার দেখবেন', 'Write the reason for your hub manager'),
             () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
       </div>}
-      {canLeave && ok('/app/hr/leave') && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
+      {/* No leave application here (owner's rule): a day away is answered in the gap report below. */}
       {absent !== null && <Modal title={L('আজ আসব না', 'Not coming today')} onClose={() => setAbsent(null)}
         actions={<><button className="secondary" onClick={() => setAbsent(null)}>{L('বাতিল', 'Cancel')}</button>
           <button disabled={busy || !absent.trim()} onClick={() => void give('absent', absent.trim())}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('জানিয়ে দিন', 'Send')}</button></>}>

@@ -28,11 +28,10 @@ select tests.ok((select count(*) = 4 and min(work_date) = current_date - 6 and m
   'a person sees their own days without a record (weekly off and absent count as recorded; today is not asked)');
 select tests.throws($$select public.my_att_gap_answer(array[current_date - 6], 'other', ' ')$$, 'a reason is required', '22023');
 select tests.throws($$select public.my_att_gap_answer(array[current_date - 8], 'other', 'x')$$, 'a day that has attendance cannot be answered', 'P0001');
-select tests.throws($$select public.my_att_gap_answer(array[current_date - 6], 'leave', 'অসুস্থ')$$, 'leave needs a leave type', '22023');
+-- since 20261119000300: "on leave" is a report of its own, no leave type and no leave request (owner's rule)
 select tests.ok(public.my_att_gap_answer(array[current_date - 6, current_date - 5], 'leave', 'অসুস্থ ছিলাম', (select v::uuid from t where k = 'lt')) = 2,
   'two days in a row are answered as leave');
-select tests.ok((select count(*) = 1 and min(from_date) = current_date - 6 and max(to_date) = current_date - 5 and min(days) = 2 and min(status) = 'pending' from public.leave_requests where employee_id = tests.id('r1')),
-  'one leave request covers the unbroken run of days');
+select tests.ok((select count(*) = 0 from public.leave_requests where employee_id = tests.id('r1')), 'no separate leave request is filed');
 select tests.ok(public.my_att_gap_answer(array[current_date - 3], 'worked', 'কাজে ছিলাম, হাজিরা ওঠেনি') = 1, 'another day is answered as worked');
 select tests.ok((select count(*) filter (where status = 'answered') = 3 and count(*) filter (where status = 'waiting') = 1 from public.my_att_gaps()), 'three answered, one still waiting');
 select tests.throws(format($$select public.att_gap_check(array[%L::uuid], true)$$, (select id from public.attendance_gap_answers where work_date = current_date - 3)),
@@ -43,8 +42,8 @@ select tests.login(tests.id('za'));
 select tests.ok((select count(distinct employee_id) = 2 and count(*) filter (where employee_id = tests.id('r1')) = 4 from public.att_gap_report(current_date - 10, current_date)),
   'the assistant sees the gaps of their own area only');
 select tests.ok((select count(*) = 0 from public.att_gap_report(current_date - 10, current_date) where employee_id = tests.id('b1')), 'not another area''s');
-select tests.ok((select leave_status = 'pending' and kind = 'leave' from public.att_gap_report(current_date - 10, current_date) where employee_id = tests.id('r1') and work_date = current_date - 6),
-  'the report shows the answer and where the leave request stands');
+select tests.ok((select leave_status is null and kind = 'leave' and note = 'অসুস্থ ছিলাম' from public.att_gap_report(current_date - 10, current_date) where employee_id = tests.id('r1') and work_date = current_date - 6),
+  'the report shows the answer (and no leave request)');
 insert into t select 'worked', id::text from public.attendance_gap_answers where work_date = current_date - 3;
 insert into t select 'leave6', id::text from public.attendance_gap_answers where work_date = current_date - 6;
 select tests.throws(format($$select public.att_gap_check(array[%L::uuid], false)$$, (select v from t where k = 'worked')), 'sending back needs a reason', '22023');
@@ -65,10 +64,10 @@ select tests.throws(format($$select public.att_gap_check(array[%L::uuid], true)$
 select tests.login(tests.id('noroles'));
 select tests.ok((select count(*) = 0 from public.att_gap_report(current_date - 10, current_date)), 'a person with no role sees no report');
 
--- ---------- approving the leave closes the gap by itself ----------
+-- ---------- the person's own hub manager approves (20261119000300) ----------
 select tests.login(tests.id('hub_mgr'));
-select public.hr_decide_leave((select id from public.leave_requests where employee_id = tests.id('r1')), true);
+select tests.ok(public.att_gap_check(array[(select v::uuid from t where k = 'leave6')], true) = 1, 'the hub manager approves a leave report of their own hub');
 select tests.login(tests.id('rider_login'));
-select tests.ok((select count(*) = 2 from public.my_att_gaps()), 'once the manager approves the leave, those days are no longer gaps');
+select tests.ok((select status = 'verified' from public.my_att_gaps() where work_date = current_date - 6), 'the person sees it approved');
 
 rollback;

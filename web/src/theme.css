@@ -2669,3 +2669,10 @@ body:has(.ax-savebar:not(.inline)) .nodi-fab{bottom:calc(150px + env(safe-area-i
    Only applies where text may already wrap, so tables and nowrap chips keep their layout. (18 Nov: the CI browser has wider
    Bangla fonts and the access page's migration name pushed the phone page to 414 px, so the smoke test stopped two releases.) */
 body{overflow-wrap:break-word}
+
+/* Gap report (হাজিরার ফাঁকা দিন): a date is a big tap target; the chosen reason is outlined. Buttons look like the link rows. */
+.nodi-gaps .nv-rows{margin-top:10px}
+.gap-day .nv-av b{font-size:12.5px;line-height:1.1;text-align:center;padding:0 2px}
+.gap-day.back .tx b{color:var(--bad-fg)}
+.nv-row.on{outline:2px solid var(--primary);outline-offset:-2px;border-radius:10px}
+.nv-row[role=radio] .nv-av{font-weight:700}

@@ -92,6 +92,7 @@ try {
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false
     const prospects = []
     const answered = [], checked = []
+    const gapDay = (back) => new Date(Date.now() + 6 * 3600 * 1000 - back * 86400000).toISOString().slice(0, 10)
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
@@ -273,10 +274,11 @@ try {
         { employee_id: 'e01', employee_code: '1001', full_name: 'Staff 01', position_name: 'Rider', role_name: 'Rider', has_login: true, signed_in_at: null, password_set: false, mobile: null },
         { employee_id: 'e02', employee_code: '1002', full_name: 'Staff 02', position_name: 'Rider', role_name: null, has_login: false, signed_in_at: null, password_set: false, mobile: null }])
       if (u.includes('rpc/my_att_gap_answer')) { answered.push(r.request().postDataJSON()); return j(3) }
+      // the gap card asks about the last 3 days first, so these dates follow today (Dhaka)
       if (u.includes('rpc/my_att_gaps')) return j(withGaps ? [
-        { work_date: '2026-11-05', answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
-        { work_date: '2026-11-09', answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
-        { work_date: '2026-11-12', answer_id: 'a9', kind: 'worked', note: 'x', status: 'returned', leave_status: null, check_note: 'আসেননি' }] : [])
+        { work_date: gapDay(6), answer_id: 'a9', kind: 'worked', note: 'x', status: 'returned', leave_status: null, check_note: 'আসেননি' },
+        { work_date: gapDay(2), answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null },
+        { work_date: gapDay(1), answer_id: null, kind: null, note: null, status: 'waiting', leave_status: null, check_note: null }] : [])
       if (u.includes('rpc/att_gap_check')) { checked.push(r.request().postDataJSON()); return j(1) }
       if (u.includes('rpc/att_gap_remind')) return j(2)
       if (u.includes('rpc/att_gap_report')) return j([
@@ -806,17 +808,22 @@ try {
     await fits('orders tab')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-orders.png`, fullPage: true })
 
-    // Nodi asks a person about their days without attendance; leave is filed from the same card
+    // The gap report: the last 3 days are big date buttons; a tap asks for one of three reasons. No leave request (owner's rule).
     withGaps = true
-    await page.goto(`${BASE}/app`); await page.waitForSelector('.nodi-gaps .ng-days')
-    check(await page.locator('.nodi-gaps .ng-days .chip-toggle.on').count() === 3, `${size}: Nodi's card lists the person's days without attendance, all ticked`)
-    await page.locator('.nodi-gaps select').selectOption('lt1'); await page.locator('.nodi-gaps .da-form input').fill('জ্বর ছিল')
-    await fits('dashboard with Nodi card')
+    await page.goto(`${BASE}/app`); await page.waitForSelector('.nodi-gaps .gap-day')
+    check(await page.locator('.nodi-gaps > .nv-rows .gap-day').count() === 2 && await page.locator('.nodi-gaps details .gap-day').count() === 1,
+      `${size}: the gap card shows the last 3 days' missing dates, older ones folded away`)
+    await fits('dashboard with the gap card')
     if (process.env.SHOTS) await page.locator('.nodi-gaps').screenshot({ path: `${process.env.SHOTS}/${size}-nodi.png` })
-    await page.locator('.nodi-gaps .row-acts button').click()
+    await page.locator('.nodi-gaps > .nv-rows .gap-day').first().click(); await page.waitForSelector('.da-modal [role=radio]')
+    check(await page.locator('.da-modal [role=radio]').count() === 3 && await page.locator('.da-modal select').count() === 0, `${size}: three reasons, and no leave type to pick`)
+    await page.locator('.da-modal [role=radio]', { hasText: 'ছুটিতে ছিলাম' }).click()
+    await fits('gap report sheet')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-gap-sheet.png` })
+    await page.locator('.da-modal button', { hasText: 'জমা দিন' }).click()
     await page.waitForFunction(() => !!document.querySelector('.nodi-gaps .notice'), null, { timeout: 5000 }).catch(() => {})
-    check(answered.length === 1 && answered[0].p_kind === 'leave' && answered[0].p_leave_type === 'lt1' && answered[0].p_dates.length === 3 && answered[0].p_note === 'জ্বর ছিল',
-      `${size}: the answer files leave for the ticked days`)
+    check(answered.length === 1 && answered[0].p_kind === 'leave' && answered[0].p_leave_type === null && answered[0].p_dates.length === 1 && answered[0].p_dates[0] === gapDay(1),
+      `${size}: one tap on a date sends that day's report, with no leave request`)
     withGaps = false
 
     // the Zonal Assistant's panel: gaps of every hub, check an answer, remind the rest
