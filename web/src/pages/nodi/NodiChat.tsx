@@ -6,6 +6,9 @@ import { Icon } from '../../components/Icon'
 import { NodiAvatar } from '../../components/NodiAvatar'
 import { nodi, type ChatMsg, type NodiAction } from '../../lib/nodi'
 import { useNodiFeatures } from '../../lib/useNodiFeatures'
+import { panelLevel } from '../../lib/menu'
+import { usePrefs } from '../../lib/prefs'
+import { useAuth } from '../../auth/AuthProvider'
 
 type Turn = ChatMsg & { actions?: NodiAction[]; error?: boolean }
 type SR = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void
@@ -15,6 +18,9 @@ const TOOL_BN: Record<string, string> = { create_issue: 'ইস্যু তৈ�
 const HINTS = ['আমার কাজগুলো কী কী?', 'পার্সেল SF-90001-এর ইস্যু নাতোর হাবে খোলো', 'IS-00003 অনুমোদন করো আর IS-00004 শুরু করো', 'নাতোর হাবের গ্রুপে লিখো: আজ সবাই সময়মতো আসবেন']
 
 export function NodiChat() {
+  const { can } = useAuth()
+  const { nodiFab, setNodiFab } = usePrefs()
+  const hasFab = panelLevel(can) === 2 // the floating button is shown at this level only (AppShell)
   const [turns, setTurns] = useState<Turn[]>([{ role: 'assistant', content: 'আমি নদী। কাজ, ইস্যু বা হাবের বিষয়ে বলুন — লিখে বা মাইকে বলে। একসাথে কয়েকটা কাজও দিতে পারেন।' }])
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -62,7 +68,10 @@ export function NodiChat() {
     <div className="nodi-chat">
       <div className="nodi-top"><NodiAvatar size={56} talking={talking || busy} listening={listening} />
         <div><strong>নদী</strong><div className="muted" style={{ fontSize: 12 }}>{listening ? 'শুনছি…' : busy ? 'ভাবছি…' : 'প্রস্তুত'}</div></div>
-        <button type="button" className="secondary" style={{ marginLeft: 'auto' }} onClick={toggleSpeak} title="উত্তর জোরে পড়ে শোনানো">{speak ? '🔊 কণ্ঠ চালু' : '🔇 কণ্ঠ বন্ধ'}</button></div>
+        <div className="nodi-top-btns">
+          {hasFab && <button type="button" className="secondary" aria-pressed={nodiFab} onClick={() => setNodiFab(!nodiFab)}
+            title="অন্য পাতার কোণায় ভাসমান নদী বোতাম দেখানো বা লুকানো (এই ডিভাইসে)">{nodiFab ? '🟢 স্ক্রিনে বোতাম চালু' : '⚪ স্ক্রিনে বোতাম বন্ধ'}</button>}
+          <button type="button" className="secondary" onClick={toggleSpeak} title="উত্তর জোরে পড়ে শোনানো">{speak ? '🔊 কণ্ঠ চালু' : '🔇 কণ্ঠ বন্ধ'}</button></div></div>
       <div className="nodi-log">{turns.map((t, i) => <div key={i} className={`nodi-msg ${t.role}${t.error ? ' err' : ''}`}>
         {t.role === 'assistant' && <NodiAvatar size={28} />}
         <div className="bub">{t.content}

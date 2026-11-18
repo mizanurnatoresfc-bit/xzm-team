@@ -37,7 +37,9 @@ function applyFont(key: FontKey) {
 }
 
 type Prefs = { lang: Lang; theme: Theme; font: FontKey; setLang: (l: Lang) => void; setTheme: (t: Theme) => void; setFont: (f: FontKey) => void
-  textSize: TextSize; contrast: Contrast; motion: Motion; setTextSize: (t: TextSize) => void; setContrast: (c: Contrast) => void; setMotion: (m: Motion) => void; L: (bn: string, en: string) => string; n: (v: number | string) => string }
+  textSize: TextSize; contrast: Contrast; motion: Motion; setTextSize: (t: TextSize) => void; setContrast: (c: Contrast) => void; setMotion: (m: Motion) => void
+  /** নদী AI's floating button on every screen: the person may switch it off (on by default). */
+  nodiFab: boolean; setNodiFab: (on: boolean) => void; L: (bn: string, en: string) => string; n: (v: number | string) => string }
 
 const read = (k: string, d: string) => { try { return localStorage.getItem('xzm_' + k) ?? d } catch { return d } }
 const write = (k: string, v: string) => { try { localStorage.setItem('xzm_' + k, v) } catch { /* private mode */ } }
@@ -54,6 +56,8 @@ export function PrefsProvider({ children }: PropsWithChildren) {
   const [lang, setLangS] = useState<Lang>(() => (read('lang', 'bn') === 'en' ? 'en' : 'bn'))
   const [theme, setThemeS] = useState<Theme>(() => { const t = read('theme', 'system'); return t === 'dark' || t === 'light' ? t : 'system' })
   const [font, setFontS] = useState<FontKey>(() => okFont(read('font', 'baloo')))
+  const [nodiFab, setNodiFabS] = useState(() => read('nodi_fab', '1') !== '0')
+  const setNodiFab = useCallback((on: boolean) => { setNodiFabS(on); write('nodi_fab', on ? '1' : '0') }, [])
   useEffect(() => { applyFont(font) }, [font])
   const setFont = useCallback((f: FontKey) => { setFontS(f); write('font', f) }, [])
   useEffect(() => { document.documentElement.lang = lang }, [lang])
@@ -70,10 +74,10 @@ export function PrefsProvider({ children }: PropsWithChildren) {
   const setLang = useCallback((l: Lang) => { setLangS(l); write('lang', l) }, [])
   const setTheme = useCallback((t: Theme) => { setThemeS(t); write('theme', t) }, [])
   const value = useMemo<Prefs>(() => ({
-    lang, theme, font, setLang, setTheme, setFont, textSize, contrast, motion, setTextSize, setContrast, setMotion,
+    lang, theme, font, setLang, setTheme, setFont, textSize, contrast, motion, setTextSize, setContrast, setMotion, nodiFab, setNodiFab,
     L: (bn, en) => lang === 'bn' ? bn : en,
     n: v => lang === 'bn' ? String(v).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[+d]) : String(v),
-  }), [lang, theme, font, setLang, setTheme, setFont, textSize, contrast, motion, setTextSize, setContrast, setMotion])
+  }), [lang, theme, font, setLang, setTheme, setFont, textSize, contrast, motion, setTextSize, setContrast, setMotion, nodiFab, setNodiFab])
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
 

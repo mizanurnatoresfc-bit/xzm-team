@@ -855,6 +855,18 @@ try {
       asEmployee = true
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.first-steps', { timeout: 5000 }).catch(() => {})
       check(await extras() === '1,1,1' && await page.locator('.first-steps').count() === 1, `${size}: the zonal level keeps the training centre, the AI helper and the first-steps box`)
+      // the floating নদী button: off from the chat screen, back on from Setting (remembered on this device)
+      await page.goto(`${BASE}/app/nodi/chat`); await page.waitForSelector('.nodi-top-btns button')
+      if (process.env.SHOTS) await page.locator('.nodi-top').screenshot({ path: `${process.env.SHOTS}/${size}-nodi-top.png` })
+      await page.locator('.nodi-top-btns button', { hasText: 'স্ক্রিনে বোতাম' }).click()
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      const fabOff = await page.locator('.nodi-fab').count()
+      await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.nodi-fab-seg button')
+      if (process.env.SHOTS) await page.locator('.nodi-fab-seg').screenshot({ path: `${process.env.SHOTS}/${size}-nodi-fab-setting.png` })
+      await page.locator('.nodi-fab-seg button', { hasText: 'চালু' }).click()
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      check(fabOff === 0 && await page.locator('.nodi-fab').count() === 1 && await page.locator('.side a.nl[href="/app/nodi/chat"]').count() === 1,
+        `${size}: the floating Nodi button turns off on the chat screen and back on in Setting; the menu entry stays`)
       permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.da-main .greet h2')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)

@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon'
 import { ViewAsPicker } from '../components/ViewAs'
 import { advancedAccessHere, isNativeApp } from '../lib/native'
 import { FONTS, TEXT_SIZES, usePrefs, type Theme } from '../lib/prefs'
+import { panelLevel } from '../lib/menu'
 import { AppUpdate } from '../components/AppUpdate'
 
 type Row = [to: string, icon: string, bn: string, en: string, perms: string[]]
@@ -39,7 +40,9 @@ const ADMIN: Array<[bn: string, en: string, rows: Row[]]> = [
 /** Settings: language, theme and Bangla font for this device; the account; and every admin setting the role may open. */
 export function Settings() {
   const { can, isSuperAdmin, viewAs } = useAuth()
-  const { L, n, lang, setLang, theme, setTheme, font, setFont, textSize, setTextSize, contrast, setContrast, motion, setMotion } = usePrefs()
+  const { L, n, lang, setLang, theme, setTheme, font, setFont, textSize, setTextSize, contrast, setContrast, motion, setMotion, nodiFab, setNodiFab } = usePrefs()
+  // the floating নদী button is shown to zonal-level people who may use নদী (AppShell)
+  const hasNodiFab = can('nodi.assistant.view') && panelLevel(can) === 2
   const [asRole, setAsRole] = useState(false)
   const [copied, setCopied] = useState(false)
   const themes: Array<[Theme, string, string]> = [['light', 'লাইট', 'Light'], ['dark', 'ডার্ক', 'Dark'], ['system', 'ফোনের মতো', 'Same as device']]
@@ -63,7 +66,12 @@ export function Settings() {
       <h2 style={{ marginTop: 18 }}>{L('বাংলা ফন্ট', 'Bangla font')}</h2>
       <div className="font-pick">{FONTS.map(f => <button key={f.key} type="button" className={font === f.key ? 'on' : ''} aria-pressed={font === f.key} onClick={() => setFont(f.key)}
         style={{ fontFamily: `"${f.family}","Hind Siliguri",sans-serif` }}><b>{f.label}</b><span>আমার সোনার বাংলা — ১২৩৪৫</span></button>)}</div>
-      <p className="muted small">{L('ভাষা, রঙ ও ফন্ট শুধু এই ডিভাইসে মনে থাকে।', 'Language, theme and font are remembered on this device only.')}</p>
+      {hasNodiFab && <>
+        <h2 style={{ marginTop: 18 }}>{L('স্ক্রিনে নদী AI বোতাম', 'Nodi AI button on screen')}</h2>
+        <div className="da-seg nodi-fab-seg">{([true, false] as const).map(on => <button key={String(on)} className={nodiFab === on ? '' : 'secondary'} aria-pressed={nodiFab === on} onClick={() => setNodiFab(on)}>{on ? L('চালু', 'On') : L('বন্ধ', 'Off')}</button>)}</div>
+        <p className="muted small" style={{ margin: '6px 0 0' }}>{L('বন্ধ করলে কোণার ভাসমান নদী বোতামটা আর দেখাবে না। নদী তখনও মেনু থেকে খোলা যাবে।', 'Off hides the floating Nodi button in the corner. Nodi still opens from the menu.')}</p>
+      </>}
+      <p className="muted small">{L('ভাষা, রঙ, ফন্ট ও নদী বোতাম শুধু এই ডিভাইসে মনে থাকে।', 'Language, theme, font and the Nodi button are remembered on this device only.')}</p>
     </section>
     <section className="panel" aria-labelledby="a11y-h">
       <h2 id="a11y-h">{L('সহজে ব্যবহার', 'Accessibility')}</h2>
