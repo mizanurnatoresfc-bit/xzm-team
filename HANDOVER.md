@@ -477,5 +477,8 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **18 Nov — live:** migration applied to Supabase as `workforce_earlier_dates` (20261118201608); after applying, all 53 `wf_*` function bodies
   were checked equal to the tested file by hash, anon can run none of them, the private helpers are closed, RLS is on. Site released by merging to `main`.
   No window is open yet: the Super Admin or the zonal manager opens one from জোনাল ওয়ার্কফোর্স রিপোর্ট → সেটিং.
-- Live has three migrations of 18 Nov that are not in the repository yet (`hub_manager_more_pages`, `remove_nodi_ai_a_rename`, `staff_app_rls_revoke_anon_definer_execute`);
-  none touches the workforce functions. They should be brought into the repository like the 17 Nov sync.
+- The three live-only migrations of 18 Nov (`hub_manager_more_pages`, `remove_nodi_ai_a_rename`, `staff_app_rls_revoke_anon_definer_execute`) are now in the
+  repository word for word, numbered with their live versions. Repo-built database = live for all 613 functions (see `docs/MIGRATIONS_LIVE_MAP.md`).
+  `99zzzzzzzzzzzzzz_advanced_permissions.sql` now uses `hr.document.archive` for its "not started yet" check (the hub manager role holds `hr.duty.edit` since 18 Nov).
+- Two releases (#102 advanced permissions, #103 earlier dates) stopped at the smoke test on CI: the CI browser's wider Bangla font made a long
+  migration name in a notice push the phone page to 414 px. Fixed with `body{overflow-wrap:break-word}` at the end of `theme.css`.

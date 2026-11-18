@@ -127,11 +127,11 @@ select tests.logout();
 insert into public.user_permission_overrides (user_id, permission_id, effect, scope_type, valid_from, valid_to, reason)
   select tests.id('hub_mgr'), id, 'grant', 'role', current_date - 10, current_date - 1, 'old' from public.permissions where code = 'hr.employee.archive';
 insert into public.user_permission_overrides (user_id, permission_id, effect, scope_type, valid_from, reason)
-  select tests.id('hub_mgr'), id, 'grant', 'role', current_date + 5, 'later' from public.permissions where code = 'hr.duty.edit';
+  select tests.id('hub_mgr'), id, 'grant', 'role', current_date + 5, 'later' from public.permissions where code = 'hr.document.archive';   -- (was hr.duty.edit: the hub manager role holds that since 18 Nov)
 select tests.throws($$delete from public.user_permission_overrides$$, 'rows are never deleted, not even by the owner', 'P0001');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok(not private.has_permission('hr.employee.archive', null, tests.id('hub_a1')), 'a personal permission that has ended gives nothing');
-select tests.ok(not private.has_permission('hr.duty.edit', null, tests.id('hub_a1')), 'one that has not started yet gives nothing');
+select tests.ok(not private.has_permission('hr.document.archive', null, tests.id('hub_a1')), 'one that has not started yet gives nothing');
 select tests.login(tests.id('super'));
 select tests.ok((select count(*) from public.access_overrides(tests.id('hub_mgr')) where not live) = 2, 'the list marks both as not in force');
 
