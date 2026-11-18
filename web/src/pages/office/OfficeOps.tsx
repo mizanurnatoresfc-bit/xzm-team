@@ -218,7 +218,7 @@ export function Rent({ ctx }: { ctx: Ctx }) {
       <div className="da-bar"><h2>{L('ভাড়া ও চুক্তি', 'Rent & contract')}</h2><span className="row-acts">
         {edit && <button className="secondary" onClick={() => { setErr(''); setF({ rent: p.rent?.toString() ?? '', advance: p.advance?.toString() ?? '', owner: p.owner_name ?? '', phone: p.owner_phone ?? '',
           from: p.contract_from ?? '', to: p.contract_to ?? '', day: p.rent_due_day?.toString() ?? '', file: p.contract_file }) }}><Icon name="edit" size={15} />{L('তথ্য বদলান', 'Edit')}</button>}
-        <button onClick={newContract}><Icon name="doc" size={15} />{L('নতুন চুক্তি (AI)', 'New contract (AI)')}</button></span></div>
+        <button onClick={newContract}><Icon name="doc" size={15} />{L('নতুন চুক্তি', 'New contract')}</button></span></div>
       <div className="da-stats">
         <Stat icon="cash" label={L('মাসিক রানিং ভাড়া', 'Running rent')} value={tk(p.rent)} sub={p.rent_due_day ? L(`প্রতি মাসের ${n(p.rent_due_day)} তারিখে`, `on day ${p.rent_due_day}`) : undefined} />
         <Stat icon="wallet" label={L('এডভান্স', 'Advance')} value={tk(p.advance)} sub={p.rent && p.advance ? L(`${n(Math.round(p.advance / p.rent * 10) / 10)} মাসের ভাড়ার সমান`, `${(p.advance / p.rent).toFixed(1)} months of rent`) : undefined} />
@@ -234,7 +234,7 @@ export function Rent({ ctx }: { ctx: Ctx }) {
         <div><dt>{L('চুক্তির ছবি', 'Contract photo')}</dt><dd>{p.contract_file ? <FileBtn path={p.contract_file}>{L('চুক্তি দেখুন', 'Open contract')}</FileBtn> : <span className="bad">{L('দেওয়া হয়নি', 'Not added')}</span>}</dd></div>
       </dl>
       {left != null && left <= 60 && <p className="notice small">{left < 0 ? L('চুক্তির মেয়াদ শেষ — নতুন চুক্তি করে ছবি তুলে রাখুন।', 'The contract has ended — make a new one and add its photo.')
-        : L('চুক্তি ৬০ দিনের মধ্যে শেষ হবে — মালিকের সাথে নবায়নের কথা বলুন; "নতুন চুক্তি (AI)" থেকে খসড়া বানাতে পারেন।', 'The contract ends within 60 days — talk to the landlord; "New contract (AI)" makes a draft.')}</p>}
+        : L('চুক্তি ৬০ দিনের মধ্যে শেষ হবে — মালিকের সাথে নবায়নের কথা বলুন; "নতুন চুক্তি" থেকে খসড়া বানাতে পারেন।', 'The contract ends within 60 days — talk to the landlord; "New contract" makes a draft.')}</p>}
     </section>
     <BillBlock ctx={ctx} kinds={['rent']} />
     {f && <Modal wide title={L('ভাড়া ও চুক্তির তথ্য', 'Rent & contract details')} onClose={() => setF(null)}

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { hrReq } from '../lib/hrreq'
 import { AttendanceGaps } from '../components/AttendanceGaps'
+import { HubCarRoute } from '../components/HubCarRoute'
 import { Link } from 'react-router-dom'
 import { panelLevel } from '../lib/menu'
 import { useAuth } from '../auth/AuthProvider'
@@ -100,6 +101,7 @@ export function Dashboard() {
       <span>{L('আপনার প্রোফাইলে ছবি নেই — এইচআর-কে ছবি দিন', 'Your profile has no photo — give one to HR')}</span></Link>}
     {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
     <MyApprovalCard />
+    {panelLevel(can) > 0 && <HubCarRoute level={panelLevel(can) === 2 ? 'zone' : 'manager'} />}
     <RiderSendCard />
     <div className="home-tiles">{tiles.slice(0, allTiles || tiles.length <= 8 ? tiles.length : 7).map(([to, ic, bn, en, tone]) =>
       <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}

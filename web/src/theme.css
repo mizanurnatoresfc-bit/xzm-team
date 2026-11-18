@@ -2631,3 +2631,10 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
   .ax-notes li{flex-wrap:wrap}
 }
 @media print{.ax-savebar,.ax-quick,.ax-pagemode{display:none!important}}
+
+/* ---- আমার হাব · গাড়ি · রুট (HubCarRoute.tsx) ---- */
+.hcr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.sp-tile.hcr b{font-size:17px;white-space:normal;overflow-wrap:anywhere}
+.sp-tile.hcr .hcr-sub{font-size:13px;color:var(--muted);line-height:1.35;margin-top:2px}
+.sp-tile.hcr.t-g{background:var(--t-g)}.sp-tile.hcr.t-g .i{color:var(--t-g-fg)}
+@media (max-width:640px){.hcr-grid{grid-template-columns:1fr}.sp-tile.hcr{flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:10px}.sp-tile.hcr .i{margin-bottom:0}}

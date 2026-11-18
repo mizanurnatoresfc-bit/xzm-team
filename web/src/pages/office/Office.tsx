@@ -30,7 +30,7 @@ const SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: string; perms: s
   { key: 'security', icon: 'key', bn: 'গাড়ি, তালা, সিসি ও পাসওয়ার্ড', en: 'Vehicles, locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'] },
   { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who lives here', perms: ['office.property.view'] },
   { key: 'notices', icon: 'bell', bn: 'নষ্ট / লাগবে রিপোর্ট', en: 'Broken / needed reports', perms: ['office.notice.create', 'office.notice.approve'] },
-  { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.asset.view'] },
+  { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও পরামর্শ', en: 'Zone picture & advice', perms: ['office.asset.view'] },
 ]
 const PKEY = 'xzm_office_property'
 

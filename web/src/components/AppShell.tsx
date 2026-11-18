@@ -105,7 +105,7 @@ export const GROUPS: Group[] = [
       { to: '/app/office/power', icon: 'sun', bn: 'ইলেকট্রনিক ও বিদ্যুৎ হিসাব', en: 'Devices & power', perms: ['office.asset.view'] },
       { to: '/app/office/security', icon: 'key', bn: 'গাড়ি, তালা, সিসি ও পাসওয়ার্ড', en: 'Vehicles, locks, CCTV & logins', perms: ['office.secret.view'] },
       { to: '/app/office/notices', icon: 'bell', bn: 'নষ্ট / লাগবে রিপোর্ট', en: 'Broken / needed reports', perms: ['office.notice.create', 'office.notice.approve'] },
-      { to: '/app/office/zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.notice.approve'] },
+      { to: '/app/office/zone', icon: 'chart', bn: 'জোনের চিত্র ও পরামর্শ', en: 'Zone picture & advice', perms: ['office.notice.approve'] },
     ] },
     { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
       { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },

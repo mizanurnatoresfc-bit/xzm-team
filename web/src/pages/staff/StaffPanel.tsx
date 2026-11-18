@@ -5,6 +5,7 @@ import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { AttendanceGaps } from '../../components/AttendanceGaps'
+import { HubCarRoute } from '../../components/HubCarRoute'
 import { DailyOpsCard } from '../../components/DailyOpsCard'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
@@ -148,6 +149,8 @@ export function StaffPanel() {
           <span>{L('ছবি, এনআইডি, জরুরি যোগাযোগ — নিজেই দিন, সাথে সাথে সেভ হবে', 'Photo, NID, emergency contact — add them yourself, they save at once')}</span></div>
         <Icon name="chev" size={18} /></Link>}
 
+      <HubCarRoute level="staff" />
+
       <h2 className="sd-h">{L('আমার হিসাব', 'My accounts')}</h2>
       <div className="sp-tiles">
         <Link to="/app/accounts/mine" className="sp-tile t-b"><span className="i"><Icon name="box" size={20} /></span><b>{n(sum(l => l.line.pickup_qty))}</b><small>{L('আজকের পিকআপ', 'Pickups today')}</small></Link>
@@ -214,9 +217,6 @@ export function StaffPanel() {
           {duties.length ? <ul>{duties.slice(0, 6).map(x => <li key={x.id}>{x.title}</li>)}</ul>
             : <p className="muted small">{L('কোনো দায়িত্ব লেখা নেই', 'No duties written')}</p>}</div>
       </div>
-
-      {(v?.car?.vehicles.length ?? 0) > 0 && <div className="nv-rows">{row('/app/fleet/mine', 'o', 'truck', `${L('আমার গাড়ি', 'My vehicle')} — ${v!.car!.vehicles[0].name}`,
-        L('হাব রিপোর্ট, তেল/স্লিপ, সার্ভিস রিকুইজিশন, গ্যারেজ বিল ও খরচ', 'Hub report, fuel slip, service request, garage bills and costs'))}</div>}
 
       {ok('/app/issues') && <>
       <h2 className="sd-h">{L('আমার অভিযোগ', 'My complaint')}</h2>
