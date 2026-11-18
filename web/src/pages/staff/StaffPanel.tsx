@@ -6,6 +6,7 @@ import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { AttendanceGaps } from '../../components/AttendanceGaps'
 import { HubCarRoute } from '../../components/HubCarRoute'
+import { PeopleSheet } from '../../components/PeopleSheet'
 import { DailyOpsCard } from '../../components/DailyOpsCard'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
@@ -108,6 +109,7 @@ export function StaffPanel() {
   const [hideAmt, setHideAmt] = useState(() => { try { return localStorage.getItem('xzm_hide_amt') !== '0' } catch { return true } })
   const toggleAmt = () => setHideAmt(h => { const v = !h; try { localStorage.setItem('xzm_hide_amt', v ? '1' : '0') } catch { /* ignore */ } return v })
   const [nudgeOff, setNudgeOff] = useState(() => { try { return sessionStorage.getItem('xzm_nudge_off') === '1' } catch { return false } })
+  const [people, setPeople] = useState<'hand' | 'gave' | null>(null)
   const [busy, setBusy] = useState(false)
   const [absent, setAbsent] = useState<string | null>(null)
   const [attErr, setAttErr] = useState('')
@@ -191,10 +193,10 @@ export function StaffPanel() {
       {ok(desk ? desk + 'hand' : '/app/me') && <>
       <h2 className="sd-h">{L('আমার লোক', 'My people')}</h2>
       <div className="sp-ppl">
-        <Link to={desk ? desk + 'hand' : '/app/me'} className="pc"><span className="i"><Icon name="plus" size={20} /></span><b>{n(v?.hand ?? 0)}</b>
-          <span className="t">{L('আমার হাতে লোক আছে', 'People I have in hand')}</span><span className="s">{L('কাজ করতে চায় এমন কারো নাম দিন', 'Add someone who wants work')}</span></Link>
-        <Link to={desk ? desk + 'brought' : '/app/me'} className="pc"><span className="i"><Icon name="users" size={20} /></span><b>{n(v?.brought ?? 0)}</b>
-          <span className="t">{L('আমি যাদের দিয়েছি', 'People I brought')}</span><span className="s">{L('আমার আনা লোকের তালিকা', 'Who joined through me')}</span></Link>
+        {([['hand', 'plus', v?.hand ?? 0, L('আমার হাতে লোক আছে', 'People I have in hand'), L('কাজ করতে চায় এমন কারো নাম দিন', 'Add someone who wants work'), 'hand'],
+          ['gave', 'users', v?.brought ?? 0, L('আমি যাদের দিয়েছি', 'People I brought'), L('আমার আনা লোকের তালিকা', 'Who joined through me'), 'brought']] as const).map(([k, ic, cnt, t, sub, dk]) =>
+          v?.me ? <button key={k} type="button" className="pc" onClick={() => setPeople(k)}><span className="i"><Icon name={ic} size={20} /></span><b>{n(cnt)}</b><span className="t">{t}</span><span className="s">{sub}</span></button>
+            : <Link key={k} to={desk ? desk + dk : '/app/me'} className="pc"><span className="i"><Icon name={ic} size={20} /></span><b>{n(cnt)}</b><span className="t">{t}</span><span className="s">{sub}</span></Link>)}
       </div>
       </>}
 
@@ -232,6 +234,7 @@ export function StaffPanel() {
             () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
       </div>}
       {canLeave && ok('/app/hr/leave') && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
+      {people && v?.me && <PeopleSheet mode={people} employee={v.me.id} onClose={() => setPeople(null)} onChanged={() => void d.reload()} />}
       {absent !== null && <Modal title={L('আজ আসব না', 'Not coming today')} onClose={() => setAbsent(null)}
         actions={<><button className="secondary" onClick={() => setAbsent(null)}>{L('বাতিল', 'Cancel')}</button>
           <button disabled={busy || !absent.trim()} onClick={() => void give('absent', absent.trim())}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('জানিয়ে দিন', 'Send')}</button></>}>

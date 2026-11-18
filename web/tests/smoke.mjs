@@ -911,7 +911,7 @@ try {
       const order = ['আমার লোক', 'আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ'].map(x => sp.indexOf(x))
       check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['পিকআপ', 'ডেলিভারি', 'আজকের হিসাব', 'আমি যাদের দিয়েছি', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
         `${size}: the staff panel shows my people, accounts, attendance, bill, route, complaint and issues, in that order`)
-      check(await page.locator('.sp a.pc[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
+      check(await page.locator('.sp .pc', { hasText: 'আমার হাতে লোক আছে' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
     { const before = flowCalls.length
       await page.locator('.sp button.nv-row', { hasText: 'হাবে এসেছি' }).click(); await page.waitForTimeout(400)
       check(flowCalls.length === before + 1 && flowCalls.at(-1)?.fn === 'att_self_mark' && flowCalls.at(-1)?.p_kind === 'present', `${size}: one tap gives today's attendance for the manager to approve`)

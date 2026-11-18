@@ -2696,3 +2696,15 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
 .gbtn.out:hover:not(:disabled){background:var(--surface);color:var(--text);border:1px solid var(--border)}
 .sp-wal .eye:hover:not(:disabled){background:none;border:1.5px solid var(--primary);color:var(--text)}
 .gbtn:not(.out):not(.ghost):hover:not(:disabled){color:#fff}
+/* আমার লোক sheet (PeopleSheet.tsx) */
+.ppl-sheet{max-height:88vh;overflow-y:auto}
+.ppl-list{display:flex;flex-direction:column;max-height:34vh;overflow-y:auto;margin-bottom:6px}
+.ppl-row{display:flex;gap:11px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}.ppl-row:last-child{border:0}
+.ppl-row .av{width:38px;height:38px;border-radius:50%;background:var(--primary-50);color:var(--primary);display:grid;place-items:center;font-weight:700;flex:none}
+.ppl-row .t{flex:1;min-width:0}.ppl-row .t b{display:block;font-size:14.5px}.ppl-row .t span{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.ppl-form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.ppl-form label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;min-width:0}
+.ppl-form input,.ppl-form select{min-height:46px;border-radius:14px;font-size:16px}
+.ppl-add{width:100%;margin-top:12px;min-height:50px;border-radius:25px}
+.ok-note{color:var(--ok-fg);font-size:13.5px;margin:8px 0 0}
+@media (max-width:480px){.ppl-form{grid-template-columns:1fr}}
