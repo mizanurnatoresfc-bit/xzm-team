@@ -2664,3 +2664,5 @@ button.ax-tool:hover:not(:disabled){background:var(--surface);border-color:var(-
 /* the নদী AI bubble steps aside while the "not saved" bar is on screen */
 body:has(.ax-savebar:not(.inline)) .nodi-fab{bottom:calc(150px + env(safe-area-inset-bottom))}
 @media (min-width:900px){body:has(.ax-savebar:not(.inline)) .nodi-fab{bottom:86px}}
+/* long words (a migration name, an email) break instead of pushing the page sideways on narrow phones */
+.ax-wrap,.ax-person .tx,.ax-urole .tx,.ax-ownchip,.ax-people .tx,.ax-hl{overflow-wrap:anywhere}
