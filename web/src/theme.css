@@ -2921,3 +2921,17 @@ body{overflow-wrap:break-word}
   /* last line of defence: the page itself never scrolls sideways (wide tables scroll inside their own box) */
   .app-main .da-main{overflow-x:clip;max-width:100vw}
 }
+
+/* Phone: the quick-add + lives in the middle of the bottom menu (owner, 19 Nov: "মাঝখানে + ন্যাভবার এ দেও").
+   It opens the same quick sheet (লোক চাই, হাজিরা, ইস্যু …). The header keeps its + on a computer only. */
+.bn-plus{display:none}
+@media (max-width:960px){
+  .top button.quick-btn{display:none!important}
+  .bottom-nav{align-items:flex-end}
+  .bn-plus{display:flex;flex:0 0 64px;justify-content:center;align-items:flex-start;background:none!important;border:0!important;padding:0!important;min-height:0;align-self:stretch}
+  .bn-plus>span{width:54px;height:54px;margin-top:-22px;border-radius:50%;display:grid;place-items:center;color:#fff;
+    background:var(--primary);border:4px solid var(--canvas);box-shadow:0 8px 18px color-mix(in srgb,var(--primary) 38%,transparent);transition:transform .15s}
+  .bn-plus:active>span{transform:scale(.94)}
+  .bn-plus:focus-visible>span{outline:3px solid color-mix(in srgb,var(--primary) 45%,transparent);outline-offset:2px}
+}
+@media (max-width:960px){button.hide-phone-plus{display:none!important}}

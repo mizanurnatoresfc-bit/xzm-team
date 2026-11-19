@@ -246,8 +246,8 @@ const HOME_TAB: Tab = { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', p
 const PROFILE_TAB: Tab = { to: '/app/me', icon: 'user', bn: 'প্রোফাইল', en: 'Profile', perms: null, match: '/app/me' }
 const VIEW_TABS: Record<DashView, Tab[]> = {
   self: [HOME_TAB,
-    { to: '/app/staff', icon: 'user', bn: 'আমার প্যানেল', en: 'My panel', perms: null, match: '/app/staff' },
-    { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null, match: '/app/accounts' },
+    { to: '/app/staff', icon: 'user', bn: 'প্যানেল', en: 'Panel', perms: null, match: '/app/staff' },
+    { to: '/app/accounts/mine', icon: 'wallet', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
     { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' },
   ],
   hub: [HOME_TAB,
@@ -258,6 +258,7 @@ const VIEW_TABS: Record<DashView, Tab[]> = {
   zone: TABS,
 }
 const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; tone: string }> = [
+  { to: '/app/manpower?new=1', icon: 'users', bn: 'লোক চাই', en: 'Need people', perms: ['hr.request.create'], tone: 'g' },
   { to: '/app/issues?new=1', icon: 'scan', bn: 'লেবেল দিয়ে ইস্যু', en: 'Issue from label', perms: null, tone: 'r' },
   { to: '/app/issues?order=store', icon: 'box', bn: 'স্টোর / আইটি অর্ডার', en: 'Store / IT order', perms: null, tone: 'b' },
   { to: '/app/hub/attendance', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
@@ -383,6 +384,11 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
     {i.count && cnt[i.count] ? <span className="count">{n(cnt[i.count])}</span> : null}</NavLink>
 
+  // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
+  const navTabs = (dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, quickItems.length ? 3 : 4)
+  // On লোক লাগবে the + is the page's own action (লোক চাই); everywhere else it opens the quick sheet.
+  const plusTap = () => /^\/app\/manpower/.test(here) && can('hr.request.create') ? nav('/app/manpower?new=1') : setQuick(true)
+  const plusTab = <button key="plus" type="button" className="bn-plus" aria-label={L('দ্রুত যোগ করুন', 'Quick add')} onClick={plusTap}><span><Icon name="plus" size={26} /></span></button>
   return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
     <WfCountsHost />
     <aside className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}
@@ -478,8 +484,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <span className="nt-x" role="button" aria-label={L('বন্ধ', 'Close')} onClick={e => { e.stopPropagation(); clearFresh() }}><Icon name="x" size={14} /></span></button>}
     {can('nodi.assistant.view') && nodiOn?.chat && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
-      {(dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, 4).map(t => <NavLink key={t.to} to={t.to} end={t.to === '/app'}
-        className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>)}
+      {navTabs.flatMap((t, i) => [...(i === 2 && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
+        className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}
+      {quickItems.length > 0 && navTabs.length < 3 && plusTab}
       <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => setOpen(true)}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
     </nav>
     {asRole && <ViewAsPicker onClose={() => setAsRole(false)} />}

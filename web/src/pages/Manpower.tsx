@@ -21,7 +21,9 @@ export function Manpower() {
   const me = useLoad(() => hrReq.myEmployee().catch(() => null), [])
   const list = useLoad(() => manpower.list(), [])
   const [st, setSt] = useState<'open' | 'all' | MpStatus>('open')
+  // the bottom menu's + → লোক চাই opens straight on the form
   const [form, setForm] = useState(false)
+  useEffect(() => { if (sp.get('new') === '1') setForm(true) }, [sp])
   const [dec, setDec] = useState<Mp | null>(null)
   const [close, setClose] = useState<Mp | null>(null)
   const openId = sp.get('id')
@@ -37,7 +39,7 @@ export function Manpower() {
   const reload = async (m: string) => { toast(m); setSp(new URLSearchParams(), { replace: true }); await list.reload() }
 
   return <AppShell title="লোক লাগবে" subtitle="হাবে লোকের দরকার হলে এখানে জানান — পিকআপ, ডেলিভারি, বড় পার্সেল আর সমস্যা লিখে। অনুমোদন হলে হাব বা জোনের সবাই নোটিফিকেশন পাবেন, পরিচিত কেউ থাকলে রেফার করবেন।"
-    actions={<button onClick={() => setForm(true)}><Icon name="plus" size={16} />লোক চাই</button>}>
+    actions={<button className="hide-phone-plus" onClick={() => setForm(true)}><Icon name="plus" size={16} />লোক চাই</button>}>
     {node}
     <div className="da-stats">
       <Stat icon="clock" tone={all.some(r => r.status === 'submitted') ? 'warn' : undefined} label="অনুমোদনের অপেক্ষায়" value={bn(all.filter(r => r.status === 'submitted').length)} />
@@ -75,7 +77,7 @@ export function Manpower() {
           </span> },
         ]} />
     </section>
-    {form && <RequestForm myHub={me.data?.hub_id ?? null} myPost={me.data?.position_id ?? null} onClose={() => setForm(false)} onDone={async () => { setForm(false); await reload('চাহিদা জমা হয়েছে — অনুমোদনকারীকে জানানো হয়েছে') }} />}
+    {form && <RequestForm myHub={me.data?.hub_id ?? null} myPost={me.data?.position_id ?? null} onClose={() => { setForm(false); if (sp.get('new')) setSp(new URLSearchParams(), { replace: true }) }} onDone={async () => { setForm(false); await reload('চাহিদা জমা হয়েছে — অনুমোদনকারীকে জানানো হয়েছে') }} />}
     {dec && <DecideForm r={dec} onClose={() => { setDec(null); setSp(new URLSearchParams(), { replace: true }) }} onDone={async n => { setDec(null); await reload(n >= 0 ? `সেভ হয়েছে — ${bn(n)} জনকে নোটিফিকেশন গেছে` : 'বাতিল করা হয়েছে') }} />}
     {close && <CloseForm r={close} onClose={() => setClose(null)} onDone={async () => { setClose(null); await reload('বন্ধ করা হয়েছে') }} />}
   </AppShell>
