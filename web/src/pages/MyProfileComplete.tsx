@@ -7,24 +7,14 @@ import { hrReq } from '../lib/hrreq'
 import { usePrefs } from '../lib/prefs'
 import { useLoad, useToast } from './accounts/ui'
 import { ProfileFill } from './hr/ProfileFill'
+import { refreshMyPhoto } from '../lib/myPhoto'
+import { shrinkImage } from '../lib/shrinkImage'
 
 /**
  * আমার প্রোফাইল পূর্ণ করুন — a staff member completes their own profile: how full it is, what is still missing,
  * one form for the details, and one tap each for the photo and the NID images (camera or gallery). Everything saves at once.
  */
 const PICS: Array<[type: string, bn: string, en: string]> = [['photo', 'নিজের ছবি', 'Your photo'], ['nid_front', 'এনআইডি — সামনে', 'NID — front'], ['nid_back', 'এনআইডি — পেছনে', 'NID — back']]
-
-async function shrink(file: File): Promise<File> {
-  if (!file.type.startsWith('image/') || file.size < 700_000) return file
-  try {
-    const bmp = await createImageBitmap(file)
-    const k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height))
-    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
-    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
-    const blob = await new Promise<Blob | null>(res => c.toBlob(res, 'image/jpeg', 0.85))
-    return blob ? new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' }) : file
-  } catch { return file }
-}
 
 export function MyProfileComplete() {
   const { L, n } = usePrefs()
@@ -41,7 +31,7 @@ export function MyProfileComplete() {
   async function upload(type: string, f: File | undefined) {
     if (!f || !id) return
     setBusy(type); setErr('')
-    try { await docs.upload(id, type, await shrink(f)); await Promise.all([files.reload(), gap.reload()]); toast(L('ছবি জমা হয়েছে', 'Uploaded')) }
+    try { await docs.upload(id, type, await shrinkImage(f, type === 'photo' ? 900 : 1600)); if (type === 'photo') refreshMyPhoto(); await Promise.all([files.reload(), gap.reload()]); toast(L('ছবি জমা হয়েছে', 'Uploaded')) }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy('') }
   }
   return <AppShell title={L('আমার প্রোফাইল পূর্ণ করুন', 'Complete my profile')} subtitle={L('যা দেবেন সাথে সাথে সেভ হবে', 'Everything saves at once')}>

@@ -17,6 +17,8 @@ import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 import { PersonalMenu, WfCountsHost } from './PersonalMenu'
 import { OFFICE_GROUPS } from '../lib/office'
+import { myPhoto, onMyPhotoChange } from '../lib/myPhoto'
+import { MyFace } from './MyAvatar'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey
   /** 'web' = the website only, 'app' = the Android app only (see advancedAccessHere). */ only?: 'web' | 'app' }
@@ -211,31 +213,7 @@ function counts(user: string, can: (p: string) => boolean): Promise<Record<Count
 }
 export function refreshShellCounts() { countCache = null }
 
-// The signed-in person's own photo (an employee "photo" document), cached for 50 minutes.
-let photoCache: { user: string; at: number; p: Promise<string | null> } | null = null
-function myPhoto(user: string): Promise<string | null> {
-  if (photoCache && photoCache.user === user && Date.now() - photoCache.at < 3_000_000) return photoCache.p
-  const p = (async () => {
-    const { data: emp } = await supabase.rpc('my_employee_id')
-    if (!emp) return null
-    const { data } = await supabase.from('employee_documents').select('storage_path').eq('employee_id', emp as string).eq('doc_type', 'photo')
-      .is('archived_at', null).order('created_at', { ascending: false }).limit(1)
-    const path = (data?.[0] as { storage_path?: string } | undefined)?.storage_path
-    if (!path) return null
-    const { data: url } = await supabase.storage.from('employee-docs').createSignedUrl(path, 3600)
-    return url?.signedUrl ?? null
-  })().catch(() => null)
-  photoCache = { user, at: Date.now(), p }; return p
-}
-export function refreshMyPhoto() { photoCache = null }
-/** The signed-in person's photo URL: undefined while loading, null when there is none. */
-export function useMyPhoto(): string | null | undefined {
-  const { session } = useAuth()
-  const user = session?.user.id ?? ''
-  const [p, setP] = useState<string | null | undefined>(undefined)
-  useEffect(() => { if (user) void myPhoto(user).then(setP) }, [user])
-  return p
-}
+export { refreshMyPhoto, useMyPhoto } from '../lib/myPhoto'
 
 // Mobile: bottom tabs (first four the role may open) and the quick-add sheet.
 const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }> = [
@@ -341,7 +319,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() => { try { return JSON.parse(sessionStorage.getItem('xzm_ng') || '{}') } catch { return {} } })
   const popRef = useRef<HTMLDivElement>(null)
   useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
-  useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user])
+  const [photoTick, setPhotoTick] = useState(0)
+  useEffect(() => onMyPhotoChange(() => setPhotoTick(t => t + 1)), [])
+  useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user, photoTick])
   useEffect(() => { startNotices(user || null) }, [user])
   // Inside the app: phone push (needs the Firebase build of the APK; elsewhere nothing happens).
   useEffect(() => { if (user) void setupPush(savePushDevice, link => nav(link)) }, [user])
@@ -480,9 +460,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <button className="icon hide-sm" aria-label={L('ডার্ক / লাইট মোড', 'Dark / light mode')} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" /></button>
         <div className="rel" ref={pop === 'me' ? popRef : undefined}>
           <button className={`avatar-btn${pop === 'me' ? ' on' : ''}`} aria-label={L('প্রোফাইল মেনু', 'Profile menu')} aria-haspopup="menu" aria-expanded={pop === 'me'} onClick={() => setPop(pop === 'me' ? null : 'me')}>
-            {photo ? <img src={photo} alt="" onError={() => setPhoto(null)} /> : <span>{(name || '?').slice(0, 2).toUpperCase()}</span>}</button>
+            <MyFace photo={photo} /></button>
           {pop === 'me' && <div className="top-pop me-pop" role="menu">
-            <div className="me-head"><span className="me-av">{photo ? <img src={photo} alt="" /> : (name || '?').slice(0, 2).toUpperCase()}</span>
+            <div className="me-head"><span className="me-av"><MyFace photo={photo} /></span>
               <div style={{ minWidth: 0 }}><b>{name}</b><div className="muted small">{top ? scopeText : L('কোনো রোল নেই', 'No role')}</div></div></div>
             <Link to="/app/me" role="menuitem" onClick={() => setPop(null)}><Icon name="user" size={20} />{L('প্রোফাইল', 'Profile')}</Link>
             <Link to="/app/me/permissions" role="menuitem" onClick={() => setPop(null)}><Icon name="key" size={20} />{L('আমার অনুমতি', 'My Permissions')}</Link>
