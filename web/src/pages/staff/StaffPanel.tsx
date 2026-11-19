@@ -17,7 +17,7 @@ import { referrals } from '../../lib/extra'
 import { dutiesApi } from '../../lib/hub'
 import { hrReq } from '../../lib/hrreq'
 import { hr } from '../../lib/hr'
-import { issues } from '../../lib/issues'
+import { issues, type ZoneContacts, type ZoneGroup } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { fleet } from '../../lib/fleet'
@@ -29,7 +29,7 @@ import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
  * স্টাফ প্যানেল — one phone screen for a staff member's own day, in the order the owner asked for:
  * my accounts, today's attendance, my bill, my route and duties, my complaint, issues and contact, my people.
  * It only reads what the person may already see and links into the pages that do the work; nothing new is stored.
- * A row marked "শীঘ্রই" has no database behind it yet.
+ * A row marked "শীঘ্রই" has no database behind it yet. (Zone group and zonal manager are live since 19 Nov.)
  */
 const ATT: Record<string, [bn: string, en: string, tone: string]> = {
   present: ['উপস্থিত', 'Present', 'g'], late: ['দেরিতে এসেছেন', 'Late', 'o'], half_day: ['অর্ধদিবস', 'Half day', 'o'], absent: ['অনুপস্থিত', 'Absent', 'r'],
@@ -49,7 +49,7 @@ export function StaffPanel() {
   const today = todayDhaka()
   const d = useLoad(async () => {
     const [home, me] = await Promise.all([quiet(dashboard.home(), null), quiet(hrReq.myEmployee(), null)])
-    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car] = await Promise.all([
+    const [acc, claims, panels, groups, att, duties, routes, hand, brought, car, zones, zm] = await Promise.all([
       quiet(da.myAccounts(addDays(today, -30), today), null),
       quiet(da.myClaims(30), [] as Claim[]),
       quiet(issues.panels(), null),
@@ -61,8 +61,10 @@ export function StaffPanel() {
       me ? quiet(referrals.prospects(me.id).then(x => x.length), 0) : 0,
       me ? quiet(referrals.brought(me.id).then(x => x.length), 0) : 0,
       quiet(fleet.mine(), null),
+      quiet(issues.zoneGroups(), [] as ZoneGroup[]),
+      quiet(issues.zoneContacts(), null as ZoneContacts | null),
     ])
-    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car }
+    return { home, me, acc, claims, panels, groups, att, duties, routes, hand, brought, car, zones, zm }
   }, [])
   const v = d.data
   const layout = useLoad(() => staffPanel.mine(), [])
@@ -119,6 +121,12 @@ export function StaffPanel() {
   const myIssues = (v?.panels?.mine ?? []).filter(i => i.status === 'open' || i.status === 'in_progress')
   const given = v?.panels?.given ?? []
   const unseen = (v?.groups ?? []).reduce((s, g) => s + g.unseen, 0)
+  // My zone's group (the one I am posted in; else the only one I can open) and my zonal manager(s).
+  const zoneList = v?.zones ?? []
+  const myZone = zoneList.find(z => z.zone_id === v?.zm?.zone_id) ?? zoneList.find(z => z.mine) ?? (zoneList.length === 1 ? zoneList[0] : null)
+  const zm = v?.zm ?? null
+  const managers = (zm?.managers ?? []).filter(m => !m.is_me)
+  const [zmOpen, setZmOpen] = useState(false)
   const people = (c: number) => (c ? L(`${n(c)} জন`, `${c} people`) : L('এখনো কেউ নেই', 'Nobody yet'))
   const desk = can('hr.request.create') ? null : '/app/hr/requests?tab=new&do='   // the plain-words staff desk; others keep these on their profile
   const canLeave = can('hr.leave.create') || can('hr.leave.view')
@@ -221,8 +229,15 @@ export function StaffPanel() {
       <div className="nv-rows">
         {row('/app/issues?tab=mine', 'o', 'tasks', L('আমাকে দেওয়া ইস্যু', 'Issues given to me'), myIssues.length ? L(`${n(myIssues.length)}টি কাজ বাকি`, `${myIssues.length} to do`) : L('কোনো কাজ বাকি নেই', 'Nothing to do'), cnt(myIssues.length, myIssues.some(i => i.overdue) ? 'bad' : 'warn'))}
         {row('/app/issues?tab=group', 'g', 'hub', L('হাব গ্রুপ', 'Hub group'), unseen ? L(`${n(unseen)}টি নতুন মেসেজ`, `${unseen} new messages`) : L('হাবের সবার সাথে কথা', 'Talk with everyone at the hub'), cnt(unseen, 'info'))}
-        {row(null, 'b', 'map', L('জোন গ্রুপ', 'Zone group'), L('জোনের সব হাবের গ্রুপ', 'The group for every hub in the zone'))}
-        {row(null, 'p', 'phone', L('জোনাল ম্যানেজার', 'Zonal manager'), L('সরাসরি জোনাল ম্যানেজারকে জানান', 'Reach the zonal manager directly'))}
+        {myZone
+          ? row(`/app/issues?tab=zone&z=${myZone.zone_id}`, 'b', 'map', L(`জোন গ্রুপ — ${myZone.zone_name}`, `Zone group — ${myZone.zone_name}`),
+            myZone.unseen ? L(`${n(myZone.unseen)}টি নতুন মেসেজ`, `${myZone.unseen} new messages`) : L(`জোনের ${n(myZone.hubs)}টি হাবের সবার সাথে কথা`, `Talk with all ${myZone.hubs} hubs of the zone`), cnt(myZone.unseen, 'info'))
+          : row(null, 'b', 'map', L('জোন গ্রুপ', 'Zone group'), L('আপনার প্রোফাইলে কোনো জোন নেই', 'No zone on your profile'), <span className="sp-soon">{L('নেই', 'None')}</span>)}
+        {zm
+          ? act('p', 'phone', managers.length === 1 ? `${L('জোনাল ম্যানেজার', 'Zonal manager')} — ${managers[0].full_name}` : L('জোনাল ম্যানেজার', 'Zonal manager'),
+            managers.length ? L('ফোন, SMS, WhatsApp বা লিখে সরাসরি জানান', 'Call, SMS, WhatsApp or write to them directly') : L(`${zm.zone_name}-এ এখনো কোনো জোনাল ম্যানেজার দেওয়া নেই`, `No zonal manager set for ${zm.zone_name} yet`),
+            () => setZmOpen(true))
+          : row(null, 'p', 'phone', L('জোনাল ম্যানেজার', 'Zonal manager'), L('আপনার প্রোফাইলে কোনো জোন নেই', 'No zone on your profile'), <span className="sp-soon">{L('নেই', 'None')}</span>)}
       </div>
     </>,
     people: () => <>
@@ -252,6 +267,7 @@ export function StaffPanel() {
         <Icon name="chev" size={18} /></Link>}
 
       {order.map(k => <Fragment key={k}>{SECTION[k]()}</Fragment>)}
+      {zmOpen && zm && <ZonalManagerSheet zm={zm} onClose={() => setZmOpen(false)} onSent={k => { setZmOpen(false); toast(L(`জোনাল ম্যানেজারকে জানানো হয়েছে${k > 1 ? ` (${n(k)} জন)` : ''}`, `Sent to the zonal manager${k > 1 ? ` (${k})` : ''}`)); void d.reload() }} />}
       {absent !== null && <Modal title={L('আজ আসব না', 'Not coming today')} onClose={() => setAbsent(null)}
         actions={<><button className="secondary" onClick={() => setAbsent(null)}>{L('বাতিল', 'Cancel')}</button>
           <button disabled={busy || !absent.trim()} onClick={() => void give('absent', absent.trim())}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('জানিয়ে দিন', 'Send')}</button></>}>
@@ -261,4 +277,41 @@ export function StaffPanel() {
       </Modal>}
     </div>
   </AppShell>
+}
+
+/** Phone number as WhatsApp wants it: 01XXXXXXXXX → 8801XXXXXXXXX. */
+const waNumber = (p: string) => { const d = p.replace(/\D/g, ''); return d.startsWith('880') ? d : d.startsWith('0') ? '88' + d : d }
+
+/** The zonal manager(s) of my zone: call, SMS, WhatsApp, or a written note that reaches them as a notification. */
+function ZonalManagerSheet({ zm, onClose, onSent }: { zm: ZoneContacts; onClose: () => void; onSent: (k: number) => void }) {
+  const { L } = usePrefs()
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const list = zm.managers.filter(m => !m.is_me)
+  const canWrite = list.some(m => m.has_login)
+  async function send() {
+    setBusy(true); setErr('')
+    try { onSent(await issues.tellZoneManager(zm.zone_id, text.trim())) }
+    catch (e) { setErr(e instanceof Error ? e.message : String((e as { message?: string })?.message ?? e)) } finally { setBusy(false) }
+  }
+  return <Modal title={`${L('জোনাল ম্যানেজার', 'Zonal manager')} — ${zm.zone_name}`} onClose={onClose}
+    actions={<>{canWrite && <button disabled={busy || text.trim().length < 2} onClick={() => void send()}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('লিখে পাঠান', 'Send note')}</button>}
+      <button className="secondary" onClick={onClose}>{L('বন্ধ', 'Close')}</button></>}>
+    {!list.length && <p className="notice small">{L('এই জোনে এখনো কোনো জোনাল ম্যানেজার দেওয়া নেই। হাব ম্যানেজারকে বা হেড অফিসে জানান।', 'No zonal manager is set for this zone yet. Tell your hub manager or head office.')}</p>}
+    <div className="nv-rows">
+      {list.map((m, i) => <div key={i} className="nv-row zm-card">
+        <span className="nv-av sd-i p"><Icon name="user" size={22} /></span>
+        <span className="tx"><b>{m.full_name}{m.employee_code ? ` · ${m.employee_code}` : ''}</b><span>{[m.position, m.phone].filter(Boolean).join(' · ') || L('ফোন নম্বর দেওয়া নেই', 'No phone number')}</span></span>
+        {m.phone && <span className="zm-acts">
+          <a className="btn-ghost sm" href={`tel:${m.phone}`} aria-label={L('ফোন করুন', 'Call')}><Icon name="phone" size={16} /> {L('কল', 'Call')}</a>
+          <a className="btn-ghost sm" href={`sms:${m.phone}`}>SMS</a>
+          <a className="btn-ghost sm" href={`https://wa.me/${waNumber(m.phone)}`} target="_blank" rel="noreferrer">WhatsApp</a></span>}
+      </div>)}
+    </div>
+    {canWrite && <Field label={L('লিখে জানান', 'Write to them')} hint={L('জোনাল ম্যানেজারের নোটিফিকেশনে যাবে, আপনার নাম ও হাবসহ', 'Goes to their notifications with your name and hub')}>
+      <textarea rows={3} maxLength={500} value={text} onChange={e => setText(e.target.value)} placeholder={L('যেমন: হাবে আজ ৩ জন রাইডার কম, পার্সেল জমে আছে', 'e.g. three riders short today, parcels piling up')} /></Field>}
+    {zm.sent_today > 0 && <p className="muted small">{L(`গত ২৪ ঘণ্টায় ${zm.sent_today}টি বার্তা পাঠিয়েছেন`, `${zm.sent_today} notes sent in the last 24 hours`)}</p>}
+    {err && <p className="da-error">{err}</p>}
+  </Modal>
 }

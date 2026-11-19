@@ -87,6 +87,8 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261118200000_workforce_earlier_dates.sql` | 20261118201608 workforce_earlier_dates (one part; all 53 `wf_*` function bodies checked equal to the tested file by hash after applying) |
 | `20261118210000_workforce_site_application.sql` | 20261118230228 workforce_site_application (file text; all 53 `wf_*` function bodies checked equal to the tested file by hash after applying) |
 | `20261119000100_nodi_features.sql` | 20261119082756 nodi_features (file text without the header comment; replaced functions checked equal to the repository by hash before applying) |
+| `20261119020000_zone_group_and_contact.sql` | zone_group_and_contact — objects live, no `schema_migrations` row (approval came after the call timed out); all 12 function bodies checked equal to the repository by hash |
+| `20261119030000_route_settings.sql` | route_settings — objects live, no `schema_migrations` row (applied after the tool's approval timed out); all 17 function bodies checked equal to the tested file by hash |
 
 **Check of 18 Nov 2026 (after the three files above were added):** a database built only from this repository and the live database have the same
 613 functions in `public` and `private`, with the same code (compared by hash with comments, spacing and Windows line breaks ignored — 174 live
