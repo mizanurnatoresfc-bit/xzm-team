@@ -3,6 +3,7 @@ import { Icon } from '../../components/Icon'
 import { usePrefs, type Lang } from '../../lib/prefs'
 import { wf, wfFriendly, type BookDay, type IsoDate, type MyBook } from '../../lib/workforce'
 import { Field, Modal } from '../accounts/ui'
+import { mb, mbFriendly } from '../../lib/workforceBook'
 import '../../workforce-book.css'
 
 // ------------------------------------------------------------------ small date helpers (also used by AttendanceBook)
@@ -56,6 +57,7 @@ export function AbsenceApply({ book, date, onBack, onClose, onSent }: {
   const options = useMemo(() => book.days.filter(d => canApply(book, d)), [book])
   const [picked, setPicked] = useState<IsoDate[]>(() => options.some(d => d.date === date) ? [date] : [])
   const [reason, setReason] = useState('')
+  const [photo, setPhoto] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
@@ -69,6 +71,10 @@ export function AbsenceApply({ book, date, onBack, onClose, onSent }: {
     setBusy(true); setErr('')
     try {
       const id = await wf.apply([...picked].sort(), reason.trim())
+      if (photo) {
+        try { await mb.attachPhoto(book.employee.id, id, photo) }
+        catch (e) { setErr(`${L('আবেদন গেছে, কিন্তু ছবি ওঠেনি', 'Sent, but the photo did not upload')}: ${mbFriendly(e)}`) }
+      }
       await onSent(id)
     } catch (e) { setErr(wfFriendly(e)) } finally { setBusy(false) }
   }
@@ -107,6 +113,10 @@ export function AbsenceApply({ book, date, onBack, onClose, onSent }: {
     <Field label={L('কেন ছিলেন না?', 'Why were you absent?')} required>
       <textarea rows={3} value={reason} maxLength={400} placeholder={L('যেমন: জ্বর, ডাক্তার দেখাতে গিয়েছিলাম', 'e.g. fever, went to the doctor')}
         onChange={e => setReason(e.target.value)} />
+    </Field>
+
+    <Field label={L('ছুটির আবেদনের ছবি', 'Photo of the leave application')} hint={L('কাগজের আবেদন বা ওয়েবসাইটের স্ক্রিনশট — JPG / PNG, ৫ MB পর্যন্ত', 'Paper application or website screenshot — JPG / PNG up to 5 MB')}>
+      <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" onChange={e => setPhoto(e.target.files?.[0] ?? null)} />
     </Field>
 
     <p className={`wf-ap-prev${picked.length ? ' on' : ''}`} aria-live="polite">

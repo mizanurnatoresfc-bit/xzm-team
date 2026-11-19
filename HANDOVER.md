@@ -599,3 +599,14 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `99zzzzzzzzzzzzzzzzzzzzz_notice_workflow.sql` (63 assertions); whole suite 2086 passed on local PostgreSQL (not real Supabase).
 - Not done / open: the Edge Function `push-send` still sends every push at the same (high) priority — it was not changed; a settings page for the workflow numbers (use `system_settings` for now); choosing who approves each kind of request is still by permission, not a configurable chain.
 - **To go live:** apply the migration on Supabase, then merge to `main`.
+
+## 2026-11-20 — হাজিরা খাতা (ম্যানেজারের): চার ইনপুট, দিন ক্লোজ, জোনাল সংশোধন ও সাবমিট, পেইড/নন-পেইড
+- Owner (19 Nov): the hub manager's monthly book with the inputs "হাবে উপস্থিত + অনলাইন হাজিরা / অনলাইন হাজিরা হয়নি / অনুপস্থিত — ওয়েবসাইট আবেদন আছে (থেকে–পর্যন্ত) /
+  আবেদন নেই — এখুনি আবেদন করুন / লেট সময়সহ"; closing today's book ends the manager's corrections; staff leave application with a photo; the zonal manager corrects and
+  submits weekly / monthly; paid / unpaid in every panel, from the book's setting; everything by name and date in the zonal panel, exported in the company's format.
+- Migration `20261120000200_workforce_manager_book.sql` (additive; register source gains `book`). Details, rules, rollback: `docs/WORKFORCE.md` (last section).
+- Pages: hub page → হাজিরা বই is now the manager's book (tap a date: everyone's input on one sheet, "বাকি সবাই উপস্থিত", "কর্মীদের দেওয়া থেকে নিন", "খাতা ক্লোজ ও সাবমিট";
+  the old staff-input grid is one button away); জোনাল রিপোর্ট → হাজিরা খাতা (name × date, correct, weekly / monthly submit, submitted list) and → সেটিং (book days, open, paid rules, format);
+  staff: অনুপস্থিতির আবেদনে ছবি, হাজিরা বইয়ে পেইড / নন-পেইড কার্ড.
+- Tests: new file (82); `99zzzzzzzzzzzzz_workforce.sql` public function count 23 → 36; full suite 2168 pass. Typecheck and build pass.
+- **Not live yet:** apply the migration to Supabase, then merge to `main` for the site.

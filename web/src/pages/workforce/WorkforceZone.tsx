@@ -10,6 +10,7 @@ import { Badge, Field, Stat } from '../accounts/ui'
 import { ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, RangeBar, Section, Who, WmTable, fmtDay, fmtStamp, fmtWeekday, monthName, recordLabel, siteDetail, siteText, useHubList, useRange,
   type WCol } from './shared'
 import { ZoneWindows } from './ZoneWindows'
+import { ZoneBookSettings, ZoneBookSheet } from './ZoneBook'
 
 /**
  * জোনাল ওয়ার্কফোর্স রিপোর্ট — everything the zonal manager may see, all hubs side by side.
@@ -17,8 +18,8 @@ import { ZoneWindows } from './ZoneWindows'
  * and has no approve or return buttons — a tap on a hub opens that hub's own page, where the database decides what the person may do.
  * The one setting here (tab "সেটিং", hr.attendance.configure): opening earlier dates of the attendance book for the zone (ZoneWindows).
  */
-type ZTab = 'apps' | 'ops' | 'history' | 'setting'
-const ZTABS: ZTab[] = ['apps', 'ops', 'history', 'setting']
+type ZTab = 'book' | 'apps' | 'ops' | 'history' | 'setting'
+const ZTABS: ZTab[] = ['book', 'apps', 'ops', 'history', 'setting']
 
 export function WorkforceZone() {
   const { L, n, lang } = usePrefs()
@@ -34,7 +35,7 @@ export function WorkforceZone() {
   const q = useLiveLoad<ZoneOverview>(() => wf.zone(zone || null, r.from, r.to), [zone, r.from, r.to], LIVE.manage)
   const d = q.data
   const tabAsked = sp.get('tab')
-  const tab: ZTab = ZTABS.includes(tabAsked as ZTab) && (tabAsked !== 'setting' || canSet) ? tabAsked as ZTab : 'apps'
+  const tab: ZTab = ZTABS.includes(tabAsked as ZTab) && (tabAsked !== 'setting' || canSet) ? tabAsked as ZTab : 'book'
   const setTab = (t: ZTab) => setSp(p => { const x = new URLSearchParams(p); x.set('tab', t); return x }, { replace: true })
   const setZone = (id: string) => setSp(p => { const x = new URLSearchParams(p); if (id) x.set('zone', id); else x.delete('zone'); return x }, { replace: true })
   const range = `${fmtDay(r.from, lang)}${r.from !== r.to ? ` – ${fmtDay(r.to, lang)}` : ''}`
@@ -114,14 +115,15 @@ export function WorkforceZone() {
       </div>}
 
       {d && <>
-        <ChipTabs<ZTab> tabs={[{ key: 'apps', label: L('অনুপস্থিতি ও আবেদন', 'Absence & applications') }, { key: 'ops', label: L('পিকআপ · রিটার্ন · ডেলিভারি', 'Pickup · return · delivery') }, { key: 'history', label: L('ইতিহাস', 'History') },
-            ...(canSet ? [{ key: 'setting' as const, label: L('সেটিং: আগের তারিখ খোলা', 'Setting: earlier dates') }] : [])]}
+        <ChipTabs<ZTab> tabs={[{ key: 'book', label: L('হাজিরা খাতা', 'Attendance book') }, { key: 'apps', label: L('অনুপস্থিতি ও আবেদন', 'Absence & applications') }, { key: 'ops', label: L('পিকআপ · রিটার্ন · ডেলিভারি', 'Pickup · return · delivery') }, { key: 'history', label: L('ইতিহাস', 'History') },
+            ...(canSet ? [{ key: 'setting' as const, label: L('সেটিং', 'Setting') }] : [])]}
           value={tab} onChange={setTab} label={L('জোনের বিভাগ', 'Zone sections')} />
         <div key={`${zone}-${tab}`}>
           {tab === 'apps' && <ZoneApps zone={zone} from={r.from} to={r.to} range={range} onHub={(id, t) => nav(`/app/workforce/hub?hub=${id}&tab=${t}`)} />}
           {tab === 'ops' && <ZoneOps zone={zone} from={r.from} to={r.to} range={range} />}
           {tab === 'history' && <ZoneHistory zone={zone} month={monthOf(r.to)} />}
-          {tab === 'setting' && <ZoneWindows zone={zone} />}
+          {tab === 'book' && <ZoneBookSheet zone={zone} />}
+          {tab === 'setting' && <><ZoneBookSettings zone={zone} /><ZoneWindows zone={zone} /></>}
         </div></>}
     </div>
   </AppShell>
