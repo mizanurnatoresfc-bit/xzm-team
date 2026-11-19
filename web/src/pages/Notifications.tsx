@@ -69,7 +69,7 @@ export function Notifications() {
         <div className="nf-list">{list.map(x => { const kk = kindOf(x.kind)
           return <button key={x.id} type="button" className={`nf-item${x.read_at ? '' : ' new'}`} onClick={() => open(x)}>
             <span className={`nf-ic k-${x.kind ?? 'other'}`}><Icon name={kk[2]} size={18} /></span>
-            <span className="nf-t"><b>{x.title}</b>{x.body && <span className="nf-b">{x.body}</span>}
+            <span className="nf-t"><b>{x.priority === 'urgent' ? '🔴 ' : x.priority === 'high' ? '🟠 ' : ''}{x.title}</b>{x.body && <span className="nf-b">{x.body}</span>}
               <span className="nf-m">{L(kk[0], kk[1])} · {time(x.created_at)}</span></span>
             {!x.read_at && <span className="nf-dot" aria-label={L('পড়া হয়নি', 'Unread')} />}
             {x.link && <Icon name="chev" size={16} />}

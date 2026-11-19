@@ -588,3 +588,14 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `/app/me/complete`. "এইচআর-কে ছবি দিন" texts now say "নিজেই দিন". No database change.
 - **Default avatar:** `HoodieAvatar` (inline SVG): a person in a dark hoodie with the Steadfast mark on the chest — shown wherever my own photo is missing
   (top bar button, profile menu, staff panel, My Profile). Smoke: hoodie avatar + photo button on the staff panel (pc + phone); 529 pass.
+
+## 2026-11-20 — Notification centre (7) and workflow automation (8): what was missing, now added
+- **Already there before (not touched):** bell + realtime + phone push (FCM), `/app/notifications`, hub/zone posts, tasks with priority and due date, `employees.reporting_manager_id`.
+- **Gaps found:** notifications had no priority; no official notice board; no personal reminders; giving a task did not tell the assignee; `task_due_reminders()` was never called by anything; nothing happened when a task or approval was late.
+- Migration `20261120000100_notice_workflow.sql` (**not yet applied on Supabase**): `notifications.priority`; notice board (`notices`, `notice_reads`; `notice_publish / notice_list / notice_mark_read / notice_archive`; perms `notice.board.create / archive / view` for admin, head office, zonal and hub managers within their scope);
+  personal reminders (`user_reminders`; once/daily/weekly/monthly; cron `reminders-fire` every minute); assignment notice (trigger on `tasks`); workflow engine `private.workflow_run()` (cron `wf-engine`, every 30 min):
+  announces notices that start later, delivers task reminders, overdue task → assignee → accountable + reporting manager (after `workflow.escalate_after_days`, default 2) → the manager above (after twice that), submitted result waiting a day → manager, HR requests and leave waiting `workflow.approval_remind_hours` (24) → approvers (and the reporting manager for leave), unread must-read notices after a day. Each step is sent once (`workflow_nudges`). Switch off: setting `workflow.enabled` = false. `my_report_line()` = who I report to.
+- Web: `/app/notices` (tabs: নোটিশ বোর্ড · আমার রিমাইন্ডার · আমার রিপোর্টিং লাইন), priority marks in the notifications list, kinds notice / reminder / task.
+- Tests: `99zzzzzzzzzzzzzzzzzzzzz_notice_workflow.sql` (63 assertions); whole suite 2086 passed on local PostgreSQL (not real Supabase).
+- Not done / open: the Edge Function `push-send` still sends every push at the same (high) priority — it was not changed; a settings page for the workflow numbers (use `system_settings` for now); choosing who approves each kind of request is still by permission, not a configurable chain.
+- **To go live:** apply the migration on Supabase, then merge to `main`.
