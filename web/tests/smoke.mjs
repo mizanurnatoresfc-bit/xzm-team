@@ -922,6 +922,7 @@ try {
     // staff panel: one screen with the person's whole day, in the owner's order
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-panel.png`, fullPage: true })
     { const sp = await page.locator('.sp').innerText()
       const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
       check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
