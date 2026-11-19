@@ -23,6 +23,11 @@ type Item = { to: string; icon: string; bn: string; en: string; perms: string[] 
 type Sec = { bn: string; en: string; items: Item[] }
 type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; items: Item[] }
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
+/** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
+const NEW_UNTIL: Record<string, string> = {
+  '/app/manpower': '2026-11-30', '/app/workforce/attendance': '2026-11-30', '/app/workforce/hub': '2026-11-30',
+  '/app/zonal/hub-ops': '2026-11-30', '/app/office/overview': '2026-11-30',
+}
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
 
 export const HOME: Item[] = [
@@ -313,6 +318,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const swipe = useRef<{ x: number; y: number } | null>(null)
   const [q, setQ] = useState('')
   const [menuQ, setMenuQ] = useState('')
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
   const [pop, setPop] = useState<'bell' | 'me' | null>(null)
   const [quick, setQuick] = useState(false)
   useEffect(() => {
@@ -386,8 +392,17 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
     const want = new URLSearchParams(q ?? ''), cur = new URLSearchParams(loc.search)
     return q ? [...want].every(([k, v]) => cur.get(k) === v) : !cur.get('tab') && !cur.get('p') }
+  // Right side of a menu row: জরুরি + number when something waits on this person, a plain number for a head count
+  // (hub team), or নতুন for a page added lately (it goes away by itself after the date in NEW_UNTIL).
+  const tagOf = (i: Item) => {
+    const c = i.count ? cnt[i.count] : 0
+    if (c && i.count !== 'team') return <span className="nb urgent" aria-label={L(`জরুরি, ${n(c)}টি অপেক্ষায়`, `Urgent, ${c} waiting`)}><b>{L('জরুরি', 'Urgent')}</b>{n(c)}</span>
+    if (c) return <span className="count">{n(c)}</span>
+    const until = NEW_UNTIL[i.to.split('?')[0]]
+    return until && today <= until ? <span className="nb new">{L('নতুন', 'New')}</span> : null
+  }
   const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
-    {i.count && cnt[i.count] ? <span className="count">{n(cnt[i.count])}</span> : null}</NavLink>
+    {tagOf(i)}</NavLink>
 
   // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
   const navTabs = (dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, quickItems.length ? 3 : 4)
@@ -407,12 +422,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <button type="button" className="side-fold" aria-label={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} title={mini ? L('মেনু বড় করুন', 'Expand menu') : L('মেনু ছোট করুন', 'Collapse menu')} onClick={e => { toggleMini(); e.currentTarget.blur() }}>
           <Icon name="chev" size={16} /></button>
         <button type="button" className="side-close" aria-label={L('মেনু বন্ধ', 'Close menu')} onClick={() => setOpen(false)}><Icon name="x" size={20} /></button>
+        <div className="side-find"><input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
+          {menuQ && <button type="button" className="side-find-x" aria-label={L('খোঁজা মুছুন', 'Clear search')} onClick={() => setMenuQ('')}><Icon name="x" size={14} /></button>}</div>
       </div>
       <div className="side-user"><span className="avatar" aria-hidden="true">{(name || '?').slice(0, 2)}</span>
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
-      <input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
       {HOME.filter(i => forMe(i) && hit(i)).map(link)}
       {[{ g: ACCOUNTS, secs: accSecs }, { g: OFFICE, secs: officeSecs }, ...shown].map(({ g, secs }) => {
         const vis = secs.flatMap(x => x.items)
