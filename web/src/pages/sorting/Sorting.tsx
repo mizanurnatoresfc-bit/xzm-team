@@ -10,6 +10,7 @@ import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly, type Hub } from '../../lib/hr'
 import { taka } from '../../lib/dailyAccounts'
 import { useOrg } from '../hr/common'
+import { AppDownloadCard } from '../../components/AppDownloadCard'
 import {
   FUEL_KIND, FUEL_STATUS, HO_STATUS, ROLE, sorting, TRIP_STATUS,
   type Center, type DriverReport, type EmpLite, type Fuel, type Handover, type Route, type RouteHub, type RouteReport, type StaffRow,
@@ -74,6 +75,7 @@ export function Sorting() {
       : centers.data && !list.length ? <p className="notice">{L('এখনো কোনো শটিং সেন্টার নেই।', 'No sorting center yet.')} {can('sorting.center.create') && <Link to="/app/sorting/centers">{L('সেন্টার যোগ করুন →', 'Add one →')}</Link>}</p>
       : !center ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
       : <Body sec={sec.key} ctx={{ center, hubs, hubName, from, to }} />}
+    {sec.key === 'dashboard' && <AppDownloadCard />}
   </AppShell>
 }
 

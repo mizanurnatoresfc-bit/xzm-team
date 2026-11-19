@@ -16,6 +16,7 @@ import { MyApprovalCard } from '../components/MyApprovals'
 import { RiderSendCard } from '../components/RiderQuick'
 import { PersonalMenu } from '../components/PersonalMenu'
 import { WorkforceAlerts } from '../components/WorkforceAlerts'
+import { AppDownloadCard } from '../components/AppDownloadCard'
 
 const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
   ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
@@ -108,6 +109,7 @@ export function Dashboard() {
 
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
     {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
+    <AppDownloadCard />
   </AppShell>
 
   function draw(p: PanelCode): ReactNode {

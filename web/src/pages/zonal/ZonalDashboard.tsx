@@ -10,6 +10,7 @@ import { hrFriendly } from '../../lib/hr'
 import { PLAN_KIND, zonal, type Claim, type HubPerf, type PlanItem, type Recommendation, type TaskAcc, type Visit, type WorkDetail, type WorkStat } from '../../lib/zonal'
 import { PulsePanel } from './PulsePanel'
 import { useOrg } from '../hr/common'
+import { AppDownloadCard } from '../../components/AppDownloadCard'
 
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 const shift = (iso: string, days: number) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + days); return dhaka(d) }
@@ -145,6 +146,7 @@ export function ZonalDashboard() {
 
     {detail && <WorkList stat={detail.stat} title={detail.title} zone={z} from={from} to={to} onClose={() => setDetail(null)} onOpen={id => nav(`/app/hr/employees/${id}`)} />}
     {!can('zonal.dashboard.view') && <p className="muted small">{L('এই পাতা দেখার অনুমতি দরকার: zonal.dashboard.view', 'Needs zonal.dashboard.view')}</p>}
+    <AppDownloadCard />
   </AppShell>
 }
 
