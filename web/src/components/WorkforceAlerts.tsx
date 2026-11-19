@@ -1,6 +1,7 @@
 // Small alert cards for what is waiting on the person: days of attendance still to give, days the manager returned,
 // today's four numbers not given yet, and — for managers — inputs and applications waiting for a decision.
 // Nothing waiting = nothing shown. The numbers are the shared live copy of wf_pending_counts() (see PersonalMenu).
+import { scrollBehavior } from '../lib/a11y'
 import type { MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { usePrefs } from '../lib/prefs'
@@ -37,7 +38,7 @@ export function WorkforceAlerts() {
   // On the staff panel the "numbers" card scrolls to the section instead of reloading the page.
   const go = (r: Row) => (e: MouseEvent) => {
     const el = r.scrollTo ? document.getElementById(r.scrollTo) : null
-    if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+    if (el) { e.preventDefault(); el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }) }
   }
   return <div className="wf-alerts" aria-live="polite">{rows.map(r => <Link key={r.key} to={r.to} className={`wf-alert t-${r.tone}`} onClick={go(r)}>
     <span className="wf-alert-i"><Icon name={r.icon} size={18} /></span>

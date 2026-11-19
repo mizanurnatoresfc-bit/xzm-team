@@ -1,0 +1,131 @@
+/* =====================================================================
+   Accessibility layer — loaded after every other stylesheet.
+   সব বয়সের মানুষ যেন সহজে অ্যাপ ব্যবহার করতে পারেন:
+   বড় লেখা, যথেষ্ট রঙের পার্থক্য, সহজে চাপা যায় এমন বাটন, কিবোর্ড ফোকাস, কম অ্যানিমেশন।
+   Settings → "সহজে ব্যবহার" writes data-text / data-contrast / data-motion on <html>.
+   ===================================================================== */
+
+/* ---------- Scalable text (প্রয়োজনমতো লেখা বড় করা) ----------
+   Every font size is in rem, so text follows the phone/browser text-size setting,
+   and the app's own setting makes it one, two or three steps bigger. */
+html{font-size:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html[data-text="l"]{font-size:112.5%}
+html[data-text="xl"]{font-size:125%}
+html[data-text="xxl"]{font-size:137.5%}
+/* bigger text must wrap, never be cut off */
+html[data-text] :is(.da-stat .lbl,.da-stat .sub,.top-title b,.bn-item span,.hub-link span,.da-badge,.rb){white-space:normal;overflow-wrap:anywhere}
+html[data-text] .bottom-nav .bn-item span{line-height:1.15}
+
+/* ---------- Contrast (যথেষ্ট রঙের Contrast) — WCAG 2.2 AA ----------
+   Text ≥ 4.5:1, borders of boxes you type in and the focus ring ≥ 3:1. */
+:root{--in-border:#7C8A83;--in-ph:#64748B;--focus-ring:#0A5C2E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--in-border:#6E8278;--in-ph:#8FA59A;--focus-ring:#7EE0A8}}
+:root[data-theme="dark"]{--in-border:#6E8278;--in-ph:#8FA59A;--focus-ring:#7EE0A8}
+
+/* Dark mode: the green is light, so text on green buttons is dark (6.2:1); hovering makes the green lighter, not darker. */
+@media (prefers-color-scheme:dark){:where(:root:not([data-theme="light"])) button:hover:not(:disabled){background:#4CC283;border-color:#4CC283}}
+:where(:root[data-theme="dark"]) button:hover:not(:disabled){background:#4CC283;border-color:#4CC283}
+
+/* Stronger contrast: the app setting, or the phone/PC "increase contrast" setting */
+:root[data-contrast="more"]:not([data-theme="dark"]){
+  --text:#000000;--muted:#1F2937;--side-muted:#374151;--border:#5B6B63;--line:#5B6B63;--in-border:#3F4B45;--in-ph:#374151;
+  --primary:#0A5C2E;--primary-dark:#063D1E;--ok-fg:#0B4A24;--warn-fg:#6B2E05;--bad-fg:#8B1414;--info-fg:#1E3A8A;--focus-ring:#000000}
+@media (prefers-color-scheme:dark){:root[data-contrast="more"]:not([data-theme="light"]){
+  --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
+  --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
+:root[data-theme="dark"][data-contrast="more"]{
+  --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
+  --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}
+@media (prefers-contrast:more){
+  :root:not([data-theme="dark"]){
+    --text:#000000;--muted:#1F2937;--side-muted:#374151;--border:#5B6B63;--line:#5B6B63;--in-border:#3F4B45;--in-ph:#374151;
+    --primary:#0A5C2E;--primary-dark:#063D1E;--ok-fg:#0B4A24;--warn-fg:#6B2E05;--bad-fg:#8B1414;--info-fg:#1E3A8A;--focus-ring:#000000}
+  :root[data-theme="dark"]{
+    --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
+    --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
+@media (prefers-contrast:more) and (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
+    --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
+/* with stronger contrast, links inside pages are underlined so they are not told apart by colour alone */
+:root[data-contrast="more"] .da-main a:not([class]){text-decoration:underline;text-underline-offset:2px}
+@media (prefers-contrast:more){.da-main a:not([class]){text-decoration:underline;text-underline-offset:2px}}
+
+/* Windows high-contrast / forced colours: keep shapes visible */
+@media (forced-colors:active){
+  button,.da-badge,.rb,.chip,.hub-link,.bn-item.on,.da-stat{border:1px solid ButtonText!important}
+  :focus-visible{outline:3px solid Highlight!important}
+  .sr-only{position:absolute!important}
+}
+
+/* ---------- Focus (Keyboard Navigation) ----------
+   A thick ring that is visible on every colour, for keyboard users only. */
+:focus-visible{outline:3px solid var(--focus-ring)!important;outline-offset:2px!important}
+input:focus,select:focus,textarea:focus{border-color:var(--focus-ring)!important;box-shadow:0 0 0 2px var(--focus-ring)!important}
+input[type=checkbox]:focus-visible,input[type=radio]:focus-visible{box-shadow:none!important}
+:focus:not(:focus-visible){outline:none}
+/* headings that receive focus after moving to a new page: no ring (they are not buttons) */
+h1[tabindex="-1"]:focus,main[tabindex="-1"]:focus{outline:none!important}
+
+/* Skip link: the first Tab on every page jumps over the menu to the page itself */
+.skip-link{position:fixed;left:12px;top:-80px;z-index:1000;padding:12px 18px;border-radius:10px;background:var(--surface);color:var(--text)!important;
+  font-weight:700;border:2px solid var(--focus-ring);box-shadow:0 8px 24px rgba(0,0,0,.2);text-decoration:none}
+.skip-link:focus{top:calc(12px + env(safe-area-inset-top))}
+
+/* Screen-reader only text (স্ক্রিন রিডার) */
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+
+/* ---------- Touch (সহজে Button চাপা) ----------
+   On touch screens every control is at least 44×44 px (WCAG 2.5.5), small ones at least 40 px,
+   and taps do not wait for a double-tap zoom. */
+a,button,input,select,textarea,label,summary,[role=button]{touch-action:manipulation}
+@media (pointer:coarse){
+  button:not(.link):not(.cb-x):not(.side-find-x),select,.hub-link,.bn-item,[role=button]:not(.nt-x),[role=menuitem],[role=tab]{min-height:44px}
+  button.sm{min-height:40px;padding-left:12px;padding-right:12px}
+  button.icon{min-width:44px;width:44px}
+  button.link{min-height:32px;padding:4px 2px}
+  input[type=checkbox],input[type=radio]{width:22px;height:22px}
+  .cb-list li,.top-pop a,.top-pop .mi,.nt-item{min-height:44px}
+  .da-tabs a,.da-tabs button,.chip{min-height:40px}
+}
+/* keep a little room between neighbouring buttons so a finger does not hit the wrong one */
+.da-actions,.da-modal-acts,.da-seg{gap:8px}
+
+/* ---------- Reduced motion (কম Animation) ----------
+   The phone/PC "reduce motion" setting or the app's own setting stops animations and smooth scrolling. */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+html[data-motion="reduce"] *,html[data-motion="reduce"] *::before,html[data-motion="reduce"] *::after{
+  animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+html[data-motion="reduce"] button:active:not(:disabled){transform:none}
+
+/* ---------- Forms (সহজে ফর্ম পূরণ) ---------- */
+[aria-invalid="true"]{border-color:var(--bad-fg)!important}
+.field-err{display:flex;gap:4px;align-items:flex-start;color:var(--bad-fg);font-weight:600}
+.field-err::before{content:"⚠";flex:none}
+.da-field>span .req{color:var(--bad-fg)}
+/* placeholders are hints, not labels: keep them readable */
+input::placeholder,textarea::placeholder{color:var(--in-ph)!important;opacity:1!important}
+/* disabled controls stay readable */
+button:disabled{opacity:.6}
+
+/* ---------- Settings page: accessibility choices ---------- */
+.a11y-sizes{display:flex;flex-wrap:wrap;gap:8px}
+.a11y-sizes button{flex-direction:column;align-items:center;gap:2px;min-width:84px;padding:8px 12px;line-height:1.1}
+.a11y-sizes button b{font-weight:700}
+.a11y-sizes button small{font-size:0.8125rem;font-weight:500}
+.a11y-preview{margin-top:10px;padding:12px 14px;border:1px dashed var(--border);border-radius:10px;background:var(--canvas)}
+.a11y-preview p{margin:0}
+.a11y-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:12px 0;border-top:1px solid var(--border)}
+.a11y-row:first-of-type{border-top:0}
+.a11y-row>div:first-child{min-width:0;flex:1 1 220px}
+.a11y-row b{display:block}
+.a11y-row small{display:block;color:var(--muted)}
+
+/* New-notification banner: the banner and its close button are two separate buttons */
+.nt-toast-wrap{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));z-index:90;width:min(420px,calc(100% - 24px));animation:nt-in .25s ease-out}
+.nt-toast-wrap .nt-toast{position:static;transform:none;width:100%;animation:none}
+.nt-toast-wrap .nt-x-space{flex:none;width:36px}
+.nt-toast-wrap button.nt-x{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:40px;min-width:40px;height:40px;min-height:40px;padding:0;
+  border-radius:50%;background:transparent;border:0;color:var(--muted)}
+.nt-toast-wrap button.nt-x:hover:not(:disabled){background:var(--row-hover);color:var(--text)}

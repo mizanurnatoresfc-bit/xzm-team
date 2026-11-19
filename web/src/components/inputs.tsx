@@ -2,6 +2,7 @@
 // dropdown (MultiCombo), a text box that checks itself (TextInput), and the duplicate warning.
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { cleanMobile, firstError, matches, toLatinDigits, type Rule } from '../lib/validate'
+import { scrollBehavior } from '../lib/a11y'
 
 export type Option = { value: string; label: string; /** Small second line, e.g. "#10086 · Rider". */ sub?: string; /** Extra words to search by (mobile, code…). */ keywords?: string }
 
@@ -9,7 +10,7 @@ const textOf = (o: Option) => `${o.label} ${o.sub ?? ''} ${o.keywords ?? ''}`
 const MAX_SHOWN = 150
 /** On a phone the keyboard covers half the screen: bring the box to the top so the choices under it stay visible. */
 function liftOnPhone(el: HTMLElement | null) {
-  if (el && typeof matchMedia === 'function' && matchMedia('(max-width:700px)').matches) window.setTimeout(() => el.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60)
+  if (el && typeof matchMedia === 'function' && matchMedia('(max-width:700px)').matches) window.setTimeout(() => el.scrollIntoView({ block: 'start', behavior: scrollBehavior() }), 60)
 }
 
 function useList(options: Option[], q: string) {
@@ -46,14 +47,15 @@ export function Combo({ value, onChange, options, placeholder = 'বেছে �
   }
   return <div ref={boxRef} className={`cb${open ? ' open' : ''}${disabled ? ' off' : ''}`}>
     <input role="combobox" aria-expanded={open} aria-controls={id} aria-autocomplete="list" aria-label={label} autoComplete="off" disabled={disabled}
+      aria-activedescendant={open && shown[hi] ? `${id}-o${hi}` : undefined}
       value={open ? q : current?.label ?? ''} placeholder={open && current ? current.label : placeholder}
       onFocus={show} onClick={show} onBlur={close} onKeyDown={key} onChange={e => { setQ(e.target.value); setHi(0); if (!open) setOpen(true) }} />
     {clearable && value && !disabled && <button type="button" className="cb-x" aria-label="মুছুন" tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={e => { e.preventDefault(); onChange(''); close() }}>✕</button>}
     {open && <ul id={id} role="listbox" className="cb-list" ref={listRef} onMouseDown={e => e.preventDefault()}>
-      {shown.map((o, i) => <li key={o.value} role="option" aria-selected={o.value === value} className={`${i === hi ? 'hi' : ''}${o.value === value ? ' sel' : ''}`}
+      {shown.map((o, i) => <li key={o.value} id={`${id}-o${i}`} role="option" aria-selected={o.value === value} className={`${i === hi ? 'hi' : ''}${o.value === value ? ' sel' : ''}`}
         onMouseEnter={() => setHi(i)} onClick={e => { e.preventDefault(); pick(o) }}><span>{o.label}</span>{o.sub && <small>{o.sub}</small>}</li>)}
-      {!shown.length && <li className="cb-empty">{emptyText}</li>}
-      {shown.length === MAX_SHOWN && <li className="cb-empty">আরও আছে — লিখে খুঁজুন</li>}
+      {!shown.length && <li className="cb-empty" role="presentation">{emptyText}</li>}
+      {shown.length === MAX_SHOWN && <li className="cb-empty" role="presentation">আরও আছে — লিখে খুঁজুন</li>}
     </ul>}
   </div>
 }
@@ -85,11 +87,12 @@ export function MultiCombo({ values, onChange, options, placeholder = 'বেছ
       {values.map(v => { const o = options.find(x => x.value === v); return <span key={v} className="cb-chip">{o?.label ?? v}
         {!disabled && <button type="button" aria-label={`${o?.label ?? v} সরান`} tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={e => { e.preventDefault(); toggle(v) }}>✕</button>}</span> })}
       <input role="combobox" aria-expanded={open} aria-controls={id} aria-autocomplete="list" aria-label={label} autoComplete="off" disabled={disabled}
+        aria-activedescendant={open && shown[hi] ? `${id}-o${hi}` : undefined}
         value={q} placeholder={values.length ? '' : placeholder} onFocus={show} onClick={show}
         onBlur={close} onKeyDown={key} onChange={e => { setQ(e.target.value); setHi(0); setOpen(true) }} />
     </div>
     {open && <ul id={id} role="listbox" aria-multiselectable="true" className="cb-list" ref={listRef} onMouseDown={e => e.preventDefault()}>
-      {shown.map((o, i) => { const on = values.includes(o.value); return <li key={o.value} role="option" aria-selected={on} className={`${i === hi ? 'hi' : ''}${on ? ' sel' : ''}`}
+      {shown.map((o, i) => { const on = values.includes(o.value); return <li key={o.value} id={`${id}-o${i}`} role="option" aria-selected={on} className={`${i === hi ? 'hi' : ''}${on ? ' sel' : ''}`}
         onMouseEnter={() => setHi(i)} onClick={e => { e.preventDefault(); toggle(o.value) }}><span><i className="cb-tick" aria-hidden="true">{on ? '✓' : ''}</i>{o.label}</span>{o.sub && <small>{o.sub}</small>}</li> })}
       {!shown.length && <li className="cb-empty">{emptyText}</li>}
     </ul>}
@@ -98,18 +101,22 @@ export function MultiCombo({ values, onChange, options, placeholder = 'বেছ
 
 /** A text box that checks itself as soon as the person leaves it (or at once with `showError`).
  *  `kind="phone"` tidies the number (Bangla digits, +88, spaces); `kind="number"` turns Bangla digits into 0-9. */
-export function TextInput({ value, onChange, rules = [], kind = 'text', showError, placeholder, disabled, label, after }: {
+export function TextInput({ value, onChange, rules = [], kind = 'text', showError, placeholder, disabled, label, after, required, autoComplete }: {
   value: string; onChange: (v: string) => void; rules?: Rule[]; kind?: 'text' | 'phone' | 'number'; /** Show the message even before the box was touched (after a failed save). */ showError?: boolean
   placeholder?: string; disabled?: boolean; label?: string; /** Extra note under the box (e.g. a duplicate warning). */ after?: ReactNode
+  /** Tells screen readers the box must be filled. */ required?: boolean; /** Lets the phone offer saved answers, e.g. "tel", "name". */ autoComplete?: string
 }) {
   const [touched, setTouched] = useState(false)
+  const errId = useId()
   const error = (touched || showError) ? firstError(value, rules) : null
   return <>
-    <input value={value} disabled={disabled} placeholder={placeholder} aria-label={label} aria-invalid={error ? true : undefined} className={error ? 'bad-input' : undefined}
+    <input value={value} disabled={disabled} placeholder={placeholder} aria-label={label} aria-invalid={error ? true : undefined} aria-describedby={error ? errId : undefined}
+      aria-required={required || undefined} className={error ? 'bad-input' : undefined}
+      autoComplete={autoComplete} type={kind === 'phone' ? 'tel' : 'text'}
       inputMode={kind === 'phone' ? 'tel' : kind === 'number' ? 'decimal' : undefined}
       onChange={e => onChange(kind === 'text' ? e.target.value : toLatinDigits(e.target.value))}
       onBlur={() => { setTouched(true); if (kind === 'phone' && value) { const c = cleanMobile(value); if (c !== value) onChange(c) } }} />
-    {error && <small className="field-err" role="alert">{error}</small>}
+    {error && <small className="field-err" id={errId} role="alert">{error}</small>}
     {after}
   </>
 }
