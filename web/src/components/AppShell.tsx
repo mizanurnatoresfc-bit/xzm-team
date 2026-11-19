@@ -315,6 +315,11 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [menuQ, setMenuQ] = useState('')
   const [pop, setPop] = useState<'bell' | 'me' | null>(null)
   const [quick, setQuick] = useState(false)
+  useEffect(() => {
+    if (!quick) return
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setQuick(false) }
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  }, [quick])
   const [mSearch, setMSearch] = useState(false)
   const [roles, setRoles] = useState<MyRole[]>([])
   const [photo, setPhoto] = useState<string | null>(null)
@@ -387,8 +392,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
   const navTabs = (dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, quickItems.length ? 3 : 4)
   // On লোক লাগবে the + is the page's own action (লোক চাই); everywhere else it opens the quick sheet.
-  const plusTap = () => /^\/app\/manpower/.test(here) && can('hr.request.create') ? nav('/app/manpower?new=1') : setQuick(true)
-  const plusTab = <button key="plus" type="button" className="bn-plus" aria-label={L('দ্রুত যোগ করুন', 'Quick add')} onClick={plusTap}><span><Icon name="plus" size={26} /></span></button>
+  const plusTap = () => quick ? setQuick(false) : /^\/app\/manpower/.test(here) && can('hr.request.create') ? nav('/app/manpower?new=1') : setQuick(true)
+  const plusAt = Math.floor((navTabs.length + 1) / 2)   // tabs + আরও, the + in the middle
+  const plusTab = <button key="plus" type="button" className={`bn-plus${quick ? ' on' : ''}`} aria-expanded={quick} aria-label={quick ? L('বন্ধ', 'Close') : L('দ্রুত যোগ করুন', 'Quick add')} onClick={plusTap}><span><Icon name="plus" size={26} /></span></button>
   return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
     <WfCountsHost />
     <aside className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}
@@ -484,13 +490,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <span className="nt-x" role="button" aria-label={L('বন্ধ', 'Close')} onClick={e => { e.stopPropagation(); clearFresh() }}><Icon name="x" size={14} /></span></button>}
     {can('nodi.assistant.view') && nodiOn?.chat && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
-      {navTabs.flatMap((t, i) => [...(i === 2 && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
+      {navTabs.flatMap((t, i) => [...(i === plusAt && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}
-      {quickItems.length > 0 && navTabs.length < 3 && plusTab}
-      <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => setOpen(true)}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
+      {quickItems.length > 0 && plusAt >= navTabs.length && plusTab}
+      <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => { setQuick(false); setOpen(true) }}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
     </nav>
     {asRole && <ViewAsPicker onClose={() => setAsRole(false)} />}
-    {quick && <div className="sheet-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
+    {quick && <div className="sheet-bg quick-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={L('দ্রুত যোগ করুন', 'Quick add')}>
         <div className="sheet-grab" /><div className="sheet-hd"><b>{L('দ্রুত কাজ', 'Quick actions')}</b><button className="icon" aria-label={L('বন্ধ', 'Close')} onClick={() => setQuick(false)}><Icon name="x" /></button></div>
         <div className="quick-grid">{quickItems.map(x => <Link key={x.to + x.bn} to={x.to} className={`quick-tile t-${x.tone}`} onClick={() => setQuick(false)}>
