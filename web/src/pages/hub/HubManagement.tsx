@@ -698,6 +698,7 @@ function RiderRoutes({ hub }: { hub: Hub }) {
       <div className="da-bar"><h2>{L('রাইডার রুট', 'Rider routes')}</h2>
         <span className="row-acts"><span className="da-seg"><button className={view === 'map' ? 'sm' : 'secondary sm'} onClick={() => setView('map')}><Icon name="map" size={14} />{L('ছবি', 'Map')}</button>
           <button className={view === 'list' ? 'sm' : 'secondary sm'} onClick={() => setView('list')}><Icon name="table" size={14} />{L('কার্ড', 'Cards')}</button></span>
+        {(can('ops.route_setting.view') || can('ops.route_setting.edit')) && <Link to={`/app/zonal/routes?zone=${hub.zone_id}&hub=${hub.id}`} className="btn-ghost"><Icon name="map" size={15} />{L('আসল ম্যাপে খুলুন', 'Open on the real map')}</Link>}
         {edit && <button onClick={() => { setErr(''); setF({ code: '', name: '', areas: '', note: '' }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
       {err && !f && !pick && <p className="da-error">{err}</p>}
       {routes.error ? <p className="da-error">{hrFriendly(routes.error)}</p> : routes.data && !routes.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই। এলাকার নাম দিয়ে রুট বানিয়ে রাইডারদের দিন।', 'No routes yet. Make one from area names and give it to riders.')}</p> : view === 'map' ?

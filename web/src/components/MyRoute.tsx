@@ -1,0 +1,65 @@
+import { useState } from 'react'
+import { Icon } from './Icon'
+import { OsmMap, type MapCircle, type MapPin } from './OsmMap'
+import { Badge, useLoad } from '../pages/accounts/ui'
+import { usePrefs } from '../lib/prefs'
+import { fmtDist, fmtKm, hasGps, myLocation, routeApi, routeFriendly, routeLine, type MyRoute } from '../lib/routes'
+
+const navLink = (lat: number, lng: number) => `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+
+/** Staff panel → আমার রুট: my route on the real map, the next stop, and "এখানে পৌঁছেছি" when the permission is given. */
+export function MyRouteCard() {
+  const { L, n } = usePrefs()
+  const fmt = { L, n }
+  const d = useLoad(() => routeApi.mine().catch(() => ({ date: '', routes: [] as MyRoute[] })), [])
+  const [me, setMe] = useState<{ lat: number; lng: number; accuracy: number } | null>(null)
+  const [busy, setBusy] = useState(''); const [msg, setMsg] = useState<{ tone: 'ok' | 'warn' | 'bad'; text: string } | null>(null)
+  const routes = (d.data?.routes ?? []).filter(r => r.stops.some(hasGps))
+  if (!routes.length) return null
+
+  async function checkin(stopId: string) {
+    setBusy(stopId); setMsg(null)
+    try {
+      const p = await myLocation(); setMe(p)
+      const res = await routeApi.checkin(stopId, p.lat, p.lng, p.accuracy)
+      setMsg(res.near ? { tone: 'ok', text: L(`চেক-ইন হয়েছে — স্টপ থেকে ${fmtDist(res.distance_m, fmt)} দূরে।`, `Checked in — ${res.distance_m} m from the stop.`) }
+        : { tone: 'warn', text: L(`চেক-ইন রাখা হলো, তবে আপনি স্টপ থেকে ${fmtDist(res.distance_m, fmt)} দূরে (সীমা ${fmtDist(res.radius_m, fmt)})। কাছে গিয়ে আবার চাপ দিন।`,
+          `Saved, but you are ${res.distance_m} m away (limit ${res.radius_m} m).`) })
+      await d.reload()
+    } catch (e) { setMsg({ tone: 'bad', text: e instanceof Error && /লোকেশন/.test(e.message) ? e.message : routeFriendly(e) }) } finally { setBusy('') }
+  }
+
+  return <>{routes.map(r => {
+    const done = new Map(r.visits.map(v => [v.stop_id, v]))
+    const gps = r.stops.filter(hasGps)
+    const next = gps.find(s => !done.has(s.id!))
+    const color = r.color || '#15803D'
+    const pins: MapPin[] = [
+      ...(hasGps(r.hub) ? [{ id: 'hub', lat: r.hub.lat, lng: r.hub.lng, label: r.hub.name, num: 'H', square: true }] : []),
+      ...gps.map(s => ({ id: s.id!, lat: s.lat!, lng: s.lng!, label: `${n(s.seq ?? 0)}. ${s.name}`, num: n(s.seq ?? 0), color: done.has(s.id!) ? '#15803D' : color,
+        tone: done.has(s.id!) ? undefined : next?.id === s.id ? 'sel' as const : 'off' as const })),
+      ...(me ? [{ id: 'me', lat: me.lat, lng: me.lng, label: L('আমি এখানে', 'Me'), tone: 'sel' as const }] : []),
+    ]
+    const circles: MapCircle[] = [...(next && hasGps(next) ? [{ id: 'n', lat: next.lat!, lng: next.lng!, m: next.radius_m ?? r.rules.stop_radius_m, color }] : []),
+      ...(me ? [{ id: 'me', lat: me.lat, lng: me.lng, m: me.accuracy, color: '#2563eb' }] : [])]
+    return <div key={r.id} className="sp-box" style={{ marginTop: 10 }}>
+      <h3><Icon name="map" size={16} />{r.name}<span className="cnt">{n(done.size)}/{n(gps.length)}</span></h3>
+      <p className="muted small">{L(`${n(r.stops.length)}টা স্টপ`, `${r.stops.length} stops`)} · {fmtKm(r.road_km ?? r.distance_km, fmt)}
+        {r.riders.length > 1 && ` · ${L('সাথে', 'with')} ${r.riders.map(x => x.name).join(', ')}`}</p>
+      <OsmMap pins={pins} circles={circles} lines={[{ id: 'l', color, points: routeLine(r, r.hub).points, dashed: !r.road_path, width: 4 }]} height={280} tags="selected" selected={next?.id ?? null} />
+      {next && hasGps(next) && <div className="rt-bar" style={{ marginTop: 8 }}>
+        <b className="small" style={{ flex: 1 }}>{L('পরের স্টপ', 'Next stop')}: {n(next.seq ?? 0)}. {next.name}</b>
+        <a className="btn-ghost" href={navLink(next.lat!, next.lng!)} target="_blank" rel="noreferrer"><Icon name="map" size={14} />{L('রাস্তা দেখান', 'Directions')}</a>
+        {r.can_checkin && <button disabled={!!busy} onClick={() => void checkin(next.id!)}><Icon name="check" size={14} />{busy === next.id ? L('লোকেশন নেওয়া হচ্ছে…', 'Getting location…') : L('এখানে পৌঁছেছি', "I'm here")}</button>}
+      </div>}
+      {!next && gps.length > 0 && <p className="small" style={{ color: '#15803D', fontWeight: 700 }}>{L('আজ সব স্টপে চেক-ইন হয়ে গেছে।', 'Every stop checked in today.')}</p>}
+      {msg && <p className={msg.tone === 'bad' ? 'da-error' : 'small'} style={msg.tone === 'warn' ? { color: '#ea580c' } : undefined}>{msg.text}</p>}
+      <ol className="small" style={{ margin: '8px 0 0', paddingLeft: 22 }}>{r.stops.map(s => { const v = s.id ? done.get(s.id) : undefined
+        return <li key={s.id} style={{ marginBottom: 4 }}>{s.name}{' '}
+          {v ? <Badge tone={v.near ? 'ok' : 'warn'}>{n(new Date(v.at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }))}{v.near ? '' : ` · ${L('দূরে', 'far')}`}</Badge>
+            : !hasGps(s) ? <span className="muted">· {L('লোকেশন নেই', 'no location')}</span>
+            : r.can_checkin && s.id !== next?.id ? <button className="secondary sm" disabled={!!busy} onClick={() => void checkin(s.id!)}>{busy === s.id ? '…' : L('পৌঁছেছি', 'Here')}</button> : null}</li> })}</ol>
+      {!r.can_checkin && <p className="muted small">{L('স্টপে চেক-ইন এখনো আপনার জন্য চালু হয়নি।', 'Stop check-in is not on for you yet.')}</p>}
+    </div>
+  })}</>
+}

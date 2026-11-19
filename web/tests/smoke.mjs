@@ -87,11 +87,22 @@ try {
     // --- signed in as the Super Admin
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
-    await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
+    await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false, staffSecs = null
     const prospects = []
+    const routeOverview = { zone: { id: 'z1', code: 'NT', name: 'Natore Area' },
+      rules: { max_stops: 40, max_riders: 4, max_routes_per_rider: 2, stop_radius_m: 150, speed_kmh: 18, stop_minutes: 4, start_time: '10:00', gps_required: false, checkin_open: true, saved: false, updated_at: null },
+      can: { configure: true, visits: true, edit_hubs: ['h1', 'h2'], archive_hubs: ['h1', 'h2'] },
+      hubs: [{ id: 'h1', code: '80', name: 'Natore Sadar', lat: 24.4135, lng: 88.9930, staff: [{ id: 'e01', code: '1001', name: 'Staff 01', rider: true, routes: 1 }, { id: 'e02', code: '1002', name: 'Staff 02', rider: true, routes: 0 }] },
+        { id: 'h2', code: '81', name: 'Lalpur', lat: null, lng: null, staff: [] }],
+      routes: [{ id: 'rt1', hub_id: 'h1', zone_id: 'z1', code: 'R01', name: 'শহর পূর্ব', note: null, color: '#2563EB', shift: 'day', distance_km: 3.4, road_km: null, road_minutes: null, road_path: null, stops_gps: 2, updated_at: '2026-11-19T00:00:00Z',
+        stops: [{ id: 'st1', seq: 1, name: 'কানাইখালী', kind: 'area', lat: 24.4102, lng: 88.9865, radius_m: null, minutes: null, note: null },
+          { id: 'st2', seq: 2, name: 'আলাইপুর', kind: 'landmark', lat: 24.4180, lng: 88.9750, radius_m: 200, minutes: null, note: null },
+          { id: 'st3', seq: 3, name: 'স্টেশন বাজার', kind: 'area', lat: null, lng: null, radius_m: null, minutes: null, note: null }],
+        riders: [{ employee_id: 'e01', code: '1001', name: 'Staff 01', mobile: null, from: '2026-11-01' }] }],
+      visits_today: { rt1: 2 } }
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
@@ -134,6 +145,14 @@ try {
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
+      if (u.includes('rpc/route_zones')) return j([{ id: 'z1', code: 'NT', name: 'Natore Area' }])
+      if (u.includes('rpc/route_zone_overview')) return j(routeOverview)
+      if (u.includes('rpc/route_day')) return j({ date: '2026-11-19', routes: [{ route_id: 'rt1', hub_id: 'h1', hub_name: 'Natore Sadar', code: 'R01', name: 'শহর পূর্ব', color: '#2563EB', stops: 3, stops_gps: 3,
+        riders: [{ employee_id: 'e01', name: 'Staff 01', code: '1001', visited: 2, far: 1, first_at: '2026-11-19T04:10:00Z', last_at: '2026-11-19T05:00:00Z' }],
+        visits: [{ stop_id: 'st1', stop: 'কানাইখালী', seq: 1, employee_id: 'e01', at: '2026-11-19T04:10:00Z', lat: 24.4105, lng: 88.9862, distance_m: 40, near: true, accuracy_m: 12, note: null },
+          { stop_id: 'st2', stop: 'আলাইপুর', seq: 2, employee_id: 'e01', at: '2026-11-19T05:00:00Z', lat: 24.4210, lng: 88.9790, distance_m: 640, near: false, accuracy_m: 20, note: null }] }] })
+      if (/rpc\/(route_save|route_riders_set|route_settings_save|route_archive)(\?|$)/.test(u)) { const fn = u.split('rpc/')[1].split('?')[0]; flowCalls.push({ fn, ...r.request().postDataJSON() })
+        return j(fn === 'route_save' ? 'rt9' : fn === 'route_riders_set' ? { added: 1, ended: 0 } : fn === 'route_settings_save' ? routeOverview.rules : null) }
       if (u.includes('rpc/nodi_settings')) return j({ enabled: true, model: 'claude-sonnet-5-5', daily_limit: 50, max_tokens: 1024, features: { ...nodiParts } })
       if (u.includes('rpc/nodi_features_configure')) { const f = r.request().postDataJSON()?.p_features ?? {}; Object.assign(nodiParts, f); flowCalls.push({ fn: 'nodi_features_configure', ...f }); return j(null) }
       if (u.includes('rpc/nodi_features')) return j({ ...nodiParts })
@@ -1099,6 +1118,37 @@ try {
       await page.goto(`${BASE}/app/nodi/chat`); await page.waitForSelector('main :text("চ্যাট এখন বন্ধ")')
       check(true, `${size}: chat off — the chat page says it is switched off`)
       nodiParts.chat = true
+      // রুট সেটিং: the zone's routes on the real map, the editor with stops, riders, warnings, check-ins and the zone rules
+      await page.goto(`${BASE}/app/zonal/routes`); await page.waitForSelector('.rt-card')
+      { const t = await page.locator('main').innerText()
+        check(t.includes('শহর পূর্ব') && t.includes('২/৩') && t.includes('Staff 01') && await page.locator('.osm-pin.num').count() >= 3, `${size}: route settings show the zone map with numbered stops, the route card and stops with location`) }
+      await fits('route settings map')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-map-${size}.png`, fullPage: true })
+      await page.locator('.rt-card button:has-text("এডিট / ম্যাপ")').click(); await page.waitForSelector('.rt-stop')
+      check(await page.locator('.rt-stop').count() === 3, `${size}: the route editor lists the three stops in order`)
+      await page.locator('.osm.pick').click({ position: { x: 60, y: 60 } })
+      check(await page.locator('.rt-stop').count() === 4, `${size}: a tap on the map adds a stop at that place`)
+      await fits('route editor')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-editor-${size}.png`, fullPage: false })
+      await page.locator('.da-modal-acts button:has-text("সেভ")').last().click()
+      await page.waitForFunction(() => !document.querySelector('.rt-stop'))
+      { const c = flowCalls.find(x => x.fn === 'route_save')
+        check(!!c && c.p.id === 'rt1' && c.p.stops.length === 4 && c.p.stops[3].lat !== null && c.p.stops[2].lat === null, `${size}: saving sends the stops with their locations (one without stays empty)`) }
+      await page.locator('.rt-card button:has-text("রাইডার")').first().click(); await page.waitForSelector('.pick-row')
+      await page.locator('.pick-row:has-text("Staff 02") input').check()
+      await page.locator('.da-modal-acts button:has-text("সেভ")').last().click(); await page.waitForFunction(() => !document.querySelector('.pick-row'))
+      check(flowCalls.some(x => x.fn === 'route_riders_set' && x.p_employees.length === 2), `${size}: riders of a route are saved`)
+      await page.locator('.da-seg button:has-text("সতর্কতা")').click(); await page.waitForSelector('.rt-warn')
+      { const t = await page.locator('.rt-warn').innerText()
+        check(t.includes('হাবের GPS নেই') && t.includes('স্টেশন বাজার'), `${size}: warnings name the hub without GPS and the stop without a location`) }
+      await page.locator('.da-seg button:has-text("চেক-ইন")').click(); await page.locator('.rt-card:has-text("শহর পূর্ব")').click()
+      await page.waitForSelector('main :text("দূরে")')
+      check((await page.locator('main').innerText()).includes('৬৪০ মিটার'), `${size}: the day's check-ins show near and far with the distance`)
+      await fits('route check-ins')
+      await page.locator('.da-seg button:has-text("জোনের নিয়ম")').click(); await page.waitForSelector('button:has-text("নিয়ম সেভ")')
+      await page.locator('button:has-text("নিয়ম সেভ")').click(); await page.waitForTimeout(200)
+      check(flowCalls.some(x => x.fn === 'route_settings_save' && x.p_zone === 'z1' && x.p.stop_radius_m === 150), `${size}: the zone rules are saved for the zone`)
+      await fits('zone route rules')
       // inside the Android app the older page stays for now
       const app = await ctx.newPage()
       await app.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {} } })

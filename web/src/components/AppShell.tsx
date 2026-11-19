@@ -78,6 +78,7 @@ export const GROUPS: Group[] = [
       { to: '/app/workforce/zone', icon: 'chart', bn: 'জোনাল ওয়ার্কফোর্স রিপোর্ট', en: 'Zonal workforce report', perms: ['zonal.dashboard.view'] },
       { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'হাব অপারেশন ড্যাশবোর্ড', en: 'Hub Operations Dashboard', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
+      { to: '/app/zonal/routes', icon: 'map', bn: 'রুট সেটিং (রাইডার রুট ম্যাপ)', en: 'Route settings (rider route map)', perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
     { bn: 'কর্মী ও এইচআর', en: 'Staff & HR', items: [
