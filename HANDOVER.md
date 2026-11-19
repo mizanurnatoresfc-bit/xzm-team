@@ -557,3 +557,16 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **19 Nov — live:** migration applied to Supabase (the approval came late, so no row was written in `schema_migrations`; the objects are there).
   After applying: all 12 new function bodies equal the tested file by hash, anon can run none and read none of the 4 tables, RLS on, both photo policies
   and both no-delete triggers present. Site released by merging to `main`.
+
+## 2026-11-19 — বাংলা টাইপ (অ্যাপ), নিজের ছবি নিজে, Steadfast হুডি অ্যাভাটার
+- Owner: "Bangla text input হয় না স্টাফ প্যানেল এ, প্রোফাইল পিকচার নিজে আপলোড দিবে, Steadfast হুডি পরা একটা অ্যাভাটার".
+- **Bangla typing:** `web/capacitor.config.json` had `android.captureInput: true`. That makes the Android app use Capacitor's simple input connection,
+  which drops the "composing" text Bangla keyboards (Gboard বাংলা, Ridmik, Avro) work with — English still typed, Bangla did not. Now `false`.
+  The web code was checked with real IME composition in Chrome (staff panel "আজ আসব না" box, zonal manager note): Bangla goes in fine.
+  **Needs a new APK** (Actions → Android APK → Run workflow, then install); the website itself needed no change for this.
+- **Own photo:** `components/MyAvatar.tsx` — `MyAvatarUpload` (avatar + green camera button; camera or gallery; shrunk to 900 px; `docs.upload(me, 'photo')`,
+  allowed for oneself by the existing `documents_insert` policy) on the staff panel header and on My Profile. Photo logic moved to `lib/myPhoto.ts`
+  (`refreshMyPhoto()` now tells every avatar on screen to reload; `AppShell` re-exports `useMyPhoto` / `refreshMyPhoto`). `lib/shrinkImage.ts` shared with
+  `/app/me/complete`. "এইচআর-কে ছবি দিন" texts now say "নিজেই দিন". No database change.
+- **Default avatar:** `HoodieAvatar` (inline SVG): a person in a dark hoodie with the Steadfast mark on the chest — shown wherever my own photo is missing
+  (top bar button, profile menu, staff panel, My Profile). Smoke: hoodie avatar + photo button on the staff panel (pc + phone); 529 pass.

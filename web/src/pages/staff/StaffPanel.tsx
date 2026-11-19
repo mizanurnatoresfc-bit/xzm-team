@@ -9,6 +9,7 @@ import { DailyOpsCard } from '../../components/DailyOpsCard'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
 import { RiderSendCard } from '../../components/RiderQuick'
+import { MyAvatarUpload } from '../../components/MyAvatar'
 import { MyRouteCard } from '../../components/MyRoute'
 import { da, addDays, todayDhaka, type Claim } from '../../lib/dailyAccounts'
 import { dashboard } from '../../lib/dashboard'
@@ -253,11 +254,11 @@ export function StaffPanel() {
   return <AppShell title={L('স্টাফ প্যানেল', 'Staff panel')} subtitle={who || L('আমার আজকের সব কাজ এক জায়গায়', 'My whole day in one place')}>
     <div className="sd sp">
       {node}
-      <Link to="/app/me" className="sp-hero">
-        <span className="nv-av">{String(name).slice(0, 1).toUpperCase()}</span>
-        <span className="tx"><small>{day}</small><b>{name}</b>{who && <span>{who}</span>}</span>
+      <div className="sp-hero">
+        <MyAvatarUpload className="sp-av" onDone={m => { toast(m); void d.reload() }} />
+        <Link to="/app/me" className="tx"><small>{day}</small><b>{name}</b>{who && <span>{who}</span>}</Link>
         <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>
-      </Link>
+      </div>
       <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       {profilePct !== null && profilePct < 100 && <Link to="/app/me/complete" className="sp-card t-w mpc-nudge">

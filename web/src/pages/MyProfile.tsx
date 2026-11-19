@@ -1,4 +1,5 @@
 import { AppShell, useMyPhoto } from '../components/AppShell'
+import { MyAvatarUpload } from '../components/MyAvatar'
 import { Icon } from '../components/Icon'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
@@ -43,7 +44,7 @@ export function MyProfile() {
         <div className="p-hero">
           <div className="p-band" />
           <div className="p-body">
-            <div className="p-photo">{photo ? <img src={photo} alt="" /> : (e.full_name || '?').slice(0, 2).toUpperCase()}<span className="p-dot" /></div>
+            <div className="p-photo"><MyAvatarUpload className="p-av" onDone={toast} /></div>
             <h2>{e.full_name} <EmpBadge status={e.status} /></h2>
             <div className="p-meta">
               {e.employee_code && <span><b>#</b> {e.employee_code}</span>}
@@ -57,7 +58,7 @@ export function MyProfile() {
               : <p className="muted small">{L('কোনো তথ্য ভুল থাকলে এইচআর-কে জানান।', 'Tell HR if anything is wrong.')}</p>}
           </div>
         </div>
-        {photo === null && <div className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span><span>{L('আপনার প্রোফাইলের ছবি নেই — এইচআর-কে ছবি দিন', 'Your profile photo is missing — give one to HR')}</span></div>}
+        {photo === null && <div className="alert-card bad"><span className="ai"><Icon name="user" size={20} /></span><span>{L('আপনার প্রোফাইলের ছবি নেই — ছবির পাশের ক্যামেরা বোতামে চাপ দিয়ে নিজেই দিন', 'Your profile photo is missing — tap the camera button on the picture to add it yourself')}</span></div>}
         <section className="panel">
           <h2>{L('আমার তথ্য', 'My details')}</h2>
           <dl className="hr-kv">
