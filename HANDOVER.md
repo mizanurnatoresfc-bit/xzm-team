@@ -510,4 +510,5 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Pages: নদী AI সেটিংস has a "কোন অংশ চালু থাকবে" card with five switches (saved at once). Off: the floating নদী button and chat page (chat),
   the হিসাব শিক্ষক box (teach), the office AI buttons (office), the home / staff panel card "নদী জিজ্ঞেস করছে" (gaps).
 - Tests: `99zzzzzzzzzzzzzzzzz_nodi_features.sql` (18); suite 1920 pass. Smoke: settings page, saving a switch, chat off hides the button and the chat page (pc + phone).
-- **To go live:** apply the migration on Supabase, deploy `nodi-ai` again, merge to `main`. Until the migration is applied every part reads as on (no change).
+- **19 Nov — live:** applied to Supabase as `nodi_features` (20261119082756) after checking the four replaced functions equal the repository by hash; cron job now checks the switch;
+  anon can run none of the new functions; `nodi-ai` v9 deployed (same file as the repository). Office items: a drawn icon per kind; phone list puts the buttons on their own line.
