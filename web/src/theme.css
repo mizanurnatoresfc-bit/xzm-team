@@ -2911,3 +2911,13 @@ body{overflow-wrap:break-word}
   .nv-sheet .da-stats .da-stat{flex:0 0 140px!important}
   .nv-sheet .da-stats .da-stat .val{font-size:19px!important}
 }
+
+/* Filter buttons (চলমান · অপেক্ষায় · অনুমোদিত · পূরণ হয়েছে · সব) on a phone: they wrap onto a second line
+   instead of pushing the whole page wider than the screen; each word stays on one line. */
+@media (max-width:960px){
+  .da-seg{flex-wrap:wrap;gap:6px!important;min-width:0;max-width:100%}
+  .da-filters > .da-seg{min-width:0}
+  .da-seg button{flex:0 0 auto;white-space:nowrap;min-height:38px;padding:6px 14px!important;border-radius:999px;font-size:14px}
+  /* last line of defence: the page itself never scrolls sideways (wide tables scroll inside their own box) */
+  .app-main .da-main{overflow-x:clip;max-width:100vw}
+}
