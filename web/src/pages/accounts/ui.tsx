@@ -11,7 +11,9 @@ const STAT_ICON: Array<[RegExp, string]> = [[/বাকি|due|অপেক্�
   [/কর্মী|staff|employee|যোগদান|joining/i, 'users'], [/ছুটি|leave/i, 'log'], [/খাতা|sheet/i, 'ledger'], [/বদলি|transfer/i, 'hub']]
 export function Stat({ label, value, sub, tone, icon }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'warn' | 'ok' | 'bad'; icon?: string }) {
   const ic = icon ?? STAT_ICON.find(([re]) => re.test(label))?.[1] ?? 'chart'
-  return <div className={`da-stat${tone ? ` ${tone}` : ''}`}><span className="ri"><Icon name={ic} size={18} /></span><span className="lbl">{label}</span><span className="val">{value}</span>{sub && <span className="sub">{sub}</span>}</div>
+  // A word answer ("দেওয়া হয়নি") is drawn smaller than a number so it never towers over the other tiles.
+  const words = typeof value === 'string' && /[^\d০-৯৳.,%\s+\-−/:]/.test(value)
+  return <div className={`da-stat${tone ? ` ${tone}` : ''}${words ? ' txt' : ''}`}><span className="ri"><Icon name={ic} size={18} /></span><span className="lbl">{label}</span><span className="val">{value}</span>{sub && <span className="sub">{sub}</span>}</div>
 }
 
 export function StatusBadge({ status }: { status: SheetStatus }) {
