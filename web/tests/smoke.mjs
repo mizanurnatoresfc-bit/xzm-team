@@ -90,7 +90,7 @@ try {
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
-    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false
+    let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false, staffSecs = null
     const prospects = []
     const answered = [], checked = []
     await ctx.route(/supabase\.co/, r => {
@@ -129,6 +129,8 @@ try {
       if (/rpc\/(role_admin_save|access_overrides_save|user_admin_assign_role|user_admin_revoke_role)(\?|$)/.test(u)) { const fn = u.split('rpc/')[1].split('?')[0]
         flowCalls.push({ fn, ...r.request().postDataJSON() }); return j(fn === 'role_admin_save' ? r.request().postDataJSON()?.p_id ?? 'r9' : fn === 'access_overrides_save' ? { added: 1, kept: 1, removed: 0 } : fn === 'user_admin_assign_role' ? 'a9' : null) }
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
+      if (u.includes('rpc/staff_panel_sections')) return j(staffSecs)
+      if (u.includes('rpc/role_staff_sections_save')) { flowCalls.push({ fn: 'role_staff_sections_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
@@ -708,6 +710,17 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
       check(first === 'আমার কাজ > দ্রুত যাওয়া' && await order() === 'দ্রুত যাওয়া > আমার কাজ', `${size}: the home page shows panels in the saved order`)
       homePanels = ['my_work', 'quick_links'] }
+    // arranging the staff panel for a role: hide a part, change the order, save
+    await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('[data-staff-arrange=hub_manager]', { timeout: 10000 }).catch(() => {})
+    await page.locator('[data-staff-arrange=hub_manager]').click(); await page.waitForSelector('.da-modal [data-section]')
+    check(await page.locator('.da-modal [data-section]').count() === 8, `${size}: arranging the staff panel lists its eight parts`)
+    await page.locator('.da-modal [aria-label="work remove"]').click()
+    await page.locator('.da-modal [aria-label="bill up"]').click()
+    await fits('staff panel arrange dialog')
+    if (process.env.SHOTS) { await page.waitForTimeout(400); await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-arrange.png` }) }
+    await page.locator('.da-modal-acts button').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
+    check(flowCalls.at(-1)?.fn === 'role_staff_sections_save' && flowCalls.at(-1)?.p_role === 'r2'
+      && flowCalls.at(-1)?.p_sections?.join() === 'accounts,bill,attendance,route,complaint,issues,people', `${size}: the arranged staff panel is saved for the role`)
     // which pages a role sees: the Super Admin ticks them; a limited role gets nothing else
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
     await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')
@@ -928,6 +941,11 @@ try {
       check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
         `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
       check(await page.locator('.sp a.nv-row[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
+    staffSecs = ['bill', 'accounts']
+    await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .sd-h')
+    check((await page.locator('.sp h2.sd-h').allInnerTexts()).join(' > ') === 'আমার বিল > আমার হিসাব', `${size}: the staff panel shows only the parts set for the role, in that order`)
+    staffSecs = null
+    await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     { const before = flowCalls.length
       await page.locator('.sp button.nv-row', { hasText: 'হাবে এসেছি' }).click(); await page.waitForTimeout(400)
       check(flowCalls.length === before + 1 && flowCalls.at(-1)?.fn === 'att_self_mark' && flowCalls.at(-1)?.p_kind === 'present', `${size}: one tap gives today's attendance for the manager to approve`)

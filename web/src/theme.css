@@ -3124,3 +3124,36 @@ a.sp-tile:hover{box-shadow:0 6px 18px -10px color-mix(in srgb,var(--tone) 60%,tr
   .sp .sp-att{margin-left:0;max-width:100%}
 }
 @media (prefers-reduced-motion:reduce){.sp .sp-tile{transition:none}}
+
+/* =====================================================================
+   Side menu, round 2 (owner, 19 Nov: "search UI update · list to list · right side new / urgent / number").
+   ===================================================================== */
+/* search lives in the sticky head, so it stays in reach while the list scrolls */
+.side-head{flex-wrap:wrap;row-gap:10px;box-shadow:0 1px 0 var(--border)}
+.side-find{position:relative;flex:1 1 100%;order:9}
+aside.side .side-find input.side-search.side-search.side-search{width:100%;margin:0!important;min-height:44px!important;padding-right:40px!important}
+.side-find input::-webkit-search-cancel-button{display:none}
+.side-find-x{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:28px;height:28px;min-height:0!important;padding:0!important;border-radius:50%!important;
+  display:grid;place-items:center;background:var(--border)!important;color:var(--text)!important;border:0!important}
+@media (min-width:961px){.side-mini .side:not(:hover):not(:has(:focus-visible)) .side-find{display:none!important}}
+
+/* list to list: compact rows, thin dividers between the rows of a panel */
+.side a.nl{min-height:42px!important;padding:5px 8px!important;gap:11px!important;font-size:14.5px}
+.side a.nl>svg.ic{width:30px!important;height:30px!important;padding:7px!important;border-radius:10px!important}
+.ngi a.nl>svg.ic{width:30px!important;height:30px!important;padding:7px!important}
+.ngi{gap:0!important}
+.ngi a.nl+a.nl{position:relative}
+.ngi a.nl+a.nl::before{content:"";position:absolute;left:49px;right:10px;top:0;height:1px;background:color-mix(in srgb,var(--border) 70%,transparent)}
+.ngi a.nl.active::before,.ngi a.nl.active+a.nl::before{display:none}
+.ngh{margin-top:4px!important;padding:6px 8px!important}
+.ngh .gi{width:34px!important;height:34px!important}
+
+/* right side: জরুরি + number · plain number · নতুন */
+.side a.nl .nb{flex:none;display:inline-flex;align-items:center;gap:5px;border-radius:999px;font-size:12px;font-weight:700;line-height:1;padding:5px 9px;white-space:nowrap}
+.side a.nl .nb.urgent{background:#DC2626;color:#fff;box-shadow:0 3px 8px rgba(220,38,38,.28)}
+.side a.nl .nb.urgent b{font-weight:700;font-size:11px;padding-right:5px;border-right:1px solid rgba(255,255,255,.45)}
+.side a.nl .nb.new{background:color-mix(in srgb,var(--tone-g) 14%,var(--surface));color:var(--tone-g);border:1px solid color-mix(in srgb,var(--tone-g) 30%,transparent);padding:4px 8px}
+.side a.nl .count{background:var(--canvas)!important;color:var(--muted)!important;border:1px solid var(--border)}
+.side .wf-side a.nl .nb.urgent{position:absolute;top:5px;right:5px;padding:3px 6px}.side .wf-side a.nl .nb.urgent b{display:none}
+/* a closed panel whose rows wait on you: the dot on its icon is red too */
+.ngh .gdot{background:#DC2626!important;color:#fff!important}

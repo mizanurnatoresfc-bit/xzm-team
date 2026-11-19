@@ -6,6 +6,7 @@ import { AppShell } from '../../components/AppShell'
 import { Badge, Modal, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { advancedAccessHere } from '../../lib/native'
+import { staffPanel, STAFF_DEFAULT, STAFF_SECTIONS, staffSectionName, type StaffSection } from '../../lib/staffPanel'
 import { dashboard, dashboardFriendly, PANELS, VIEWS, VIEW_OF, panelLabel, panelNote, type DashView, type PanelCode, type RoleDashboard } from '../../lib/dashboard'
 
 const isSuper = (grants: { is_super: boolean; scope_type: string }[]) => grants.some(g => g.is_super && g.scope_type === 'global')
@@ -28,6 +29,8 @@ export function RoleDashboards() {
   const [edit, setEdit] = useState<RoleDashboard | null>(null)
   const menus = useLoad(() => (sup ? menuApi.roles() : Promise.resolve([] as RoleMenu[])), [sup])
   const [pages, setPages] = useState<RoleMenu | null>(null)
+  const staff = useLoad(() => (sup ? staffPanel.byRole() : Promise.resolve({} as Record<string, StaffSection[] | null>)), [sup])
+  const [staffEdit, setStaffEdit] = useState<RoleDashboard | null>(null)
   const { toast, node } = useToast()
 
   return <AppShell title={L('রোল অনুযায়ী ড্যাশবোর্ড', 'Dashboard by role')}
@@ -50,6 +53,19 @@ export function RoleDashboards() {
           </tr>)}</tbody></table></div>
         {list.loading && <p className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       </section>
+      <section className="panel" id="staff-panel">
+        <h2>{L('স্টাফ প্যানেল সাজান', 'Arrange the staff panel')}</h2>
+        <p className="muted small">{L('স্টাফ প্যানেল পাতায় কোন রোল কোন অংশ দেখবে আর কোন ক্রমে। কিছু না সাজালে সবাই পুরো পাতা দেখবেন। কারও একাধিক রোল থাকলে যেকোনো রোলে রাখা অংশ দেখাবে।',
+          'Which parts of the staff panel each role sees, and in what order. Nothing set means the whole page. With several roles, a part shows if any of them has it.')}</p>
+        <div className="nv-rows">{(list.data ?? []).filter(r => !r.is_super).map(r => { const cur = staff.data?.[r.role_id] ?? null
+          return <div key={r.role_id} className="nv-row">
+            <span className="tx"><b>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</b>
+              <span>{cur ? cur.map(k => staffSectionName(k, lang)).join(' · ') : L('পুরো পাতা (স্ট্যান্ডার্ড)', 'Whole page (standard)')}</span></span>
+            <span className="end">{cur ? <Badge tone="info">{L(`${n(cur.length)}টি অংশ`, `${cur.length} parts`)}</Badge> : null}
+              <button type="button" className="secondary sm" data-staff-arrange={r.code} onClick={() => setStaffEdit(r)}>{L('সাজান', 'Arrange')}</button></span>
+          </div> })}</div>
+        {staff.error ? <p className="da-error">{dashboardFriendly(staff.error)}</p> : null}
+      </section>
       <section className="panel" id="role-pages">
         <h2>{L('কোন রোল কোন কোন পাতা দেখবে', 'Which pages each role sees')}</h2>
         <p className="muted small">{L('তালিকা বসালে সেই রোল শুধু ওই পাতাগুলো মেনুতে পাবে, অন্য পাতা ঠিকানা লিখেও খুলবে না। পরে আরও পাতা চালু করতে শুধু টিক দিন। (কী তথ্য দেখা বা বদলানো যাবে তা অনুমতি দিয়েই ঠিক হয় — সেটা “রোল ও অনুমতি” পাতায়।)',
@@ -66,6 +82,8 @@ export function RoleDashboards() {
         <ul className="muted small">{PANELS.map(([code]) => <li key={code}><strong>{panelLabel(code, lang)}</strong> — {panelNote(code, lang)}</li>)}</ul>
       </section>
     </>}
+    {staffEdit && <StaffEditor role={staffEdit} current={staff.data?.[staffEdit.role_id] ?? null} onClose={() => setStaffEdit(null)}
+      onDone={() => { setStaffEdit(null); toast(L('স্টাফ প্যানেল সেভ হয়েছে', 'Staff panel saved')); void staff.reload() }} />}
     {pages && <PagesEditor role={pages} onClose={() => setPages(null)} onDone={() => { setPages(null); toast(L('পাতার তালিকা সেভ হয়েছে', 'Pages saved')); void menus.reload() }} />}
     {edit && <LayoutEditor role={edit} onClose={() => setEdit(null)}
       onDone={() => { setEdit(null); toast(L('ড্যাশবোর্ড সেভ হয়েছে', 'Dashboard saved')); void list.reload() }} />}
@@ -143,6 +161,45 @@ function LayoutEditor({ role, onClose, onDone }: { role: RoleDashboard; onClose:
           <span className="tx"><b>{panelLabel(code, lang)}</b><span>{tags(code)}{panelNote(code, lang)}</span></span>
           <span className="rd-acts"><button type="button" className="sm" aria-label={`${code} add`} onClick={() => setPicked(x => [...x, code])}>+ {L('যোগ করুন', 'Add')}</button></span></div>)}</div>}
     <p className="muted small">{L('রোলের অনুমতি না থাকলে প্যানেল যোগ করলেও দেখাবে না।', 'A panel the role has no permission for stays hidden even if added.')}</p>
+    {err && <p className="da-error">{err}</p>}
+  </Modal>
+}
+
+/** Super Admin: which staff panel parts a role sees, in which order. "Standard" clears it. */
+function StaffEditor({ role, current, onClose, onDone }: { role: RoleDashboard; current: StaffSection[] | null; onClose: () => void; onDone: () => void }) {
+  const { L, n, lang } = usePrefs()
+  const [picked, setPicked] = useState<StaffSection[]>(current ?? STAFF_DEFAULT)
+  const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const rest = STAFF_DEFAULT.filter(k => !picked.includes(k))
+  const info = (k: StaffSection) => STAFF_SECTIONS.find(x => x[0] === k)!
+  const move = (i: number, d: -1 | 1) => { const j = i + d; if (j < 0 || j >= picked.length) return; const c = [...picked]; [c[i], c[j]] = [c[j], c[i]]; setPicked(c) }
+  async function save(list: StaffSection[] | null) {
+    setErr(''); setBusy(true)
+    try { await staffPanel.save(role.role_id, list); onDone() } catch (e) { setErr(dashboardFriendly(e)) } finally { setBusy(false) }
+  }
+  const same = picked.join() === STAFF_DEFAULT.join()
+  return <Modal wide title={`${lang === 'bn' && role.name_bn ? role.name_bn : role.name} — ${L('স্টাফ প্যানেল সাজান', 'arrange the staff panel')}`} onClose={onClose}
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button>
+      {current && <button className="secondary" disabled={busy} onClick={() => void save(null)}>{L('স্ট্যান্ডার্ডে ফেরান', 'Back to standard')}</button>}
+      <button disabled={busy || !picked.length} onClick={() => void save(same ? null : picked)}>{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('সেভ করুন', 'Save')}</button></>}>
+    <p className="muted small">{L('উপরের তালিকার অংশগুলোই এই রোলের স্টাফ প্যানেলে এই ক্রমে দেখাবে। ↑ ↓ দিয়ে সাজান, “সরান” দিয়ে লুকান, নিচ থেকে আবার যোগ করুন। উপরের নামের কার্ড আর শর্টকাট সবসময় থাকে।',
+      'The parts in the top list show on this role’s staff panel, in this order. Arrange with ↑ ↓, hide with “Remove”, add back from below. The name card and shortcuts at the top always stay.')}</p>
+    <h3 className="rd-h">{L('পাতায় আছে', 'On the page')} <span className="muted small">({n(picked.length)})</span></h3>
+    {!picked.length ? <p className="notice">{L('অন্তত একটা অংশ রাখুন।', 'Keep at least one part.')}</p>
+      : <div className="nv-rows rd-list">{picked.map((k, i) => <div key={k} className="nv-row" data-section={k}>
+          <span className="nv-av rd-no">{n(i + 1)}</span>
+          <span className="tx"><b>{staffSectionName(k, lang)}</b><span>{L(info(k)[3], info(k)[4])}</span></span>
+          <span className="rd-acts">
+            <button type="button" className="secondary sm" aria-label={`${k} up`} disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
+            <button type="button" className="secondary sm" aria-label={`${k} down`} disabled={i === picked.length - 1} onClick={() => move(i, 1)}>↓</button>
+            <button type="button" className="danger sm" aria-label={`${k} remove`} onClick={() => setPicked(x => x.filter(y => y !== k))}>{L('সরান', 'Remove')}</button>
+          </span></div>)}</div>}
+    <h3 className="rd-h">{L('লুকানো আছে', 'Hidden')} <span className="muted small">({n(rest.length)})</span></h3>
+    {!rest.length ? <p className="muted small">{L('সব অংশই পাতায় আছে।', 'Every part is on the page.')}</p>
+      : <div className="nv-rows rd-list">{rest.map(k => <div key={k} className="nv-row none" data-section={k}>
+          <span className="tx"><b>{staffSectionName(k, lang)}</b><span>{L(info(k)[3], info(k)[4])}</span></span>
+          <span className="rd-acts"><button type="button" className="sm" aria-label={`${k} add`} onClick={() => setPicked(x => [...x, k])}>+ {L('যোগ করুন', 'Add')}</button></span></div>)}</div>}
+    <p className="muted small">{L('অংশ রাখলেও কেউ শুধু ততটুকুই দেখবেন যতটুকু তাঁর অনুমতি আছে।', 'A part still shows only what the person may see.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }
