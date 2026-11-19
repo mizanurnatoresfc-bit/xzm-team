@@ -1,3 +1,4 @@
+import { scrollBehavior } from '../../lib/a11y'
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
@@ -74,7 +75,7 @@ export function AttendanceBook() {
   const sheetDay = sheet ? dayOf(sheet) : null
 
   const after = async (msg: string) => { setSheet(null); await q.reload(); announceWfChange(); toast(msg) }
-  const openDay = (d: BookDay) => { rows.current[d.date]?.scrollIntoView({ block: 'center', behavior: 'smooth' }); setSheet(d.date) }
+  const openDay = (d: BookDay) => { rows.current[d.date]?.scrollIntoView({ block: 'center', behavior: scrollBehavior() }); setSheet(d.date) }
   const doWithdraw = async () => {
     if (!withdraw) return
     setWdBusy(true); setWdErr('')

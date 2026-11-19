@@ -448,10 +448,36 @@ try {
     await page.locator('.lr-sec .lr-btn').click(); await page.waitForSelector('.da-modal .lr-lesson[data-lesson=bank]')
     check(await page.locator('.da-modal .lr-parts button').count() === 7, `${size}: the instruction button opens the lesson of that part`)
     if (process.env.SHOTS) await page.locator('.da-modal').screenshot({ path: `${process.env.SHOTS}/${size}-sheet-lesson.png` })
-    await page.locator('.da-modal-acts button', { hasText: 'বন্ধ করুন' }).click()
+    // accessibility: the dialog has a name, focus is inside it, Tab cannot leave it, Esc closes it and focus returns to the button
+    { const inside = () => page.evaluate(() => !!document.activeElement?.closest('.da-modal'))
+      const named = await page.evaluate(() => { const d = document.querySelector('.da-modal[role=dialog]'); const id = d?.getAttribute('aria-labelledby'); return !!(id && document.getElementById(id)?.textContent?.trim()) })
+      const first = await inside()
+      for (let i = 0; i < 25; i++) await page.keyboard.press('Tab')
+      const trapped = await inside()
+      await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
+      const back = await page.evaluate(() => !!document.activeElement?.matches('.lr-btn'))
+      check(named && first && trapped && back, `${size}: a dialog is named, takes focus, keeps Tab inside, closes with Esc and gives focus back`) }
 
     await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.font-pick')
     check(await page.locator('.font-pick button').count() === 5, `${size}: settings shows the font choices`); await fits('settings')
+    // accessibility: the first Tab reaches the skip link; text size, contrast and motion choices apply to the whole page and are remembered
+    { await page.evaluate(() => document.activeElement?.blur?.())
+      await page.keyboard.press('Tab')
+      check(await page.evaluate(() => !!document.activeElement?.matches('.skip-link')), `${size}: the first Tab shows "skip to main content"`)
+      const px = () => page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize))
+      const base = await px()
+      await page.locator('.a11y-sizes button').nth(2).click()
+      const big = await px(), mark = await page.evaluate(() => [document.documentElement.dataset.text, localStorage.getItem('xzm_text')].join())
+      await fits('settings with larger text')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-settings-large-text.png`, fullPage: true })
+      await page.locator('.a11y-sizes button').nth(0).click()
+      check(base === 16 && big === 20 && mark === 'xl,xl' && await px() === 16, `${size}: the text size setting makes all text bigger and back`)
+      await page.locator('.a11y-row').nth(0).locator('button').nth(1).click()
+      await page.locator('.a11y-row').nth(1).locator('button').nth(1).click()
+      const on = await page.evaluate(() => [document.documentElement.dataset.contrast, document.documentElement.dataset.motion].join())
+      await page.locator('.a11y-row').nth(0).locator('button').nth(0).click(); await page.locator('.a11y-row').nth(1).locator('button').nth(0).click()
+      const off = await page.evaluate(() => [document.documentElement.dataset.contrast ?? '', document.documentElement.dataset.motion ?? ''].join())
+      check(on === 'more,reduce' && off === ',', `${size}: stronger contrast and less motion switch on and off`) }
 
     // view as a role, then back
     const menu = () => page.locator('aside .nl').count()

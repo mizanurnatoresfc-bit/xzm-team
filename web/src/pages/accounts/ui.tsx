@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { cloneElement, isValidElement, useCallback, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react'
+import { useDialog } from '../../lib/a11y'
 import { Icon } from '../../components/Icon'
 import { STATUS_LABEL, friendly, type SheetStatus } from '../../lib/dailyAccounts'
 
@@ -25,21 +26,28 @@ export function Badge({ tone = 'neutral', children }: { tone?: 'ok' | 'warn' | '
 }
 
 export function Modal({ title, children, onClose, actions, wide }: { title: string; children: ReactNode; onClose: () => void; actions: ReactNode; wide?: boolean }) {
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
-  }, [onClose])
+  // Keyboard & screen reader: focus moves into the box, Tab stays inside, Esc closes, focus returns to the button that opened it.
+  const box = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  useDialog(box, onClose)
   // Rendered at the end of <body> so no card, sticky bar or animation can sit on top of it.
   return createPortal(<div className="da-modal-bg" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
-    <div className={`da-modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
-      <h2>{title}</h2>{children}<div className="da-modal-acts">{actions}</div>
+    <div ref={box} className={`da-modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <h2 id={titleId}>{title}</h2>{children}<div className="da-modal-acts">{actions}</div>
     </div>
   </div>, document.body)
 }
 
 /** Form field: label above, input, helper text below. `required` adds a red *, `note` a small grey tag such as "(Restricted)". */
 export function Field({ label, children, hint, wide, required, note }: { label: string; children: ReactNode; hint?: ReactNode; wide?: boolean; required?: boolean; note?: string }) {
-  return <label className={`da-field${wide ? ' wide' : ''}`}><span>{label}{required && <b className="req" aria-hidden="true"> *</b>}{note && <em className="fnote"> {note}</em>}</span>{children}{hint && <small className="muted">{hint}</small>}</label>
+  // Screen readers hear "required" and the helper text together with the box itself, not only the red * and grey line.
+  const hintId = useId()
+  const plain = isValidElement(children) && typeof children.type === 'string' && /^(input|select|textarea)$/.test(children.type)
+  const box = plain ? cloneElement(children as ReactElement<Record<string, unknown>>, {
+    ...(required ? { 'aria-required': true } : {}),
+    ...(hint ? { 'aria-describedby': [(children.props as Record<string, unknown>)['aria-describedby'], hintId].filter(Boolean).join(' ') } : {}),
+  }) : children
+  return <label className={`da-field${wide ? ' wide' : ''}`}><span>{label}{required && <b className="req" aria-hidden="true"> *</b>}{required && <span className="sr-only"> (আবশ্যক)</span>}{note && <em className="fnote"> {note}</em>}</span>{box}{hint && <small className="muted" id={hintId}>{hint}</small>}</label>
 }
 
 export function ErrorNote({ error }: { error: unknown }) {

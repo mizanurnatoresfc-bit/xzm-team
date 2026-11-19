@@ -1,3 +1,4 @@
+import { scrollBehavior } from '../../lib/a11y'
 import { Fragment, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -80,7 +81,7 @@ export function StaffPanel() {
   const opsHere = !!ops.data && !ops.error   // a login with no active staff profile gets no input card
   const { hash } = useLocation()
   useEffect(() => { if (hash === '#wf-ops' && opsHere) document.getElementById('wf-ops')?.scrollIntoView({ block: 'start' }) }, [hash, opsHere])
-  const toOps = (e: MouseEvent) => { const el = document.getElementById('wf-ops'); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }) } }
+  const toOps = (e: MouseEvent) => { const el = document.getElementById('wf-ops'); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }) } }
   const gapQ = useLoad(() => v?.me ? hr.profileGaps().then(l => l.find(g => g.employee_id === v.me!.id) ?? null).catch(() => null) : Promise.resolve(null), [v?.me?.id])
   const profilePct = gapQ.data ? Math.round(100 * (gapQ.data.total_checks - gapQ.data.missing.length) / Math.max(1, gapQ.data.total_checks)) : null
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
