@@ -527,4 +527,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   "জোন গ্রুপ — <zone>" opens it with the new-message count; "জোনাল ম্যানেজার — <name>" opens a sheet with কল · SMS · WhatsApp and "লিখে জানান".
   Nothing on the staff panel is marked "শীঘ্রই" any more.
 - Tests: `99zzzzzzzzzzzzzzzzzzz_zone_group.sql` (40); suite 1967 pass. Smoke: zone group row, zonal manager sheet (numbers, note), zone chat (pc + phone).
-- **To go live:** apply the migration on Supabase, then merge to `main` (the site deploys itself).
+- **19 Nov — live:** migration applied to Supabase (the approval came late, so no row was written in `schema_migrations`; the objects are there).
+  After applying: all 12 new function bodies equal the tested file by hash, anon can run none and read none of the 4 tables, RLS on, both photo policies
+  and both no-delete triggers present. Site released by merging to `main`.
