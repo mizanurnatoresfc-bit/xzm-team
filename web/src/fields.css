@@ -1,0 +1,102 @@
+/* ==================================================================
+   Modern input fields (Android / Material 3 feel)
+   Loaded after theme.css and before a11y.css, so the accessibility focus
+   ring and error colours still win. Labels stay above the box.
+   Rounded 12px boxes, a soft tonal fill, a clear border that darkens on
+   hover and turns green with a soft glow on focus, a custom dropdown
+   arrow, a tidy date/time picker icon, and autofill that keeps the theme.
+   ================================================================== */
+:root{
+  --f-radius:12px;
+  --f-fill:color-mix(in srgb,var(--primary) 3%,var(--surface));
+  --f-fill-hover:color-mix(in srgb,var(--primary) 6%,var(--surface));
+  --f-border:var(--in-border,var(--border));
+  --f-border-hover:color-mix(in srgb,var(--text) 45%,var(--f-border));
+  --f-glow:color-mix(in srgb,var(--primary) 18%,transparent);
+  --f-chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --f-fill:color-mix(in srgb,var(--primary) 5%,var(--surface));
+  --f-fill-hover:color-mix(in srgb,var(--primary) 9%,var(--surface));
+  --f-glow:color-mix(in srgb,var(--primary) 26%,transparent);
+  --f-chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23A5B6AD' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}}
+:root[data-theme="dark"]{
+  --f-fill:color-mix(in srgb,var(--primary) 5%,var(--surface));
+  --f-fill-hover:color-mix(in srgb,var(--primary) 9%,var(--surface));
+  --f-glow:color-mix(in srgb,var(--primary) 26%,transparent);
+  --f-chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23A5B6AD' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+
+/* ---- the box ---- */
+input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]),select,textarea{
+  -webkit-appearance:none;appearance:none;
+  border-radius:var(--f-radius)!important;
+  background-color:var(--f-bg,var(--f-fill))!important;
+  border:1px var(--f-bs,solid) var(--f-bc,var(--f-border))!important;
+  font-size:1rem; /* 16px: phones never zoom in when you tap the box */
+  line-height:1.4;
+  caret-color:var(--primary);
+  transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease;
+  -webkit-tap-highlight-color:transparent}
+textarea{line-height:1.5;resize:vertical}
+
+@media (hover:hover){
+  input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]):hover:not(:focus):not(:disabled):not([readonly]),
+  select:hover:not(:focus):not(:disabled),textarea:hover:not(:focus):not(:disabled):not([readonly]){
+    border-color:var(--f-bc,var(--f-border-hover))!important;background-color:var(--f-fill-hover)!important}
+}
+
+/* focus: green border + soft glow (a11y.css adds its own ring for keyboard users) */
+input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]):focus,select:focus,textarea:focus{
+  background-color:var(--surface)!important;border-color:var(--f-on,var(--primary))!important;
+  box-shadow:inset 0 0 0 1px var(--f-on,var(--primary)),0 0 0 4px var(--f-on-glow,var(--f-glow))!important;outline:0!important}
+
+/* ---- dropdowns: our own arrow, same look on Android, Chrome, Safari ---- */
+select:not([multiple]):not([size]){
+  background-image:var(--f-chev)!important;background-repeat:no-repeat!important;background-position:right 12px center!important;background-size:20px 20px!important;
+  padding-right:40px!important;cursor:pointer;text-overflow:ellipsis}
+select::-ms-expand{display:none}
+select:disabled{cursor:not-allowed}
+
+/* searchable dropdown and pick-several box follow the same look */
+.cb-box{border-radius:var(--f-radius)!important;background:var(--f-fill)!important;border:1px solid var(--f-border)!important;min-height:44px;transition:border-color .15s ease,box-shadow .15s ease}
+.cb.open .cb-box{outline:0!important;background:var(--surface)!important;border-color:var(--primary)!important;box-shadow:inset 0 0 0 1px var(--primary),0 0 0 4px var(--f-glow)}
+.cb-list{border-radius:14px!important;padding:6px!important;box-shadow:0 2px 6px rgba(15,23,42,.08),0 16px 36px rgba(15,23,42,.18)!important}
+.cb-list li{border-radius:10px!important;min-height:40px;justify-content:center}
+.cb-chip{border-radius:8px!important}
+
+/* ---- read-only and disabled ---- */
+input[readonly],textarea[readonly]{--f-bg:var(--in-ro);--f-bs:dashed;caret-color:transparent}
+input:disabled,select:disabled,textarea:disabled{--f-bg:var(--in-ro);opacity:.75;cursor:not-allowed}
+
+/* ---- wrong value ---- */
+input.bad-input,[aria-invalid="true"]{--f-bc:var(--bad-fg);--f-on:var(--bad-fg);--f-on-glow:color-mix(in srgb,var(--bad-fg) 18%,transparent);border-color:var(--bad-fg)!important}
+
+/* ---- browser extras made tidy ---- */
+input::-webkit-search-decoration{-webkit-appearance:none}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield;appearance:textfield}
+input[type=date],input[type=time],input[type=datetime-local],input[type=month]{min-width:0;cursor:pointer}
+input::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.65;padding:4px;border-radius:8px}
+input::-webkit-calendar-picker-indicator:hover{opacity:1;background:var(--row-hover)}
+input::-webkit-date-and-time-value{text-align:left}
+/* Chrome/Android autofill: keep our colours instead of yellow/blue */
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus,textarea:-webkit-autofill,select:-webkit-autofill{
+  -webkit-text-fill-color:var(--text)!important;transition:background-color 600000s 0s,color 600000s 0s}
+input[type=file]{font-size:0.9375rem}
+input[type=file]::file-selector-button{margin-right:10px;padding:8px 14px;border:1px solid var(--f-border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+
+/* checkboxes, radios, sliders take the brand colour */
+input[type=checkbox],input[type=radio],input[type=range]{accent-color:var(--primary)}
+
+/* ---- Android app and phones: bigger, easier to tap ---- */
+@media (max-width:700px){
+  input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]),select{min-height:48px}
+  .cb-box{min-height:48px}
+  .cb-list li{min-height:44px}
+}
+.native-app input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]):not([type=file]),.native-app select{min-height:48px}
+
+@media (prefers-reduced-motion:reduce){
+  input,select,textarea,.cb-box{transition:none!important}
+}
+html[data-motion="reduce"] input,html[data-motion="reduce"] select,html[data-motion="reduce"] textarea{transition:none!important}
