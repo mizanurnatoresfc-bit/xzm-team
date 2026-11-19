@@ -1180,6 +1180,9 @@ try {
       { const t = await page.locator('main').innerText()
         check(t.includes('নাটোর সদর ★') && t.includes('আমহাটি') && await page.locator('.rt-card:has-text("সাজেশন")').count() >= 1, `${size}: the hub's upazila is chosen by itself and its villages are suggested as routes`) }
       await fits('area suggestions')
+      await page.locator('section.panel:has-text("উপজেলা ধরে রুট সাজেশন") input[type=number]').first().fill('2')
+      await page.waitForSelector('.rt-card:has-text("সাজেশন ২")')
+      check(true, `${size}: asking for two routes splits the villages into two suggestions`)
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-suggest-${size}.png`, fullPage: true })
       await page.locator('.rt-card button:has-text("এই রুট বানান")').first().click(); await page.waitForSelector('.rt-stop')
       { const k = await page.locator('.rt-stop').count(); check(k >= 2, `${size}: "build this route" opens the editor with the suggested stops (${k})`) }
