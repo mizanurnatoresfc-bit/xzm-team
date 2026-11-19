@@ -27,6 +27,10 @@ export type Post = {
   issue: { id: string; issue_no: string; title: string; status: IssueStatus; status_bn: string; assignee: string | null; parcel_ref: string | null; priority: Priority } | null
   reactions: Record<string, { n: number; mine: boolean }>; seen_count: number; seen_by_me: boolean
 }
+/** A zone's group: everyone at every hub of the zone. */
+export type ZoneGroup = { zone_id: string; zone_name: string; zone_code: string; hubs: number; unseen: number; last_at: string | null; mine: boolean }
+export type ZoneManager = { profile_id: string | null; full_name: string; employee_code: string | null; position: string | null; phone: string | null; has_login: boolean; is_me: boolean }
+export type ZoneContacts = { zone_id: string; zone_name: string; zone_code: string; managers: ZoneManager[]; sent_today: number }
 export type Who = { full_name: string; employee_code: string | null; seen_at?: string; at?: string; emoji?: string }
 
 export const KIND_BN: Record<IssueKind, string> = { parcel: 'পার্সেল', vehicle: 'গাড়ি', staff: 'স্টাফ', cash: 'টাকা', other: 'অন্যান্য', store: 'স্টোর অর্ডার', it: 'আইটি অর্ডার' }
@@ -67,6 +71,24 @@ export const issues = {
   markSeen: (ids: string[]) => rpc<number>('hub_posts_seen', { p_posts: ids }),
   seenBy: (post: string) => rpc<Who[]>('hub_post_seen_by', { p_post: post }),
   reactedBy: (post: string) => rpc<Who[]>('hub_post_reacted_by', { p_post: post }),
+  zoneGroups: () => rpc<ZoneGroup[]>('zone_group_list'),
+  zoneFeed: (zone: string, before?: string | null) => rpc<Post[]>('zone_feed', { p_zone: zone, p_before: before ?? null, p_limit: 30 }),
+  zonePost: (zone: string, body: string, photo?: string | null) => rpc<string>('zone_post_create', { p_zone: zone, p_body: body, p_photo: photo ?? null }),
+  zoneReact: (post: string, emoji: string) => rpc<boolean>('zone_post_react', { p_post: post, p_emoji: emoji }),
+  zoneMarkSeen: (ids: string[]) => rpc<number>('zone_posts_seen', { p_posts: ids }),
+  zoneSeenBy: (post: string) => rpc<Who[]>('zone_post_seen_by', { p_post: post }),
+  zoneReactedBy: (post: string) => rpc<Who[]>('zone_post_reacted_by', { p_post: post }),
+  /** The zone's zonal manager(s) with phone; no zone = my own. Null when I have no staff record. */
+  zoneContacts: (zone?: string | null) => rpc<ZoneContacts | null>('zone_contacts', { p_zone: zone ?? null }),
+  /** A written note to the zonal manager(s); returns how many got it. */
+  tellZoneManager: (zone: string, body: string) => rpc<number>('zone_manager_tell', { p_zone: zone, p_body: body }),
+  /** A zone group picture: zone/<zone>/<file> in the same private bucket. */
+  uploadZonePhoto: async (zone: string, file: File) => {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `zone/${zone}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('issue-photos').upload(path, file, { contentType: file.type || undefined, upsert: false }); fail(error as { message: string } | null)
+    return path
+  },
   /** Upload a picture to the private bucket; the first folder is the hub (the database checks the hub group). */
   uploadPhoto: async (hub: string, file: File) => {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'

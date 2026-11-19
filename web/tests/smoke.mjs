@@ -137,6 +137,13 @@ try {
       if (u.includes('rpc/nodi_settings')) return j({ enabled: true, model: 'claude-sonnet-5-5', daily_limit: 50, max_tokens: 1024, features: { ...nodiParts } })
       if (u.includes('rpc/nodi_features_configure')) { const f = r.request().postDataJSON()?.p_features ?? {}; Object.assign(nodiParts, f); flowCalls.push({ fn: 'nodi_features_configure', ...f }); return j(null) }
       if (u.includes('rpc/nodi_features')) return j({ ...nodiParts })
+      if (u.includes('rpc/zone_group_list')) return j([{ zone_id: 'z1', zone_name: 'Natore Area', zone_code: 'NAT', hubs: 10, unseen: 3, last_at: '2026-11-15T05:00:00Z', mine: true }])
+      if (u.includes('rpc/zone_feed')) return j([{ id: 'zp1', author_name: 'Zonal Karim', is_nodi: false, mine: false, kind: 'text', body: 'আজ সবাই সময়মতো রিপোর্ট দিন', photo_path: null,
+        created_at: '2026-11-15T05:00:00Z', issue: null, reactions: {}, seen_count: 4, seen_by_me: false }])
+      if (u.includes('rpc/zone_posts_seen')) return j(1)
+      if (u.includes('rpc/zone_contacts')) return j({ zone_id: 'z1', zone_name: 'Natore Area', zone_code: 'NAT', sent_today: 0,
+        managers: [{ profile_id: 'u3', full_name: 'Zonal Karim', employee_code: '900', position: 'Zonal Manager', phone: '01711999999', has_login: true, is_me: false }] })
+      if (u.includes('rpc/zone_manager_tell')) { flowCalls.push({ fn: 'zone_manager_tell', ...r.request().postDataJSON() }); return j(1) }
       if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 3, unseen: 2 }])
       if (u.includes('rpc/issue_order_incharge_set')) return j(null)
       if (u.includes('rpc/issue_order_incharge')) return j({ store: { id: 'e05', name: 'Store Keeper', code: '1005', hub: 'Natore Sadar', has_login: true }, it: null })
@@ -787,7 +794,7 @@ try {
     check(started.at(-1)?.p_hub === 'h4' || Object.values(started.at(-1) ?? {}).includes('h4'), `${size}: a sheet is started for the chosen hub`)
     // the chat view: list on the left, the conversation on the right (on a phone: one at a time)
     await page.goto(`${BASE}/app/issues`); await page.waitForSelector('.mg-row')
-    check(await page.locator('.mg-row').count() === 4 && await page.locator('.mg-row.grp .mg-n').innerText() === '2', `${size}: issues, orders and the hub group sit in one chat-like list`)
+    check(await page.locator('.mg-row').count() === 5 && await page.locator('.mg-row.grp .mg-n').innerText() === '2' && await page.locator('.mg-row.zgrp .mg-n').innerText() === '3', `${size}: issues, orders, the hub group and the zone group sit in one chat-like list`)
     await fits('issue chat list')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-chat-list.png` })
     await page.locator('.mg-row', { hasText: 'কাস্টমার ফোন ধরছে না' }).click(); await page.waitForSelector('.mg-msg')
@@ -940,7 +947,18 @@ try {
       const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
       check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
         `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
-      check(await page.locator('.sp a.nv-row[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'জোন গ্রুপ' }).count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages; what is not built yet is marked and cannot be tapped`) }
+      check(await page.locator('.sp a.nv-row[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages`)
+      check(await page.locator('.sp a.nv-row[href="/app/issues?tab=zone&z=z1"]', { hasText: 'জোন গ্রুপ — Natore Area' }).count() === 1 && await page.locator('.sp .sp-soon').count() === 0,
+        `${size}: the zone group row opens my zone's group, with nothing left marked "soon"`)
+      await page.locator('.sp button.nv-row', { hasText: 'জোনাল ম্যানেজার — Zonal Karim' }).click(); await page.waitForSelector('.da-modal .zm-acts')
+      check(await page.locator('.da-modal a[href="tel:01711999999"]').count() === 1 && await page.locator('.da-modal a[href="https://wa.me/8801711999999"]').count() === 1, `${size}: the zonal manager sheet calls, texts and WhatsApps the right number`)
+      await fits('zonal manager sheet')
+      await page.locator('.da-modal textarea').fill('হাবে ফ্যান নষ্ট'); await page.locator('.da-modal-acts button').first().click(); await page.waitForTimeout(400)
+      check(flowCalls.at(-1)?.fn === 'zone_manager_tell' && flowCalls.at(-1)?.p_zone === 'z1' && flowCalls.at(-1)?.p_body === 'হাবে ফ্যান নষ্ট', `${size}: a written note goes to the zonal manager`)
+      await page.goto(`${BASE}/app/issues?tab=zone&z=z1`); await page.waitForSelector('.mg-chat .mg-msg', { timeout: 8000 }).catch(() => {})
+      check((await page.locator('.mg-chat').innerText().catch(() => '')).includes('আজ সবাই সময়মতো রিপোর্ট দিন') && await page.locator('.mg-chip.on', { hasText: 'জোন গ্রুপ' }).count() === 1,
+        `${size}: the zone group opens as a chat`)
+      await fits('zone group chat') }
     staffSecs = ['bill', 'accounts']
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .sd-h')
     check((await page.locator('.sp h2.sd-h').allInnerTexts()).join(' > ') === 'আমার বিল > আমার হিসাব', `${size}: the staff panel shows only the parts set for the role, in that order`)

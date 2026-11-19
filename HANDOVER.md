@@ -512,3 +512,21 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `99zzzzzzzzzzzzzzzzz_nodi_features.sql` (18); suite 1920 pass. Smoke: settings page, saving a switch, chat off hides the button and the chat page (pc + phone).
 - **19 Nov — live:** applied to Supabase as `nodi_features` (20261119082756) after checking the four replaced functions equal the repository by hash; cron job now checks the switch;
   anon can run none of the new functions; `nodi-ai` v9 deployed (same file as the repository). Office items: a drawn icon per kind; phone list puts the buttons on their own line.
+
+## 2026-11-19 — জোন গ্রুপ ও জোনাল ম্যানেজার চালু (staff panel's last two "শীঘ্রই" rows)
+- Owner: "জোন গ্রুপ আর জোনাল ম্যানেজার রানিং করো!"
+- Migration `20261119020000_zone_group_and_contact.sql`:
+  - **জোন গ্রুপ** — `zone_posts` (+ `zone_post_reactions`, `zone_post_seen`): one group per zone. In it: everyone posted at any hub of the zone (or at the zone),
+    and anyone whose `issue.group.view` / `issue.issue.view` / `issue.issue.create` reaches a hub of the zone (`private.in_zone_group`). Functions mirror the hub group:
+    `zone_group_list()` (zone, hubs, unseen — own posts never count as new, `mine` = I am posted there), `zone_feed` (same JSON shape as `hub_feed`), `zone_post_create`,
+    `zone_post_react`, `zone_posts_seen`, `zone_post_seen_by`, `zone_post_reacted_by`. Photos: bucket `issue-photos`, path `zone/<zone_id>/<file>` (own storage policies).
+  - **জোনাল ম্যানেজার** — `zone_contacts(zone = my own)`: the zonal_manager role holders for that zone (phone from the staff record, else the login's phone);
+    if nobody holds the role, active zone-level posts (`positions.level = 'zone'`) in the zone. `zone_manager_tell(zone, text)`: a note (2–500 characters, 20 a day)
+    to them as a notification (kind `zone_manager_note`, with the sender's name and hub), kept in `zone_manager_notes`. Posts and notes are never deleted.
+- Pages: ইস্যু ও ফলো-আপ has a "জোন গ্রুপ" chip and rows (the hub group's chat, reused through a small `Room` adapter); staff panel → ইস্যু ও যোগাযোগ:
+  "জোন গ্রুপ — <zone>" opens it with the new-message count; "জোনাল ম্যানেজার — <name>" opens a sheet with কল · SMS · WhatsApp and "লিখে জানান".
+  Nothing on the staff panel is marked "শীঘ্রই" any more.
+- Tests: `99zzzzzzzzzzzzzzzzzzz_zone_group.sql` (40); suite 1967 pass. Smoke: zone group row, zonal manager sheet (numbers, note), zone chat (pc + phone).
+- **19 Nov — live:** migration applied to Supabase (the approval came late, so no row was written in `schema_migrations`; the objects are there).
+  After applying: all 12 new function bodies equal the tested file by hash, anon can run none and read none of the 4 tables, RLS on, both photo policies
+  and both no-delete triggers present. Site released by merging to `main`.

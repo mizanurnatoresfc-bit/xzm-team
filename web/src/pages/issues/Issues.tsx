@@ -4,7 +4,7 @@ import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { hrFriendly } from '../../lib/hr'
-import { ACTION_BN, EMOJIS, KIND_BN, ORDER_ACTION_BN, ORDER_STATUS_BN, PRIORITY_BN, isOrder, issues, type GroupHub, type InCharge, type IssueDetail, type IssueKind, type IssueRow, type OrderKind, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
+import { ACTION_BN, EMOJIS, KIND_BN, ORDER_ACTION_BN, ORDER_STATUS_BN, PRIORITY_BN, isOrder, issues, type GroupHub, type ZoneGroup, type InCharge, type IssueDetail, type IssueKind, type IssueRow, type OrderKind, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
 import { readLabel } from '../../lib/ocr'
 import { duplicates, matches } from '../../lib/validate'
 import { Combo, DupNote, useDuplicates } from '../../components/inputs'
@@ -12,8 +12,8 @@ import { useAuth } from '../../auth/AuthProvider'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 
 /** Which conversations the list shows. ("tab" in the address, as before.) */
-type Filter = 'all' | 'mine' | 'check' | 'given' | 'group' | 'hub' | 'orders'
-const FILTERS: Filter[] = ['all', 'mine', 'check', 'given', 'group', 'hub', 'orders']
+type Filter = 'all' | 'mine' | 'check' | 'given' | 'group' | 'zone' | 'hub' | 'orders'
+const FILTERS: Filter[] = ['all', 'mine', 'check', 'given', 'group', 'zone', 'hub', 'orders']
 const errText = (e: unknown) => (e instanceof Error && !('code' in e) ? e.message : hrFriendly(e))
 const when = (s: string) => new Date(s).toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 /** Like a chat list: the time for today, the date for older. */
@@ -63,6 +63,7 @@ export function Issues() {
   const [ui, setUi] = useUi()
   const panels = useLoad(() => issues.panels(), [])
   const groups = useLoad(() => issues.groupHubs(), [])
+  const zones = useLoad(() => issues.zoneGroups(), [])
   const [creating, setCreating] = useState<string | null>(null)
   const [ordering, setOrdering] = useState<OrderKind | null>(null)
   const [q, setQ] = useState('')
@@ -74,12 +75,15 @@ export function Issues() {
   const filter: Filter = asked && FILTERS.includes(asked) ? asked : ui.first
   const open = sp.get('id')
   const group = hubs.find(h => h.hub_id === sp.get('g')) ?? null
+  const zoneList = zones.data ?? []
+  const zone = zoneList.find(z => z.zone_id === sp.get('z')) ?? null
   const put = (f: (n: URLSearchParams) => void) => { const n = new URLSearchParams(sp); f(n); setSp(n, { replace: true }) }
   const go = (t: Filter) => put(n => n.set('tab', t))
-  const openIssue = (id: string | null) => put(n => { n.delete('g'); if (id) n.set('id', id); else n.delete('id') })
-  const openGroup = (h: string) => put(n => { n.delete('id'); n.set('g', h) })
-  const closeChat = () => put(n => { n.delete('id'); n.delete('g') })
-  const refresh = () => { void panels.reload(); void groups.reload() }
+  const openIssue = (id: string | null) => put(n => { n.delete('g'); n.delete('z'); if (id) n.set('id', id); else n.delete('id') })
+  const openGroup = (h: string) => put(n => { n.delete('id'); n.delete('z'); n.set('g', h) })
+  const openZone = (z: string) => put(n => { n.delete('id'); n.delete('g'); n.set('z', z) })
+  const closeChat = () => put(n => { n.delete('id'); n.delete('g'); n.delete('z') })
+  const refresh = () => { void panels.reload(); void groups.reload(); void zones.reload() }
   const changed = () => { refresh(); toast('হয়েছে') }
   useEvery(ui.refresh, refresh)
   // A shortcut link (/app/issues?new=1) opens the new-issue form at once.
@@ -99,19 +103,21 @@ export function Issues() {
   // Every open issue / order this person can see, whichever panel it sits in — newest first.
   const everything = uniq([...p.to_check, ...p.mine, ...p.waiting_for_check_of_mine, ...p.given, ...p.hub]).sort((a, b) => b.created_at.localeCompare(a.created_at))
   const ids = (rows: IssueRow[]) => new Set(rows.map(r => r.id))
-  const inFilter: Record<Exclude<Filter, 'all' | 'group'>, (r: IssueRow) => boolean> = {
+  const inFilter: Record<Exclude<Filter, 'all' | 'group' | 'zone'>, (r: IssueRow) => boolean> = {
     mine: (s => (r: IssueRow) => s.has(r.id))(ids([...p.mine, ...p.waiting_for_check_of_mine])), check: (s => (r: IssueRow) => s.has(r.id))(ids(p.to_check)),
     given: (s => (r: IssueRow) => s.has(r.id))(ids(p.given)), hub: (s => (r: IssueRow) => s.has(r.id))(ids(p.hub)), orders: r => isOrder(r.kind) }
-  const count = (f: Exclude<Filter, 'all' | 'group'>) => everything.filter(inFilter[f]).length
-  const rows = (filter === 'group' ? [] : filter === 'all' ? everything : everything.filter(inFilter[filter]))
+  const count = (f: Exclude<Filter, 'all' | 'group' | 'zone'>) => everything.filter(inFilter[f]).length
+  const rows = (filter === 'group' || filter === 'zone' ? [] : filter === 'all' ? everything : everything.filter(inFilter[filter]))
     .filter(r => matches(`${r.title} ${r.issue_no} ${r.assignee ?? ''} ${r.assignee_code ?? ''} ${r.hub ?? ''} ${r.parcel_ref ?? ''} ${r.assigned_by_name ?? ''}`, q))
   const shownHubs = hubs.filter(h => matches(`${h.hub_name} ${h.hub_code}`, q))
   const unseen = hubs.reduce((a, h) => a + h.unseen, 0)
+  const shownZones = zoneList.filter(z => matches(`${z.zone_name} ${z.zone_code}`, q))
+  const zoneUnseen = zoneList.reduce((a, z) => a + z.unseen, 0)
   const late = everything.filter(r => r.overdue && (r.is_mine || r.is_giver)).length
   const chips: Array<[Filter, string, number, string]> = [['all', 'সব', everything.length, ''], ['mine', 'আমার কাজ', count('mine'), late ? 'warn' : ''], ['check', 'চেক বাকি', count('check'), count('check') ? 'bad' : ''],
-    ['given', 'আমি দিয়েছি', count('given'), ''], ['group', 'হাব গ্রুপ', unseen, unseen ? 'bad' : ''], ['hub', 'হাবের সব', count('hub'), ''], ['orders', 'অর্ডার', count('orders'), '']]
+    ['given', 'আমি দিয়েছি', count('given'), ''], ['group', 'হাব গ্রুপ', unseen, unseen ? 'bad' : ''], ['zone', 'জোন গ্রুপ', zoneUnseen, zoneUnseen ? 'bad' : ''], ['hub', 'হাবের সব', count('hub'), ''], ['orders', 'অর্ডার', count('orders'), '']]
   const EMPTY: Record<Filter, string> = { all: 'এখন কোনো খোলা ইস্যু নেই', mine: 'আপনাকে দেওয়া কোনো কাজ বাকি নেই', check: 'চেক করার মতো সমাধান করা কোনো ইস্যু নেই', given: 'আপনার দেওয়া কোনো কাজ এখন চলছে না',
-    group: 'আপনার জন্য কোনো হাব গ্রুপ নেই', hub: 'হাবে অন্য কোনো খোলা ইস্যু নেই', orders: 'এখন কোনো স্টোর / আইটি অর্ডার খোলা নেই' }
+    group: 'আপনার জন্য কোনো হাব গ্রুপ নেই', zone: 'আপনার জন্য কোনো জোন গ্রুপ নেই', hub: 'হাবে অন্য কোনো খোলা ইস্যু নেই', orders: 'এখন কোনো স্টোর / আইটি অর্ডার খোলা নেই' }
 
   const bar = <div className="mg-bar">
     <label className="mg-search"><Icon name="search" size={16} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="খুঁজুন — নাম, আইডি, হাব…" aria-label="ইস্যু খুঁজুন" /></label>
@@ -122,14 +128,20 @@ export function Issues() {
       <button type="button" className={ui.view === 'board' ? 'on' : ''} aria-pressed={ui.view === 'board'} onClick={() => setUi({ view: 'board' })}>বোর্ড</button></div>
     <button type="button" className="mg-ic" title="আমার সেটিং" aria-label="আমার সেটিং" onClick={() => setSettings(true)}><Icon name="gear" size={18} /></button>
   </div>
-  const chipRow = <div className="mg-chips">{chips.filter(([k]) => ui.view === 'chat' || k !== 'group').map(([k, l, c, tone]) => <button key={k} type="button" className={`mg-chip ${tone}${filter === k ? ' on' : ''}`} aria-pressed={filter === k} onClick={() => go(k)}>
+  const chipRow = <div className="mg-chips">{chips.filter(([k]) => (ui.view === 'chat' || (k !== 'group' && k !== 'zone')) && (k !== 'zone' || zoneList.length > 0)).map(([k, l, c, tone]) => <button key={k} type="button" className={`mg-chip ${tone}${filter === k ? ' on' : ''}`} aria-pressed={filter === k} onClick={() => go(k)}>
     {l}{c > 0 && <b>{c}</b>}</button>)}</div>
   const deskRow = filter === 'orders' && <button type="button" className="mg-desk" onClick={() => setDesk(true)}><Icon name="user" size={15} /> স্টোর / আইটি অর্ডার কে পাবেন — দেখুন</button>
   const groupRows = shownHubs.map(h => <button key={h.hub_id} type="button" className={`mg-row grp${group?.hub_id === h.hub_id ? ' on' : ''}`} onClick={() => openGroup(h.hub_id)}>
     <span className="mg-av hub">{h.hub_name.slice(0, 1)}</span>
     <span className="mg-tx"><b>{h.hub_name} গ্রুপ</b><small>{h.open_issues > 0 ? `${h.open_issues}টি খোলা ইস্যু` : 'হাবের সবার সাথে কথা'}</small></span>
     <span className="mg-end">{h.unseen > 0 && <i className="mg-n">{h.unseen}</i>}</span></button>)
-  const chat = group ? <GroupChat key={group.hub_id} hub={group} ui={ui} onBack={closeChat} onOpenIssue={openIssue} onNew={() => setCreating(group.hub_id)} onSeen={() => void groups.reload()} />
+  const zoneRows = shownZones.map(z => <button key={z.zone_id} type="button" className={`mg-row zgrp${zone?.zone_id === z.zone_id ? ' on' : ''}`} onClick={() => openZone(z.zone_id)}>
+    <span className="mg-av zone">{z.zone_name.slice(0, 1)}</span>
+    <span className="mg-tx"><b>{z.zone_name} — জোন গ্রুপ</b><small>{`${z.hubs}টি হাবের সবাই`}</small></span>
+    <span className="mg-end">{z.unseen > 0 && <i className="mg-n">{z.unseen}</i>}</span></button>)
+  const showGroups = filter === 'all' || filter === 'group', showZones = filter === 'all' || filter === 'zone'
+  const chat = zone ? <GroupChat key={'z' + zone.zone_id} room={zoneRoom(zone)} ui={ui} onBack={closeChat} onOpenIssue={openIssue} onSeen={() => void zones.reload()} />
+    : group ? <GroupChat key={group.hub_id} room={hubRoom(group)} ui={ui} onBack={closeChat} onOpenIssue={openIssue} onNew={() => setCreating(group.hub_id)} onSeen={() => void groups.reload()} />
     : open ? <IssueChat key={open} id={open} row={everything.find(r => r.id === open)} refresh={ui.refresh} onBack={closeChat} onChanged={changed} /> : null
 
   return <AppShell title="ইস্যু ও ফলো-আপ" subtitle="কাজ দিন, সমাধান চেক করে অনুমোদন দিন — অনুমোদন না হলে ইস্যু তালিকাতেই থাকে">
@@ -139,10 +151,12 @@ export function Issues() {
         {bar}{chipRow}
         <div className="mg-list">
           {deskRow}
-          {ui.groupsOnTop && (filter === 'all' || filter === 'group') && groupRows}
+          {ui.groupsOnTop && showZones && zoneRows}
+          {ui.groupsOnTop && showGroups && groupRows}
           {rows.map(r => <Conv key={r.id} r={r} on={open === r.id} onOpen={() => openIssue(r.id)} />)}
-          {!ui.groupsOnTop && (filter === 'all' || filter === 'group') && groupRows}
-          {!rows.length && !(shownHubs.length && (filter === 'all' || filter === 'group')) && <div className="is-empty"><Icon name="check" size={28} /><p>{q ? 'কিছু মেলেনি' : panels.loading && !panels.data ? 'লোড হচ্ছে…' : EMPTY[filter]}</p></div>}
+          {!ui.groupsOnTop && showGroups && groupRows}
+          {!ui.groupsOnTop && showZones && zoneRows}
+          {!rows.length && !(shownHubs.length && showGroups) && !(shownZones.length && showZones) && <div className="is-empty"><Icon name="check" size={28} /><p>{q ? 'কিছু মেলেনি' : panels.loading && !panels.data ? 'লোড হচ্ছে…' : EMPTY[filter]}</p></div>}
         </div>
       </aside>
       <section className="mg-main">{chat ?? <div className="mg-none"><Icon name="note" size={38} /><b>একটি ইস্যু বা গ্রুপ বেছে নিন</b>
@@ -150,8 +164,8 @@ export function Issues() {
         {hubs.length > 0 && <button type="button" onClick={() => setCreating(hubs[0].hub_id)}><Icon name="plus" size={15} /> নতুন ইস্যু</button>}</div>}</section>
     </div> : <div className={`bd${ui.dense ? ' dense' : ''}`}>
       {bar}{chipRow}{deskRow}
-      {shownHubs.length > 0 && <div className="bd-groups">{shownHubs.map(h => <button key={h.hub_id} type="button" className="mg-chip" onClick={() => openGroup(h.hub_id)}>💬 {h.hub_name} গ্রুপ{h.unseen > 0 && <b>{h.unseen}</b>}</button>)}</div>}
-      <Board rows={rows} empty={q ? 'কিছু মেলেনি' : EMPTY[filter === 'group' ? 'all' : filter]} open={open} onOpen={openIssue} onChanged={changed} />
+      {(shownHubs.length > 0 || shownZones.length > 0) && <div className="bd-groups">{shownZones.map(z => <button key={z.zone_id} type="button" className="mg-chip" onClick={() => openZone(z.zone_id)}>🗺 {z.zone_name} জোন গ্রুপ{z.unseen > 0 && <b>{z.unseen}</b>}</button>)}{shownHubs.map(h => <button key={h.hub_id} type="button" className="mg-chip" onClick={() => openGroup(h.hub_id)}>💬 {h.hub_name} গ্রুপ{h.unseen > 0 && <b>{h.unseen}</b>}</button>)}</div>}
+      <Board rows={rows} empty={q ? 'কিছু মেলেনি' : EMPTY[filter === 'group' || filter === 'zone' ? 'all' : filter]} open={open} onOpen={openIssue} onChanged={changed} />
       {chat && <><div className="mg-shade" onClick={closeChat} /><aside className="mg-drawer">{chat}</aside></>}
     </div>}
     {settings && <UiSettings ui={ui} onChange={setUi} onClose={() => setSettings(false)} />}
@@ -289,10 +303,26 @@ function Photo({ path }: { path: string }) {
   return u.data ? <a href={u.data} target="_blank" rel="noreferrer"><img src={u.data} alt="ছবি" style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 8, margin: '6px 0', display: 'block' }} /></a> : null
 }
 
-// ------------------------------------------------------------------ the hub group, as a chat
-function GroupChat({ hub, ui, onBack, onOpenIssue, onNew, onSeen }: { hub: GroupHub; ui: Ui; onBack: () => void; onOpenIssue: (id: string) => void; onNew: () => void; onSeen: () => void }) {
-  const cur = hub.hub_id
-  const feed = useLoad(() => issues.feed(cur), [cur])
+// ------------------------------------------------------------------ a group (a hub's or a zone's), as a chat
+/** What the chat needs from a group; the hub group and the zone group differ only in these. */
+type Room = {
+  name: string; sub: string; av: 'hub' | 'zone'
+  feed: () => Promise<Post[]>; post: (body: string, photo: string | null) => Promise<unknown>; upload: (f: File) => Promise<string>
+  react: (post: string, e: string) => Promise<unknown>; markSeen: (ids: string[]) => Promise<unknown>
+  seenBy: (post: string) => Promise<Who[]>; reactedBy: (post: string) => Promise<Who[]>
+}
+const hubRoom = (h: GroupHub): Room => ({
+  name: `${h.hub_name} গ্রুপ`, sub: h.open_issues > 0 ? `${h.open_issues}টি খোলা ইস্যু` : 'হাবের সবার সাথে কথা', av: 'hub',
+  feed: () => issues.feed(h.hub_id), post: (b, p) => issues.post(h.hub_id, b, p), upload: f => issues.uploadPhoto(h.hub_id, f),
+  react: issues.react, markSeen: issues.markSeen, seenBy: issues.seenBy, reactedBy: issues.reactedBy,
+})
+const zoneRoom = (z: ZoneGroup): Room => ({
+  name: `${z.zone_name} — জোন গ্রুপ`, sub: `জোনের ${z.hubs}টি হাবের সবার সাথে কথা`, av: 'zone',
+  feed: () => issues.zoneFeed(z.zone_id), post: (b, p) => issues.zonePost(z.zone_id, b, p), upload: f => issues.uploadZonePhoto(z.zone_id, f),
+  react: issues.zoneReact, markSeen: issues.zoneMarkSeen, seenBy: issues.zoneSeenBy, reactedBy: issues.zoneReactedBy,
+})
+function GroupChat({ room, ui, onBack, onOpenIssue, onNew, onSeen }: { room: Room; ui: Ui; onBack: () => void; onOpenIssue: (id: string) => void; onNew?: () => void; onSeen: () => void }) {
+  const feed = useLoad(() => room.feed(), [])
   const [text, setText] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState(false)
@@ -309,24 +339,24 @@ function GroupChat({ hub, ui, onBack, onOpenIssue, onNew, onSeen }: { hub: Group
   useEffect(() => {
     const ids = (feed.data ?? []).filter(p => !p.seen_by_me && !seenSent.current.has(p.id)).map(p => p.id)
     if (!ids.length) return
-    ids.forEach(i => seenSent.current.add(i)); void issues.markSeen(ids).then(onSeen).catch(() => ids.forEach(i => seenSent.current.delete(i)))
+    ids.forEach(i => seenSent.current.add(i)); void room.markSeen(ids).then(onSeen).catch(() => ids.forEach(i => seenSent.current.delete(i)))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feed.data])
   async function send() {
     if (busy || (!text.trim() && !file)) return
     setErr(''); setBusy(true)
-    try { const photo = file ? await issues.uploadPhoto(cur, file) : null; await issues.post(cur, text, photo); setText(''); setFile(null); await feed.reload() } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
+    try { const photo = file ? await room.upload(file) : null; await room.post(text, photo); setText(''); setFile(null); await feed.reload() } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
   function key(e: KeyboardEvent<HTMLTextAreaElement>) { if (ui.enterSends && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send() } }
-  async function react(p: Post, e: string) { setPick(''); try { await issues.react(p.id, e); await feed.reload() } catch (x) { setErr(errText(x)) } }
-  async function showSeen(p: Post) { try { setWho({ title: 'যারা দেখেছে', rows: await issues.seenBy(p.id) }) } catch (x) { setErr(errText(x)) } }
-  async function showReacts(p: Post) { try { setWho({ title: 'কে কী রিঅ্যাক্ট দিয়েছে', rows: await issues.reactedBy(p.id) }) } catch (x) { setErr(errText(x)) } }
+  async function react(p: Post, e: string) { setPick(''); try { await room.react(p.id, e); await feed.reload() } catch (x) { setErr(errText(x)) } }
+  async function showSeen(p: Post) { try { setWho({ title: 'যারা দেখেছে', rows: await room.seenBy(p.id) }) } catch (x) { setErr(errText(x)) } }
+  async function showReacts(p: Post) { try { setWho({ title: 'কে কী রিঅ্যাক্ট দিয়েছে', rows: await room.reactedBy(p.id) }) } catch (x) { setErr(errText(x)) } }
   return <div className="mg-chat">
     <header className="mg-head">
       <button type="button" className="mg-ic back" aria-label="ফিরে যান" onClick={onBack}><Icon name="back" size={18} /></button>
-      <span className="mg-av hub">{hub.hub_name.slice(0, 1)}</span>
-      <div className="mg-tx"><b>{hub.hub_name} গ্রুপ</b><small>{hub.open_issues > 0 ? `${hub.open_issues}টি খোলা ইস্যু` : 'হাবের সবার সাথে কথা'}</small></div>
-      <button type="button" className="sm" onClick={onNew}><Icon name="plus" size={14} /> এই হাবে ইস্যু</button>
+      <span className={`mg-av ${room.av}`}>{room.name.slice(0, 1)}</span>
+      <div className="mg-tx"><b>{room.name}</b><small>{room.sub}</small></div>
+      {onNew && <button type="button" className="sm" onClick={onNew}><Icon name="plus" size={14} /> এই হাবে ইস্যু</button>}
     </header>
     <div className="mg-body" ref={body}>
       {feed.loading && !feed.data ? <p className="muted">লোড হচ্ছে…</p> : null}
@@ -376,7 +406,7 @@ function UiSettings({ ui, onChange, onClose }: { ui: Ui; onChange: (p: Partial<U
       <div><b>পাতা খুললে প্রথমে যা দেখাবে</b>
         <select value={ui.first} onChange={e => onChange({ first: e.target.value as Filter })}>
           <option value="all">সব</option><option value="mine">আমার কাজ</option><option value="check">চেক বাকি</option><option value="given">আমি দিয়েছি</option>
-          <option value="group">হাব গ্রুপ</option><option value="hub">হাবের সব ইস্যু</option><option value="orders">স্টোর / আইটি অর্ডার</option></select></div>
+          <option value="group">হাব গ্রুপ</option><option value="zone">জোন গ্রুপ</option><option value="hub">হাবের সব ইস্যু</option><option value="orders">স্টোর / আইটি অর্ডার</option></select></div>
       <div><b>তালিকার আকার</b><Seg value={ui.dense} onChange={v => onChange({ dense: v })} options={[[false, 'বড় (আরামদায়ক)'], [true, 'ছোট (বেশি দেখা যায়)']]} /></div>
       <div><b>হাব গ্রুপ তালিকার কোথায়</b><Seg value={ui.groupsOnTop} onChange={v => onChange({ groupsOnTop: v })} options={[[true, 'উপরে'], [false, 'নিচে']]} /></div>
       <div><b>নিজে থেকে নতুন তথ্য আনা</b><small>পাতা খোলা থাকলে কত সময় পরপর নতুন ইস্যু ও বার্তা আসবে।</small>
