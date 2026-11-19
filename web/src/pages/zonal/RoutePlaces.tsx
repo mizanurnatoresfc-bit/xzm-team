@@ -1,0 +1,243 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../../auth/AuthProvider'
+import { DataTable } from '../../components/DataTable'
+import { Icon } from '../../components/Icon'
+import { OsmMap, type MapLine, type MapPin } from '../../components/OsmMap'
+import { Badge, Field, Modal, Stat, useLoad } from '../accounts/ui'
+import { usePrefs } from '../../lib/prefs'
+import {
+  direction, estimate, fmtDist, fmtKm, hasGps, lineKm, meters, nearAny, parseLocation, PLACE_KIND, PLACE_SOURCES, placeName, placesApi, ROUTE_COLORS,
+  routeFriendly, stopKindOf, suggestRoutes, upazilaNear, type LatLng, type Place, type PlaceKind, type RouteHub, type RouteStop, type Upazila, type ZoneOverview,
+} from '../../lib/routes'
+
+export const placeToStop = (p: Place, lang: 'bn' | 'en' = 'bn'): RouteStop =>
+  ({ name: placeName(p, lang), kind: stopKindOf(p.kind), lat: p.lat, lng: p.lng, radius_m: null, minutes: null, note: null })
+
+/** Boundary of an upazila as a dashed map line (Naldanga has none). */
+export const boundaryLine = (u: Upazila | undefined): MapLine[] => u?.boundary?.length ? [{ id: `b${u.code}`, color: '#64748b', points: u.boundary, dashed: true, width: 2, opacity: 0.7 }] : []
+
+/** Places loaded once for the page, with the hub's own upazila worked out. */
+export function usePlaces() {
+  const d = useLoad(() => placesApi.load(), [])
+  return { ...d, upazilas: d.data?.upazilas ?? [], places: d.data?.places ?? [] }
+}
+
+// ---------------------------------------------------------------- editor side panel: pick places one by one
+export function PlacePicker({ hub, stops, others, onAdd, onShow }: {
+  hub: RouteHub | undefined; stops: RouteStop[]; others: Array<{ route: string; lat: number; lng: number }>
+  onAdd: (p: Place) => void; onShow: (pins: MapPin[], lines: MapLine[], add: (id: string) => void) => void
+}) {
+  const { L, n, lang } = usePrefs()
+  const fmt = { L, n }
+  const pl = usePlaces()
+  const home = useMemo(() => hub && hasGps(hub) ? upazilaNear(hub as LatLng, pl.places) : null, [hub, pl.places])
+  const [upz, setUpz] = useState<number | 'all' | null>(null)
+  const [q, setQ] = useState(''); const [kind, setKind] = useState<PlaceKind | ''>('')
+  const cur = upz ?? home ?? 'all'
+  const mine = stops.filter(hasGps) as Array<RouteStop & LatLng>
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase()
+    return pl.places.filter(p => !p.hidden && (cur === 'all' || p.upazila_code === cur) && (!kind || p.kind === kind)
+      && (!t || `${p.name_bn ?? ''} ${p.name ?? ''}`.toLowerCase().includes(t)))
+      .map(p => ({ p, d: hub && hasGps(hub) && hasGps(p) ? meters(hub as LatLng, p as LatLng) : Infinity }))
+      .sort((a, b) => a.d - b.d)
+  }, [pl.places, cur, kind, q, hub])
+  const usedHere = (p: Place) => hasGps(p) && nearAny(p as LatLng, mine, 60)
+  const usedBy = (p: Place) => hasGps(p) ? others.find(o => meters(o, p as LatLng) <= 250)?.route : undefined
+
+  // the places of this list on the editor's map (tap one to add it)
+  const key = list.map(x => x.p.id).join(',') + '|' + stops.length
+  useEffect(() => {
+    const pins: MapPin[] = list.slice(0, 400).filter(x => hasGps(x.p) && !usedHere(x.p)).map(x => ({ id: `p:${x.p.id}`, lat: x.p.lat!, lng: x.p.lng!, label: placeName(x.p, lang), num: '+', tone: 'wait' as const }))
+    const u = typeof cur === 'number' ? pl.upazilas.find(x => x.code === cur) : undefined
+    onShow(pins, boundaryLine(u), id => { const p = pl.places.find(x => `p:${x.id}` === id); if (p) onAdd(p) })
+    return () => onShow([], [], () => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, cur])
+
+  if (pl.error) return <p className="da-error">{routeFriendly(pl.error)}</p>
+  if (pl.loading) return <p className="muted small">{L('এলাকার নাম আসছে…', 'Loading place names…')}</p>
+  return <div className="rt-card">
+    <div className="rt-bar">
+      <select value={String(cur)} onChange={e => setUpz(e.target.value === 'all' ? 'all' : Number(e.target.value))} style={{ flex: 1, minWidth: 0 }}>
+        <option value="all">{L('সব উপজেলা', 'All upazilas')}</option>
+        {pl.upazilas.map(u => <option key={u.code} value={u.code}>{lang === 'en' ? u.name : u.name_bn}{u.code === home ? L(' (হাবের উপজেলা)', ' (hub)') : ''}</option>)}
+      </select>
+      <select value={kind} onChange={e => setKind(e.target.value as PlaceKind | '')}>
+        <option value="">{L('সব ধরন', 'All kinds')}</option>
+        {(Object.keys(PLACE_KIND) as PlaceKind[]).map(k => <option key={k} value={k}>{L(PLACE_KIND[k].bn, PLACE_KIND[k].en)}</option>)}
+      </select>
+    </div>
+    <input placeholder={L('নাম দিয়ে খুঁজুন', 'Search by name')} value={q} onChange={e => setQ(e.target.value)} />
+    <p className="rt-hint">{L(`${n(list.length)}টা জায়গা, হাব থেকে কাছেরগুলো আগে। "+" চাপুন বা ম্যাপের হলুদ "+" চিহ্নে চাপুন।`, `${list.length} places, nearest first. Press "+" or the yellow "+" on the map.`)}</p>
+    <div className="rt-stops" style={{ maxHeight: '40vh' }}>{list.slice(0, 300).map(({ p, d }) => { const here = usedHere(p); const other = usedBy(p)
+      return <div key={p.id} className="rt-stop" style={{ gridTemplateColumns: 'minmax(0,1fr) auto' }}>
+        <div style={{ minWidth: 0 }}><b className="small">{placeName(p, lang)}</b>{!p.bn_checked && lang === 'bn' && p.name && <span className="muted small"> · {p.name}</span>}
+          <div className="rt-meta"><span>{L(PLACE_KIND[p.kind].bn, PLACE_KIND[p.kind].en)}</span>{isFinite(d) && <span>{fmtDist(d, fmt)}</span>}
+            {!hasGps(p) && <span>{L('লোকেশন নেই', 'no location')}</span>}{other && <span style={{ color: '#ea580c' }}>{L(`অন্য রুটে: ${other}`, `on ${other}`)}</span>}</div></div>
+        <span className="acts"><button type="button" className={here ? 'secondary' : ''} disabled={here} onClick={() => onAdd(p)} aria-label={L('যোগ', 'Add')}>{here ? '✓' : '+'}</button></span>
+      </div> })}
+      {list.length > 300 && <p className="muted small">{L('আরও আছে — নাম দিয়ে খুঁজুন', 'More — search by name')}</p>}</div>
+    <p className="muted small">{PLACE_SOURCES}</p>
+  </div>
+}
+
+// ---------------------------------------------------------------- the tab: route suggestions by upazila, and the place list
+export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
+  o: ZoneOverview; hubOf: Record<string, RouteHub>; initialHub: string
+  onBuild: (draft: { hub_id: string; name: string; color: string; stops: RouteStop[] }) => void
+}) {
+  const { can } = useAuth()
+  const { L, n, lang } = usePrefs()
+  const fmt = { L, n }
+  const pl = usePlaces()
+  const hubs = o.hubs.filter(h => hasGps(h))
+  const [hubId, setHubId] = useState(initialHub && hubOf[initialHub] ? initialHub : hubs[0]?.id ?? '')
+  const hub = hubOf[hubId]
+  const home = useMemo(() => hub && hasGps(hub) ? upazilaNear(hub as LatLng, pl.places) : null, [hub, pl.places])
+  const [ups, setUps] = useState<number[] | null>(null)
+  const chosen = ups ?? (home ? [home] : [])
+  const freeRiders = hub ? hub.staff.filter(s => s.rider && s.routes === 0).length : 0
+  const [count, setCount] = useState<number | null>(null)
+  const [maxStops, setMaxStops] = useState(Math.min(15, o.rules.max_stops))
+  const [kinds, setKinds] = useState<PlaceKind[]>(['village', 'para', 'market', 'town'])
+  const [onlyNew, setOnlyNew] = useState(true)
+  const [pick, setPick] = useState<number | null>(null)
+  const [edit, setEdit] = useState<Partial<Place> | null>(null)
+  const hubRoutes = o.routes.filter(r => r.hub_id === hubId)
+  const taken = hubRoutes.flatMap(r => r.stops.filter(hasGps)) as LatLng[]
+  const pool = pl.places.filter(p => !p.hidden && chosen.includes(p.upazila_code) && kinds.includes(p.kind))
+  const candidates = pool.filter(p => hasGps(p) && (!onlyNew || !nearAny(p as LatLng, taken)))
+  const covered = pool.filter(p => hasGps(p) && nearAny(p as LatLng, taken)).length
+  const n0 = count ?? Math.max(1, Math.min(8, freeRiders || Math.ceil(candidates.length / Math.max(maxStops, 1))))
+  const sug = useMemo(() => hub && hasGps(hub) ? suggestRoutes(hub as LatLng, candidates, n0, maxStops) : { groups: [], left: [] },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hubId, candidates.map(c => c.id).join(','), n0, maxStops])
+  const color = (i: number) => ROUTE_COLORS[(hubRoutes.length + i) % ROUTE_COLORS.length]
+  const upzName = (code: number) => { const u = pl.upazilas.find(x => x.code === code); return u ? (lang === 'en' ? u.name : u.name_bn) : '' }
+  const canEdit = o.can.edit_hubs.includes(hubId)
+  const canPlaces = can('ops.route_setting.edit')
+
+  const groupName = (g: Place[]) => {
+    if (!hub || !hasGps(hub) || !g.length) return ''
+    const c = { lat: g.reduce((t, p) => t + p.lat!, 0) / g.length, lng: g.reduce((t, p) => t + p.lng!, 0) / g.length }
+    return `${upzName(g[0].upazila_code)} ${direction(hub as LatLng, c)}`
+  }
+  const pins: MapPin[] = [
+    ...(hub && hasGps(hub) ? [{ id: 'hub', lat: hub.lat!, lng: hub.lng!, label: hub.name, num: 'H', square: true }] : []),
+    ...sug.groups.flatMap((g, i) => (pick === null || pick === i ? g : []).map((p, j) => ({ id: `g${i}:${p.id}`, lat: p.lat!, lng: p.lng!, label: `${n(j + 1)}. ${placeName(p, lang)}`, num: n(j + 1), color: color(i) }))),
+    ...taken.map((s, i) => ({ id: `t${i}`, lat: s.lat, lng: s.lng, label: L('আগের রুটের স্টপ', 'Existing stop'), num: '•', tone: 'off' as const })),
+  ]
+  const lines: MapLine[] = [
+    ...chosen.flatMap(c => boundaryLine(pl.upazilas.find(u => u.code === c))),
+    ...sug.groups.map((g, i) => ({ id: `l${i}`, color: color(i), points: [[hub!.lat!, hub!.lng!] as [number, number], ...g.map(p => [p.lat!, p.lng!] as [number, number])], dashed: true, width: pick === i ? 5 : 3, opacity: pick === null || pick === i ? 0.85 : 0.2 })),
+  ]
+
+  if (pl.error) return <p className="da-error">{routeFriendly(pl.error)}</p>
+  return <>
+    <section className="panel">
+      <div className="da-bar"><h2>{L('উপজেলা ধরে রুট সাজেশন', 'Route suggestions by upazila')}</h2></div>
+      <p className="rt-hint">{L('হাব বাছুন — হাবের উপজেলার সব গ্রাম, পাড়া আর বাজার নিজে থেকে আসবে। সিস্টেম দিক অনুযায়ী ভাগ করে রুট সাজিয়ে দেবে; পছন্দ হলে "এই রুট বানান" চেপে দেখে-শুনে সেভ করুন।',
+        'Pick a hub: every village, para and market of its upazila comes up, split by direction into routes. Press "Build this route" to check and save.')}</p>
+      <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
+        <Field label={L('হাব', 'Hub')}><select value={hubId} onChange={e => { setHubId(e.target.value); setUps(null); setCount(null); setPick(null) }}>
+          {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
+        <Field label={L('কয়টা রুট', 'How many routes')} hint={freeRiders ? L(`রুট ছাড়া রাইডার ${n(freeRiders)} জন`, `${freeRiders} riders without route`) : undefined}>
+          <input type="number" min={1} max={20} value={n0} onChange={e => setCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} /></Field>
+        <Field label={L('এক রুটে সর্বোচ্চ স্টপ', 'Most stops per route')}><input type="number" min={2} max={o.rules.max_stops} value={maxStops}
+          onChange={e => setMaxStops(Math.max(2, Math.min(o.rules.max_stops, Number(e.target.value) || 2)))} /></Field>
+        <Field label={L('শুধু যেগুলো এখনো কোনো রুটে নেই', 'Only places not on a route yet')}><label className="small"><input type="checkbox" style={{ width: 'auto', marginRight: 6 }}
+          checked={onlyNew} onChange={e => setOnlyNew(e.target.checked)} />{onlyNew ? L('হ্যাঁ', 'Yes') : L('না, সব', 'No, all')}</label></Field>
+      </div>
+      <div className="rt-bar" style={{ margin: '6px 0' }}><span className="small muted">{L('উপজেলা:', 'Upazilas:')}</span>
+        {pl.upazilas.map(u => { const on = chosen.includes(u.code)
+          return <button key={u.code} type="button" className={on ? 'sm' : 'secondary sm'} onClick={() => setUps(on ? chosen.filter(c => c !== u.code) : [...chosen, u.code])}>
+            {lang === 'en' ? u.name : u.name_bn}{u.code === home ? ' ★' : ''}</button> })}</div>
+      <div className="rt-bar" style={{ marginBottom: 6 }}><span className="small muted">{L('কী কী নেবে:', 'Include:')}</span>
+        {(Object.keys(PLACE_KIND) as PlaceKind[]).map(k => { const on = kinds.includes(k)
+          return <button key={k} type="button" className={on ? 'sm' : 'secondary sm'} onClick={() => setKinds(on ? kinds.filter(x => x !== k) : [...kinds, k])}>{L(PLACE_KIND[k].bn, PLACE_KIND[k].en)}</button> })}</div>
+      <div className="da-stats">
+        <Stat icon="map" label={L('বাছাই করা এলাকায় জায়গা', 'Places in the chosen area')} value={n(pool.length)} sub={L(`লোকেশনসহ ${n(pool.filter(hasGps).length)}`, `${pool.filter(hasGps).length} with location`)} />
+        <Stat icon="check" tone="ok" label={L('আগেই কোনো রুটে', 'Already on a route')} value={n(covered)} />
+        <Stat icon="alert" tone={candidates.length ? 'warn' : undefined} label={L('রুটে নেওয়া বাকি', 'Not on a route yet')} value={n(pool.filter(p => hasGps(p) && !nearAny(p as LatLng, taken)).length)} />
+        <Stat icon="truck" label={L('সাজেশন', 'Suggested')} value={L(`${n(sug.groups.length)}টা রুট`, `${sug.groups.length} routes`)}
+          sub={sug.left.length ? L(`${n(sug.left.length)}টা জায়গা বাদ (স্টপের সীমা)`, `${sug.left.length} left out (stop limit)`) : undefined} />
+      </div>
+      {!hub || !hasGps(hub) ? <p className="da-error">{L('এই হাবের GPS নেই — আগে হাব তালিকা ও ম্যাপ থেকে হাবের লোকেশন দিন।', 'This hub has no GPS.')}</p> :
+      <div className="rt-layout">
+        <OsmMap pins={pins} lines={lines} height={500} tags={pick === null ? 'selected' : 'all'} />
+        <div className="rt-list">
+          {pl.loading && <p className="muted small">{L('এলাকার নাম আসছে…', 'Loading place names…')}</p>}
+          {!pl.loading && !sug.groups.length && <p className="muted">{L('এই এলাকায় রুটে নেওয়ার মতো নতুন জায়গা নেই।', 'No new places to put on a route here.')}</p>}
+          {sug.groups.map((g, i) => { const km = lineKm(hub as LatLng, g)
+            return <article key={i} className={`rt-card${pick === i ? ' on' : ''}`}>
+              <header><span className="rt-sw" style={{ background: color(i) }} /><b role="button" tabIndex={0} onClick={() => setPick(pick === i ? null : i)}
+                onKeyDown={e => { if (e.key === 'Enter') setPick(pick === i ? null : i) }}>{L(`সাজেশন ${n(i + 1)}`, `Suggestion ${i + 1}`)}: {groupName(g)}</b></header>
+              <div className="rt-meta"><span>{L(`${n(g.length)}টা স্টপ`, `${g.length} stops`)}</span><span>≈ {fmtKm(km * 1.3, fmt)}</span>
+                <span>≈ {n(Math.round(estimate(km * 1.3, g.length, o.rules) / 6) / 10)} {L('ঘণ্টা', 'h')}</span></div>
+              <div className="small">{g.map(p => placeName(p, lang)).join(' → ')}</div>
+              {canEdit && <div className="rt-bar"><button className="sm" onClick={() => onBuild({ hub_id: hubId, name: groupName(g), color: color(i), stops: g.map(p => placeToStop(p, lang)) })}>
+                <Icon name="plus" size={14} />{L('এই রুট বানান', 'Build this route')}</button></div>}
+            </article> })}
+        </div>
+      </div>}
+    </section>
+
+    <section className="panel">
+      <div className="da-bar"><h2>{L('এলাকার নাম (গ্রাম, পাড়া, বাজার, ইউনিয়ন)', 'Place names')}</h2>
+        {canPlaces && <button onClick={() => setEdit({ upazila_code: chosen[0] ?? pl.upazilas[0]?.code, kind: 'village', name_bn: '', lat: null, lng: null })}><Icon name="plus" size={15} />{L('নতুন জায়গা', 'New place')}</button>}</div>
+      <p className="rt-hint">{L('গ্রামের বাংলা নাম যন্ত্রে বানানো, অনেক বানান ভুল থাকতে পারে — "বানান ঠিক" চাপে ঠিক করুন। ভুল বা একই জায়গা দুবার থাকলে লুকিয়ে দিন। তালিকায় না থাকা পাড়া/মহল্লা "নতুন জায়গা" দিয়ে যোগ করুন।',
+        'Bangla village names were machine-made: fix spellings, hide wrong ones, add missing paras.')}</p>
+      <DataTable<Place> title={L('এলাকার নাম', 'Place names')} file="route-places" prefKey="route-places" rows={pl.places.filter(p => chosen.includes(p.upazila_code))} rowKey={p => p.id}
+        empty={<p className="muted">{pl.loading ? L('লোড হচ্ছে…', 'Loading…') : L('উপরে উপজেলা বাছুন', 'Pick an upazila above')}</p>}
+        cols={[
+          { key: 'bn', label: L('নাম', 'Name'), value: p => p.name_bn ?? '', render: p => <>{p.name_bn ?? '—'}{!p.bn_checked && p.source === 'geonames' && <> <Badge tone="warn">{L('বানান দেখুন', 'check')}</Badge></>}{p.hidden && <> <Badge>{L('লুকানো', 'hidden')}</Badge></>}</> },
+          { key: 'en', label: L('ইংরেজিতে', 'English'), value: p => p.name ?? '' },
+          { key: 'kind', label: L('ধরন', 'Kind'), value: p => L(PLACE_KIND[p.kind].bn, PLACE_KIND[p.kind].en) },
+          { key: 'upz', label: L('উপজেলা', 'Upazila'), value: p => upzName(p.upazila_code) },
+          { key: 'route', label: L('রুটে আছে', 'On a route'), value: p => hasGps(p) && nearAny(p as LatLng, taken) ? L('হ্যাঁ', 'yes') : '' },
+          { key: 'loc', label: L('লোকেশন', 'Location'), value: p => hasGps(p) ? `${p.lat}, ${p.lng}` : '' },
+          ...(canPlaces ? [{ key: 'act', label: '', noExport: true, value: () => '', render: (p: Place) => <span className="row-acts">
+            <button className="secondary sm" onClick={e => { e.stopPropagation(); setEdit(p) }}><Icon name="edit" size={13} />{L('বানান ঠিক', 'Fix')}</button>
+            <button className="secondary sm" onClick={async e => { e.stopPropagation()
+              const why = p.hidden ? '' : window.prompt(L(`"${placeName(p)}" কেন লুকাবেন?`, 'Why hide it?')) ?? ''
+              if (!p.hidden && !why.trim()) return
+              try { await placesApi.hide(p.id, !p.hidden, why); await pl.setData(await placesApi.load(true)) } catch (er) { window.alert(routeFriendly(er)) } }}>
+              {p.hidden ? L('দেখান', 'Show') : L('লুকান', 'Hide')}</button></span> }] : []),
+        ]} />
+      <p className="muted small">{PLACE_SOURCES}</p>
+    </section>
+    {edit && <PlaceForm place={edit} upazilas={pl.upazilas} onClose={() => setEdit(null)} onSaved={async () => { setEdit(null); pl.setData(await placesApi.load(true)) }} />}
+  </>
+}
+
+function PlaceForm({ place, upazilas, onClose, onSaved }: { place: Partial<Place>; upazilas: Upazila[]; onClose: () => void; onSaved: () => void }) {
+  const { L, lang } = usePrefs()
+  const [f, setF] = useState({ ...place })
+  const [loc, setLoc] = useState(hasGps({ lat: place.lat ?? null, lng: place.lng ?? null }) ? `${place.lat}, ${place.lng}` : '')
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
+  const u = upazilas.find(x => x.code === f.upazila_code)
+  async function save() {
+    const ll = loc.trim() ? parseLocation(loc) : null
+    if (loc.trim() && !ll) return setErr(L('লোকেশন বোঝা যায়নি', 'Location not understood'))
+    if (!(f.name_bn ?? '').trim()) return setErr(L('বাংলা নাম দিন', 'Give the Bangla name'))
+    setBusy(true); setErr('')
+    try { await placesApi.save({ id: f.id, upazila_code: f.upazila_code!, name_bn: f.name_bn!.trim(), name: f.name ?? null, kind: f.kind ?? 'village', lat: ll?.lat ?? null, lng: ll?.lng ?? null, note: f.note ?? null, bn_checked: true }); onSaved() }
+    catch (e) { setErr(routeFriendly(e)) } finally { setBusy(false) }
+  }
+  const ll = parseLocation(loc)
+  return <Modal title={f.id ? L('জায়গার নাম ঠিক করুন', 'Fix the place') : L('নতুন জায়গা', 'New place')} onClose={onClose}
+    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
+    <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <Field label={L('বাংলা নাম', 'Bangla name')} required><input value={f.name_bn ?? ''} onChange={e => setF({ ...f, name_bn: e.target.value })} /></Field>
+      <Field label={L('ইংরেজি নাম', 'English name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
+      <Field label={L('ধরন', 'Kind')}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as PlaceKind })}>
+        {(Object.keys(PLACE_KIND) as PlaceKind[]).map(k => <option key={k} value={k}>{L(PLACE_KIND[k].bn, PLACE_KIND[k].en)}</option>)}</select></Field>
+      <Field label={L('উপজেলা', 'Upazila')}><select value={f.upazila_code} onChange={e => setF({ ...f, upazila_code: Number(e.target.value) })}>
+        {upazilas.map(x => <option key={x.code} value={x.code}>{lang === 'en' ? x.name : x.name_bn}</option>)}</select></Field>
+      <Field label={L('লোকেশন (ম্যাপে চাপুন, বা lat, lng / লিংক)', 'Location (tap the map, or lat, lng / link)')} wide><input value={loc} onChange={e => setLoc(e.target.value)} /></Field>
+    </div>
+    <OsmMap height={260} pins={ll ? [{ id: 'p', lat: ll.lat, lng: ll.lng, label: f.name_bn || '' }] : []} lines={boundaryLine(u)} onPick={(lat, lng) => setLoc(`${lat}, ${lng}`)} tags="all" />
+    {err && <p className="da-error">{err}</p>}
+  </Modal>
+}

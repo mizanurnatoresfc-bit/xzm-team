@@ -197,3 +197,78 @@ export function routeLine(r: Pick<ZoneRoute, 'road_path' | 'stops'>, hub: { lat:
   return { points: pts, road: false }
 }
 
+
+// ---------------------------------------------------------------- area names (Natore upazilas, villages, markets, unions)
+export type Upazila = { code: number; district: string; district_bn: string; name: string; name_bn: string; boundary: Array<[number, number]> | null }
+export type PlaceKind = 'village' | 'para' | 'market' | 'union' | 'town' | 'other'
+export type Place = { id: string; upazila_code: number; kind: PlaceKind; name: string | null; name_bn: string | null; bn_checked: boolean
+  lat: number | null; lng: number | null; source: 'geonames' | 'osm' | 'bbs' | 'manual'; hidden: boolean; hidden_reason: string | null; note: string | null }
+export const PLACE_KIND: Record<PlaceKind, { bn: string; en: string }> = {
+  village: { bn: 'গ্রাম', en: 'Village' }, para: { bn: 'পাড়া / মহল্লা', en: 'Para' }, market: { bn: 'বাজার / হাট', en: 'Market' },
+  union: { bn: 'ইউনিয়ন', en: 'Union' }, town: { bn: 'শহর', en: 'Town' }, other: { bn: 'অন্যান্য', en: 'Other' },
+}
+export const placeName = (p: Pick<Place, 'name' | 'name_bn'>, lang: 'bn' | 'en' = 'bn') => (lang === 'en' ? p.name || p.name_bn : p.name_bn || p.name) || ''
+export const stopKindOf = (k: PlaceKind): StopKind => k === 'market' ? 'landmark' : 'area'
+export const PLACE_SOURCES = 'গ্রাম: GeoNames (CC BY 4.0) · বাজার: © OpenStreetMap contributors (ODbL) · উপজেলার সীমানা: geoBoundaries (CC BY 4.0) · ইউনিয়ন: সরকারি নাম'
+
+let placeCache: Promise<{ upazilas: Upazila[]; places: Place[] }> | null = null
+export const placesApi = {
+  /** Every upazila and place (hidden ones too; pickers leave them out). Kept in memory for the session. */
+  load: (fresh = false) => {
+    if (!placeCache || fresh) placeCache = (async () => {
+      const [u, p] = await Promise.all([
+        supabase.from('geo_upazilas').select('code, district, district_bn, name, name_bn, boundary').order('code'),
+        supabase.from('route_places').select('id, upazila_code, kind, name, name_bn, bn_checked, lat, lng, source, hidden, hidden_reason, note').order('name_bn').range(0, 9999),
+      ])
+      if (u.error) throw new RouteError(u.error.message, u.error.code)
+      if (p.error) throw new RouteError(p.error.message, p.error.code)
+      return { upazilas: (u.data ?? []) as Upazila[], places: ((p.data ?? []) as Place[]).map(x => ({ ...x, lat: numOrNull(x.lat), lng: numOrNull(x.lng) })) }
+    })().catch(e => { placeCache = null; throw e })
+    return placeCache
+  },
+  save: (p: { id?: string; upazila_code: number; name_bn: string; name?: string | null; kind: PlaceKind; lat: number | null; lng: number | null; note?: string | null; bn_checked?: boolean }) =>
+    rpc<string>('route_place_save', { p }),
+  hide: (id: string, hidden: boolean, reason?: string) => rpc<void>('route_place_hide', { p_id: id, p_hidden: hidden, p_reason: reason || null }),
+}
+
+/** The upazila a point is in: most of the 7 nearest places with a location (works for Naldanga too, which has no boundary). */
+export function upazilaNear(pt: LatLng, places: Place[]): number | null {
+  const near = places.filter(p => !p.hidden && hasGps(p)).map(p => ({ u: p.upazila_code, d: meters(pt, p as LatLng) })).sort((a, b) => a.d - b.d).slice(0, 7)
+  if (!near.length) return null
+  const c = new Map<number, number>(); near.forEach((x, i) => c.set(x.u, (c.get(x.u) ?? 0) + 7 - i))
+  return [...c.entries()].sort((a, b) => b[1] - a[1])[0][0]
+}
+/** Compass direction from a to b, in Bangla. */
+export function direction(a: LatLng, b: LatLng) {
+  const deg = (bearing(a, b) + 360 + 22.5) % 360
+  return ['উত্তর', 'উত্তর-পূর্ব', 'পূর্ব', 'দক্ষিণ-পূর্ব', 'দক্ষিণ', 'দক্ষিণ-পশ্চিম', 'পশ্চিম', 'উত্তর-পশ্চিম'][Math.floor(deg / 45)]
+}
+function bearing(a: LatLng, b: LatLng) {
+  const r = Math.PI / 180, y = Math.sin((b.lng - a.lng) * r) * Math.cos(b.lat * r)
+  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lng - a.lng) * r)
+  return (Math.atan2(y, x) / r + 360) % 360
+}
+/** Is this place already a stop (within `m` metres of one)? */
+export const nearAny = (p: LatLng, stops: LatLng[], m = 250) => stops.some(s => meters(p, s) <= m)
+
+/**
+ * Route suggestion: the places around the hub are cut into `n` slices by direction (like slices of a cake, starting at the widest
+ * empty gap), each slice at most `maxStops` places, nearest first; then each slice is put in the shortest order from the hub.
+ */
+export function suggestRoutes(hub: LatLng, places: Place[], n: number, maxStops: number): { groups: Place[][]; left: Place[] } {
+  const pts = places.filter(hasGps)
+  if (!pts.length || n < 1) return { groups: [], left: pts }
+  const withB = pts.map(p => ({ p, b: bearing(hub, p as LatLng), d: meters(hub, p as LatLng) })).sort((x, y) => x.b - y.b)
+  let gapAt = 0, gap = -1
+  withB.forEach((x, i) => { const next = withB[(i + 1) % withB.length].b + (i === withB.length - 1 ? 360 : 0); if (next - x.b > gap) { gap = next - x.b; gapAt = (i + 1) % withB.length } })
+  const ring = [...withB.slice(gapAt), ...withB.slice(0, gapAt)]
+  const size = Math.ceil(ring.length / n)
+  const groups: Place[][] = [], left: Place[] = []
+  for (let g = 0; g < n; g++) {
+    const slice = ring.slice(g * size, (g + 1) * size).sort((a, b) => a.d - b.d)
+    left.push(...slice.slice(maxStops).map(x => x.p))
+    const keep = slice.slice(0, maxStops).map(x => x.p)
+    if (keep.length) groups.push(bestOrder(hub, keep))
+  }
+  return { groups, left }
+}

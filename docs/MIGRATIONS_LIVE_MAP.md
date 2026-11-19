@@ -89,6 +89,7 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261119000100_nodi_features.sql` | 20261119082756 nodi_features (file text without the header comment; replaced functions checked equal to the repository by hash before applying) |
 | `20261119020000_zone_group_and_contact.sql` | zone_group_and_contact — objects live, no `schema_migrations` row (approval came after the call timed out); all 12 function bodies checked equal to the repository by hash |
 | `20261119030000_route_settings.sql` | route_settings — objects live, no `schema_migrations` row (applied after the tool's approval timed out); all 17 function bodies checked equal to the tested file by hash |
+| `20261119040000_route_places.sql` | route_places — objects live, no `schema_migrations` row (run in five parts in the SQL Editor); 3 function bodies equal by hash, 7 upazilas and 665 places counted |
 
 **Check of 18 Nov 2026 (after the three files above were added):** a database built only from this repository and the live database have the same
 613 functions in `public` and `private`, with the same code (compared by hash with comments, spacing and Windows line breaks ignored — 174 live
