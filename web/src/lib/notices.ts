@@ -5,10 +5,10 @@ import { useSyncExternalStore } from 'react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 
-export type Notice = { id: string; title: string; body: string | null; link: string | null; kind: string | null; created_at: string; read_at: string | null }
+export type Notice = { id: string; title: string; body: string | null; link: string | null; kind: string | null; created_at: string; read_at: string | null; priority?: 'low' | 'normal' | 'high' | 'urgent' }
 type State = { user: string | null; list: Notice[]; unread: number; live: boolean; fresh: Notice | null }
 
-const COLS = 'id,title,body,link,kind,created_at,read_at'
+const COLS = 'id,title,body,link,kind,created_at,read_at,priority'
 let state: State = { user: null, list: [], unread: 0, live: false, fresh: null }
 const subs = new Set<() => void>()
 const emit = (p: Partial<State>) => { state = { ...state, ...p }; subs.forEach(f => f()) }
@@ -85,6 +85,7 @@ export const NOTICE_KIND: Record<string, [string, string, string]> = {
   hr_request: ['এইচআর রিকুয়েস্ট', 'HR requests', 'form'], issue: ['ইস্যু ও কাজ', 'Issues & tasks', 'tasks'], vehicle: ['গাড়ি', 'Vehicles', 'truck'],
   office: ['অফিস', 'Office', 'home'], attendance: ['হাজিরা', 'Attendance', 'cal'], manpower: ['লোক লাগবে', 'Manpower', 'users'],
   da_reminder: ['হিসাব খাতা', 'Daily sheet', 'ledger'], nodi: ['নদী AI', 'Nodi AI', 'bell'], hub_ops: ['হাব অপারেশন রিপোর্ট', 'Hub operation reports', 'chart'],
+  notice: ['নোটিশ বোর্ড', 'Notice board', 'bell'], reminder: ['রিমাইন্ডার', 'Reminders', 'clock'], task: ['দায়িত্ব ও ডেডলাইন', 'Tasks & deadlines', 'tasks'],
 }
 export const kindOf = (k: string | null) => NOTICE_KIND[k ?? ''] ?? ['অন্যান্য', 'Other', 'bell']
 

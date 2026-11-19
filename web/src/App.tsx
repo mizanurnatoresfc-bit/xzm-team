@@ -70,6 +70,7 @@ const UserAccess = lazy(() => import('./pages/access/UserAccess').then(m => ({ d
 const Fleet = lazy(() => import('./pages/fleet/Fleet').then(m => ({ default: m.Fleet })))
 const FleetMine = lazy(() => import('./pages/fleet/FleetMine').then(m => ({ default: m.FleetMine })))
 const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ default: m.StaffPanel })))
+const NoticeBoard = lazy(() => import('./pages/NoticeBoard').then(m => ({ default: m.NoticeBoard })))
 const References = lazy(() => import('./pages/References').then(m => ({ default: m.References })))
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
@@ -165,6 +166,7 @@ export default function App() {
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />
+      <Route path="/app/notices" element={<NoticeBoard />} />
       <Route path="/app/references" element={<References />} />
       <Route path="/app/me" element={<MyProfile />} />
       <Route path="/app/me/complete" element={<MyProfileComplete />} />

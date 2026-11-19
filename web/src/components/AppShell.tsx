@@ -85,6 +85,7 @@ export const GROUPS: Group[] = [
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
     { bn: 'কর্মী ও এইচআর', en: 'Staff & HR', items: [
+      { to: '/app/notices', icon: 'bell', bn: 'নোটিশ বোর্ড ও রিমাইন্ডার', en: 'Notice board & reminders', perms: null },
       { to: '/app/references', icon: 'users', bn: 'রেফারেন্স তালিকা', en: 'Reference list', perms: null },
       { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
       { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
