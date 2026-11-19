@@ -9,29 +9,16 @@ import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import {
-  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, office, PLACE_KIND, ROOM_DEFAULT, ROOM_KIND,
-  type Asset, type Desk, type PlaceKind, type Property, type Room,
+  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, office, OFFICE_PARTS, PLACE_KIND, ROOM_DEFAULT, ROOM_KIND,
+  type Asset, type OfficeSec, type Desk, type PlaceKind, type Property, type Room,
 } from '../../lib/office'
 import { POWER } from '../../lib/officeOps'
 import { Bills, LendModal, NoticeModal, Notices, People, Power, Rent, roomSplit, Security, useLoans, Zone, type Ctx } from './OfficeOps'
 import { useOrg } from '../hr/common'
 import { EmpPicker, empLabel } from '../sorting/Sorting'
 
-type Sec = 'overview' | 'places' | 'rooms' | 'desks' | 'assets' | 'rent' | 'bills' | 'power' | 'security' | 'people' | 'notices' | 'zone'
-const SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: string; perms: string[] }> = [
-  { key: 'overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
-  { key: 'places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
-  { key: 'rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ (রুম ও দিক)', en: 'Flat details (rooms & direction)', perms: ['office.property.view'] },
-  { key: 'desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
-  { key: 'assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
-  { key: 'rent', icon: 'cash', bn: 'ভাড়া ও চুক্তি', en: 'Rent & contract', perms: ['office.bill.view', 'office.property.edit'] },
-  { key: 'bills', icon: 'receipt', bn: 'বিদ্যুৎ ও ওয়াইফাই বিল', en: 'Electricity & wifi bills', perms: ['office.bill.view'] },
-  { key: 'power', icon: 'sun', bn: 'ইলেকট্রনিক ও বিদ্যুৎ হিসাব', en: 'Devices & power', perms: ['office.asset.view'] },
-  { key: 'security', icon: 'key', bn: 'গাড়ি, তালা, সিসি ও পাসওয়ার্ড', en: 'Vehicles, locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'] },
-  { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who lives here', perms: ['office.property.view'] },
-  { key: 'notices', icon: 'bell', bn: 'নষ্ট / লাগবে রিপোর্ট', en: 'Broken / needed reports', perms: ['office.notice.create', 'office.notice.approve'] },
-  { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.asset.view'] },
-]
+type Sec = OfficeSec
+const SECTIONS = OFFICE_PARTS
 const PKEY = 'xzm_office_property'
 
 export function Office() {
@@ -64,7 +51,7 @@ export function Office() {
     <section className="da-filters panel no-print hub-top">
       {sec.key !== 'places' && <Field label={L('অফিস / আবাসিক', 'Office / residence')}><select value={pid} onChange={e => setPid(e.target.value)}>
         {list.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>}
-      <nav className="hub-tabs" aria-label={L('অফিস ম্যানেজমেন্ট', 'Office management')}>
+      <nav className="hub-tabs" aria-label={L('আমার অফিস', 'My office')}>
         {tabs.map(t => <Link key={t.key} to={`/app/office/${t.key}`} className={t.key === sec.key ? 'on' : ''}><Icon name={t.icon} size={15} /><span>{L(t.bn, t.en)}</span></Link>)}
       </nav>
     </section>

@@ -90,3 +90,39 @@ export const office = {
     const { error } = await supabase.from('office_assets').insert(rows); fail(error)
   },
 }
+
+/**
+ * "আমার অফিস" — the office menu of its own, arranged by what the database keeps (owner, 19 Nov 2026).
+ * One list for the side menu and the tabs of the office page; `perms` are the ones the page itself checks.
+ */
+export type OfficeSec = 'overview' | 'places' | 'rooms' | 'desks' | 'people' | 'assets' | 'power' | 'rent' | 'bills' | 'security' | 'notices' | 'zone'
+export type OfficePart = { key: OfficeSec; icon: string; bn: string; en: string; perms: string[] }
+export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] }> = [
+  { bn: 'এক নজরে', en: 'At a glance', parts: [
+    { key: 'overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
+    { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.asset.view'] },
+  ] },
+  // office_properties · office_rooms · office_desks · office_residents
+  { bn: 'জায়গা ও মানুষ', en: 'Places & people', parts: [
+    { key: 'places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
+    { key: 'rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ (রুম ও দিক)', en: 'Flat details (rooms & direction)', perms: ['office.property.view'] },
+    { key: 'desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
+    { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who lives here', perms: ['office.property.view'] },
+  ] },
+  // office_assets · office_asset_loans
+  { bn: 'জিনিসপত্র', en: 'Things', parts: [
+    { key: 'assets', icon: 'box', bn: 'অফিসের রিসোর্স ও ধার', en: 'Office resources & loans', perms: ['office.asset.view', 'office.asset.edit'] },
+    { key: 'power', icon: 'sun', bn: 'ইলেকট্রনিক ও বিদ্যুৎ হিসাব', en: 'Devices & power', perms: ['office.asset.view'] },
+  ] },
+  // rent and contract on office_properties · office_bills
+  { bn: 'ভাড়া ও বিল', en: 'Rent & bills', parts: [
+    { key: 'rent', icon: 'cash', bn: 'ভাড়া ও চুক্তি', en: 'Rent & contract', perms: ['office.bill.view', 'office.property.edit'] },
+    { key: 'bills', icon: 'receipt', bn: 'বিদ্যুৎ ও ওয়াইফাই বিল', en: 'Electricity & wifi bills', perms: ['office.bill.view'] },
+  ] },
+  // office_secrets · office_notices
+  { bn: 'নিরাপত্তা ও রিপোর্ট', en: 'Security & reports', parts: [
+    { key: 'security', icon: 'key', bn: 'গাড়ি, তালা, সিসি ও পাসওয়ার্ড', en: 'Vehicles, locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'] },
+    { key: 'notices', icon: 'bell', bn: 'নষ্ট / লাগবে রিপোর্ট', en: 'Broken / needed reports', perms: ['office.notice.create', 'office.notice.approve'] },
+  ] },
+]
+export const OFFICE_PARTS: OfficePart[] = OFFICE_GROUPS.flatMap(g => g.parts)
