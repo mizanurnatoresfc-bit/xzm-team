@@ -367,6 +367,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
   // may open are listed in their own top panel, so a rider never gets a "manager" heading for one page.
   const level = panelLevel(can)
+  // Only show what this person can use: + needs at least one quick action, search needs the staff list.
+  const quickItems = QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to))
+  const canSearch = can('hr.employee.view')
   const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i)
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
@@ -423,12 +426,12 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <button className="icon menu-btn" aria-label={L('মেনু', 'Menu')} aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name="menu" /></button>
         {here !== '/app' && <button className="icon back-btn" aria-label={L('পেছনে', 'Back')} onClick={() => history.length > 1 ? nav(-1) : nav('/app')}><Icon name="back" /></button>}
         <div className="top-title"><b>{title}</b>{subtitle && <span>{subtitle}</span>}</div>
-        <form className={`search${mSearch ? ' m-open' : ''}`} role="search" onSubmit={e => { e.preventDefault(); if (q.trim()) { setMSearch(false); nav(`/app/hr/employees?q=${encodeURIComponent(q.trim())}`) } }}>
+        {canSearch && <form className={`search${mSearch ? ' m-open' : ''}`} role="search" onSubmit={e => { e.preventDefault(); if (q.trim()) { setMSearch(false); nav(`/app/hr/employees?q=${encodeURIComponent(q.trim())}`) } }}>
           <Icon name="search" size={16} /><input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('কর্মীর নাম, আইডি বা মোবাইল খুঁজুন…', 'Search employee name, ID or mobile…')} aria-label={L('খুঁজুন', 'Search')} />
-        </form>
+        </form>}
         <span className="spacer" />
-        <button className="quick-btn" aria-label={L('দ্রুত যোগ করুন', 'Quick add')} onClick={() => setQuick(true)}><Icon name="plus" size={22} /></button>
-        <button className="icon search-btn" aria-label={L('খুঁজুন', 'Search')} onClick={() => setMSearch(v => !v)}><Icon name="search" /></button>
+        {quickItems.length > 0 && <button className="quick-btn" aria-label={L('দ্রুত যোগ করুন', 'Quick add')} onClick={() => setQuick(true)}><Icon name="plus" size={22} /></button>}
+        {canSearch && <button className="icon search-btn" aria-label={L('খুঁজুন', 'Search')} onClick={() => setMSearch(v => !v)}><Icon name="search" /></button>}
         <div className="rel" ref={pop === 'bell' ? popRef : undefined}>
           <button className="icon" aria-label={L('নোটিফিকেশন', 'Notifications')} onClick={() => setPop(pop === 'bell' ? null : 'bell')}><Icon name="bell" />
             {totalAlerts > 0 && <span className="dotn">{n(totalAlerts)}</span>}</button>
@@ -483,7 +486,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     {quick && <div className="sheet-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={L('দ্রুত যোগ করুন', 'Quick add')}>
         <div className="sheet-grab" /><div className="sheet-hd"><b>{L('দ্রুত কাজ', 'Quick actions')}</b><button className="icon" aria-label={L('বন্ধ', 'Close')} onClick={() => setQuick(false)}><Icon name="x" /></button></div>
-        <div className="quick-grid">{QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to)).map(x => <Link key={x.to + x.bn} to={x.to} className={`quick-tile t-${x.tone}`} onClick={() => setQuick(false)}>
+        <div className="quick-grid">{quickItems.map(x => <Link key={x.to + x.bn} to={x.to} className={`quick-tile t-${x.tone}`} onClick={() => setQuick(false)}>
           <span className="qi"><Icon name={x.icon} size={24} /></span><span>{L(x.bn, x.en)}</span></Link>)}</div>
       </div>
     </div>}
