@@ -2935,3 +2935,68 @@ body{overflow-wrap:break-word}
   .bn-plus:focus-visible>span{outline:3px solid color-mix(in srgb,var(--primary) 45%,transparent);outline-offset:2px}
 }
 @media (max-width:960px){button.hide-phone-plus{display:none!important}}
+
+/* =====================================================================
+   Side menu, modern (owner, 19 Nov: "Menu modern UI with icon").
+   Every link gets a soft coloured icon tile; each panel has its own colour; the open page is a filled pill.
+   The three personal shortcuts become tiles. No markup change: the link's own <svg> is drawn as the tile.
+   ===================================================================== */
+.side{--tone:var(--tone-g)}
+.ngrp[data-panel="self"]{--tone:var(--tone-g)}
+.ngrp[data-panel="hub"]{--tone:var(--tone-b)}
+.ngrp[data-panel="zone"]{--tone:var(--tone-p)}
+.ngrp[data-panel="accounts"]{--tone:var(--tone-c)}
+.ngrp[data-panel="office"]{--tone:var(--tone-o)}
+.ngrp:not([data-panel="self"]):not([data-panel="hub"]):not([data-panel="zone"]):not([data-panel="accounts"]):not([data-panel="office"]){--tone:var(--tone-r)}
+
+/* links: icon tile · name · count */
+.side a.nl{gap:12px!important;padding:6px 10px 6px 8px!important;border-radius:14px!important;font-weight:500;color:var(--side-fg)}
+.side a.nl>svg.ic{flex:none;width:34px!important;height:34px!important;padding:8px;box-sizing:border-box;border-radius:11px;
+  background:color-mix(in srgb,var(--tone) 12%,var(--surface));color:var(--tone);transition:background .15s,color .15s}
+.side a.nl:hover{background:color-mix(in srgb,var(--tone) 6%,transparent)!important}
+.side a.nl.active{background:color-mix(in srgb,var(--tone) 12%,var(--surface))!important;color:color-mix(in srgb,var(--tone) 80%,var(--text))!important;font-weight:700;box-shadow:none!important}
+.side a.nl.active>svg.ic{background:var(--tone);color:#fff;box-shadow:0 4px 10px color-mix(in srgb,var(--tone) 35%,transparent)}
+.side a.nl .count{background:color-mix(in srgb,var(--tone) 16%,var(--surface))!important;color:color-mix(in srgb,var(--tone) 85%,var(--text))!important;
+  border-radius:999px;padding:1px 9px;font-size:12.5px;font-weight:700;min-width:24px;text-align:center}
+
+/* panel headers: a bigger tile in the panel's colour, clean chevron */
+.ngh{gap:12px!important;padding:8px 10px 8px 8px!important;border-radius:14px!important;font-weight:700!important;margin-top:6px}
+.ngh .gi{width:38px!important;height:38px!important;border-radius:12px!important;background:color-mix(in srgb,var(--tone) 14%,var(--surface))!important;color:var(--tone)!important}
+.ngrp.has-on>.ngh{color:color-mix(in srgb,var(--tone) 80%,var(--text))!important}
+.ngrp.has-on>.ngh .gi{background:var(--tone)!important;color:#fff!important}
+.ngh .chev{width:26px;height:26px;border-radius:8px;display:grid!important;place-items:center;background:var(--canvas)}
+.ngrp.open .chev{transform:rotate(90deg)}
+/* items under a panel: no rail, just a small indent */
+.ngi{border-left:0!important;margin:2px 0 4px 8px!important;padding-left:6px!important;gap:2px!important}
+.ngi a.nl>svg.ic{width:32px!important;height:32px!important;padding:7.5px}
+.nsec{margin:10px 0 2px!important;padding:0 10px!important;font-size:12px!important;font-weight:700!important;letter-spacing:.04em;color:var(--side-muted)!important;text-transform:uppercase}
+
+/* who is signed in */
+.side-user{gap:12px!important;padding:12px!important;border-radius:18px!important;margin:0 2px 10px!important;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--tone-g) 12%,var(--surface)),color-mix(in srgb,var(--tone-c) 8%,var(--surface)))!important;
+  border:1px solid color-mix(in srgb,var(--tone-g) 18%,var(--border))}
+.side-user .avatar{width:46px!important;height:46px!important;flex:none;border-radius:14px!important;display:grid;place-items:center;font-weight:800;font-size:16px;
+  background:var(--primary)!important;color:#fff!important;text-transform:uppercase}
+.side-user b{font-size:15px!important}
+
+/* the personal shortcuts (আমার লোক দেওয়া · হাতে লোক আছে · উপস্থিতি): three tiles */
+.side .wf-side{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px!important;margin:0 2px 10px!important}
+.side .wf-side a.nl{position:relative;flex-direction:column;justify-content:flex-start;gap:6px!important;padding:12px 6px 10px!important;min-height:0!important;
+  text-align:center;border:1px solid color-mix(in srgb,var(--tone) 18%,var(--border));background:color-mix(in srgb,var(--tone) 5%,var(--surface))}
+.side .wf-side a.nl:nth-child(3n+1){--tone:var(--tone-g)}.side .wf-side a.nl:nth-child(3n+2){--tone:var(--tone-b)}.side .wf-side a.nl:nth-child(3n+3){--tone:var(--tone-o)}
+.side .wf-side a.nl>svg.ic{width:40px!important;height:40px!important;padding:10px;border-radius:13px}
+.side .wf-side a.nl .t{white-space:normal!important;overflow:visible!important;font-size:12.5px;line-height:1.3;font-weight:600}
+.side .wf-side a.nl .count{position:absolute;top:6px;right:6px;padding:0 6px;font-size:11.5px;min-width:20px}
+
+/* search with a magnifier */
+/* (class repeated on purpose: must outrank the generic input:not(...)x4 field rule) */
+aside.side input.side-search.side-search.side-search{padding-left:42px!important;background:var(--canvas) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 14px 50%!important;
+  border-color:transparent!important;border-radius:14px!important}
+aside.side input.side-search.side-search.side-search:focus{border-color:var(--primary)!important;background-color:var(--surface)!important}
+.side-foot{font-size:12.5px!important;text-align:center;opacity:.85}
+
+/* collapsed desktop rail: tiles centred, no text */
+@media (min-width:961px){
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .wf-side{grid-template-columns:1fr}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .wf-side a.nl{border:0;background:none;padding:4px 0!important}
+}
