@@ -125,20 +125,34 @@ function Overview({ ctx }: { ctx: Ctx }) {
       <div className="da-bar"><h2>{L('অফিসের নকশা (দিক অনুযায়ী)', 'Layout by direction')}</h2>
         {floors.length > 1 && <span className="da-seg">{floors.map(f => <button key={f} className={f === fl ? 'sm' : 'secondary sm'} onClick={() => setFloor(f)}>{L(`${n(f)} তলা`, `Floor ${f}`)}</button>)}</span>}</div>
       {!ctx.rooms.length ? <p className="muted">{L('রুম যোগ করলে এখানে দিক অনুযায়ী নকশা দেখাবে।', 'Add rooms to see the layout here.')} <Link to="/app/office/rooms">{L('রুম যোগ করুন →', 'Add rooms →')}</Link></p> : <>
-        <div className="compass-wrap">
-          <span className="cmp n">{L('উত্তর', 'N')} ↑</span><span className="cmp s">↓ {L('দক্ষিণ', 'S')}</span><span className="cmp w">← {L('পশ্চিম', 'W')}</span><span className="cmp e">{L('পূর্ব', 'E')} →</span>
-          <div className="floor-grid">{DIR_GRID.map(d => { const rs = inFloor.filter(r => r.direction === d)
-            return <div key={d} className={`fcell${rs.length ? '' : ' empty'}${ctx.p.front_direction === d ? ' front' : ''}`}>
-              <span className="fdir">{L(DIR[d][0], DIR[d][1])}{ctx.p.front_direction === d ? ` · ${L('সামনের দিক', 'front')}` : ''}</span>
-              {rs.map(r => <div key={r.id} className={`froom k-${r.kind}`}>
-                <b><Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={14} /> {r.name}</b>
-                {r.responsible_id && <span className="muted small">{ctx.emp[r.responsible_id]?.full_name}</span>}
-                <div className="chips">{itemsOf(r.id).map(a => <span key={a.id} className={`chip${a.condition !== 'good' ? ' bad' : ''}`}>{ASSET_KIND[a.kind]?.[0] ?? a.name}{a.quantity > 1 ? ` ×${n(a.quantity)}` : ''}</span>)}</div>
-                {desksOf(r.id).map(dk => <div key={dk.id} className="fdesk"><Icon name="table" size={12} /> {dk.name}: {dk.responsible_id ? ctx.emp[dk.responsible_id]?.full_name : <span className="bad">{L('কেউ নেই', 'nobody')}</span>}
-                  <span className="muted"> · {n(ctx.assets.filter(a => a.desk_id === dk.id).length)} {L('জিনিস', 'items')}</span></div>)}
-              </div>)}
+        <p className="ofm-help"><Icon name="map" size={15} /><span>{L('উপরের দিক উত্তর ধরে আঁকা — যেমন ম্যাপে থাকে। প্রতিটা খোপ বাড়ির একটা দিক; রুমে চাপলে নিচে তার বিস্তারিত দেখাবে।', 'Drawn with north at the top, like a map. Each box is one side of the building; tap a room to see its details below.')}
+          {ctx.p.front_direction ? <> {L(`সবুজ দাগের খোপটা সামনের দিক (${DIR[ctx.p.front_direction]?.[0] ?? ''}) — ঢোকার দরজা।`, `The green box is the front (${DIR[ctx.p.front_direction]?.[1] ?? ''}) — the entrance.`)}</> : null}</span></p>
+        <div className="ofm">
+          <span className="ofm-c n">{L('উত্তর', 'N')}</span><span className="ofm-c s">{L('দক্ষিণ', 'S')}</span>
+          <span className="ofm-c w">{L('পশ্চিম', 'W')}</span><span className="ofm-c e">{L('পূর্ব', 'E')}</span>
+          <div className="ofm-grid">{DIR_GRID.map(d => { const rs = inFloor.filter(r => r.direction === d); const front = ctx.p.front_direction === d
+            return <div key={d} className={`ofm-cell${rs.length ? '' : ' empty'}${front ? ' front' : ''}`}>
+              <span className="ofm-dir">{L(DIR[d][0], DIR[d][1])}</span>
+              {rs.map(r => { const broken = ctx.assets.some(a => a.room_id === r.id && a.condition !== 'good')
+                return <a key={r.id} href={`#room-${r.id}`} className={`ofm-room k-${r.kind}`} title={L(ROOM_KIND[r.kind]?.[0] ?? '', ROOM_KIND[r.kind]?.[1] ?? '')}>
+                  <Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={14} /><span>{r.name}</span>{broken && <i className="ofm-dot" aria-label={L('নষ্ট জিনিস আছে', 'Has broken items')} />}</a> })}
+              {front && <span className="ofm-door">{L('সামনে · দরজা', 'Front · door')}</span>}
             </div> })}</div>
         </div>
+        <div className="ofm-legend">{[...new Set(inFloor.map(r => r.kind))].map(k => <span key={k} className={`k-${k}`}><i />{L(ROOM_KIND[k]?.[0] ?? k, ROOM_KIND[k]?.[1] ?? k)}</span>)}
+          {inFloor.some(r => ctx.assets.some(a => a.room_id === r.id && a.condition !== 'good')) && <span className="bad"><i />{L('নষ্ট / মেরামত দরকার', 'Broken / needs repair')}</span>}</div>
+
+        <div className="ofm-cards">{DIR_GRID.flatMap(d => inFloor.filter(r => r.direction === d)).map(r => { const items = itemsOf(r.id); const desks = desksOf(r.id)
+          return <article key={r.id} id={`room-${r.id}`} className={`ofm-card k-${r.kind}`}>
+            <header><span className="ofm-ic"><Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={18} /></span>
+              <span className="tx"><b>{r.name}</b><small>{L(ROOM_KIND[r.kind]?.[0] ?? '', ROOM_KIND[r.kind]?.[1] ?? '')} · {L(DIR[r.direction]?.[0] ?? '', DIR[r.direction]?.[1] ?? '')}</small></span></header>
+            <div className="ofm-who"><Icon name="user" size={13} />{r.responsible_id ? ctx.emp[r.responsible_id]?.full_name ?? '—' : <span className="muted">{L('দায়িত্বে কেউ নেই', 'Nobody responsible')}</span>}</div>
+            {items.length > 0 && <div className="ofm-items">{items.map(a => <span key={a.id} className={a.condition !== 'good' ? 'bad' : ''}>{ASSET_KIND[a.kind]?.[0] ?? a.name}{a.quantity > 1 ? ` ×${n(a.quantity)}` : ''}</span>)}</div>}
+            {desks.length > 0 && <ul className="ofm-desks">{desks.map(dk => <li key={dk.id}><Icon name="table" size={13} /><b>{dk.name}</b>
+              <span>{dk.responsible_id ? ctx.emp[dk.responsible_id]?.full_name : <span className="bad">{L('কেউ নেই', 'nobody')}</span>}</span>
+              <small className="muted">{n(ctx.assets.filter(a => a.desk_id === dk.id).length)} {L('জিনিস', 'items')}</small></li>)}</ul>}
+            {!items.length && !desks.length && <small className="muted">{L('এই রুমে কোনো জিনিস লেখা নেই', 'Nothing listed in this room')}</small>}
+          </article> })}</div>
         {ctx.desks.some(d => !d.room_id) && <p className="muted small">{L('রুম ছাড়া ডেস্ক', 'Desks without a room')}: {ctx.desks.filter(d => !d.room_id).map(d => d.name).join(', ')}</p>}
       </>}
     </section>
