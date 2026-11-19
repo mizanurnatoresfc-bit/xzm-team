@@ -537,4 +537,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Road line and place search use free public services (router.project-osrm.org, nominatim.openstreetmap.org) from the browser; if they are busy the
   page says so and the straight line still works.
 - Tests: `99zzzzzzzzzzzzzzzzzzz_route_settings.sql` (41); whole SQL suite 1968 pass. Smoke test: route settings page at PC and phone size.
-- **To go live:** apply the migration to Supabase, then merge to `main` (no new APK needed; the phone's GPS already works in the app).
+- **19 Nov — live:** the owner ran the migration file in the Supabase SQL Editor (the tool's approval did not reach the phone), so it is NOT in
+  `supabase_migrations.schema_migrations`. After it, all 17 new function bodies were checked equal to the tested file by md5, anon can run none,
+  the private helpers are closed, RLS on, Admin + Zonal Manager hold the five permissions, the one existing route got its stop. Site released by merging to `main`.
