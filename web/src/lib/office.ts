@@ -35,14 +35,14 @@ export const DIR: Record<string, [string, string]> = {
 /** Compass grid, top row = north. */
 export const DIR_GRID = ['nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', 'se']
 export const ASSET_KIND: Record<string, [string, string, string]> = {
-  monitor: ['মনিটর', 'Monitor', 'grid'], pc: ['পিসি', 'PC', 'box'], keyboard: ['কিবোর্ড', 'Keyboard', 'table'], mouse: ['মাউস', 'Mouse', 'user'],
-  printer: ['জি-প্রিন্টার', 'G-printer', 'print'], laptop: ['ল্যাপটপ', 'Laptop', 'grid'], ups: ['UPS', 'UPS', 'box'], router: ['রাউটার', 'Router', 'globe'],
-  scanner: ['স্ক্যানার', 'Scanner', 'scan'], chair: ['চেয়ার', 'Chair', 'user'], chair_plastic: ['প্লাস্টিক চেয়ার', 'Plastic chair', 'user'],
-  chair_exec: ['এক্সিকিউটিভ চেয়ার', 'Executive chair', 'user'], table: ['টেবিল', 'Table', 'table'],
-  weight_machine: ['ওয়েট মেশিন', 'Weight machine', 'box'], mobile: ['মোবাইল ফোন', 'Mobile phone', 'phone'], ip_phone: ['আইপি ফোন', 'IP phone', 'phone'],
-  lock: ['তালা', 'Lock', 'key'], dvr: ['DVR', 'DVR', 'box'], cable: ['তার (গজ)', 'Cable (yards)', 'log'],
-  light: ['লাইট', 'Light', 'sun'], fan: ['ফ্যান', 'Fan', 'gear'], bedding: ['বেডিং', 'Bedding', 'home'], stove: ['চুলা', 'Stove', 'alert'],
-  cylinder: ['গ্যাস সিলিন্ডার', 'Gas cylinder', 'alert'], ac: ['এসি', 'AC', 'sun'], cctv: ['সিসিটিভি', 'CCTV', 'eye'], other: ['অন্যান্য', 'Other', 'form'],
+  monitor: ['মনিটর', 'Monitor', 'a_monitor'], pc: ['পিসি', 'PC', 'a_pc'], keyboard: ['কিবোর্ড', 'Keyboard', 'a_keyboard'], mouse: ['মাউস', 'Mouse', 'a_mouse'],
+  printer: ['জি-প্রিন্টার', 'G-printer', 'a_printer'], laptop: ['ল্যাপটপ', 'Laptop', 'a_laptop'], ups: ['UPS', 'UPS', 'a_ups'], router: ['রাউটার', 'Router', 'a_router'],
+  scanner: ['স্ক্যানার', 'Scanner', 'a_scanner'], chair: ['চেয়ার', 'Chair', 'a_chair'], chair_plastic: ['প্লাস্টিক চেয়ার', 'Plastic chair', 'a_chair'],
+  chair_exec: ['এক্সিকিউটিভ চেয়ার', 'Executive chair', 'a_chair_exec'], table: ['টেবিল', 'Table', 'a_table'],
+  weight_machine: ['ওয়েট মেশিন', 'Weight machine', 'a_weight'], mobile: ['মোবাইল ফোন', 'Mobile phone', 'a_mobile'], ip_phone: ['আইপি ফোন', 'IP phone', 'a_ipphone'],
+  lock: ['তালা', 'Lock', 'a_lock'], dvr: ['DVR', 'DVR', 'a_dvr'], cable: ['তার (গজ)', 'Cable (yards)', 'a_cable'],
+  light: ['লাইট', 'Light', 'a_light'], fan: ['ফ্যান', 'Fan', 'a_fan'], bedding: ['বেডিং', 'Bedding', 'a_bedding'], stove: ['চুলা', 'Stove', 'a_stove'],
+  cylinder: ['গ্যাস সিলিন্ডার', 'Gas cylinder', 'a_cylinder'], ac: ['এসি', 'AC', 'a_ac'], cctv: ['সিসিটিভি', 'CCTV', 'a_cctv'], other: ['অন্যান্য', 'Other', 'form'],
 }
 export const CONDITION: Record<Asset['condition'], [string, string, 'ok' | 'warn' | 'bad' | 'neutral']> = {
   good: ['ভালো', 'Good', 'ok'], repair: ['মেরামত লাগবে', 'Needs repair', 'warn'], broken: ['নষ্ট', 'Broken', 'bad'], lost: ['হারানো', 'Lost', 'neutral'],
