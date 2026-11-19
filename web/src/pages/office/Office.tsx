@@ -9,29 +9,17 @@ import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import {
-  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, office, PLACE_KIND, ROOM_DEFAULT, ROOM_KIND,
-  type Asset, type Desk, type PlaceKind, type Property, type Room,
+  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, office, OFFICE_PARTS, PLACE_KIND, ROOM_DEFAULT, ROOM_KIND,
+  type Asset, type OfficeSec, type Desk, type PlaceKind, type Property, type Room,
 } from '../../lib/office'
 import { POWER } from '../../lib/officeOps'
 import { Bills, LendModal, NoticeModal, Notices, People, Power, Rent, roomSplit, Security, useLoans, Zone, type Ctx } from './OfficeOps'
 import { useOrg } from '../hr/common'
+import { RealOffice } from './OfficeReal'
 import { EmpPicker, empLabel } from '../sorting/Sorting'
 
-type Sec = 'overview' | 'places' | 'rooms' | 'desks' | 'assets' | 'rent' | 'bills' | 'power' | 'security' | 'people' | 'notices' | 'zone'
-const SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: string; perms: string[] }> = [
-  { key: 'overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
-  { key: 'places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
-  { key: 'rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ (রুম ও দিক)', en: 'Flat details (rooms & direction)', perms: ['office.property.view'] },
-  { key: 'desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
-  { key: 'assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
-  { key: 'rent', icon: 'cash', bn: 'ভাড়া ও চুক্তি', en: 'Rent & contract', perms: ['office.bill.view', 'office.property.edit'] },
-  { key: 'bills', icon: 'receipt', bn: 'বিদ্যুৎ ও ওয়াইফাই বিল', en: 'Electricity & wifi bills', perms: ['office.bill.view'] },
-  { key: 'power', icon: 'sun', bn: 'ইলেকট্রনিক ও বিদ্যুৎ হিসাব', en: 'Devices & power', perms: ['office.asset.view'] },
-  { key: 'security', icon: 'key', bn: 'গাড়ি, তালা, সিসি ও পাসওয়ার্ড', en: 'Vehicles, locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'] },
-  { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who lives here', perms: ['office.property.view'] },
-  { key: 'notices', icon: 'bell', bn: 'নষ্ট / লাগবে রিপোর্ট', en: 'Broken / needed reports', perms: ['office.notice.create', 'office.notice.approve'] },
-  { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.asset.view'] },
-]
+type Sec = OfficeSec
+const SECTIONS = OFFICE_PARTS
 const PKEY = 'xzm_office_property'
 
 export function Office() {
@@ -64,7 +52,7 @@ export function Office() {
     <section className="da-filters panel no-print hub-top">
       {sec.key !== 'places' && <Field label={L('অফিস / আবাসিক', 'Office / residence')}><select value={pid} onChange={e => setPid(e.target.value)}>
         {list.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>}
-      <nav className="hub-tabs" aria-label={L('অফিস ম্যানেজমেন্ট', 'Office management')}>
+      <nav className="hub-tabs" aria-label={L('আমার অফিস', 'My office')}>
         {tabs.map(t => <Link key={t.key} to={`/app/office/${t.key}`} className={t.key === sec.key ? 'on' : ''}><Icon name={t.icon} size={15} /><span>{L(t.bn, t.en)}</span></Link>)}
       </nav>
     </section>
@@ -101,6 +89,8 @@ function Overview({ ctx }: { ctx: Ctx }) {
   const { L, n } = usePrefs()
   const floors = [...new Set(ctx.rooms.map(r => r.floor))].sort((a, b) => a - b)
   const [floor, setFloor] = useState<number | null>(null)
+  const [mode, setModeRaw] = useState<'map' | 'real'>(() => { try { return localStorage.getItem('office.view') === 'map' ? 'map' : 'real' } catch { return 'real' } })
+  const setMode = (m: 'map' | 'real') => { setModeRaw(m); try { localStorage.setItem('office.view', m) } catch { /* private window */ } }
   const fl = floor ?? floors[0] ?? 1
   const inFloor = ctx.rooms.filter(r => r.floor === fl)
   const itemsOf = (room: string) => ctx.assets.filter(a => a.room_id === room && !a.desk_id)
@@ -136,22 +126,40 @@ function Overview({ ctx }: { ctx: Ctx }) {
     </div>
     <section className="panel">
       <div className="da-bar"><h2>{L('অফিসের নকশা (দিক অনুযায়ী)', 'Layout by direction')}</h2>
-        {floors.length > 1 && <span className="da-seg">{floors.map(f => <button key={f} className={f === fl ? 'sm' : 'secondary sm'} onClick={() => setFloor(f)}>{L(`${n(f)} তলা`, `Floor ${f}`)}</button>)}</span>}</div>
-      {!ctx.rooms.length ? <p className="muted">{L('রুম যোগ করলে এখানে দিক অনুযায়ী নকশা দেখাবে।', 'Add rooms to see the layout here.')} <Link to="/app/office/rooms">{L('রুম যোগ করুন →', 'Add rooms →')}</Link></p> : <>
-        <div className="compass-wrap">
-          <span className="cmp n">{L('উত্তর', 'N')} ↑</span><span className="cmp s">↓ {L('দক্ষিণ', 'S')}</span><span className="cmp w">← {L('পশ্চিম', 'W')}</span><span className="cmp e">{L('পূর্ব', 'E')} →</span>
-          <div className="floor-grid">{DIR_GRID.map(d => { const rs = inFloor.filter(r => r.direction === d)
-            return <div key={d} className={`fcell${rs.length ? '' : ' empty'}${ctx.p.front_direction === d ? ' front' : ''}`}>
-              <span className="fdir">{L(DIR[d][0], DIR[d][1])}{ctx.p.front_direction === d ? ` · ${L('সামনের দিক', 'front')}` : ''}</span>
-              {rs.map(r => <div key={r.id} className={`froom k-${r.kind}`}>
-                <b><Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={14} /> {r.name}</b>
-                {r.responsible_id && <span className="muted small">{ctx.emp[r.responsible_id]?.full_name}</span>}
-                <div className="chips">{itemsOf(r.id).map(a => <span key={a.id} className={`chip${a.condition !== 'good' ? ' bad' : ''}`}>{ASSET_KIND[a.kind]?.[0] ?? a.name}{a.quantity > 1 ? ` ×${n(a.quantity)}` : ''}</span>)}</div>
-                {desksOf(r.id).map(dk => <div key={dk.id} className="fdesk"><Icon name="table" size={12} /> {dk.name}: {dk.responsible_id ? ctx.emp[dk.responsible_id]?.full_name : <span className="bad">{L('কেউ নেই', 'nobody')}</span>}
-                  <span className="muted"> · {n(ctx.assets.filter(a => a.desk_id === dk.id).length)} {L('জিনিস', 'items')}</span></div>)}
-              </div>)}
+        <span className="row-acts">
+          {floors.length > 1 && <span className="da-seg">{floors.map(f => <button key={f} className={f === fl ? 'sm' : 'secondary sm'} onClick={() => setFloor(f)}>{L(`${n(f)} তলা`, `Floor ${f}`)}</button>)}</span>}
+          {ctx.rooms.length > 0 && <span className="ofm-mode" role="tablist" aria-label={L('দেখার ধরন', 'View')}>
+            <button type="button" role="tab" aria-selected={mode === 'real'} className={mode === 'real' ? 'on' : ''} onClick={() => setMode('real')}>{L('বাস্তব মোড', 'Realistic')}</button>
+            <button type="button" role="tab" aria-selected={mode === 'map'} className={mode === 'map' ? 'on' : ''} onClick={() => setMode('map')}>{L('দিক-ম্যাপ', 'Direction map')}</button></span>}</span></div>
+      {!ctx.rooms.length ? <p className="muted">{L('রুম যোগ করলে এখানে দিক অনুযায়ী নকশা দেখাবে।', 'Add rooms to see the layout here.')} <Link to="/app/office/rooms">{L('রুম যোগ করুন →', 'Add rooms →')}</Link></p> : mode === 'real' ? <RealOffice ctx={ctx} rooms={inFloor} /> : <>
+        <p className="ofm-help"><Icon name="map" size={15} /><span>{L('উপরের দিক উত্তর ধরে আঁকা — যেমন ম্যাপে থাকে। প্রতিটা খোপ বাড়ির একটা দিক; রুমে চাপলে নিচে তার বিস্তারিত দেখাবে।', 'Drawn with north at the top, like a map. Each box is one side of the building; tap a room to see its details below.')}
+          {ctx.p.front_direction ? <> {L(`সবুজ দাগের খোপটা সামনের দিক (${DIR[ctx.p.front_direction]?.[0] ?? ''}) — ঢোকার দরজা।`, `The green box is the front (${DIR[ctx.p.front_direction]?.[1] ?? ''}) — the entrance.`)}</> : null}</span></p>
+        <div className="ofm">
+          <span className="ofm-c n">{L('উত্তর', 'N')}</span><span className="ofm-c s">{L('দক্ষিণ', 'S')}</span>
+          <span className="ofm-c w">{L('পশ্চিম', 'W')}</span><span className="ofm-c e">{L('পূর্ব', 'E')}</span>
+          <div className="ofm-grid">{DIR_GRID.map(d => { const rs = inFloor.filter(r => r.direction === d); const front = ctx.p.front_direction === d
+            return <div key={d} className={`ofm-cell${rs.length ? '' : ' empty'}${front ? ' front' : ''}`}>
+              <span className="ofm-dir">{L(DIR[d][0], DIR[d][1])}</span>
+              {rs.map(r => { const broken = ctx.assets.some(a => a.room_id === r.id && a.condition !== 'good')
+                return <a key={r.id} href={`#room-${r.id}`} className={`ofm-room k-${r.kind}`} title={L(ROOM_KIND[r.kind]?.[0] ?? '', ROOM_KIND[r.kind]?.[1] ?? '')}>
+                  <Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={14} /><span>{r.name}</span>{broken && <i className="ofm-dot" aria-label={L('নষ্ট জিনিস আছে', 'Has broken items')} />}</a> })}
+              {front && <span className="ofm-door">{L('সামনে · দরজা', 'Front · door')}</span>}
             </div> })}</div>
         </div>
+        <div className="ofm-legend">{[...new Set(inFloor.map(r => r.kind))].map(k => <span key={k} className={`k-${k}`}><i />{L(ROOM_KIND[k]?.[0] ?? k, ROOM_KIND[k]?.[1] ?? k)}</span>)}
+          {inFloor.some(r => ctx.assets.some(a => a.room_id === r.id && a.condition !== 'good')) && <span className="bad"><i />{L('নষ্ট / মেরামত দরকার', 'Broken / needs repair')}</span>}</div>
+
+        <div className="ofm-cards">{DIR_GRID.flatMap(d => inFloor.filter(r => r.direction === d)).map(r => { const items = itemsOf(r.id); const desks = desksOf(r.id)
+          return <article key={r.id} id={`room-${r.id}`} className={`ofm-card k-${r.kind}`}>
+            <header><span className="ofm-ic"><Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={18} /></span>
+              <span className="tx"><b>{r.name}</b><small>{L(ROOM_KIND[r.kind]?.[0] ?? '', ROOM_KIND[r.kind]?.[1] ?? '')} · {L(DIR[r.direction]?.[0] ?? '', DIR[r.direction]?.[1] ?? '')}</small></span></header>
+            <div className="ofm-who"><Icon name="user" size={13} />{r.responsible_id ? ctx.emp[r.responsible_id]?.full_name ?? '—' : <span className="muted">{L('দায়িত্বে কেউ নেই', 'Nobody responsible')}</span>}</div>
+            {items.length > 0 && <div className="ofm-items">{items.map(a => <span key={a.id} className={a.condition !== 'good' ? 'bad' : ''}>{ASSET_KIND[a.kind]?.[0] ?? a.name}{a.quantity > 1 ? ` ×${n(a.quantity)}` : ''}</span>)}</div>}
+            {desks.length > 0 && <ul className="ofm-desks">{desks.map(dk => <li key={dk.id}><Icon name="table" size={13} /><b>{dk.name}</b>
+              <span>{dk.responsible_id ? ctx.emp[dk.responsible_id]?.full_name : <span className="bad">{L('কেউ নেই', 'nobody')}</span>}</span>
+              <small className="muted">{n(ctx.assets.filter(a => a.desk_id === dk.id).length)} {L('জিনিস', 'items')}</small></li>)}</ul>}
+            {!items.length && !desks.length && <small className="muted">{L('এই রুমে কোনো জিনিস লেখা নেই', 'Nothing listed in this room')}</small>}
+          </article> })}</div>
         {ctx.desks.some(d => !d.room_id) && <p className="muted small">{L('রুম ছাড়া ডেস্ক', 'Desks without a room')}: {ctx.desks.filter(d => !d.room_id).map(d => d.name).join(', ')}</p>}
       </>}
     </section>

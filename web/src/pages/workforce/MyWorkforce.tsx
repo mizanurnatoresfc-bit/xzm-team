@@ -1,12 +1,13 @@
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { useWfCounts } from '../../components/PersonalMenu'
 import { hrReq } from '../../lib/hrreq'
 import { usePrefs } from '../../lib/prefs'
 import { useLoad } from '../accounts/ui'
-import { Brought, InHand } from '../hr/StaffDesk'
+import { InHand } from '../hr/StaffDesk'
 import { AttendanceBook } from './AttendanceBook'
+import { BroughtPicker } from './BroughtPicker'
 import '../../workforce.css'
 
 /**
@@ -50,12 +51,7 @@ export function MyWorkforce() {
           <p style={{ margin: '4px 0 0' }}>{L('এইচআর বা হাব ম্যানেজারকে বলুন লগইনটি আপনার এমপ্লয়ি আইডির সাথে যুক্ত করে দিতে।', 'Ask HR or your hub manager to link this login to your employee ID.')}</p></div>
         : tab === 'attendance' ? <AttendanceBook />
         : me.loading && !e ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
-        : tab === 'given' ? <>
-          <Link to="/app/me" className="wf-note"><span className="wf-note-i"><Icon name="userplus" size={20} /></span>
-            <span className="tx"><b>{L('নাম যোগ বা বদল করুন', 'Add or change names')}</b>
-              <span>{L('আমার প্রোফাইলের রেফারেন্স অংশ থেকে একসাথে অনেকজনকে যোগ করা যায়। এইচআর অনুমোদন দিলে এখানে দেখাবে।', 'On my profile, in the referral part, many can be added at once. They show here once HR approves.')}</span></span>
-            <Icon name="chev" size={18} /></Link>
-          <div className="wf-embed">{e && <Brought me={e} onBack={() => nav('/app/staff')} />}</div></>
+        : tab === 'given' ? e && <BroughtPicker me={e} />
         : <div className="wf-embed">{e && <InHand me={e} onBack={() => nav('/app/staff')} onChanged={() => undefined} />}</div>}
     </div>
   </AppShell>

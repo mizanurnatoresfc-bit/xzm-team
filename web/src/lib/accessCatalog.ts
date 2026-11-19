@@ -83,18 +83,19 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/sorting/reports', res: ['sorting.report'] },
     { to: '/app/sorting/centers', codes: ['sorting.center.view', 'sorting.center.create', 'sorting.center.edit', 'sorting.center.archive'] },
   ] },
-  { key: 'office', icon: 'home', bn: 'অফিস', en: 'Office', db: ['office'], subs: [
+  { key: 'office', icon: 'home', bn: 'আমার অফিস', en: 'My office', db: ['office'], subs: [
     { to: '/app/office/overview', codes: ['office.property.view'] },
+    { to: '/app/office/zone', codes: ['office.asset.view', 'office.notice.approve'] },
     { to: '/app/office/places', res: ['office.property'] },
     { to: '/app/office/rooms', codes: ['office.property.view', 'office.property.edit'] },
     { to: '/app/office/desks', codes: ['office.property.view', 'office.property.edit'] },
+    { to: '/app/office/people', codes: ['office.property.view', 'office.property.edit'] },
     { to: '/app/office/assets', res: ['office.asset'] },
+    { to: '/app/office/power', codes: ['office.asset.view'] },
     { to: '/app/office/rent', res: ['office.bill'] },
     { to: '/app/office/bills', codes: ['office.bill.view', 'office.bill.edit'] },
-    { to: '/app/office/power', codes: ['office.asset.view'] },
     { to: '/app/office/security', res: ['office.secret'] },
     { to: '/app/office/notices', res: ['office.notice'] },
-    { to: '/app/office/zone', codes: ['office.notice.approve'] },
   ] },
   { key: 'fleet', icon: 'truck', bn: 'গাড়ি', en: 'Vehicles', db: ['vehicle'], subs: [
     { to: '/app/fleet', res: ['vehicle.vehicle', 'vehicle.holder', 'vehicle.log', 'vehicle.khoraki', 'vehicle.report', 'vehicle.requisition', 'vehicle.document', 'vehicle.settings'] },
