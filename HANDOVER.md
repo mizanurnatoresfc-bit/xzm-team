@@ -498,3 +498,17 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **18 Nov — live:** applied to Supabase as `workforce_site_application` (20261118230228). Before applying, the six replaced functions were checked equal to the
   repository on live; after, all 53 `wf_*` function bodies equal the tested file by hash, anon can run none, private helpers closed, both table rules validated.
   Site released by merging to `main` right after (the old site's absent + website call is refused until then).
+
+## 2026-11-19 — নদী AI: প্রতিটি অংশের আলাদা চালু/বন্ধ সুইচ
+- Owner: "নদী AI সেটিং এ তাকে বন্ধ / চালু … অন/অফ অপশন রাখুন" (the staff panel's "নদী জিজ্ঞেস করছে" card among them).
+- Migration `20261119000100_nodi_features.sql`: setting `nodi.features` (chat, teach, office, gaps, followup; all start on). `private.nodi_feature_on(part)`:
+  the AI parts (chat/teach/office) also obey the main switch `nodi.enabled`; gaps and followup obey only their own switch.
+  `nodi_features()` (any signed-in person: which parts are on), `nodi_features_configure(jsonb)` (`nodi.settings.configure`), `nodi_settings()` now returns `features`.
+  New overload `nodi_gate(p_feature text)`; the old `nodi_gate()` is kept unchanged (nothing dropped), so the old Edge Function keeps working.
+  `my_att_gaps()` returns nothing and `att_gap_remind()` refuses when gaps is off. The hourly cron `nodi-issue-followup` now runs only when followup is on.
+- Edge Function `nodi-ai`: passes the part (chat / teach / office) to the gate — needs a redeploy.
+- Pages: নদী AI সেটিংস has a "কোন অংশ চালু থাকবে" card with five switches (saved at once). Off: the floating নদী button and chat page (chat),
+  the হিসাব শিক্ষক box (teach), the office AI buttons (office), the home / staff panel card "নদী জিজ্ঞেস করছে" (gaps).
+- Tests: `99zzzzzzzzzzzzzzzzz_nodi_features.sql` (18); suite 1920 pass. Smoke: settings page, saving a switch, chat off hides the button and the chat page (pc + phone).
+- **19 Nov — live:** applied to Supabase as `nodi_features` (20261119082756) after checking the four replaced functions equal the repository by hash; cron job now checks the switch;
+  anon can run none of the new functions; `nodi-ai` v9 deployed (same file as the repository). Office items: a drawn icon per kind; phone list puts the buttons on their own line.

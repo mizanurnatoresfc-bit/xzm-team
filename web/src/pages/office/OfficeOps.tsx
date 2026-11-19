@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
+import { useNodiFeatures } from '../../lib/useNodiFeatures'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import { ASSET_KIND, office, PLACE_KIND, type Asset, type Desk, type Property, type Room } from '../../lib/office'
 import {
@@ -55,6 +56,8 @@ function Upload({ property, value, onChange, label, onFile }: { property: string
 /** The AI's answer under a button; when the AI is not set up the page's own answer stays. */
 function AiBox({ label, run, hint }: { label: string; run: () => Promise<string>; hint?: string }) {
   const [busy, setBusy] = useState(false); const [text, setText] = useState(''); const [err, setErr] = useState('')
+  const feats = useNodiFeatures()
+  if (!feats?.office) return null
   return <div className="oo-ai">
     <div className="row-acts"><button type="button" disabled={busy} onClick={() => { setBusy(true); setErr(''); void run().then(setText).catch(e => setErr(opsFriendly(e))).finally(() => setBusy(false)) }}>
       <Icon name="play" size={14} />{busy ? 'নদী AI ভাবছে…' : label}</button>{hint && <span className="muted small">{hint}</span>}</div>

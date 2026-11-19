@@ -419,7 +419,7 @@ function Assets({ ctx }: { ctx: Ctx }) {
           <Icon name="plus" size={15} />{L('জিনিস যোগ', 'Add item')}</button>}
         {canRep && <button className="secondary" onClick={() => setRep({ a: null, kind: 'need' })}><Icon name="bell" size={15} />{L('কিছু লাগবে', 'Need something')}</button>}</span></div>
       <p className="muted small">{L('প্রতিটা জিনিসের পাশে "নষ্ট" চাপলে জোনাল ম্যানেজারের কাছে রিপোর্ট যায়; "লাগবে" দিয়ে আরও চাওয়া যায়। তালিকায় যা নেই তা "অন্যান্য" ধরনে নিজের নাম দিয়ে যোগ করুন।', 'Tap "Broken" beside an item to report it to the zonal manager; "Needed" asks for more. Anything not in the list goes under "Other" with its own name.')}</p>
-      <div className="team-cards">{byKind.map(([k, c]) => <div key={k} className="team-card static"><span className="ti"><Icon name={ASSET_KIND[k]?.[2] ?? 'form'} size={20} /></span>
+      <div className="team-cards oo-kinds">{byKind.map(([k, c]) => <div key={k} className="team-card static"><span className="ti"><Icon name={ASSET_KIND[k]?.[2] ?? 'form'} size={20} /></span>
         <span className="tn">{L(ASSET_KIND[k]?.[0] ?? k, ASSET_KIND[k]?.[1] ?? k)}</span><span className="tc">{n(c)}</span></div>)}</div>
       {mineOut.length > 0 && <p className="small">{L('অন্য হাব ব্যবহার করছে (গোনা এই অফিসের নামেই)', 'Used by other hubs (still counted here)')}: {mineOut.map(l => `${l.asset_name} ${n(l.quantity)} → ${l.to_name}`).join(' · ')}</p>}
       {mineIn.length > 0 && <p className="small">{L('অন্যের জিনিস এখানে ব্যবহার হচ্ছে', 'Borrowed from others')}: {mineIn.map(l => `${l.asset_name} ${n(l.quantity)} (${l.from_name})`).join(' · ')}</p>}

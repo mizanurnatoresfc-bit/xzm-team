@@ -2670,6 +2670,38 @@ body:has(.ax-savebar:not(.inline)) .nodi-fab{bottom:calc(150px + env(safe-area-i
    Bangla fonts and the access page's migration name pushed the phone page to 414 px, so the smoke test stopped two releases.) */
 body{overflow-wrap:break-word}
 
+/* নদী AI settings: one on/off switch per part */
+.nodi-parts{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.nodi-parts li{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border)}
+.nodi-parts li:first-child{border-top:0}
+.nodi-parts li>div{min-width:0}
+.nodi-switch{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 6px;border-radius:999px;
+  background:var(--surface);color:var(--muted);border:1px solid var(--border);font-weight:600}
+.nodi-switch .knob{width:38px;height:22px;border-radius:999px;background:var(--border);position:relative;transition:background .15s}
+.nodi-switch .knob::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.nodi-switch.on{color:var(--primary);border-color:var(--primary)}
+.nodi-switch.on .knob{background:var(--primary)}
+.nodi-switch.on .knob::after{transform:translateX(16px)}
+.nodi-switch:disabled{opacity:.6}
+
+/* List view on a phone: the buttons go to their own line under the text, so the name never breaks letter by letter */
+.dv-acts .row-acts{justify-content:flex-end}
+@media (max-width:700px){
+  .dv-list li{flex-wrap:wrap;align-items:flex-start;row-gap:8px}
+  .dv-list li>.no-print{padding-top:3px}
+  .dv-line{flex:1 1 0;min-width:70%}
+  .dv-acts{flex:1 1 100%;justify-content:flex-end;flex-wrap:wrap}
+  .dv-acts:empty{display:none}
+  .dv-acts .row-acts button.sm{min-height:40px;min-width:40px}
+  .dv-card dl div.act .row-acts{width:100%}
+}
+/* Office items by kind: on a phone, one compact line each (icon · name · count) instead of tall cards */
+@media (max-width:560px){
+  .team-cards.oo-kinds{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .oo-kinds .team-card.static{flex-direction:row;align-items:center;gap:10px;padding:10px 12px}
+  .oo-kinds .team-card .ti{width:36px;height:36px;margin:0;flex:none}
+  .oo-kinds .team-card .tn{flex:1;min-width:0;overflow-wrap:anywhere;color:var(--text)}
+  .oo-kinds .team-card .tc{font-size:18px}
 /* ---------- office overview: compass map + room cards ---------- */
 .ofm-help{display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;padding:9px 12px;border-radius:12px;background:var(--canvas);color:var(--muted);font-size:13.5px;line-height:1.45}
 .ofm-help svg{flex:none;margin-top:2px;color:var(--primary)}

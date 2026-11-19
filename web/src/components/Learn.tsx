@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { LESSONS, OFFICIAL_NOTE, allLessonsText, lessonOf, lessonText, type Lesson, type ModuleKey } from '../lib/accountsGuide'
 import { da } from '../lib/dailyAccounts'
 import { nodi, type ChatMsg } from '../lib/nodi'
+import { useNodiFeatures } from '../lib/useNodiFeatures'
 import { ErrorNote, Modal, useLoad } from '../pages/accounts/ui'
 import { Icon } from './Icon'
 import { PracticeBox } from './Practice'
@@ -82,6 +83,8 @@ export function Teacher({ lesson }: { lesson: Lesson | null }) {
   const [err, setErr] = useState<string | null>(null)
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }) }, [msgs, busy])
+  const feats = useNodiFeatures()
+  if (feats && !feats.teach) return <p className="notice small" role="status">নদী AI হিসাব শিক্ষক এখন বন্ধ আছে — পাঠগুলো পড়ে নিন, বা অ্যাডমিনকে চালু করতে বলুন।</p>
   async function ask(text: string) {
     const t = text.trim(); if (!t || busy) return
     const next = [...msgs, { role: 'user' as const, content: t }]
