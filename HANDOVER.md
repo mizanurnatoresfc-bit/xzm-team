@@ -504,7 +504,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Migration `20261119000100_nodi_features.sql`: setting `nodi.features` (chat, teach, office, gaps, followup; all start on). `private.nodi_feature_on(part)`:
   the AI parts (chat/teach/office) also obey the main switch `nodi.enabled`; gaps and followup obey only their own switch.
   `nodi_features()` (any signed-in person: which parts are on), `nodi_features_configure(jsonb)` (`nodi.settings.configure`), `nodi_settings()` now returns `features`.
-  `nodi_gate()` → `nodi_gate(p_feature text default null)` (called with no argument it behaves as before, so the old Edge Function keeps working).
+  New overload `nodi_gate(p_feature text)`; the old `nodi_gate()` is kept unchanged (nothing dropped), so the old Edge Function keeps working.
   `my_att_gaps()` returns nothing and `att_gap_remind()` refuses when gaps is off. The hourly cron `nodi-issue-followup` now runs only when followup is on.
 - Edge Function `nodi-ai`: passes the part (chat / teach / office) to the gate — needs a redeploy.
 - Pages: নদী AI সেটিংস has a "কোন অংশ চালু থাকবে" card with five switches (saved at once). Off: the floating নদী button and chat page (chat),

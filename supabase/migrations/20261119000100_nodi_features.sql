@@ -62,9 +62,8 @@ begin
                  from (select coalesce((select value from public.system_settings where key = 'nodi.features'), '{}'::jsonb) f) x));
 end $$;
 
--- The gate now also takes the part being used. Called with no argument (an older Edge Function) it checks only the main switch, as before.
-drop function if exists public.nodi_gate();
-create or replace function public.nodi_gate(p_feature text default null)
+-- The gate for one part. nodi_gate() with no argument stays as it was (an older Edge Function keeps working); nothing is dropped.
+create or replace function public.nodi_gate(p_feature text)
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare v_limit integer; v_used integer;
@@ -72,7 +71,7 @@ begin
   if auth.uid() is null then raise exception 'লগইন করুন' using errcode = '42501'; end if;
   if not exists (select 1 from private.my_grants() g where g.permission_code in ('nodi.assistant.view', 'nodi.settings.configure')) then raise exception 'নদী AI ব্যবহারের অনুমতি নেই' using errcode = '42501'; end if;
   if coalesce(private.setting_text('nodi.enabled'), 'true') <> 'true' then raise exception 'নদী AI এখন বন্ধ আছে' using errcode = 'P0001'; end if;
-  if p_feature is not null and not private.nodi_feature_on(p_feature) then
+  if not private.nodi_feature_on(coalesce(p_feature, '')) then
     raise exception '%', case p_feature when 'chat' then 'নদী AI চ্যাট এখন বন্ধ আছে' when 'teach' then 'নদী AI হিসাব শিক্ষক এখন বন্ধ আছে'
       when 'office' then 'অফিসের নদী AI পরামর্শ এখন বন্ধ আছে' else 'নদী AI-র এই অংশ এখন বন্ধ আছে' end using errcode = 'P0001';
   end if;
