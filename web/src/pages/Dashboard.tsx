@@ -231,7 +231,7 @@ function FirstSteps({ photo }: { photo: string | null | undefined }) {
   const steps: Array<[boolean, string, string | null]> = [
     [true, L('নিজের পাসওয়ার্ড বসানো হয়েছে', 'Your own password is set'), null],
     [!!e.mobile, e.mobile ? L('মোবাইল নম্বর দেওয়া আছে', 'Mobile number given') : L('মোবাইল নম্বর দিন — তারপর নম্বর দিয়েও লগইন হবে', 'Give your mobile number — then you can sign in with it too'), '/app/me'],
-    [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — এইচআর-কে ছবি দিন', 'No profile photo — give one to HR'), '/app/me'],
+    [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — নিজেই ছবি দিন', 'No profile photo — add it yourself'), '/app/me'],
   ]
   return <section className="panel first-steps">
     <h2>{L('শুরুর ধাপ', 'First steps')} <Link to="/app/training" className="link small">{L('ট্রেনিং সেন্টার →', 'Training centre →')}</Link></h2>
