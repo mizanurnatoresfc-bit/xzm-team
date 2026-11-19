@@ -696,6 +696,10 @@ try {
         && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
+      { const dl = page.locator('.app-dl'); await dl.waitFor({ timeout: 5000 }).catch(() => {})
+        check(await dl.count() === 1 && (await dl.locator('input').inputValue()) === 'https://xzmteam.com/download/XZM-TEAM.apk' && await dl.locator('button').count() === 4,
+          `${size}: the dashboard ends with the Android app card (download, WhatsApp, share, copy link)`)
+        if (process.env.SHOTS) await dl.screenshot({ path: `${process.env.SHOTS}/${size}-app-download.png` }) }
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       await page.waitForSelector('.sp-hero')
@@ -962,6 +966,7 @@ try {
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-panel.png`, fullPage: true })
+    check(await page.locator('.app-dl').count() === 1, `${size}: the staff panel ends with the Android app card`)
     { const sp = await page.locator('.sp').innerText()
       const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
       check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),

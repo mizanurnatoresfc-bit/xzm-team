@@ -3201,3 +3201,12 @@ aside.side .side-find input.side-search.side-search.side-search{width:100%;margi
 .zm-acts{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
 .zm-acts a{display:inline-flex;align-items:center;gap:4px;text-decoration:none}
 @media (max-width:520px){.zm-acts{margin-left:56px;width:100%}}
+
+/* Android app download card (bottom of every dashboard) */
+.app-dl{margin-top:16px}
+.app-dl h2{display:flex;align-items:center;gap:8px}
+.app-dl-row{flex-wrap:wrap;gap:8px;margin-top:6px}
+.app-dl-row button{display:inline-flex;align-items:center;gap:6px}
+.app-dl .ic-down{transform:rotate(180deg)}
+.app-dl-link{margin-top:10px}
+.app-dl-link input{width:100%;font-size:13px}

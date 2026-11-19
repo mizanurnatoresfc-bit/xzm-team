@@ -24,6 +24,7 @@ import { fleet } from '../../lib/fleet'
 import { useLiveLoad, wf } from '../../lib/workforce'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
+import { AppDownloadCard } from '../../components/AppDownloadCard'
 
 /**
  * স্টাফ প্যানেল — one phone screen for a staff member's own day, in the order the owner asked for:
@@ -276,6 +277,7 @@ export function StaffPanel() {
         {attErr && <p className="da-error">{attErr}</p>}
       </Modal>}
     </div>
+    <AppDownloadCard />
   </AppShell>
 }
 
