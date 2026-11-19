@@ -4,6 +4,7 @@ import { AppShell } from '../../components/AppShell'
 import { Field, Stat, useLoad } from '../accounts/ui'
 import { bn, hr, hrFriendly, todayDhaka } from '../../lib/hr'
 import { useOrg } from './common'
+import { AppDownloadCard } from '../../components/AppDownloadCard'
 
 export function HrDashboard() {
   const today = todayDhaka()
@@ -31,5 +32,6 @@ export function HrDashboard() {
       <Stat label="বেতন পরিবর্তন অপেক্ষমাণ" value={bn(n('pending_salary_changes'))} />
       <Stat label="তথ্য অসম্পূর্ণ" value={bn(n('employees_with_missing_info'))} tone={n('employees_with_missing_info') ? 'bad' : undefined} sub={<Link to="/app/hr/profile-gaps">কার কী বাকি দেখুন</Link>} />
     </div>
+    <AppDownloadCard />
   </AppShell>
 }

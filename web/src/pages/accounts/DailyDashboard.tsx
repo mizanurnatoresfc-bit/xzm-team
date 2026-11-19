@@ -5,6 +5,7 @@ import { Icon } from '../../components/Icon'
 import { Combo } from '../../components/inputs'
 import { matches } from '../../lib/validate'
 import { AccountsShell, StatusBadge, Modal, Field, ErrorNote, useLoad, useToast } from './ui'
+import { AppDownloadCard } from '../../components/AppDownloadCard'
 
 type Range = 'today' | 'yesterday' | 'week' | 'month' | 'custom'
 const wide = () => typeof matchMedia === 'function' && matchMedia('(min-width:900px)').matches
@@ -154,6 +155,7 @@ export function DailyDashboard() {
       {existingFor(start.hub, start.date) && <p className="notice">এই হাব ও তারিখের হিসাব আগে থেকেই আছে — নতুন করে শুরু করা যাবে না।</p>}
       <ErrorNote error={err} />
     </Modal>}
+    <AppDownloadCard />
   </AccountsShell>
 }
 
