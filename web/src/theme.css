@@ -3026,6 +3026,106 @@ aside.side input.side-search.side-search.side-search:focus{border-color:var(--pr
 @media (prefers-reduced-motion:reduce){.quick-bg .sheet{animation:none}}
 
 /* =====================================================================
+   Staff panel, modern look + Android fit (19 Nov).
+   One block, scoped to .sp, so it wins over the earlier staff panel layers.
+   Holds at 320-412px Android widths and with the large system font.
+   ===================================================================== */
+.sp{--sp-r:20px;--sp-g:var(--tone-g,#15803D);gap:14px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+/* hero: a soft brand gradient card with the date, name, ID line and today's attendance */
+.sp .sp-hero{position:relative;overflow:hidden;flex-wrap:wrap;gap:12px 14px;padding:18px!important;border-radius:24px!important;
+  background:linear-gradient(135deg,var(--primary) 0%,color-mix(in srgb,var(--primary) 70%,#0B3A20) 100%)!important;
+  color:#fff!important;border:0!important;box-shadow:0 10px 28px -14px color-mix(in srgb,var(--primary) 70%,transparent)!important}
+.sp .sp-hero::before,.sp .sp-hero::after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.08);pointer-events:none}
+.sp .sp-hero::before{width:180px;height:180px;right:-60px;top:-80px}
+.sp .sp-hero::after{width:110px;height:110px;right:40px;bottom:-70px}
+.sp .sp-hero>*{position:relative;z-index:1}
+.sp .sp-hero .nv-av{flex:none;width:54px;height:54px;font-size:22px;font-weight:700;background:rgba(255,255,255,.18)!important;color:#fff!important;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.35)}
+.sp .sp-hero .tx small,.sp .sp-hero .tx span{color:rgba(255,255,255,.86)!important;font-size:13.5px}
+.sp .sp-hero .tx b{font-size:21px;color:#fff}
+.sp .sp-att{display:inline-flex!important;background:rgba(255,255,255,.18)!important;color:#fff!important;font-size:13.5px;padding:7px 12px;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.sp .sp-att.t-g{background:#fff!important;color:var(--primary)!important}
+.sp .sp-att.t-w{background:#FEF3C7!important;color:#92400E!important}
+.sp .sp-att.t-r{background:#FEE2E2!important;color:#B91C1C!important}
+
+/* section titles: a small coloured bar, not a loose line of text */
+.sp .sd-h{display:flex;align-items:center;gap:8px;margin:12px 2px -2px!important;font-size:15.5px!important;letter-spacing:0}
+.sp .sd-h::before{content:"";flex:none;width:4px;height:16px;border-radius:4px;background:var(--primary)}
+
+/* number tiles: icon and label on one line, the big number under it */
+.sp .sp-tiles{gap:10px}
+.sp .sp-tile{display:grid!important;grid-template-columns:auto minmax(0,1fr);grid-template-areas:"i l" "n n";align-items:center;gap:8px 10px;
+  padding:14px!important;border-radius:var(--sp-r)!important;
+  background:linear-gradient(160deg,color-mix(in srgb,var(--tone) 12%,var(--surface)),var(--surface) 75%)!important;
+  border:1px solid color-mix(in srgb,var(--tone) 22%,var(--border))!important;transition:transform .12s,box-shadow .15s}
+.sp .sp-tile .i{grid-area:i;width:34px!important;height:34px!important;margin:0!important;border-radius:11px!important}
+.sp .sp-tile small{grid-area:l;font-size:13px;font-weight:600;color:var(--muted);line-height:1.3;min-width:0;overflow-wrap:anywhere}
+.sp .sp-tile b{grid-area:n;font-size:30px;font-weight:800;line-height:1.1;letter-spacing:-.01em}
+a.sp-tile:hover{box-shadow:0 6px 18px -10px color-mix(in srgb,var(--tone) 60%,transparent)}
+
+/* row lists: rounder card, tidy icon tile, a round chevron */
+.sp .nv-rows{border-radius:var(--sp-r);box-shadow:0 1px 2px rgba(15,23,42,.04),0 4px 14px -8px rgba(15,23,42,.10)}
+.sp .nv-row,.sp button.nv-row{min-height:68px;padding:12px 14px;gap:12px}
+.sp .nv-av.sd-i{flex:none;width:44px;height:44px;border-radius:14px}
+.sp .nv-row .tx b{font-size:15.5px;white-space:normal;line-height:1.35}
+.sp .nv-row .tx span{font-size:13.5px;line-height:1.4}
+.sp .nv-row>svg:last-child{flex:none;width:28px;height:28px;padding:5px;border-radius:50%;background:var(--canvas);color:var(--muted)}
+.sp .nv-row .end{flex:none;max-width:45%}
+.sp .nv-row .end b{white-space:nowrap}
+
+/* single cards: attendance, profile nudge */
+.sp .sp-card{border-radius:var(--sp-r);padding:14px;gap:12px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 4px 14px -8px rgba(15,23,42,.10)}
+.sp .sp-card .i{width:48px;height:48px;border-radius:15px}
+.sp .sp-card .tx{flex:1}
+.sp .sp-card .tx b{font-size:16.5px;line-height:1.35}
+.sp .sp-card .tx span{font-size:13.5px;line-height:1.45}
+.sp .sp-card.t-g{border-color:color-mix(in srgb,var(--ok-fg) 25%,var(--border))}
+.sp .sp-card.t-r{border-color:color-mix(in srgb,var(--bad-fg) 25%,var(--border))}
+.sp .sp-card.t-w,.sp .sp-card.t-o{border-color:color-mix(in srgb,var(--warn-fg) 25%,var(--border))}
+
+/* the bill button */
+.sp .sp-cta{min-height:54px;border-radius:18px;background:linear-gradient(135deg,var(--primary),color-mix(in srgb,var(--primary) 75%,#0B3A20));
+  box-shadow:0 8px 20px -10px color-mix(in srgb,var(--primary) 80%,transparent)}
+
+/* route and duties */
+.sp .sp-box{border-radius:var(--sp-r);padding:14px;box-shadow:0 1px 2px rgba(15,23,42,.04),0 4px 14px -8px rgba(15,23,42,.10)}
+.sp .sp-box h3{font-size:14.5px;color:var(--text)}
+.sp .sp-box h3 svg{color:var(--primary)}
+.sp .sp-box h3 .cnt{min-width:22px;height:22px;padding:0 7px;border-radius:999px;display:inline-grid;place-items:center;background:var(--primary-50);color:var(--primary);font-weight:700;font-size:12.5px}
+.sp .sp-box .myday-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.sp .sp-box .myday-chips span{border-radius:999px;padding:3px 10px;font-size:12.5px;max-width:100%;overflow-wrap:anywhere}
+.sp .sp-box p.muted{margin:0}
+
+/* nothing on this page may push it sideways */
+.sp,.sp *{min-width:0}
+.sp .nv-av,.sp .sp-tile .i,.sp .sp-card .i,.sp .sp-att,.sp .sp-soon{min-width:auto}
+.sp .tx b,.sp .tx span,.sp .sp-card .tx *{overflow-wrap:anywhere}
+
+/* Android phones */
+@media (max-width:600px){
+  .sp{gap:12px}
+  .sp .sp-two{grid-template-columns:1fr}
+  .sp .sp-hero{padding:16px!important}
+  /* the attendance pill moves under the name instead of disappearing */
+  .sp .sp-hero .tx{flex:1 1 calc(100% - 70px)}
+  .sp .sp-att{margin-left:68px;max-width:calc(100% - 68px);white-space:normal;line-height:1.3}
+  .sp .sp-tile{padding:12px!important}
+  .sp .sp-tile b{font-size:28px}
+}
+@media (max-width:340px){
+  .sp .sp-tiles{gap:8px}
+  .sp .sp-tile{grid-template-columns:1fr;grid-template-areas:"i" "l" "n";gap:6px;padding:12px 10px!important}
+  .sp .sp-tile b{font-size:24px}
+  .sp .nv-row,.sp button.nv-row{padding:11px 12px;gap:10px}
+  .sp .nv-av.sd-i{width:40px;height:40px;border-radius:12px}
+  .sp .sp-hero .nv-av{width:46px;height:46px;font-size:19px}
+  .sp .sp-hero .tx{flex-basis:calc(100% - 60px)}
+  .sp .sp-att{margin-left:0;max-width:100%}
+}
+@media (prefers-reduced-motion:reduce){.sp .sp-tile{transition:none}}
+
+/* =====================================================================
    Side menu, round 2 (owner, 19 Nov: "search UI update · list to list · right side new / urgent / number").
    ===================================================================== */
 /* search lives in the sticky head, so it stays in reach while the list scrolls */
