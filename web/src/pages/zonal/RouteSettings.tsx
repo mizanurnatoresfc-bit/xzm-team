@@ -5,13 +5,15 @@ import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { OsmMap, gmapLink, type MapCircle, type MapLine, type MapPin } from '../../components/OsmMap'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { PlacePicker, PlacesTab, placeToStop } from './RoutePlaces'
 import { usePrefs } from '../../lib/prefs'
 import {
   bestOrder, estimate, fmtDist, fmtKm, fmtMin, hasGps, lineKm, meters, myLocation, parseLocation, roadLine, routeApi, routeColor, routeFriendly,
-  ROUTE_COLORS, routeLine, searchPlace, SHIFT, STOP_KIND, type DayRoute, type RouteHub, type RouteRules, type RouteStop, type Shift, type StopKind, type ZoneOverview, type ZoneRoute,
+  ROUTE_COLORS, routeLine, searchPlace, SHIFT, STOP_KIND, type DayRoute, type Place, type RouteHub, type RouteRules, type RouteStop, type Shift, type StopKind, type ZoneOverview, type ZoneRoute,
 } from '../../lib/routes'
 
-type Tab = 'map' | 'routes' | 'day' | 'warn' | 'rules'
+type Tab = 'map' | 'places' | 'routes' | 'day' | 'warn' | 'rules'
+type NewDraft = { hub_id: string; name?: string; color?: string; stops?: RouteStop[] }
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
 /** জোনাল ম্যানেজার প্যানেল → রুট সেটিং: every hub's rider routes on a real map, with stops, riders, rules and today's check-ins. */
@@ -27,7 +29,7 @@ export function RouteSettings() {
   const [tab, setTab] = useState<Tab>((sp.get('tab') as Tab) || 'map')
   const [hub, setHub] = useState(sp.get('hub') ?? '')
   const [sel, setSel] = useState<string | null>(sp.get('route'))
-  const [edit, setEdit] = useState<ZoneRoute | { hub_id: string } | null>(null)
+  const [edit, setEdit] = useState<ZoneRoute | NewDraft | null>(null)
   const [riders, setRiders] = useState<ZoneRoute | null>(null)
   const [err, setErr] = useState('')
   const o = ov.data
@@ -68,7 +70,7 @@ export function RouteSettings() {
         {zones.data?.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
       {o && <Field label={L('হাব', 'Hub')}><select value={hub} onChange={e => { setHub(e.target.value); setSel(null) }}>
         <option value="">{L('সব হাব', 'All hubs')}</option>{o.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>}
-      <div className="da-seg">{([['map', 'ম্যাপ', 'Map', 'map'], ['routes', 'রুট তালিকা', 'Routes', 'table'], ...(o?.can.visits ? [['day', 'চেক-ইন', 'Check-ins', 'check']] : []),
+      <div className="da-seg">{([['map', 'ম্যাপ', 'Map', 'map'], ['places', 'এলাকা ও সাজেশন', 'Areas & suggestions', 'hub'], ['routes', 'রুট তালিকা', 'Routes', 'table'], ...(o?.can.visits ? [['day', 'চেক-ইন', 'Check-ins', 'check']] : []),
         ['warn', `সতর্কতা${warns.length ? ` (${n(warns.length)})` : ''}`, `Warnings${warns.length ? ` (${warns.length})` : ''}`, 'alert'], ['rules', 'জোনের নিয়ম', 'Zone rules', 'gear']] as Array<[Tab, string, string, string]>).map(([k, b, e, ic]) =>
         <button key={k} className={tab === k ? '' : 'secondary'} onClick={() => setTab(k)}><Icon name={ic} size={14} />{L(b, e)}</button>)}</div>
       {ov.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
@@ -89,6 +91,7 @@ export function RouteSettings() {
 
     {o && tab === 'map' && <ZoneMap o={o} routes={routes} hubOf={hubOf} hub={hub} sel={sel} onSel={setSel}
       onEdit={r => { setErr(''); setEdit(r) }} onRiders={setRiders} onArchive={archive} canEdit={canEdit} canArchive={canArchive} />}
+    {o && tab === 'places' && <PlacesTab o={o} hubOf={hubOf} initialHub={hub} onBuild={d => { setErr(''); setEdit(d) }} />}
     {o && tab === 'routes' && <RouteTable routes={routes} hubOf={hubOf} rules={o.rules} onOpen={r => { setSel(r.id); setTab('map') }} />}
     {o && tab === 'day' && o.can.visits && <DayView zone={zone} o={o} hub={hub} />}
     {o && tab === 'warn' && <section className="panel"><h2>{L('যা ঠিক করা দরকার', 'What needs fixing')}</h2>
@@ -331,14 +334,15 @@ const sig = (hub: { lat: number | null; lng: number | null } | undefined, stops:
   [hub && hasGps(hub) ? `${hub.lat},${hub.lng}` : '', ...stops.filter(hasGps).map(s => `${s.lat},${s.lng}`)].join('|')
 
 export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
-  o: ZoneOverview; start: ZoneRoute | { hub_id: string }; hubOf: Record<string, RouteHub>; onClose: () => void; onSaved: (id: string) => void
+  o: ZoneOverview; start: ZoneRoute | NewDraft; hubOf: Record<string, RouteHub>; onClose: () => void; onSaved: (id: string) => void
 }) {
-  const { L, n } = usePrefs()
+  const { L, n, lang } = usePrefs()
   const fmt = { L, n }
   const old = 'id' in start ? start : null
   const [f, setF] = useState<Draft>(() => old
     ? { id: old.id, hub_id: old.hub_id, code: old.code, name: old.name, note: old.note ?? '', color: old.color ?? routeColor(old, o.routes.indexOf(old)), shift: old.shift, stops: old.stops.map(s => ({ ...s })) }
-    : { hub_id: start.hub_id, code: '', name: '', note: '', color: ROUTE_COLORS[o.routes.filter(r => r.hub_id === start.hub_id).length % ROUTE_COLORS.length], shift: 'day', stops: [] })
+    : { hub_id: start.hub_id, code: '', name: (start as NewDraft).name ?? '', note: '', color: (start as NewDraft).color ?? ROUTE_COLORS[o.routes.filter(r => r.hub_id === start.hub_id).length % ROUTE_COLORS.length],
+        shift: 'day', stops: ((start as NewDraft).stops ?? []).map(x => ({ ...x })) })
   const hub = hubOf[f.hub_id]
   const [sel, setSel] = useState<number | null>(null)
   const [mode, setMode] = useState<'add' | 'move'>('add')
@@ -348,6 +352,9 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
   const [bulk, setBulk] = useState<string | null>(null)
   const [busy, setBusy] = useState(''); const [err, setErr] = useState('')
   const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
+  const [side, setSide] = useState<'stops' | 'places'>('stops')
+  const [extra, setExtra] = useState<{ pins: MapPin[]; lines: MapLine[]; add: (id: string) => void }>({ pins: [], lines: [], add: () => {} })
+  const addPlace = (p: Place) => { setF(d => ({ ...d, stops: [...d.stops, placeToStop(p, lang)] })); if (hasGps(p)) setFocus(null) }
 
   const now = sig(hub, f.stops)
   const roadFresh = road && road.sig === now ? road : null
@@ -423,9 +430,10 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
     ...f.stops.map((s, i) => hasGps(s) ? { id: `s${i}`, lat: s.lat, lng: s.lng, label: `${n(i + 1)}. ${s.name}`, num: n(i + 1), color: f.color } : null).filter(Boolean) as MapPin[],
     // other routes of the same hub, faded, so areas are not given twice
     ...o.routes.filter(r => r.hub_id === f.hub_id && r.id !== f.id).flatMap(r => r.stops.filter(hasGps).map(s => ({ id: `o:${s.id}`, lat: s.lat!, lng: s.lng!, label: `${r.name}: ${s.name}`, num: '•', tone: 'off' as const }))),
+    ...(side === 'places' ? extra.pins : []),
   ]
   const straightPts: Array<[number, number]> = [...(hub && hasGps(hub) ? [[hub.lat, hub.lng] as [number, number]] : []), ...f.stops.filter(hasGps).map(s => [s.lat!, s.lng!] as [number, number])]
-  const lines: MapLine[] = shownRoad ? [{ id: 'road', color: f.color, points: shownRoad.path }] : [{ id: 'line', color: f.color, points: straightPts, dashed: true }]
+  const lines: MapLine[] = [...(side === 'places' ? extra.lines : []), ...(shownRoad ? [{ id: 'road', color: f.color, points: shownRoad.path }] : [{ id: 'line', color: f.color, points: straightPts, dashed: true }])]
   const circles: MapCircle[] = sel !== null && f.stops[sel] && hasGps(f.stops[sel]) ? [{ id: 'c', lat: f.stops[sel].lat!, lng: f.stops[sel].lng!, m: f.stops[sel].radius_m ?? o.rules.stop_radius_m, color: f.color }] : []
   const editableHubs = o.hubs.filter(h => o.can.edit_hubs.includes(h.id))
 
@@ -451,7 +459,7 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
           <button type="button" className="secondary sm" disabled={busy === 'gps'} onClick={() => void here(null)}><Icon name="map" size={13} />{L('আমার লোকেশনে স্টপ', 'Stop at my location')}</button>
         </div>
         <OsmMap pins={pins} lines={lines} circles={circles} height={430} focus={focus} onPick={pick} tags="all"
-          selected={sel !== null ? `s${sel}` : null} onSelect={id => { if (id.startsWith('s')) { const i = Number(id.slice(1)); setSel(i); setOpen(i) } }} />
+          selected={sel !== null ? `s${sel}` : null} onSelect={id => { if (id.startsWith('p:')) { extra.add(id); return } if (id.startsWith('s')) { const i = Number(id.slice(1)); setSel(i); setOpen(i) } }} />
         <div className="rt-search" style={{ marginTop: 8 }}>
           <div className="rt-bar"><input style={{ flex: 1, minWidth: 0 }} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void find() }}
             placeholder={L('জায়গার নাম, Google Maps লিংক বা "24.37, 88.60"', 'Place name, Google Maps link or "24.37, 88.60"')} />
@@ -469,6 +477,12 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
         </div>
       </div>
       <div className="rt-side">
+        <span className="da-seg"><button type="button" className={side === 'stops' ? 'sm' : 'secondary sm'} onClick={() => setSide('stops')}><Icon name="map" size={13} />{L(`স্টপ (${n(f.stops.length)})`, `Stops (${f.stops.length})`)}</button>
+          <button type="button" className={side === 'places' ? 'sm' : 'secondary sm'} onClick={() => setSide('places')}><Icon name="hub" size={13} />{L('এলাকা থেকে বাছুন', 'Pick from areas')}</button></span>
+        {side === 'places' && <PlacePicker hub={hub} stops={f.stops} onAdd={addPlace}
+          others={o.routes.filter(r => r.hub_id === f.hub_id && r.id !== f.id).flatMap(r => r.stops.filter(hasGps).map(s => ({ route: r.name, lat: s.lat!, lng: s.lng! })))}
+          onShow={(pins, lines, add) => setExtra({ pins, lines, add })} />}
+        {side === 'stops' && <>
         <div className="rt-bar">
           <button type="button" className="secondary sm" disabled={gpsCount < 2} onClick={optimize} title={L('হাব থেকে সবচেয়ে কম দূরত্বের ক্রমে সাজায়', 'Shortest order from the hub')}><Icon name="swap" size={13} />{L('ছোট পথে সাজান', 'Shortest order')}</button>
           <button type="button" className="secondary sm" disabled={f.stops.length < 2} onClick={() => setF({ ...f, stops: [...f.stops].reverse() })}><Icon name="swap" size={13} />{L('উল্টো ক্রম', 'Reverse')}</button>
@@ -503,6 +517,7 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
               {hasGps(s) && <a className="btn-ghost small" href={gmapLink(s.lat, s.lng)} target="_blank" rel="noreferrer">Google Maps</a>}</div>
           </div>}
         </div>)}</div>
+        </>}
         {f.stops.length > o.rules.max_stops && <p className="da-error">{L(`জোনের সীমা ${n(o.rules.max_stops)}টা স্টপ`, `Zone limit: ${o.rules.max_stops} stops`)}</p>}
       </div>
     </div>

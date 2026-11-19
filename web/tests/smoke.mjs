@@ -92,6 +92,9 @@ try {
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false, staffSecs = null
     const prospects = []
+    const routePlaces = [['আমহাটি', 'Amhati', 24.4315, 89.0003], ['দিঘাপতিয়া', 'Dighapatia', 24.4400, 88.9800], ['ছাতনী', 'Chhatni', 24.4500, 88.9500], ['হালসা', 'Halsa', 24.3800, 89.0400],
+      ['বড়হরিশপুর', 'Barahorishpur', 24.4000, 89.0300], ['তেবাড়িয়া', 'Tebaria', 24.4200, 88.9500], ['কাফুরিয়া', 'Kafuria', 24.3900, 88.9600], ['লক্ষীপুর', 'Laxmipur', 24.4600, 89.0200]]
+      .map(([name_bn, name, lat, lng], i) => ({ id: `pl${i}`, upazila_code: 143, kind: i === 7 ? 'market' : 'village', name, name_bn, bn_checked: i % 2 === 0, lat, lng, source: 'geonames', hidden: false, hidden_reason: null, note: null }))
     const routeOverview = { zone: { id: 'z1', code: 'NT', name: 'Natore Area' },
       rules: { max_stops: 40, max_riders: 4, max_routes_per_rider: 2, stop_radius_m: 150, speed_kmh: 18, stop_minutes: 4, start_time: '10:00', gps_required: false, checkin_open: true, saved: false, updated_at: null },
       can: { configure: true, visits: true, edit_hubs: ['h1', 'h2'], archive_hubs: ['h1', 'h2'] },
@@ -145,6 +148,10 @@ try {
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
+      if (u.includes('/rest/v1/geo_upazilas')) return j([{ code: 143, district: 'Natore', district_bn: 'নাটোর', name: 'Natore Sadar', name_bn: 'নাটোর সদর', boundary: [[24.36, 88.93], [24.47, 88.93], [24.47, 89.07], [24.36, 89.07], [24.36, 88.93]] },
+        { code: 149, district: 'Natore', district_bn: 'নাটোর', name: 'Naldanga', name_bn: 'নলডাঙ্গা', boundary: null }])
+      if (u.includes('/rest/v1/route_places')) return j(routePlaces)
+      if (u.includes('rpc/route_place_save') || u.includes('rpc/route_place_hide')) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j('pl9') }
       if (u.includes('rpc/route_zones')) return j([{ id: 'z1', code: 'NT', name: 'Natore Area' }])
       if (u.includes('rpc/route_zone_overview')) return j(routeOverview)
       if (u.includes('rpc/route_day')) return j({ date: '2026-11-19', routes: [{ route_id: 'rt1', hub_id: 'h1', hub_name: 'Natore Sadar', code: 'R01', name: 'শহর পূর্ব', color: '#2563EB', stops: 3, stops_gps: 3,
@@ -1170,6 +1177,36 @@ try {
       await page.locator('button:has-text("নিয়ম সেভ")').click(); await page.waitForTimeout(200)
       check(flowCalls.some(x => x.fn === 'route_settings_save' && x.p_zone === 'z1' && x.p.stop_radius_m === 150), `${size}: the zone rules are saved for the zone`)
       await fits('zone route rules')
+      // এলাকা ও সাজেশন: the hub's upazila villages come up, split into suggested routes; one is built in the editor; places are picked one by one
+      await page.locator('.da-seg button:has-text("এলাকা ও সাজেশন")').click(); await page.waitForSelector('.rt-card:has-text("সাজেশন ১")')
+      { const t = await page.locator('main').innerText()
+        check(t.includes('নাটোর সদর ★') && t.includes('আমহাটি') && await page.locator('.rt-card:has-text("সাজেশন")').count() >= 1, `${size}: the hub's upazila is chosen by itself and its villages are suggested as routes`) }
+      await fits('area suggestions')
+      await page.locator('section.panel:has-text("উপজেলা ধরে রুট সাজেশন") input[type=number]').first().fill('2')
+      await page.waitForSelector('.rt-card:has-text("সাজেশন ২")')
+      check(true, `${size}: asking for two routes splits the villages into two suggestions`)
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-suggest-${size}.png`, fullPage: true })
+      await page.locator('.rt-card button:has-text("এই রুট বানান")').first().click(); await page.waitForSelector('.rt-stop')
+      { const k = await page.locator('.rt-stop').count(); check(k >= 2, `${size}: "build this route" opens the editor with the suggested stops (${k})`) }
+      await page.locator('.rt-side button:has-text("এলাকা থেকে বাছুন")').click(); await page.waitForSelector('.rt-stop:has-text("আমহাটি")')
+      const before = flowCalls.filter(x => x.fn === 'route_save').length
+      await page.locator('.rt-side button:has-text("স্টপ (")').click()
+      const k0 = await page.locator('.rt-stop').count()
+      await page.locator('.rt-side button:has-text("এলাকা থেকে বাছুন")').click()
+      await page.locator('.rt-stop:not(:has(button[disabled])) .acts button').first().click()
+      await page.locator('.rt-side button:has-text("স্টপ (")').click()
+      check(await page.locator('.rt-stop').count() === k0 + 1, `${size}: a place picked from the list becomes a stop with its name`)
+      await fits('editor area picker')
+      await page.locator('.da-modal-acts button:has-text("সেভ")').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'))
+      { const c = flowCalls.filter(x => x.fn === 'route_save')[before]
+        check(!!c && !c.p.id && c.p.stops.length === k0 + 1 && c.p.stops.every(x => x.lat !== null) && c.p.name.includes('নাটোর সদর'), `${size}: the new route is saved with the places' locations and a name`) }
+      await page.locator('.da-seg button:has-text("এলাকা ও সাজেশন")').click(); await page.waitForSelector('button:has-text("বানান ঠিক")')
+      await page.locator('tr:has-text("দিঘাপতিয়া") button:has-text("বানান ঠিক")').first().click().catch(async () => { await page.locator('button:has-text("বানান ঠিক")').first().click() })
+      await page.waitForSelector('.da-modal input')
+      await page.locator('.da-modal input').first().fill('দিঘাপতিয়া (রাজবাড়ি)')
+      await page.locator('.da-modal-acts button:has-text("সেভ")').click(); await page.waitForFunction(() => !document.querySelector('.da-modal'))
+      check(flowCalls.some(x => x.fn === 'route_place_save' && x.p.name_bn === 'দিঘাপতিয়া (রাজবাড়ি)' && x.p.bn_checked), `${size}: a village spelling is fixed and saved`)
+      await page.locator('.da-seg button:has-text("ম্যাপ")').first().click()
       // inside the Android app the older page stays for now
       const app = await ctx.newPage()
       await app.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {} } })
