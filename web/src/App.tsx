@@ -201,8 +201,17 @@ export default function App() {
       <Route path="/app/access/user/:id" element={<AccessPage><UserAccess /></AccessPage>} />
       <Route path="/app/access/:section" element={<AccessPage><AccessCenter /></AccessPage>} />
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
-      <Route path="/app/nodi/chat" element={<NodiChat />} />
+    </Route>
+    {/* Nodi AI and branding open by the same permission their menu links use (not the role-page permission). */}
+    <Route element={<ProtectedRoute />}>
+      <Route element={<AnyOf perms={['nodi.assistant.view', 'nodi.settings.configure']} />}>
+        <Route path="/app/nodi/chat" element={<NodiChat />} />
+      </Route>
+    </Route>
+    <Route element={<ProtectedRoute permission="nodi.settings.configure" />}>
       <Route path="/app/nodi" element={<NodiSettings />} />
+    </Route>
+    <Route element={<ProtectedRoute permission="system.settings.configure" />}>
       <Route path="/app/branding" element={<BrandingSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>
