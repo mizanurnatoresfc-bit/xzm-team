@@ -513,6 +513,33 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **19 Nov — live:** applied to Supabase as `nodi_features` (20261119082756) after checking the four replaced functions equal the repository by hash; cron job now checks the switch;
   anon can run none of the new functions; `nodi-ai` v9 deployed (same file as the repository). Office items: a drawn icon per kind; phone list puts the buttons on their own line.
 
+## 2026-11-19 — রাইডার রুট: আসল লোকেশন দিয়ে, জোনাল ম্যানেজার প্যানেলে "রুট সেটিং"
+- Owner: "রুট টা হাইলি ভাবে বিল্ড করো রিয়াল লোকেশন দিয়ে জোনাল ম্যানেজার প্যানেল এ রুট এর সেটিং দিও! পারমিশন স্টাফ বা ম্যানেজার কে পরবর্তী দিবে"।
+- Migration `20261119030000_route_settings.sql` (additive; nothing dropped or replaced):
+  tables `hub_route_stops` (stops in order with lat/lng, kind, reach radius, minutes, note), `route_zone_settings` (zone rules), `route_stop_visits`
+  (rider check-in: phone location, distance, near/far, one per stop and day); `hub_routes` + `color`, `shift`, `distance_km` (straight, hub → stops),
+  `road_km` / `road_minutes` / `road_path` (road line), `stops_gps`. All three tables function-only for writing, audited, never deleted.
+  `hub_routes.areas` stays = the stop names, so the older hub page and staff panel keep working; when an older screen writes `areas` directly,
+  trigger `hub_routes_follow_areas` rebuilds the stops and keeps each stop's GPS by its name. Routes made before got one stop per area (no GPS yet).
+  Functions: `route_zones`, `route_zone_overview(zone)`, `route_save(jsonb)` (route + stops in one call; checks Bangladesh bounds, zone limits,
+  GPS-required rule; a moved stop clears the old road line), `route_archive`, `route_riders_set` (same hub, active, max riders / routes per rider),
+  `route_settings_save`, `route_day(zone, date)`, `my_route_today`, `route_checkin(stop, lat, lng, accuracy, note)`.
+- Permissions (new): `ops.route_setting.view / edit / archive / configure`, `ops.route_visit.view` → Admin + Zonal Manager only;
+  `ops.route_visit.create` (rider check-in) → nobody yet. The Super Admin gives them to managers or staff later (role or personal permission);
+  a hub-scoped grant works for that hub only. The hub page keeps `ops.route.view / edit` as before (a hub manager with `ops.route.edit` can also save
+  through `route_save`). If a role has a page list, add `/app/zonal/routes` to it when giving the permission.
+- Page `/app/zonal/routes` (জোনাল ম্যানেজার প্যানেল → জোন ও হাব → রুট সেটিং): tabs ম্যাপ (all routes on OpenStreetMap, road line solid / straight dashed,
+  numbered stops, reach circles), রুট তালিকা (Excel/PDF), চেক-ইন (day, per rider progress, near/far on the map), সতর্কতা (hub without GPS, stops without
+  location, routes without rider, riders without route, two routes on one place, too many stops/riders, over 9 hours), জোনের নিয়ম.
+  Editor: tap the map to add / move a stop, place search (Nominatim, Bangladesh), Google Maps link or "lat, lng", my location, paste many lines,
+  ↑↓ order, shortest order from the hub (nearest neighbour + 2-opt), draw by road (public OSRM), straight km, road km/min, estimated time.
+  Hub page "রাইডার রুট" has "আসল ম্যাপে খুলুন". Staff panel → আমার রুট: the route map, next stop, Google Maps directions, "এখানে পৌঁছেছি" (when permitted).
+- Road line and place search use free public services (router.project-osrm.org, nominatim.openstreetmap.org) from the browser; if they are busy the
+  page says so and the straight line still works.
+- Tests: `99zzzzzzzzzzzzzzzzzzz_route_settings.sql` (41); whole SQL suite 1968 pass. Smoke test: route settings page at PC and phone size.
+- **19 Nov — live:** the owner ran the migration file in the Supabase SQL Editor (the tool's approval did not reach the phone), so it is NOT in
+  `supabase_migrations.schema_migrations`. After it, all 17 new function bodies were checked equal to the tested file by md5, anon can run none,
+  the private helpers are closed, RLS on, Admin + Zonal Manager hold the five permissions, the one existing route got its stop. Site released by merging to `main`.
 ## 2026-11-19 — জোন গ্রুপ ও জোনাল ম্যানেজার চালু (staff panel's last two "শীঘ্রই" rows)
 - Owner: "জোন গ্রুপ আর জোনাল ম্যানেজার রানিং করো!"
 - Migration `20261119020000_zone_group_and_contact.sql`:

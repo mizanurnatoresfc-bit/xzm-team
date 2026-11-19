@@ -68,6 +68,7 @@ export const MODULES: ModuleDef[] = [
   { key: 'ops', icon: 'box', bn: 'কুরিয়ার অপারেশন', en: 'Courier operations', db: ['ops'], subs: [] },
   { key: 'zonal', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal management', db: ['zonal'], subs: [
     { to: '/app/zonal', res: ['zonal.dashboard', 'zonal.claim', 'zonal.planning', 'zonal.visit', 'zonal.pulse', 'zonal.report'] },
+    { to: '/app/zonal/routes', res: ['ops.route_setting', 'ops.route_visit'] },
   ] },
   { key: 'org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', db: ['org'], subs: [
     { to: '/app/org/hubs', res: ['org.hub', 'org.region'] },

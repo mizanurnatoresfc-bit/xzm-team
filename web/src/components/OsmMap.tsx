@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 
 /** A small OpenStreetMap view without any library: tiles, pins, zoom, drag, tap-to-pick. */
-export type MapPin = { id: string; lat: number; lng: number; label: string; tone?: 'ok' | 'off' | 'wait' | 'sel' }
+export type MapPin = { id: string; lat: number; lng: number; label: string; tone?: 'ok' | 'off' | 'wait' | 'sel'
+  /** a numbered round badge (route stops) instead of the drop pin; `color` fills it, `square` marks a start (hub) */
+  num?: string; color?: string; square?: boolean }
+/** Lines drawn under the pins (route path), points as [lat, lng]. */
+export type MapLine = { id: string; color: string; points: Array<[number, number]>; dashed?: boolean; width?: number; opacity?: number }
+/** A circle of a real size in metres (a stop's reach radius, the phone's location accuracy). */
+export type MapCircle = { id: string; lat: number; lng: number; m: number; color: string }
 
 const T = 256
 const wx = (lng: number, z: number) => ((lng + 180) / 360) * T * 2 ** z
@@ -15,9 +21,10 @@ const latOf = (y: number, z: number) => {
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)))
 }
 
-export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus }: {
+export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus, lines = [], circles = [], tags = 'all' }: {
   pins: MapPin[]; height?: number; selected?: string | null; onSelect?: (id: string) => void
   onPick?: (lat: number, lng: number) => void; focus?: { lat: number; lng: number } | null
+  lines?: MapLine[]; circles?: MapCircle[]; tags?: 'all' | 'selected'
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [w, setW] = useState(360)
@@ -31,16 +38,19 @@ export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus }
   }, [])
 
   // Fit all pins once (and whenever the focus point changes).
-  const key = pins.map(p => `${p.lat},${p.lng}`).join('|')
+  const fitPts = [...pins.map(p => [p.lat, p.lng] as [number, number]), ...lines.flatMap(l => l.points.length > 2 ? [l.points[0], l.points[l.points.length - 1]] : l.points)]
+  const key = fitPts.map(p => `${p[0]},${p[1]}`).join('|')
+  const [refit, setRefit] = useState(0)
   useEffect(() => {
     if (focus) { setView({ z: 15, lat: focus.lat, lng: focus.lng }); return }
-    if (!pins.length) { setView({ z: 9, lat: 24.42, lng: 89.0 }); return }
-    const lats = pins.map(p => p.lat), lngs = pins.map(p => p.lng)
+    if (!fitPts.length) { setView({ z: 9, lat: 24.42, lng: 89.0 }); return }
+    const lats = fitPts.map(p => p[0]), lngs = fitPts.map(p => p[1])
     const [a, b, c, d] = [Math.min(...lats), Math.max(...lats), Math.min(...lngs), Math.max(...lngs)]
     let z = 16
     while (z > 3 && (wx(d, z) - wx(c, z) > w - 60 || wy(a, z) - wy(b, z) > height - 60)) z--
     setView({ z, lat: (a + b) / 2, lng: (c + d) / 2 })
-  }, [key, focus?.lat, focus?.lng, w, height])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, focus?.lat, focus?.lng, w, height, refit])
 
   // Same GPS → one pin listing every hub there (they stay separate hubs).
   const groups = useMemo(() => {
@@ -61,7 +71,7 @@ export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus }
 
   const zoom = (dz: number) => setView(v => v && { ...v, z: Math.max(3, Math.min(18, v.z + dz)) })
   function down(e: RPointerEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest('.osm-pin,.osm-ctl')) return
+    if ((e.target as HTMLElement).closest('.osm-pin,.osm-ctl,.osm-attr')) return
     drag.current = { x: e.clientX, y: e.clientY, moved: false, cx, cy }
     e.currentTarget.setPointerCapture(e.pointerId)
   }
@@ -82,14 +92,24 @@ export function OsmMap({ pins, height = 340, selected, onSelect, onPick, focus }
     {tiles.map(t => <img key={`${z}/${t.x}/${t.y}`} alt="" draggable={false} className="osm-tile"
       src={`https://tile.openstreetmap.org/${z}/${((t.x % n) + n) % n}/${t.y}.png`}
       style={{ left: t.x * T - left, top: t.y * T - top }} />)}
+    {(lines.length > 0 || circles.length > 0) && <svg className="osm-svg" width={w} height={height} viewBox={`0 0 ${w} ${height}`}>
+      {circles.map(c => { const mpp = (156543.03392 * Math.cos((c.lat * Math.PI) / 180)) / 2 ** z
+        return <circle key={c.id} cx={wx(c.lng, z) - left} cy={wy(c.lat, z) - top} r={Math.max(c.m / mpp, 4)} fill={c.color} fillOpacity=".14" stroke={c.color} strokeWidth="1.5" /> })}
+      {lines.map(l => l.points.length > 1 && <polyline key={l.id} fill="none" stroke={l.color} strokeWidth={l.width ?? 4} strokeOpacity={l.opacity ?? 0.85}
+        strokeLinecap="round" strokeLinejoin="round" strokeDasharray={l.dashed ? '7 7' : undefined}
+        points={l.points.map(([la, ln]) => `${(wx(ln, z) - left).toFixed(1)},${(wy(la, z) - top).toFixed(1)}`).join(' ')} />)}
+    </svg>}
     {groups.map(g => {
       const p = g[0]; const sel = g.some(x => x.id === selected)
-      return <button key={p.id} type="button" className={`osm-pin t-${sel ? 'sel' : p.tone ?? 'ok'}`} title={g.map(x => x.label).join(', ')}
+      const showTag = tags === 'all' || sel
+      return <button key={p.id} type="button" className={`osm-pin t-${sel ? 'sel' : p.tone ?? 'ok'}${p.num !== undefined ? ' num' : ''}${p.square ? ' sq' : ''}`} title={g.map(x => x.label).join(', ')}
         style={{ left: wx(p.lng, z) - left, top: wy(p.lat, z) - top }} onClick={() => onSelect?.(g.find(x => x.id !== selected)?.id ?? p.id)}>
-        <span className="dot" /><span className="tag">{g.map(x => x.label).join(' · ')}</span>
+        {p.num !== undefined ? <span className="badge" style={p.color ? { background: p.color } : undefined}>{g.map(x => x.num).join('·')}</span> : <span className="dot" />}
+        {showTag && <span className="tag">{g.map(x => x.label).join(' · ')}</span>}
       </button>
     })}
-    <div className="osm-ctl"><button type="button" onClick={() => zoom(1)} aria-label="বড়">+</button><button type="button" onClick={() => zoom(-1)} aria-label="ছোট">−</button></div>
+    <div className="osm-ctl"><button type="button" onClick={() => zoom(1)} aria-label="বড়">+</button><button type="button" onClick={() => zoom(-1)} aria-label="ছোট">−</button>
+      <button type="button" onClick={() => setRefit(x => x + 1)} aria-label="সব দেখান" title="সব দেখান">⤢</button></div>
     <a className="osm-attr" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a>
   </div>
 }
