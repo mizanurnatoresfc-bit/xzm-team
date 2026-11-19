@@ -115,6 +115,8 @@ export type MyOps = {
   hint: { pickup: number; delivery: number; lines: number } | null
 }
 export type OpsInput = { pickup: number; pickup_return: number; delivery: number; delivery_return: number }
+/** `wf_ops_taps(p_date)` — one person's own taps for one date (each "সাবমিট" adds to the day's total). Newest tap first. */
+export type OpsTaps = { date: IsoDate; count: number; total: OpsInput | null; taps: Array<OpsInput & { at: string; note: string | null }> }
 
 // ------------------------------------------------------------------ manager (one hub) and zonal manager (many hubs)
 export type HubRef = { id: string; code: string | null; name: string; zone_id: string | null; zone_name: string | null }
@@ -234,6 +236,11 @@ export const wf = {
   submitOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
     rpc<DailyOps>('wf_ops_submit', { p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return,
       p_note: note || null, p_date: date ?? null }),
+  /** One tap: ADDS the four numbers to the day's total (empty = 0). */
+  addOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
+    rpc<DailyOps>('wf_ops_add', { p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return,
+      p_note: note || null, p_date: date ?? null }),
+  opsTaps: (date?: IsoDate | null) => rpc<OpsTaps | null>('wf_ops_taps', { p_date: date ?? null }),
   counts: () => rpc<PendingCounts>('wf_pending_counts'),
   // manager / zonal manager — everything is limited to the hubs the caller may see
   hubOverview: (hub: string, date?: IsoDate | null) => rpc<HubOverview>('wf_hub_overview', { p_hub: hub, p_date: date ?? null }),

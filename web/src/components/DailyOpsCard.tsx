@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { addDays } from '../lib/dailyAccounts'
 import { usePrefs, type Lang } from '../lib/prefs'
 import { toLatinDigits } from '../lib/validate'
@@ -9,35 +9,32 @@ import { Icon } from './Icon'
 import '../workforce-book.css'
 
 /**
- * আজকের কাজের হিসাব — the four numbers a staff member sends every day: pickup, pickup return, delivery, delivery return.
- * Four direct number boxes (Bangla digits are accepted), all required (0 is a number), one "সাবমিট".
- * The database keeps one row per person per date (with the person's hub and zone), so sending again changes the same row (revision +1).
+ * আজকের কাজের হিসাব — the four numbers a staff member sends during the day: pickup, pickup return, delivery, delivery return.
+ * One tap on "সাবমিট" ADDS what is in the boxes to the day's total (an empty box is 0), then the boxes clear for the next batch.
+ * Every tap is counted: the card shows how many times the person submitted today and the day's total, with each tap below.
+ * The database keeps one row per person per date (the total) and one history line per tap (`wf_ops_add`, `wf_ops_taps`).
  * Rendered directly on the staff panel; renders nothing for a login that has no staff profile. No page frame inside.
  */
 const FIELDS = [
-  { key: 'pickup', bn: 'পিকআপ', en: 'Pickup' },
-  { key: 'pickup_return', bn: 'পিকআপ রিটার্ন', en: 'Pickup return' },
-  { key: 'delivery', bn: 'ডেলিভারি', en: 'Delivery' },
-  { key: 'delivery_return', bn: 'ডেলিভারি রিটার্ন', en: 'Delivery return' },
+  { key: 'pickup', bn: 'পিকআপ', en: 'Pickup', icon: 'box', tone: 'b' },
+  { key: 'pickup_return', bn: 'পিকআপ রিটার্ন', en: 'Pickup return', icon: 'back', tone: 'o' },
+  { key: 'delivery', bn: 'ডেলিভারি', en: 'Delivery', icon: 'truck', tone: 'g' },
+  { key: 'delivery_return', bn: 'ডেলিভারি রিটার্ন', en: 'Delivery return', icon: 'back', tone: 'p' },
 ] as const
 type Key = (typeof FIELDS)[number]['key']
 type Form = Record<Key, string> & { note: string }
 const EMPTY: Form = { pickup: '', pickup_return: '', delivery: '', delivery_return: '', note: '' }
 const MAX = 100000
-const fromEntry = (e: DailyOps | null): Form => e
-  ? { pickup: String(e.pickup), pickup_return: String(e.pickup_return), delivery: String(e.delivery), delivery_return: String(e.delivery_return), note: e.note ?? '' }
-  : EMPTY
-/** The four numbers, or null when a box is empty or over the limit. */
+const ZERO: OpsInput = { pickup: 0, pickup_return: 0, delivery: 0, delivery_return: 0 }
+/** The four numbers (an empty box is 0), or null when a box is over the limit. */
 const parse = (f: Form): OpsInput | null => {
   const v = {} as OpsInput
   for (const { key } of FIELDS) {
-    if (!/^\d+$/.test(f[key])) return null
-    const x = Number(f[key]); if (x > MAX) return null
+    const x = f[key] === '' ? 0 : Number(f[key]); if (!Number.isFinite(x) || x > MAX) return null
     v[key] = x
   }
   return v
 }
-const sameAs = (e: DailyOps, f: Form) => FIELDS.every(({ key }) => String(e[key]) === f[key]) && (e.note ?? '') === f.note.trim()
 const dateText = (iso: string, lang: Lang, o: Intl.DateTimeFormatOptions) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'UTC', ...o })
 
@@ -48,24 +45,18 @@ export function DailyOpsCard() {
   const d = q.data
   const [back, setBack] = useState(0)                 // 0 = today (auto), 1 = yesterday … only while the settings allow
   const [form, setForm] = useState<Form>(EMPTY)
-  const [tried, setTried] = useState(false)           // the person pressed "সাবমিট" with a box empty: show which
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [tapsOpen, setTapsOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
-  const edited = useRef(false)                        // the person is typing: a live refresh must not overwrite the boxes
+  const [pop, setPop] = useState(0)                   // bumps after each tap: the counter and totals animate once
 
   const maxBack = d ? Math.max(0, d.backdate_days) : 0
   const off = Math.min(back, maxBack)
-  const dateAt = (i: number) => d ? addDays(d.today, -i) : ''
-  const entryAt = (i: number): DailyOps | null => !d ? null : i === 0 ? d.entry : d.recent.find(r => r.work_date === dateAt(i)) ?? null
-  const date = dateAt(off)
-  const entry = entryAt(off)
-  const sig = entry ? `${entry.id}:${entry.revision}:${entry.updated_at}` : 'none'
-
-  // the saved row changed (this or another device, or a new day began): follow it, unless the person is in the middle of typing
-  useEffect(() => { if (!edited.current) setForm(fromEntry(entry)) }, [sig, date]) // eslint-disable-line react-hooks/exhaustive-deps
-  // a different day: start at once from what is saved for it
-  const pick = (i: number) => { edited.current = false; setTried(false); setErr(''); setBack(i); setForm(fromEntry(entryAt(i))) }
+  const date = d ? addDays(d.today, -off) : ''
+  const t = useLiveLoad(() => date ? wf.opsTaps(date) : Promise.resolve(null), [date], ['wf_daily_ops'])
+  const taps = t.data && t.data.date === date ? t.data : null
+  useEffect(() => { if (!pop) return; const id = window.setTimeout(() => setPop(0), 700); return () => window.clearTimeout(id) }, [pop])
 
   if (!d) {
     if (q.error) return <section className="wf-op"><p className="da-error" role="alert">{wfFriendly(q.error)}</p>
@@ -74,30 +65,31 @@ export function DailyOpsCard() {
     return null                                       // no active staff profile on this login: nothing to fill
   }
 
-  const word = off === 0 ? L('আজ', 'Today') : off === 1 ? L('গতকাল', 'Yesterday') : dateText(date, lang, { day: 'numeric', month: 'long' })
+  const entry: DailyOps | null = off === 0 ? d.entry : d.recent.find(r => r.work_date === date) ?? null
+  const total: OpsInput = taps?.total ?? (entry ? { pickup: entry.pickup, pickup_return: entry.pickup_return, delivery: entry.delivery, delivery_return: entry.delivery_return } : ZERO)
+  const count = taps?.count ?? 0
   const prefix = off === 0 ? L('আজকের', "Today's") : off === 1 ? L('গতকালের', "Yesterday's") : L('সেদিনের', "That day's")
-  const set = (k: keyof Form, v: string) => { edited.current = true; setForm(f => ({ ...f, [k]: v })) }
-  const unchanged = !!entry && sameAs(entry, form)
-  const bad = (k: Key) => tried && !/^\d+$/.test(form[k])
+  const set = (k: keyof Form, v: string) => { setErr(''); setForm(f => ({ ...f, [k]: v })) }
+  const pick = (i: number) => { setErr(''); setBack(i); setForm(EMPTY) }
+  const typed = parse(form)
+  const anyTyped = FIELDS.some(({ key }) => form[key] !== '' && form[key] !== '0')
   const list = [d.entry, ...d.recent].filter((x): x is DailyOps => !!x).sort((a, b) => b.work_date.localeCompare(a.work_date))
   const hint = off === 0 && d.hint && d.hint.lines > 0 ? d.hint : null
+  const ord = (k: number) => lang === 'bn' ? `${n(k)} নম্বর` : `#${k}`
 
   const submit = async () => {
-    setTried(true); setErr('')
+    setErr('')
     const v = parse(form)
-    if (!v) {
-      const over = FIELDS.some(({ key }) => /^\d+$/.test(form[key]) && Number(form[key]) > MAX)
-      setErr(over ? L(`সংখ্যা ${n(MAX)} এর বেশি হতে পারে না`, `A number cannot be above ${MAX}`) : L('চারটি ঘরেই সংখ্যা লিখুন — না থাকলে ০ লিখুন', 'Fill all four boxes — write 0 if there is none'))
-      return
-    }
-    if (entry && sameAs(entry, form)) { toast(L('এই হিসাবই আগে জমা আছে', 'This is already saved')); return }
+    if (!v) { setErr(L(`সংখ্যা ${n(MAX)} এর বেশি হতে পারে না`, `A number cannot be above ${MAX}`)); return }
+    if (entry && !anyTyped) { setErr(L('অন্তত একটা ঘরে সংখ্যা লিখুন — যা লিখবেন তা মোটের সাথে যোগ হবে', 'Write at least one number — it is added to the total')); return }
     setBusy(true)
     try {
-      await wf.submitOps(v, form.note.trim() || null, off === 0 ? null : date)
-      edited.current = false; setTried(false)
-      await q.reload()
+      await wf.addOps(v, form.note.trim() || null, off === 0 ? null : date)
+      setForm(EMPTY)
+      await Promise.all([q.reload(), t.reload()])
       announceWfChange()
-      toast(entry ? L('হিসাব বদলানো হয়েছে', 'Your numbers were changed') : L('সাবমিট হয়েছে — ধন্যবাদ', 'Submitted — thank you'))
+      setPop(p => p + 1)
+      toast(L(`${n(count + 1)} বার সাবমিট হয়েছে — মোটের সাথে যোগ হয়েছে`, `Submitted ${count + 1} time(s) — added to the total`))
     } catch (e) { setErr(wfFriendly(e)) } finally { setBusy(false) }
   }
 
@@ -115,11 +107,29 @@ export function DailyOpsCard() {
         onClick={() => pick(i)}>{i === 0 ? L('আজ', 'Today') : i === 1 ? L('গতকাল', 'Yesterday') : L(`${n(i)} দিন আগে`, `${i} days ago`)}</button>)}
     </div>}
 
+    {/* how many times, and the day's total */}
+    <div className={`wf-tap-sum${pop ? ' pop' : ''}`} aria-live="polite">
+      <div className="wf-tap-count">
+        <span className="ring"><b>{n(count)}</b></span>
+        <span className="tx"><b>{L(`${n(count)} বার সাবমিট`, `Submitted ${count} time${count === 1 ? '' : 's'}`)}</b>
+          <small>{count ? L(`সর্বশেষ ${clock(taps!.taps[0].at, lang)}`, `Last at ${clock(taps!.taps[0].at, lang)}`) : L('যতবার দেবেন, ততবার যোগ হবে', 'Every submit adds up')}</small></span>
+      </div>
+      <div className="wf-tap-total" role="list" aria-label={L(`${prefix} মোট`, `${prefix} total`)}>
+        {FIELDS.map(f => <div key={f.key} role="listitem" className={`wf-tap-t t-${f.tone}`}>
+          <span className="i"><Icon name={f.icon} size={16} /></span>
+          <b>{n(total[f.key])}</b><small>{L(`মোট ${f.bn}`, `Total ${f.en.toLowerCase()}`)}</small>
+        </div>)}
+      </div>
+    </div>
+
+    <p className="wf-tap-lead">{count ? L('এবারের সংখ্যা লিখুন — মোটের সাথে যোগ হবে', 'Type this batch — it is added to the total') : L('সংখ্যা লিখে এক ক্লিকে সাবমিট দিন', 'Type the numbers and submit in one tap')}</p>
     <div className="wf-op-grid">
-      {FIELDS.map(f => <Field key={f.key} label={`${prefix} ${L(f.bn, f.en)}`} required>
-        <input className={`wf-op-in${bad(f.key) ? ' err' : ''}`} inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint="next" maxLength={6} placeholder="0"
-          aria-invalid={bad(f.key) || undefined} value={form[f.key]}
+      {FIELDS.map(f => <Field key={f.key} label={L(f.bn, f.en)}>
+        <input className="wf-op-in" inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint="done" maxLength={6} placeholder="0"
+          value={form[f.key]} onKeyDown={e => { if (e.key === 'Enter' && !busy) void submit() }}
           onChange={e => set(f.key, toLatinDigits(e.target.value).replace(/\D/g, '').slice(0, 6).replace(/^0+(?=\d)/, ''))} />
+        {count > 0 && <span className="wf-tap-after" aria-hidden={!(typed && typed[f.key] > 0) || undefined}>
+          {typed && typed[f.key] > 0 ? L(`মোট হবে ${n(total[f.key] + typed[f.key])}`, `Total becomes ${total[f.key] + typed[f.key]}`) : '\u00a0'}</span>}
       </Field>)}
     </div>
     <Field label={L('নোট (ইচ্ছা হলে)', 'Note (optional)')}>
@@ -130,12 +140,24 @@ export function DailyOpsCard() {
       `In what you sent to the sheet today: pickup ${hint.pickup}, delivery ${hint.delivery} — please check`)}</span></p>}
     {err && <p className="da-error" role="alert">{err}</p>}
 
-    <button type="button" className={`wf-op-send${unchanged ? ' secondary' : ''}`} disabled={busy} onClick={() => void submit()}>
-      <Icon name={entry ? 'save' : 'check'} size={18} />{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : entry ? L('আবার সাবমিট', 'Submit again') : L('সাবমিট', 'Submit')}
+    <button type="button" className="wf-op-send wf-tap-send" disabled={busy} onClick={() => void submit()}>
+      <Icon name={count ? 'plus' : 'check'} size={20} />
+      <span>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : count ? L('সাবমিট — মোটের সাথে যোগ', 'Submit — add to total') : L('সাবমিট', 'Submit')}</span>
+      {!busy && <em>{L(`${n(count + 1)} নম্বর`, `#${count + 1}`)}</em>}
     </button>
-    {entry && <p className="wf-op-saved"><Icon name="checkall" size={16} /><span>
-      {L(`জমা আছে — সর্বশেষ ${clock(entry.updated_at, lang)}`, `Saved — last at ${clock(entry.updated_at, lang)}`)}
-      {entry.revision > 1 ? ` · ${L(`${word} ${n(entry.revision - 1)} বার বদলানো হয়েছে`, `changed ${entry.revision - 1} time(s) ${off === 0 ? 'today' : 'that day'}`)}` : ''}</span></p>}
+
+    {count > 0 && <div className="wf-op-recent">
+      <button type="button" className="wf-op-fold" aria-expanded={tapsOpen} onClick={() => setTapsOpen(o => !o)}>
+        <Icon name="checkall" size={17} /><span>{L(`${prefix} সব সাবমিট`, `${prefix} submits`)}<em>{n(count)}</em></span><Icon name="chev" size={17} />
+      </button>
+      {tapsOpen && <ol className="wf-tap-list" aria-label={L(`${prefix} সব সাবমিট`, `${prefix} submits`)}>
+        {taps!.taps.map((x, i) => <li key={x.at}>
+          <span className="no">{ord(count - i)}</span>
+          <span className="tm">{clock(x.at, lang)}</span>
+          <span className="nums">{FIELDS.map(f => <span key={f.key} className={`t-${f.tone}`} title={L(f.bn, f.en)}>+{n(x[f.key])}</span>)}</span>
+        </li>)}
+      </ol>}
+    </div>}
 
     <div className="wf-op-recent">
       <button type="button" className="wf-op-fold" aria-expanded={recentOpen} onClick={() => setRecentOpen(o => !o)}>
@@ -145,7 +167,7 @@ export function DailyOpsCard() {
         ? <p className="muted wf-op-none">{L('এখনো কোনো হিসাব জমা নেই।', 'Nothing sent yet.')}</p>
         : <ul className="wf-op-list" aria-label={L('গত ১৪ দিনের হিসাব', 'Last 14 days')}>
           {list.map(r => <li key={r.id}>
-            <span className="dt">{dateText(r.work_date, lang, { day: 'numeric', month: 'short' })}{r.revision > 1 && <i title={L('বদলানো হয়েছে', 'changed')}>✎</i>}</span>
+            <span className="dt">{dateText(r.work_date, lang, { day: 'numeric', month: 'short' })}</span>
             <dl className="nums">{FIELDS.map(f => <div key={f.key}><dt>{L(f.bn, f.en)}</dt><dd>{n(r[f.key])}</dd></div>)}</dl>
             {r.note && <span className="nt">{r.note}</span>}
           </li>)}
