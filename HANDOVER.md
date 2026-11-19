@@ -572,4 +572,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   "এলাকা থেকে বাছুন" (upazila, kind, search, nearest first; "+" or the yellow "+" on the map adds the place as a stop; places already on another route are marked).
 - Attribution shown on the page: GeoNames (CC BY 4.0), © OpenStreetMap contributors (ODbL), geoBoundaries (CC BY 4.0).
 - Tests: `99zzzzzzzzzzzzzzzzzzzz_route_places.sql` (15); suite 2023 pass. Smoke test: suggestions, build a route, pick a place, fix a spelling (PC + phone).
-- **To go live:** run the migration file in the Supabase SQL Editor (as with route_settings), then merge to `main`.
+- **19 Nov — live:** the owner ran the file in five parts in the Supabase SQL Editor (tool approval did not reach the phone; no `schema_migrations` row).
+  Checked after: 7 upazilas (6 with boundary), 665 places (village 555, market 54, union 52, para 4), the 3 function bodies equal the tested file by md5,
+  anon reads nothing, the tables cannot be written directly, RLS on. Site released by merging to `main`.
