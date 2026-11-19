@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
@@ -19,6 +19,7 @@ import { PersonalMenu, WfCountsHost } from './PersonalMenu'
 import { OFFICE_GROUPS } from '../lib/office'
 import { myPhoto, onMyPhotoChange } from '../lib/myPhoto'
 import { MyFace } from './MyAvatar'
+import { menuKeys, useDialog, usePageFocus } from '../lib/a11y'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey
   /** 'web' = the website only, 'app' = the Android app only (see advancedAccessHere). */ only?: 'web' | 'app' }
@@ -292,7 +293,12 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
     window.addEventListener('keydown', k)
     const prev = document.body.style.overflow; document.body.style.overflow = 'hidden'
-    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev }
+    // keyboard / screen-reader users land inside the opened menu, and return to the button that opened it
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const close = document.querySelector<HTMLElement>('.side.open .side-close')
+    if (close && close.offsetParent !== null) close.focus({ preventScroll: true })
+    return () => { window.removeEventListener('keydown', k); document.body.style.overflow = prev
+      if (back && document.contains(back) && document.querySelector('.side')?.contains(document.activeElement)) back.focus({ preventScroll: true }) }
   }, [open])
   const swipe = useRef<{ x: number; y: number } | null>(null)
   const [q, setQ] = useState('')
@@ -334,10 +340,14 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     document.addEventListener('mousedown', f); document.addEventListener('keydown', k)
     return () => { document.removeEventListener('mousedown', f); document.removeEventListener('keydown', k) }
   }, [pop])
+  useEffect(() => { if (pop === 'me') popRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus({ preventScroll: true }) }, [pop])
   const brand = useBrandText()
   useEffect(() => { document.title = `${title} · ${brand.name}` }, [title, brand.name])
 
   const loc = useLocation()
+  const h1Ref = useRef<HTMLHeadingElement>(null)
+  const quickRef = useRef<HTMLDivElement>(null)
+  usePageFocus(loc.pathname, title, h1Ref)
   const allowed = (p: string[] | null) => !p || p.some(x => can(x))
   const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (panelLevel(can) === 2 || !ZONE_ONLY.includes(i.to)) && (!i.only || (i.only === 'web') === advancedAccessHere())
   const here = typeof location !== 'undefined' ? location.pathname : ''
@@ -392,6 +402,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const plusAt = Math.floor((navTabs.length + 1) / 2)   // tabs + আরও, the + in the middle
   const plusTab = <button key="plus" type="button" className={`bn-plus${quick ? ' on' : ''}`} aria-expanded={quick} aria-label={quick ? L('বন্ধ', 'Close') : L('দ্রুত যোগ করুন', 'Quick add')} onClick={plusTap}><span><Icon name="plus" size={26} /></span></button>
   return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
+    <a href="#main" className="skip-link no-print" onClick={e => { e.preventDefault(); const m = document.getElementById('main'); m?.focus(); m?.scrollIntoView() }}>{L('মূল অংশে যান', 'Skip to main content')}</a>
     <WfCountsHost />
     <aside className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}
       onTouchStart={e => { swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
@@ -442,9 +453,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         {quickItems.length > 0 && <button className="quick-btn" aria-label={L('দ্রুত যোগ করুন', 'Quick add')} onClick={() => setQuick(true)}><Icon name="plus" size={22} /></button>}
         {canSearch && <button className="icon search-btn" aria-label={L('খুঁজুন', 'Search')} onClick={() => setMSearch(v => !v)}><Icon name="search" /></button>}
         <div className="rel" ref={pop === 'bell' ? popRef : undefined}>
-          <button className="icon" aria-label={L('নোটিফিকেশন', 'Notifications')} onClick={() => setPop(pop === 'bell' ? null : 'bell')}><Icon name="bell" />
-            {totalAlerts > 0 && <span className="dotn">{n(totalAlerts)}</span>}</button>
-          {pop === 'bell' && <div className="top-pop" role="menu"><div className="hd">{L('অপেক্ষমাণ কাজ', 'Waiting for you')}</div>
+          <button className="icon" aria-label={totalAlerts > 0 ? L(`নোটিফিকেশন, ${n(totalAlerts)}টি`, `Notifications, ${totalAlerts}`) : L('নোটিফিকেশন', 'Notifications')} aria-expanded={pop === 'bell'} aria-controls="xzm-bell-pop" onClick={() => setPop(pop === 'bell' ? null : 'bell')}><Icon name="bell" />
+            {totalAlerts > 0 && <span className="dotn" aria-hidden="true">{n(totalAlerts)}</span>}</button>
+          {pop === 'bell' && <div className="top-pop" id="xzm-bell-pop" role="region" aria-label={L('নোটিফিকেশন', 'Notifications')}><div className="hd">{L('অপেক্ষমাণ কাজ', 'Waiting for you')}</div>
             {alerts.length ? alerts.map(([to, c, t, ic]) => <Link key={to} to={to} onClick={() => setPop(null)}><Icon name={ic} size={16} /><span style={{ flex: 1 }}>{t}</span><span className="count">{n(c)}</span></Link>)
               : <div className="muted small" style={{ padding: '6px 10px' }}>{L('এখন কিছু অপেক্ষমাণ নেই', 'Nothing waiting right now')}</div>}
             <><div className="hd nt-hd">{L('নোটিফিকেশন', 'Notifications')}{nt.live && <span className="nt-live" title={L('লাইভ', 'Live')} />}
@@ -456,12 +467,12 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
               <Link to="/app/notifications" className="nt-all" onClick={() => setPop(null)}>{L('সব নোটিফিকেশন দেখুন', 'See all notifications')} →</Link></>
           </div>}
         </div>
-        <button className="secondary sm hide-sm" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} aria-label="Language"><Icon name="globe" size={15} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
-        <button className="icon hide-sm" aria-label={L('ডার্ক / লাইট মোড', 'Dark / light mode')} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" /></button>
+        <button className="secondary sm hide-sm" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')} lang={lang === 'bn' ? 'en' : 'bn'} aria-label={lang === 'bn' ? 'Switch to English' : 'বাংলায় দেখুন'}><Icon name="globe" size={15} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
+        <button className="icon hide-sm" aria-label={L('ডার্ক মোড', 'Dark mode')} aria-pressed={isDark(theme)} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" /></button>
         <div className="rel" ref={pop === 'me' ? popRef : undefined}>
           <button className={`avatar-btn${pop === 'me' ? ' on' : ''}`} aria-label={L('প্রোফাইল মেনু', 'Profile menu')} aria-haspopup="menu" aria-expanded={pop === 'me'} onClick={() => setPop(pop === 'me' ? null : 'me')}>
             <MyFace photo={photo} /></button>
-          {pop === 'me' && <div className="top-pop me-pop" role="menu">
+          {pop === 'me' && <div className="top-pop me-pop" role="menu" aria-label={L('প্রোফাইল মেনু', 'Profile menu')} onKeyDown={menuKeys}>
             <div className="me-head"><span className="me-av"><MyFace photo={photo} /></span>
               <div style={{ minWidth: 0 }}><b>{name}</b><div className="muted small">{top ? scopeText : L('কোনো রোল নেই', 'No role')}</div></div></div>
             <Link to="/app/me" role="menuitem" onClick={() => setPop(null)}><Icon name="user" size={20} />{L('প্রোফাইল', 'Profile')}</Link>
@@ -474,31 +485,41 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         </div>
       </header>
       <div className="scope-bar no-print"><strong>{L('কাজ করছেন:', 'Acting as:')}</strong> {scopeText} <span className="muted">— {L('এর বাইরের তথ্য দেখানো হয় না', 'data outside this scope is not shown')}</span></div>
-      <main className="da-main">
+      <main className="da-main" id="main" tabIndex={-1}>
         <PulsePopup user={user} />
-        <div className="da-head"><div><h1>{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div>
+        <div className="da-head"><div><h1 ref={h1Ref} tabIndex={-1}>{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div>
           {actions && <div className="da-actions no-print">{actions}</div>}</div>
         {children}
       </main>
     </div>
-    {nt.fresh && <button type="button" className="nt-toast no-print" onClick={() => openNotice(nt.fresh!)} aria-live="polite">
-      <span className="nt-ic"><Icon name={kindOf(nt.fresh.kind)[2]} size={18} /></span>
-      <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
-      <span className="nt-x" role="button" aria-label={L('বন্ধ', 'Close')} onClick={e => { e.stopPropagation(); clearFresh() }}><Icon name="x" size={14} /></span></button>}
+    {/* the banner and its close button are two separate buttons (a button inside a button cannot be reached by keyboard) */}
+    <div className="nt-toast-live sr-only" role="status">{nt.fresh ? `${L('নতুন নোটিফিকেশন', 'New notification')}: ${nt.fresh.title}` : ''}</div>
+    {nt.fresh && <div className="nt-toast-wrap no-print">
+      <button type="button" className="nt-toast" onClick={() => openNotice(nt.fresh!)}>
+        <span className="nt-ic" aria-hidden="true"><Icon name={kindOf(nt.fresh.kind)[2]} size={18} /></span>
+        <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
+        <span className="nt-x-space" aria-hidden="true" /></button>
+      <button type="button" className="nt-x" aria-label={L('নোটিফিকেশন বন্ধ করুন', 'Dismiss notification')} onClick={() => clearFresh()}><Icon name="x" size={14} /></button></div>}
     {can('nodi.assistant.view') && nodiOn?.chat && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
       {navTabs.flatMap((t, i) => [...(i === plusAt && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}
       {quickItems.length > 0 && plusAt >= navTabs.length && plusTab}
-      <button type="button" className={`bn-item${open ? ' on' : ''}`} onClick={() => { setQuick(false); setOpen(true) }}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span></button>
+      <button type="button" className={`bn-item${open ? ' on' : ''}`} aria-expanded={open} onClick={() => { setQuick(false); setOpen(true) }}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span>{totalAlerts > 0 && <span className="sr-only">{L(`, ${n(totalAlerts)}টি অপেক্ষায়`, `, ${totalAlerts} waiting`)}</span>}</button>
     </nav>
     {asRole && <ViewAsPicker onClose={() => setAsRole(false)} />}
     {quick && <div className="sheet-bg quick-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={L('দ্রুত যোগ করুন', 'Quick add')}>
+      <QuickSheet sheetRef={quickRef} onClose={() => setQuick(false)} label={L('দ্রুত যোগ করুন', 'Quick add')}>
         <div className="sheet-grab" /><div className="sheet-hd"><b>{L('দ্রুত কাজ', 'Quick actions')}</b><button className="icon" aria-label={L('বন্ধ', 'Close')} onClick={() => setQuick(false)}><Icon name="x" /></button></div>
         <div className="quick-grid">{quickItems.map(x => <Link key={x.to + x.bn} to={x.to} className={`quick-tile t-${x.tone}`} onClick={() => setQuick(false)}>
           <span className="qi"><Icon name={x.icon} size={24} /></span><span>{L(x.bn, x.en)}</span></Link>)}</div>
-      </div>
+      </QuickSheet>
     </div>}
   </div>
+}
+
+/** The quick-add sheet: a real dialog for keyboard and screen-reader users (focus inside, Tab stays inside, focus returns). */
+function QuickSheet({ sheetRef, label, children }: { sheetRef: RefObject<HTMLDivElement | null>; onClose: () => void; label: string; children: ReactNode }) {
+  useDialog(sheetRef)   // Esc is already handled by the shell
+  return <div className="sheet" role="dialog" aria-modal="true" aria-label={label} ref={sheetRef}>{children}</div>
 }

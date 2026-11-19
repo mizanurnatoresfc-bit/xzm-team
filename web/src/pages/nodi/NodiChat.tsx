@@ -1,3 +1,4 @@
+import { scrollBehavior } from '../../lib/a11y'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
@@ -22,7 +23,7 @@ export function NodiChat() {
   const [talking, setTalking] = useState(false)
   const rec = useRef<SR | null>(null)
   const end = useRef<HTMLDivElement>(null)
-  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }) }, [turns, busy])
+  useEffect(() => { end.current?.scrollIntoView({ behavior: scrollBehavior() }) }, [turns, busy])
   useEffect(() => () => { rec.current?.stop(); window.speechSynthesis?.cancel() }, [])
   const feats = useNodiFeatures()
 

@@ -1,3 +1,4 @@
+import { scrollBehavior } from '../../lib/a11y'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { addDays } from '../../lib/dailyAccounts'
@@ -55,7 +56,7 @@ export function ZoneWindows({ zone }: { zone: string }) {
   // on a phone the tab sits below the zone report: bring it into view once, when it has loaded (also from the dashboard shortcut)
   const top = useRef<HTMLDivElement>(null)
   const shown = useRef(false)
-  useEffect(() => { if (d && !shown.current) { shown.current = true; top.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }) } }, [d])
+  useEffect(() => { if (d && !shown.current) { shown.current = true; top.current?.scrollIntoView({ block: 'start', behavior: scrollBehavior() }) } }, [d])
 
   const save = async () => {
     if (!ready) return

@@ -5,7 +5,7 @@ import { AppShell } from '../components/AppShell'
 import { Icon } from '../components/Icon'
 import { ViewAsPicker } from '../components/ViewAs'
 import { advancedAccessHere, isNativeApp } from '../lib/native'
-import { FONTS, usePrefs, type Theme } from '../lib/prefs'
+import { FONTS, TEXT_SIZES, usePrefs, type Theme } from '../lib/prefs'
 import { AppUpdate } from '../components/AppUpdate'
 
 type Row = [to: string, icon: string, bn: string, en: string, perms: string[]]
@@ -39,7 +39,7 @@ const ADMIN: Array<[bn: string, en: string, rows: Row[]]> = [
 /** Settings: language, theme and Bangla font for this device; the account; and every admin setting the role may open. */
 export function Settings() {
   const { can, isSuperAdmin, viewAs } = useAuth()
-  const { L, lang, setLang, theme, setTheme, font, setFont } = usePrefs()
+  const { L, n, lang, setLang, theme, setTheme, font, setFont, textSize, setTextSize, contrast, setContrast, motion, setMotion } = usePrefs()
   const [asRole, setAsRole] = useState(false)
   const [copied, setCopied] = useState(false)
   const themes: Array<[Theme, string, string]> = [['light', 'লাইট', 'Light'], ['dark', 'ডার্ক', 'Dark'], ['system', 'ফোনের মতো', 'Same as device']]
@@ -57,13 +57,34 @@ export function Settings() {
     <AppUpdate />
     <section className="panel">
       <h2>{L('ভাষা', 'Language')}</h2>
-      <div className="da-seg">{(['bn', 'en'] as const).map(l => <button key={l} className={lang === l ? '' : 'secondary'} onClick={() => setLang(l)}>{l === 'bn' ? 'বাংলা' : 'English'}</button>)}</div>
+      <div className="da-seg" role="group" aria-label={L('ভাষা', 'Language')}>{(['bn', 'en'] as const).map(l => <button key={l} type="button" lang={l} className={lang === l ? '' : 'secondary'} aria-pressed={lang === l} onClick={() => setLang(l)}>{l === 'bn' ? 'বাংলা' : 'English'}</button>)}</div>
       <h2 style={{ marginTop: 18 }}>{L('রঙ', 'Theme')}</h2>
-      <div className="da-seg">{themes.map(([t, bn, en]) => <button key={t} className={theme === t ? '' : 'secondary'} onClick={() => setTheme(t)}>{L(bn, en)}</button>)}</div>
+      <div className="da-seg" role="group" aria-label={L('রঙ', 'Theme')}>{themes.map(([t, bn, en]) => <button key={t} type="button" className={theme === t ? '' : 'secondary'} aria-pressed={theme === t} onClick={() => setTheme(t)}>{L(bn, en)}</button>)}</div>
       <h2 style={{ marginTop: 18 }}>{L('বাংলা ফন্ট', 'Bangla font')}</h2>
       <div className="font-pick">{FONTS.map(f => <button key={f.key} type="button" className={font === f.key ? 'on' : ''} aria-pressed={font === f.key} onClick={() => setFont(f.key)}
         style={{ fontFamily: `"${f.family}","Hind Siliguri",sans-serif` }}><b>{f.label}</b><span>আমার সোনার বাংলা — ১২৩৪৫</span></button>)}</div>
       <p className="muted small">{L('ভাষা, রঙ ও ফন্ট শুধু এই ডিভাইসে মনে থাকে।', 'Language, theme and font are remembered on this device only.')}</p>
+    </section>
+    <section className="panel" aria-labelledby="a11y-h">
+      <h2 id="a11y-h">{L('সহজে ব্যবহার', 'Accessibility')}</h2>
+      <p className="muted small" style={{ marginTop: 0 }}>{L('সব বয়সের মানুষ যেন সহজে পড়তে ও চাপতে পারেন। এগুলো শুধু এই ডিভাইসে মনে থাকে।', 'So people of every age can read and tap with ease. Remembered on this device only.')}</p>
+      <h3>{L('লেখার আকার', 'Text size')}</h3>
+      <div className="a11y-sizes" role="group" aria-label={L('লেখার আকার', 'Text size')}>{TEXT_SIZES.map(t => <button key={t.key} type="button" className={textSize === t.key ? '' : 'secondary'} aria-pressed={textSize === t.key} onClick={() => setTextSize(t.key)}>
+        <b aria-hidden="true" style={{ fontSize: `${t.pct / 100}rem` }}>অ A</b><small>{L(t.bn, t.en)} · {n(Math.round(t.pct))}%</small></button>)}</div>
+      <div className="a11y-preview" aria-hidden="true"><p>{L('আজকের হাজিরা জমা দিন — ১২ জন কর্মী, ৳ ১,২৫০', "Submit today's attendance — 12 staff, ৳ 1,250")}</p></div>
+      <div className="a11y-row">
+        <div><b id="a11y-con">{L('বেশি স্পষ্ট রঙ', 'Stronger contrast')}</b><small>{L('লেখা আরও গাঢ়, বক্সের দাগ আরও স্পষ্ট, লিংকের নিচে দাগ।', 'Darker text, clearer box borders, underlined links.')}</small></div>
+        <div className="da-seg" role="group" aria-labelledby="a11y-con">
+          <button type="button" className={contrast === 'system' ? '' : 'secondary'} aria-pressed={contrast === 'system'} onClick={() => setContrast('system')}>{L('ফোনের মতো', 'Same as device')}</button>
+          <button type="button" className={contrast === 'more' ? '' : 'secondary'} aria-pressed={contrast === 'more'} onClick={() => setContrast('more')}>{L('চালু', 'On')}</button></div>
+      </div>
+      <div className="a11y-row">
+        <div><b id="a11y-mo">{L('কম অ্যানিমেশন', 'Less motion')}</b><small>{L('নড়াচড়া, ঝলকানি ও ধীরে স্ক্রল বন্ধ থাকবে।', 'Stops moving, blinking and smooth-scrolling effects.')}</small></div>
+        <div className="da-seg" role="group" aria-labelledby="a11y-mo">
+          <button type="button" className={motion === 'system' ? '' : 'secondary'} aria-pressed={motion === 'system'} onClick={() => setMotion('system')}>{L('ফোনের মতো', 'Same as device')}</button>
+          <button type="button" className={motion === 'reduce' ? '' : 'secondary'} aria-pressed={motion === 'reduce'} onClick={() => setMotion('reduce')}>{L('চালু', 'On')}</button></div>
+      </div>
+      <p className="muted small">{L('কিবোর্ডে Tab চাপলে প্রথমে "মূল অংশে যান" আসে; স্ক্রিন রিডার (TalkBack, NVDA) দিয়েও সব বাটন পড়া যায়।', 'With a keyboard, the first Tab shows "Skip to main content"; every button also works with a screen reader (TalkBack, NVDA).')}</p>
     </section>
     <section className="panel">
       <h2>{L('অ্যাকাউন্ট', 'Account')}</h2>

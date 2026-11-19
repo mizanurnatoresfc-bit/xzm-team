@@ -12,20 +12,20 @@
 .wf-pm-t.t-b .wf-pm-i{background:var(--info-bg);color:var(--info-fg)}
 .wf-pm-t.t-o .wf-pm-i{background:var(--warn-bg);color:var(--warn-fg)}
 .wf-pm-t.t-g .wf-pm-i{background:var(--ok-bg);color:var(--ok-fg)}
-.wf-pm-l{font-size:13.5px;line-height:1.3;font-weight:600;overflow-wrap:anywhere}
+.wf-pm-l{font-size:0.8438rem;line-height:1.3;font-weight:600;overflow-wrap:anywhere}
 .wf-badge{position:absolute;top:6px;right:6px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;
-  font-size:13px;font-weight:700;background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--surface)}
+  font-size:0.8125rem;font-weight:700;background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--surface)}
 .wf-badge.bad{background:var(--bad-bg);color:var(--bad-fg)}
 @media (min-width:700px){
   .wf-pm-t{flex-direction:row;justify-content:flex-start;gap:10px;min-height:60px;padding:10px 14px;text-align:left}
-  .wf-pm-l{font-size:14.5px}
+  .wf-pm-l{font-size:0.9063rem}
   .wf-badge{position:static;margin-left:auto;border:0}
 }
 @media (prefers-reduced-motion:reduce){.wf-pm-t{transition:none}.wf-pm-t:active{transform:none}}
 
 /* the compact form inside the side menu (under the name card) reuses the menu's own a.nl rows */
 .wf-side{display:flex;flex-direction:column;gap:1px;margin:0 0 6px}
-.wf-side a.nl{font-size:13.5px}
+.wf-side a.nl{font-size:0.8438rem}
 
 /* the block under a name card: the menu, then the alerts (nothing inside = nothing shown) */
 .wf-under{display:flex;flex-direction:column;gap:10px;margin:10px 0}
@@ -44,8 +44,8 @@
 .wf-alert.t-bad{border-color:color-mix(in srgb,var(--bad-fg) 35%,var(--border))}
 .wf-alert.t-warn{border-color:color-mix(in srgb,var(--warn-fg) 35%,var(--border))}
 .wf-alert-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-.wf-alert-t b{font-size:14.5px;line-height:1.3;font-weight:600}
-.wf-alert-t small{font-size:13px;color:var(--muted);line-height:1.3}
+.wf-alert-t b{font-size:0.9063rem;line-height:1.3;font-weight:600}
+.wf-alert-t small{font-size:0.8125rem;color:var(--muted);line-height:1.3}
 .wf-alert>svg:last-child{flex:none;color:var(--muted)}
 
 /* ---------- my workforce page ---------- */
@@ -56,13 +56,13 @@
 .wf-note:active{background:var(--canvas)}
 .wf-note .wf-note-i{flex:none;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--ok-bg);color:var(--ok-fg)}
 .wf-note .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-.wf-note .tx b{font-size:14.5px}
-.wf-note .tx span{font-size:13px;color:var(--muted);line-height:1.35}
+.wf-note .tx b{font-size:0.9063rem}
+.wf-note .tx span{font-size:0.8125rem;color:var(--muted);line-height:1.35}
 .wf-note>svg:last-child{flex:none;color:var(--muted)}
 /* on a phone the three tabs sit side by side (icon over a two-line label) so none is hidden off the edge */
 @media (max-width:700px){
   .wf .wf-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow:visible}
-  .wf .wf-tabs .nv-chip{flex-direction:column;justify-content:center;gap:3px;min-height:58px;padding:6px 4px;white-space:normal;text-align:center;line-height:1.25;font-size:13px;position:relative}
+  .wf .wf-tabs .nv-chip{flex-direction:column;justify-content:center;gap:3px;min-height:58px;padding:6px 4px;white-space:normal;text-align:center;line-height:1.25;font-size:0.8125rem;position:relative}
   .wf .wf-tabs .nv-chip b{position:absolute;top:4px;right:4px}
 }
 /* StaffDesk's two lists bring their own "back" button; here the tab bar is the way around */
@@ -79,15 +79,15 @@ button.wf-note{width:100%;text-align:left;font:inherit;cursor:pointer;box-shadow
 .wf-note.on{border-color:var(--primary);background:var(--primary-50)}
 .bp-pick{display:flex;flex-direction:column;gap:8px;margin:0}
 .bp-step{display:flex;align-items:center;gap:8px;margin-top:4px}
-.bp-n{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;font-size:12.5px;font-weight:700;background:var(--primary);color:#fff}
+.bp-n{width:22px;height:22px;border-radius:999px;display:grid;place-items:center;font-size:0.7813rem;font-weight:700;background:var(--primary);color:var(--on-primary)}
 .bp-posts{flex-wrap:wrap;overflow:visible}
 .bp-q{width:100%}
 .bp-list{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto}
 .bp-row{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);text-align:left;font:inherit;min-height:52px;cursor:pointer;box-shadow:none}
 .bp-row .tx{flex:1;min-width:0;display:flex;flex-direction:column}
-.bp-row .tx span{font-size:12.5px;color:var(--muted)}
+.bp-row .tx span{font-size:0.7813rem;color:var(--muted)}
 .bp-row.on{border-color:var(--primary);background:var(--primary-50)}
-.bp-row.on .nv-av{background:var(--primary);color:#fff}
+.bp-row.on .nv-av{background:var(--primary);color:var(--on-primary)}
 .bp-row.dis{opacity:.6;cursor:default}
 .bp-go{display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:sticky;bottom:0;background:var(--surface);padding-top:6px}
 .bp-h{display:flex;flex-direction:column;gap:2px;margin-top:4px}
