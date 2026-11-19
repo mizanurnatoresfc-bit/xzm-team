@@ -15,6 +15,7 @@ import {
 import { POWER } from '../../lib/officeOps'
 import { Bills, LendModal, NoticeModal, Notices, People, Power, Rent, roomSplit, Security, useLoans, Zone, type Ctx } from './OfficeOps'
 import { useOrg } from '../hr/common'
+import { RealOffice } from './OfficeReal'
 import { EmpPicker, empLabel } from '../sorting/Sorting'
 
 type Sec = OfficeSec
@@ -88,6 +89,8 @@ function Overview({ ctx }: { ctx: Ctx }) {
   const { L, n } = usePrefs()
   const floors = [...new Set(ctx.rooms.map(r => r.floor))].sort((a, b) => a - b)
   const [floor, setFloor] = useState<number | null>(null)
+  const [mode, setModeRaw] = useState<'map' | 'real'>(() => { try { return localStorage.getItem('office.view') === 'map' ? 'map' : 'real' } catch { return 'real' } })
+  const setMode = (m: 'map' | 'real') => { setModeRaw(m); try { localStorage.setItem('office.view', m) } catch { /* private window */ } }
   const fl = floor ?? floors[0] ?? 1
   const inFloor = ctx.rooms.filter(r => r.floor === fl)
   const itemsOf = (room: string) => ctx.assets.filter(a => a.room_id === room && !a.desk_id)
@@ -123,8 +126,12 @@ function Overview({ ctx }: { ctx: Ctx }) {
     </div>
     <section className="panel">
       <div className="da-bar"><h2>{L('অফিসের নকশা (দিক অনুযায়ী)', 'Layout by direction')}</h2>
-        {floors.length > 1 && <span className="da-seg">{floors.map(f => <button key={f} className={f === fl ? 'sm' : 'secondary sm'} onClick={() => setFloor(f)}>{L(`${n(f)} তলা`, `Floor ${f}`)}</button>)}</span>}</div>
-      {!ctx.rooms.length ? <p className="muted">{L('রুম যোগ করলে এখানে দিক অনুযায়ী নকশা দেখাবে।', 'Add rooms to see the layout here.')} <Link to="/app/office/rooms">{L('রুম যোগ করুন →', 'Add rooms →')}</Link></p> : <>
+        <span className="row-acts">
+          {floors.length > 1 && <span className="da-seg">{floors.map(f => <button key={f} className={f === fl ? 'sm' : 'secondary sm'} onClick={() => setFloor(f)}>{L(`${n(f)} তলা`, `Floor ${f}`)}</button>)}</span>}
+          {ctx.rooms.length > 0 && <span className="ofm-mode" role="tablist" aria-label={L('দেখার ধরন', 'View')}>
+            <button type="button" role="tab" aria-selected={mode === 'real'} className={mode === 'real' ? 'on' : ''} onClick={() => setMode('real')}>{L('বাস্তব মোড', 'Realistic')}</button>
+            <button type="button" role="tab" aria-selected={mode === 'map'} className={mode === 'map' ? 'on' : ''} onClick={() => setMode('map')}>{L('দিক-ম্যাপ', 'Direction map')}</button></span>}</span></div>
+      {!ctx.rooms.length ? <p className="muted">{L('রুম যোগ করলে এখানে দিক অনুযায়ী নকশা দেখাবে।', 'Add rooms to see the layout here.')} <Link to="/app/office/rooms">{L('রুম যোগ করুন →', 'Add rooms →')}</Link></p> : mode === 'real' ? <RealOffice ctx={ctx} rooms={inFloor} /> : <>
         <p className="ofm-help"><Icon name="map" size={15} /><span>{L('উপরের দিক উত্তর ধরে আঁকা — যেমন ম্যাপে থাকে। প্রতিটা খোপ বাড়ির একটা দিক; রুমে চাপলে নিচে তার বিস্তারিত দেখাবে।', 'Drawn with north at the top, like a map. Each box is one side of the building; tap a room to see its details below.')}
           {ctx.p.front_direction ? <> {L(`সবুজ দাগের খোপটা সামনের দিক (${DIR[ctx.p.front_direction]?.[0] ?? ''}) — ঢোকার দরজা।`, `The green box is the front (${DIR[ctx.p.front_direction]?.[1] ?? ''}) — the entrance.`)}</> : null}</span></p>
         <div className="ofm">
