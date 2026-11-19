@@ -3,6 +3,7 @@ import { Badge, Field, useLoad } from '../pages/accounts/ui'
 import { hr } from '../lib/hr'
 import { GAP_STATUS, KIND_BN, LEAVE_BN, dayBn, gaps, type GapKind } from '../lib/gaps'
 import { NodiAvatar } from './NodiAvatar'
+import { useNodiFeatures } from '../lib/useNodiFeatures'
 
 /** Home card: Nodi asks a person about their own days without attendance, and takes the answer (leave is filed from here). */
 export function NodiGaps() {
@@ -19,7 +20,8 @@ export function NodiGaps() {
   const [done, setDone] = useState('')
   // every open day is ticked to begin with
   useEffect(() => { setPicked(new Set(open.map(r => r.work_date))) }, [mine.data]) // eslint-disable-line react-hooks/exhaustive-deps
-  if (!rows.length) return null
+  const feats = useNodiFeatures()
+  if (!rows.length || !feats?.gaps) return null
   const waitingCheck = rows.filter(r => r.status === 'answered').length
   const toggle = (d: string) => setPicked(p => { const s = new Set(p); s.has(d) ? s.delete(d) : s.add(d); return s })
   async function send() {

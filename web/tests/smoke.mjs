@@ -88,6 +88,7 @@ try {
     const ctx = await browser.newContext({ viewport })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net/, r => r.abort())
+    const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false
     const prospects = []
@@ -131,6 +132,9 @@ try {
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
       if (u.includes('rpc/hr_change_register')) return j(register)
+      if (u.includes('rpc/nodi_settings')) return j({ enabled: true, model: 'claude-sonnet-5-5', daily_limit: 50, max_tokens: 1024, features: { ...nodiParts } })
+      if (u.includes('rpc/nodi_features_configure')) { const f = r.request().postDataJSON()?.p_features ?? {}; Object.assign(nodiParts, f); flowCalls.push({ fn: 'nodi_features_configure', ...f }); return j(null) }
+      if (u.includes('rpc/nodi_features')) return j({ ...nodiParts })
       if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 3, unseen: 2 }])
       if (u.includes('rpc/issue_order_incharge_set')) return j(null)
       if (u.includes('rpc/issue_order_incharge')) return j({ store: { id: 'e05', name: 'Store Keeper', code: '1005', hub: 'Natore Sadar', has_login: true }, it: null })
@@ -1063,6 +1067,18 @@ try {
       await page.goto(`${BASE}/app/access/super`); await page.waitForSelector('.ax-people.big li')
       check(await page.locator('.ax-people.big li').count() === 1 && await page.locator('.ax-rules li').count() === 5 && (await page.locator('main').innerText()).includes('মাত্র একজন'), `${size}: the Super Admin page lists who holds full control and warns when it is one person`)
       await fits('super admin page')
+      // নদী AI settings: one switch per part; switching chat off hides the floating নদী button
+      await page.goto(`${BASE}/app/nodi`); await page.waitForSelector('.nodi-parts li')
+      check(await page.locator('.nodi-parts li').count() === 5 && await page.locator('.nodi-switch[aria-checked="true"]').count() === 5, `${size}: নদী AI settings show five parts, all on`)
+      await page.locator('.nodi-switch[aria-label="চ্যাট অ্যাসিস্ট্যান্ট"]').click()
+      await page.waitForSelector('.nodi-switch[aria-label="চ্যাট অ্যাসিস্ট্যান্ট"][aria-checked="false"]')
+      check(flowCalls.some(c => c.fn === 'nodi_features_configure' && c.chat === false), `${size}: switching chat off is saved at once`)
+      await fits('নদী AI settings')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('main')
+      check(await page.locator('.nodi-fab').count() === 0, `${size}: chat off — the floating নদী button is gone`)
+      await page.goto(`${BASE}/app/nodi/chat`); await page.waitForSelector('main :text("চ্যাট এখন বন্ধ")')
+      check(true, `${size}: chat off — the chat page says it is switched off`)
+      nodiParts.chat = true
       // inside the Android app the older page stays for now
       const app = await ctx.newPage()
       await app.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {} } })

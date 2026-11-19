@@ -4,6 +4,7 @@ import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { NodiAvatar } from '../../components/NodiAvatar'
 import { nodi, type ChatMsg, type NodiAction } from '../../lib/nodi'
+import { useNodiFeatures } from '../../lib/useNodiFeatures'
 
 type Turn = ChatMsg & { actions?: NodiAction[]; error?: boolean }
 type SR = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void
@@ -23,6 +24,7 @@ export function NodiChat() {
   const end = useRef<HTMLDivElement>(null)
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }) }, [turns, busy])
   useEffect(() => () => { rec.current?.stop(); window.speechSynthesis?.cancel() }, [])
+  const feats = useNodiFeatures()
 
   function say(t: string) {
     if (!speak || !('speechSynthesis' in window)) return
@@ -52,6 +54,9 @@ export function NodiChat() {
   }
   const toggleSpeak = () => { const v = !speak; setSpeak(v); try { localStorage.setItem('nodi_speak', v ? '1' : '0') } catch { /* ignore */ } if (!v) window.speechSynthesis?.cancel() }
 
+  if (feats && !feats.chat) return <AppShell title="নদী AI" subtitle="জোনাল অ্যাসিস্ট্যান্ট">
+    <section className="panel"><p className="notice" role="status">নদী AI চ্যাট এখন বন্ধ আছে। অ্যাডমিন “নদী AI সেটিংস” থেকে চালু করতে পারেন।</p>
+      <p><Link className="btn" to="/app">হোমে যান</Link></p></section></AppShell>
   return <AppShell title="নদী AI" subtitle="জোনাল অ্যাসিস্ট্যান্ট — বলুন বা লিখুন">
     <div className="nodi-chat">
       <div className="nodi-top"><NodiAvatar size={56} talking={talking || busy} listening={listening} />

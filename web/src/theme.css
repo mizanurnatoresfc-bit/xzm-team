@@ -2669,3 +2669,17 @@ body:has(.ax-savebar:not(.inline)) .nodi-fab{bottom:calc(150px + env(safe-area-i
    Only applies where text may already wrap, so tables and nowrap chips keep their layout. (18 Nov: the CI browser has wider
    Bangla fonts and the access page's migration name pushed the phone page to 414 px, so the smoke test stopped two releases.) */
 body{overflow-wrap:break-word}
+
+/* নদী AI settings: one on/off switch per part */
+.nodi-parts{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.nodi-parts li{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border)}
+.nodi-parts li:first-child{border-top:0}
+.nodi-parts li>div{min-width:0}
+.nodi-switch{flex:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 6px;border-radius:999px;
+  background:var(--surface);color:var(--muted);border:1px solid var(--border);font-weight:600}
+.nodi-switch .knob{width:38px;height:22px;border-radius:999px;background:var(--border);position:relative;transition:background .15s}
+.nodi-switch .knob::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.nodi-switch.on{color:var(--primary);border-color:var(--primary)}
+.nodi-switch.on .knob{background:var(--primary)}
+.nodi-switch.on .knob::after{transform:translateX(16px)}
+.nodi-switch:disabled{opacity:.6}

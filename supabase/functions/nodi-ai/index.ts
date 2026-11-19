@@ -15,7 +15,7 @@
 // Secrets (Supabase → Edge Functions → Secrets):  ANTHROPIC_API_KEY
 // Provided by Supabase: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
 // Deploy with verify_jwt = false: the caller's token is checked below.
-// Who may call, the model, the daily limit and on/off are decided by the database (nodi_gate).
+// Who may call, the model, the daily limit and on/off (the main switch and each part's switch) are decided by the database (nodi_gate).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const DEFAULT_ORIGINS = ['https://xzm-team-erp.netlify.app', 'https://xzmteam.com', 'https://www.xzmteam.com', 'https://localhost', 'capacitor://localhost', 'http://localhost:5173', 'http://127.0.0.1:5173']
@@ -154,7 +154,8 @@ Deno.serve(async (req) => {
   if (!key) return reply(503, { error: 'not_configured', message: 'API key বসানো হয়নি — অ্যাডমিন Supabase secret-এ ANTHROPIC_API_KEY দিন' })
 
   // the database decides: permission, on/off, daily limit, model
-  const gate = await caller.rpc('nodi_gate')
+  // each part (chat / teach / office) has its own on/off switch on the settings page
+  const gate = await caller.rpc('nodi_gate', { p_feature: b.action === 'chat' ? 'chat' : b.action })
   if (gate.error) return reply(gate.error.code === '42501' ? 403 : 429, { error: 'gate', message: gate.error.message })
   const g = gate.data as { model: string; max_tokens: number; user: string }
 
