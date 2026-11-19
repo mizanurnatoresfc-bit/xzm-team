@@ -15,6 +15,7 @@ import { hrReq } from '../lib/hrreq'
 import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 import { PersonalMenu, WfCountsHost } from './PersonalMenu'
+import { OFFICE_GROUPS } from '../lib/office'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey
   /** 'web' = the website only, 'app' = the Android app only (see advancedAccessHere). */ only?: 'web' | 'app' }
@@ -95,19 +96,6 @@ export const GROUPS: Group[] = [
       { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও শটিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
       { to: '/app/sorting/centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
     ] },
-    { bn: 'অফিস', en: 'Office', items: [
-      { to: '/app/office/overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
-      { to: '/app/office/places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
-      { to: '/app/office/rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ', en: 'Flat details', perms: ['office.property.view'] },
-      { to: '/app/office/desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
-      { to: '/app/office/assets', icon: 'box', bn: 'অফিসের রিসোর্স', en: 'Office resources', perms: ['office.asset.view', 'office.asset.edit'] },
-      { to: '/app/office/rent', icon: 'cash', bn: 'ভাড়া ও চুক্তি', en: 'Rent & contract', perms: ['office.bill.view'] },
-      { to: '/app/office/bills', icon: 'receipt', bn: 'বিদ্যুৎ ও ওয়াইফাই বিল', en: 'Electricity & wifi bills', perms: ['office.bill.view'] },
-      { to: '/app/office/power', icon: 'sun', bn: 'ইলেকট্রনিক ও বিদ্যুৎ হিসাব', en: 'Devices & power', perms: ['office.asset.view'] },
-      { to: '/app/office/security', icon: 'key', bn: 'গাড়ি, তালা, সিসি ও পাসওয়ার্ড', en: 'Vehicles, locks, CCTV & logins', perms: ['office.secret.view'] },
-      { to: '/app/office/notices', icon: 'bell', bn: 'নষ্ট / লাগবে রিপোর্ট', en: 'Broken / needed reports', perms: ['office.notice.create', 'office.notice.approve'] },
-      { to: '/app/office/zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.notice.approve'] },
-    ] },
     { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
       { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
       { to: '/app/access', icon: 'shield', bn: 'অ্যাডভান্সড রোল ও পারমিশন', en: 'Advanced roles & permissions', perms: ['system.role.view'], only: 'web' },
@@ -157,6 +145,13 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
     { to: '/app/accounts/learn?p=ask', icon: 'sms', bn: 'নদী AI হিসাব শিক্ষক', en: 'Nodi AI accounts teacher', perms: DA },
   ] },
 ])
+
+/**
+ * আমার অফিস — a menu of its own (owner, 19 Nov 2026), arranged by what the database keeps: places and people,
+ * things, rent and bills, security and reports. Like হিসাব it is not a level panel: anyone whose role may see an office sees it.
+ */
+export const OFFICE: Group = panel('office', 'home', 'আমার অফিস', 'My office',
+  OFFICE_GROUPS.map(g => ({ bn: g.bn, en: g.en, items: g.parts.map(p => ({ to: `/app/office/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) })))
 
 /**
  * Pages taken off the menu because another page does the same job. The pages still open by their address;
@@ -373,7 +368,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i)
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
-  const accSecs = ACCOUNTS.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && (hit(i) || `${ACCOUNTS.bn} ${ACCOUNTS.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length)
+  const own = (g: Group) => g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length)
+  const accSecs = own(ACCOUNTS), officeSecs = own(OFFICE)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
   const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
@@ -401,7 +397,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
       <input className="side-search" type="search" value={menuQ} onChange={e => setMenuQ(e.target.value)} placeholder={L('মেনু খুঁজুন…', 'Search menu…')} aria-label={L('মেনু খুঁজুন', 'Search menu')} />
       {HOME.filter(i => forMe(i) && hit(i)).map(link)}
-      {[{ g: ACCOUNTS, secs: accSecs }, ...shown].map(({ g, secs }) => {
+      {[{ g: ACCOUNTS, secs: accSecs }, { g: OFFICE, secs: officeSecs }, ...shown].map(({ g, secs }) => {
         const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
         const has = vis.some(i => i.to.split('?')[0] === here)
