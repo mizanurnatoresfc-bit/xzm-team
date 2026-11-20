@@ -146,7 +146,8 @@ try {
       if (u.includes('rpc/staff_panel_sections')) return j(staffSecs)
       if (u.includes('rpc/role_staff_sections_save')) { flowCalls.push({ fn: 'role_staff_sections_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
-      if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
+      if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true },
+        accounts_today: { open: 1, submitted: 2, correction: 0, approved: 3, hubs: 4 }, cash_today: { handovers_waiting: 1, expenses_waiting: 0, payments_waiting: 2, recons_waiting: 0, collected_today: 1500 } })
       if (u.includes('rpc/hr_change_register')) return j(register)
       if (u.includes('/rest/v1/geo_upazilas')) return j([{ code: 143, district: 'Natore', district_bn: 'নাটোর', name: 'Natore Sadar', name_bn: 'নাটোর সদর', boundary: [[24.36, 88.93], [24.47, 88.93], [24.47, 89.07], [24.36, 89.07], [24.36, 88.93]] },
         { code: 149, district: 'Natore', district_bn: 'নাটোর', name: 'Naldanga', name_bn: 'নলডাঙ্গা', boundary: null }])
@@ -772,15 +773,15 @@ try {
     if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.SHOTS}/${size}-arrange.png` }) }
     await page.locator('.da-modal-acts button').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
     check(flowCalls.at(-1)?.fn === 'role_dashboard_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_panels?.join() === 'quick_links,hub_today', `${size}: the arranged home page is saved for the role`)
-    { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আমার কাজ' || t === 'দ্রুত যাওয়া').join(' > ')
-      const ready = () => page.waitForFunction(() => { const h = [...document.querySelectorAll('.da-main section.panel > .da-bar h2')].map(e => e.textContent?.trim()); return h.includes('আমার কাজ') && h.includes('দ্রুত যাওয়া') })
-      await page.evaluate(() => localStorage.setItem('xzm_view', 'self'))
+    { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আজকের হিসাব খাতা' || t === 'টাকার হিসাব').join(' > ')
+      const ready = () => page.waitForFunction(() => { const h = [...document.querySelectorAll('.da-main section.panel > .da-bar h2')].map(e => e.textContent?.trim()); return h.includes('আজকের হিসাব খাতা') && h.includes('টাকার হিসাব') })
+      homePanels = ['accounts_today', 'cash_today']; await page.evaluate(() => localStorage.setItem('xzm_view', 'hub'))
       await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main .greet h2'); await ready()
       const first = await order()
       check(await page.locator('.dash-edit').count() === 1, `${size}: the Super Admin's home has a shortcut to arrange dashboards`)
-      homePanels = ['quick_links', 'my_work']
+      homePanels = ['cash_today', 'accounts_today']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main .greet h2'); await ready()
-      check(first === 'আমার কাজ > দ্রুত যাওয়া' && await order() === 'দ্রুত যাওয়া > আমার কাজ', `${size}: the home page shows panels in the saved order`)
+      check(first === 'আজকের হিসাব খাতা > টাকার হিসাব' && await order() === 'টাকার হিসাব > আজকের হিসাব খাতা', `${size}: the home page shows panels in the saved order`)
       homePanels = ['my_work', 'quick_links']; await page.evaluate(() => localStorage.removeItem('xzm_view')) }
     // arranging the staff panel for a role: hide a part, change the order, save
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('[data-staff-arrange=hub_manager]', { timeout: 10000 }).catch(() => {})
