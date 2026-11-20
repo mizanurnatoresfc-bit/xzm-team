@@ -771,11 +771,11 @@ try {
     await page.locator('.da-modal-acts button').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
     check(flowCalls.at(-1)?.fn === 'role_dashboard_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_panels?.join() === 'quick_links,hub_today', `${size}: the arranged home page is saved for the role`)
     { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আমার কাজ' || t === 'দ্রুত যাওয়া').join(' > ')
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1')
       const first = await order()
       check(await page.locator('.dash-edit').count() === 1, `${size}: the Super Admin's home has a shortcut to arrange dashboards`)
       homePanels = ['quick_links', 'my_work']
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1')
       check(first === 'আমার কাজ > দ্রুত যাওয়া' && await order() === 'দ্রুত যাওয়া > আমার কাজ', `${size}: the home page shows panels in the saved order`)
       homePanels = ['my_work', 'quick_links'] }
     // arranging the staff panel for a role: hide a part, change the order, save
