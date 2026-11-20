@@ -53,6 +53,9 @@ export function Employees() {
   const hubs = (o.data?.hubs ?? []).filter(h => !zone || h.zone_id === zone)
   const canMove = can('hr.employee.edit') || can('hr.transfer.edit')
   const done = (m: string) => { act?.clear(); setAct(null); toast(m); void list.reload() }
+  const activeCount = all.filter(e => e.status === 'active').length
+  const applicantCount = all.filter(e => e.status === 'applicant').length
+  const inactiveCount = all.filter(e => ['inactive', 'resigned', 'terminated'].includes(e.status)).length
 
   return <AppShell title="কর্মী" subtitle={`${bn(all.filter(e => e.status === 'active').length)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।`}
     actions={<><button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hub || null, status: status || 'active' }).then(n => toast(n ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ আইডি তৈরির ফাইল</button>
