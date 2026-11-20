@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Contact } from '../../components/Contact'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
@@ -17,7 +17,8 @@ const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00');
 
 /** গাড়ি — the zone's vehicles for managers: given to hubs, crew and allowance, today's allowance and garage, approvals, hub reports, log, settings. */
 export function Fleet() {
-  const { can } = useAuth()
+  const { can, grants, viewAs } = useAuth()
+  const scope = viewAs?.view ?? grants.find(g => g.permission_code === 'vehicle.vehicle.view')?.scope_type
   const [sp, setSp] = useSearchParams()
   const canSet = can('vehicle.settings.configure')
   const tabs = TABS.filter(([k]) => (k !== 'settings' || canSet) && (k !== 'reports' || can('vehicle.report.view') || can('vehicle.vehicle.view')))
@@ -31,8 +32,14 @@ export function Fleet() {
   const hubs = useMemo(() => [...new Map((board.data ?? []).filter(r => r.hub_id).map(r => [r.hub_id!, r.hub_name ?? ''])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [board.data])
   const waitCount = (waiting.data?.logs.length ?? 0) + (waiting.data?.requests.length ?? 0)
   const reload = () => { void board.reload(); void waiting.reload() }
+  const title = scope === 'zone' ? 'জোনের গাড়ি' : scope === 'hub' ? 'আমার হাবের গাড়ি' : 'গাড়ি ব্যবস্থাপনা'
 
-  return <AppShell title="গাড়ি" subtitle="জোনের গাড়ি, হাবে দেওয়া, ড্রাইভার-হেল্পার, খোরাকি, গ্যারেজ, অনুমোদন ও রিপোর্ট">
+  // Staff use the personal panel. The board RPC also enforces this boundary on the server.
+  if (!can('vehicle.vehicle.view') && !can('vehicle.log.approve') && !can('vehicle.report.view')) {
+    return <Navigate to="/app/fleet/mine" replace />
+  }
+
+  return <AppShell title={title} subtitle="হাবভিত্তিক গাড়ি, ড্রাইভার-হেল্পার, খোরাকি, গ্যারেজ, অনুমোদন ও রিপোর্ট">
     <div className="fl">
       <div className="nv-chips fl-tabs" role="tablist">{tabs.map(([k, l, ic]) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`nv-chip${tab === k ? ' on' : ''}`} onClick={() => go(k)}>
         <Icon name={ic} size={15} />{l}{k === 'approve' && waitCount > 0 && <b>{bnNum(waitCount)}</b>}</button>)}</div>

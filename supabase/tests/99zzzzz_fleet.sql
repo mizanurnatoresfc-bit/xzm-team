@@ -21,18 +21,40 @@ select tests.grant_role(tests.id('hub_mgr'), 'accounts_manager', 'hub', null, te
 -- ---------- vehicles of the zone, given to a hub ----------
 select tests.login(tests.id('rider_login'));
 select tests.throws(format($$select public.fleet_vehicle_save('Truck', 'DM-TA-11', 'truck', %L)$$, tests.id('hub_a1')), 'a driver cannot add a vehicle', '42501');
-select tests.login(tests.id('zonal_a'));
+select tests.login(tests.id('super'));
 insert into t values ('truck', public.fleet_vehicle_save('Natore Truck', 'DM-TA 11-2233', 'truck', tests.id('hub_a1'))::text);
 insert into t values ('auto', public.fleet_vehicle_save('Lalpur Auto', null, 'auto', tests.id('hub_a1'))::text);
+insert into t values ('hub2', public.fleet_vehicle_save('Hub A2 Van', null, 'van', tests.id('hub_a2'))::text);
+insert into t values ('zoneb', public.fleet_vehicle_save('Hub B1 Van', null, 'van', tests.id('hub_b1'))::text);
 select tests.ok((select code::text like 'G-%' from public.vehicles where id = (select v::uuid from t where k = 'truck')), 'a vehicle gets its own code');
 select tests.throws(format($$select public.fleet_vehicle_save('Plane', null, 'helicopter', %L)$$, tests.id('hub_a1')), 'an unknown kind is refused', '22023');
+
+-- ---------- role scope: the database returns only the assigned zone, hub, or person ----------
+select tests.login(tests.id('zonal_a'));
+select tests.ok(jsonb_array_length(public.fleet_board()) = 3 and tests.row_count('select * from public.vehicles') = 3,
+  'the zonal manager sees every vehicle in their zone and none outside it');
+select tests.throws(format($$select public.fleet_vehicle_save('Nope', null, 'truck', %L)$$, tests.id('hub_a1')),
+  'the zonal manager cannot add vehicles', '42501');
+select tests.login(tests.id('hub_mgr'));
+select tests.ok(jsonb_array_length(public.fleet_board()) = 2 and tests.row_count('select * from public.vehicles') = 2,
+  'the hub manager sees only vehicles assigned to their hub');
+select tests.throws(format($$select public.fleet_vehicle_save('Move', null, 'truck', %L, 'active', %L)$$,
+  tests.id('hub_a2'), (select v from t where k = 'truck')), 'the hub manager cannot move a vehicle to another hub', '42501');
+select tests.login(tests.id('rider_login'));
+select tests.ok(jsonb_array_length(public.fleet_board()) = 0 and tests.row_count('select * from public.vehicles') = 0,
+  'staff cannot browse the fleet board or vehicle table');
+select tests.login(tests.id('super'));
 select public.fleet_vehicle_save('Natore Truck', 'DM-TA 11-2233', 'truck', tests.id('hub_a2'), 'active', (select v::uuid from t where k = 'truck'));
-select tests.ok((select hub_id = tests.id('hub_a2') from public.vehicles where id = (select v::uuid from t where k = 'truck')), 'the zonal manager gives the truck to another hub');
+select tests.ok((select hub_id = tests.id('hub_a2') from public.vehicles where id = (select v::uuid from t where k = 'truck')), 'Super Admin assigns the truck to another hub');
 select public.fleet_vehicle_save('Natore Truck', 'DM-TA 11-2233', 'truck', tests.id('hub_a1'), 'active', (select v::uuid from t where k = 'truck'));
+select tests.login(tests.id('zonal_a'));
 select tests.throws(format($$select public.fleet_vehicle_save('Natore Truck', null, 'truck', %L, 'active', %L)$$, tests.id('hub_b1'), (select v from t where k = 'truck')),
-  'a vehicle cannot go to a hub outside the manager''s zone', '42501');
+  'the zonal manager cannot move a vehicle outside their zone', '42501');
 
 -- ---------- crew by kind, with a daily allowance ----------
+select tests.throws(format($$select public.fleet_set_crew(%L, 'driver', '801', 150)$$, (select v from t where k = 'truck')),
+  'the zonal manager cannot assign vehicle crew', '42501');
+select tests.login(tests.id('super'));
 select public.fleet_set_crew((select v::uuid from t where k = 'truck'), 'driver', '801', 150);
 select public.fleet_set_crew((select v::uuid from t where k = 'truck'), 'helper', '802', 100);
 select public.fleet_set_crew((select v::uuid from t where k = 'auto'), 'driver', '803', 120);
@@ -103,10 +125,15 @@ select tests.login(tests.id('zonal_a'));
 select tests.ok(exists (select 1 from public.notifications where profile_id = tests.id('zonal_a') and title like 'Hub A2: আনলোডে দেরি%'), 'the zonal manager is told about late unloading');
 select tests.ok(jsonb_array_length(public.fleet_hub_reports(private.da_today() - 1, private.da_today())) = 2, 'the zonal manager sees the day''s hub reports');
 select tests.login(tests.id('hub_b_mgr'));
+select tests.ok(jsonb_array_length(public.fleet_board()) = 1 and (public.fleet_board() -> 0 ->> 'hub_id')::uuid = tests.id('hub_b1'),
+  'the second hub manager sees only their own hub');
 select tests.ok(jsonb_array_length(public.fleet_hub_reports(private.da_today() - 1, private.da_today())) = 0, 'another zone''s manager sees none');
 
 -- ---------- the crew's panel ----------
 select tests.login(tests.id('rider_login'));
+select tests.ok(jsonb_array_length(public.fleet_mine() -> 'vehicles') = 1
+  and public.fleet_mine() #>> '{vehicles,0,id}' = (select v from t where k = 'truck'),
+  'staff receive only the vehicle assigned personally');
 select tests.ok((select (x ->> 'role') = 'driver' and jsonb_array_length(x -> 'crew') = 1 and (x ->> 'allowance')::numeric = 150
                  from jsonb_array_elements(public.fleet_mine() -> 'vehicles') x), 'the driver sees the truck, the helper and the allowance');
 select tests.ok((select count(*) from jsonb_array_elements(public.fleet_mine() #> '{vehicles,0,costs}') c where c ->> 'kind' = 'khoraki') = 1,

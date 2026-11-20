@@ -51,7 +51,7 @@ export const GROUPS: Group[] = [
       { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
       { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
       { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
-      { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
+      { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি', en: 'My vehicle', perms: null },
     ] },
   ]),
   panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
@@ -294,7 +294,7 @@ function roleClass(code: string) {
 
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  const { can, signOut, session, isSuperAdmin, menu } = useAuth()
+  const { can, grants, viewAs, signOut, session, isSuperAdmin, menu } = useAuth()
   const nodiOn = useNodiFeatures()
   const { L, n, lang, setLang, theme, setTheme } = usePrefs()
   const [asRole, setAsRole] = useState(false)
@@ -395,6 +395,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
   // may open are listed in their own top panel, so a rider never gets a "manager" heading for one page.
   const level = panelLevel(can)
+  const fleetScope = viewAs?.view ?? grants.find(g => g.permission_code === 'vehicle.vehicle.view')?.scope_type
+  const fleetNavBn = fleetScope === 'zone' ? 'জোনের গাড়ি' : fleetScope === 'hub' ? 'আমার হাবের গাড়ি' : 'গাড়ি ব্যবস্থাপনা'
+  const fleetNavEn = fleetScope === 'zone' ? 'Zone vehicles' : fleetScope === 'hub' ? 'My hub vehicles' : 'Fleet management'
   const defaultOpenGroup = level === 2 ? 'zone' : level === 1 ? 'hub' : 'self'
   // Only show what this person can use: + needs at least one quick action, search needs the staff list.
   const quickItems = QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to))
@@ -424,8 +427,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     const until = NEW_UNTIL[i.to.split('?')[0]]
     return until && today <= until ? <span className="nb new">{L('নতুন', 'New')}</span> : null
   }
-  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
-    {tagOf(i)}</NavLink>
+  const link = (i: Item) => { const bn = i.to === '/app/fleet' ? fleetNavBn : i.bn, en = i.to === '/app/fleet' ? fleetNavEn : i.en
+    return <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={L(bn, en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(bn, en)}</span>
+      {tagOf(i)}</NavLink>
+  }
 
   // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
   const navTabs = (dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, quickItems.length ? 3 : 4)

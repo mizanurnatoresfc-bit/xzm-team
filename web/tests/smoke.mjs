@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 // Smoke test: opens the built site in a real browser at PC and phone size, with the
 // database answers faked, and checks the screens that every change must keep working.
 // Run:  npm run build && npm run test:smoke      (CI runs it before the site is published)
@@ -49,7 +50,7 @@ const ownRows = [{ id: 'o1', user_id: 'u2', user_name: 'Sohel Sardar', permissio
 const fails = []
 const check = (ok, what) => { if (!ok) fails.push(what); console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`) }
 
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
+const server = spawn(process.execPath, [resolve('node_modules/vite/bin/vite.js'), 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
 const stop = () => { try { server.kill() } catch { /* already gone */ } }
 process.on('exit', stop)
 for (let i = 0; i < 40; i++) { try { if ((await fetch(BASE)).ok) break } catch { /* not up yet */ } await new Promise(r => setTimeout(r, 250)) }
