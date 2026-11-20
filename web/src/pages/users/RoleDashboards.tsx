@@ -33,9 +33,9 @@ export function RoleDashboards() {
   const [staffEdit, setStaffEdit] = useState<RoleDashboard | null>(null)
   const { toast, node } = useToast()
 
-  return <AppShell title={L('রোল অনুযায়ী ড্যাশবোর্ড', 'Dashboard by role')}
-    subtitle={L('কোন রোল হোম পেজে কী দেখবে আর কোন ক্রমে — “সাজান” চেপে যোগ করুন, সরান, উপরে-নিচে সাজান। অনুমতি না থাকলে প্যানেল এমনিতেই লুকানো থাকবে।',
-      'Decide what each role sees on the home page. A panel stays hidden anyway if the role has no permission for it.')}>
+  return <AppShell title={L('রোলভিত্তিক ড্যাশবোর্ড বিল্ডার', 'Role-based Dashboard Builder')}
+    subtitle={L('প্রতি রোলের হোম ড্যাশবোর্ডে কোন ভিউ, প্যানেল ও স্টাফ অংশ থাকবে এবং কোন ক্রমে থাকবে—এখান থেকে সাজান। কোনো অনুমতি যোগ বা বদলানো হয় না।',
+      'Arrange each role’s home views, dashboard panels and staff sections here. This does not add or change permissions.')}>
     {node}
     {!sup ? <p className="notice">{L('এই পাতা শুধু সুপার অ্যাডমিনের জন্য।', 'This page is for the Super Admin only.')}</p> : <>
       {list.error ? <p className="da-error">{dashboardFriendly(list.error)}</p> : null}
@@ -67,9 +67,9 @@ export function RoleDashboards() {
         {staff.error ? <p className="da-error">{dashboardFriendly(staff.error)}</p> : null}
       </section>
       <section className="panel" id="role-pages">
-        <h2>{L('কোন রোল কোন কোন পাতা দেখবে', 'Which pages each role sees')}</h2>
-        <p className="muted small">{L('তালিকা বসালে সেই রোল শুধু ওই পাতাগুলো মেনুতে পাবে, অন্য পাতা ঠিকানা লিখেও খুলবে না। পরে আরও পাতা চালু করতে শুধু টিক দিন। (কী তথ্য দেখা বা বদলানো যাবে তা অনুমতি দিয়েই ঠিক হয় — সেটা “রোল ও অনুমতি” পাতায়।)',
-          'With a list, the role gets only those pages in its menu and cannot open others. Tick more pages later to switch them on. (What data may be seen or changed is still set by permissions.)')}</p>
+        <h2>{L('ডাইনামিক মেনু বিল্ডার', 'Dynamic Menu Builder')}</h2>
+        <p className="muted small">{L('প্রতি রোলের মেনুতে কোন পাতা থাকবে বাছুন, তারপর একই বিভাগের ভেতরে ক্রম সাজান। পেজের বিভাগ ও নাম আপাতত সবার জন্য একই। মেনুতে পাতা যোগ করলেই নতুন অনুমতি তৈরি হয় না—অনুমতি “রোল ও অনুমতি” পাতায় নিয়ন্ত্রণ হয়।',
+          'Choose which pages appear for each role, then arrange their order within each existing section. Page sections and names stay shared. Adding a page to the menu does not grant permission; permissions remain controlled in Roles & permissions.')}</p>
         <div className="nv-rows">{(menus.data ?? []).filter(r => !r.is_super).map(r => <div key={r.role_id} className="nv-row">
           <span className="tx"><b>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</b>
             <span>{r.menu ? L(`${n(r.menu.length)}টি পাতা চালু`, `${r.menu.length} pages on`) : L('সব পাতা (অনুমতি অনুযায়ী)', 'Every page (by permission)')} · {n(r.user_count)} {L('জন ইউজার', 'users')}</span></span>
@@ -98,6 +98,15 @@ function PagesEditor({ role, onClose, onDone }: { role: RoleMenu; onClose: () =>
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
   const toggle = (to: string) => setPicked(p => p.includes(to) ? p.filter(x => x !== to) : [...p, to])
   const groups = [{ key: 'home', bn: 'শুরু', en: 'Start', items: HOME.filter(i => i.to !== '/app') }, ACCOUNTS, OFFICE, ...GROUPS]
+  const groupOf = (to: string) => groups.find(g => g.items.some(i => i.to === to))?.key ?? ''
+  const movePage = (to: string, direction: -1 | 1) => setPicked(current => {
+    const peers = current.map((value, index) => ({ value, index })).filter(x => groupOf(x.value) === groupOf(to))
+    const at = peers.findIndex(x => x.value === to), next = at + direction
+    if (at < 0 || next < 0 || next >= peers.length) return current
+    const copy = [...current], a = peers[at].index, b = peers[next].index
+    ;[copy[a], copy[b]] = [copy[b], copy[a]]
+    return copy
+  })
   async function save() {
     setBusy(true); setErr('')
     try { await menuApi.save(role.role_id, limit ? picked : null); onDone() } catch (e) { setErr(dashboardFriendly(e)) } finally { setBusy(false) }
@@ -108,8 +117,21 @@ function PagesEditor({ role, onClose, onDone }: { role: RoleMenu; onClose: () =>
       <button type="button" className={limit ? '' : 'secondary'} aria-pressed={limit} onClick={() => setLimit(true)}>{L('শুধু টিক দেওয়া পাতা', 'Only the ticked pages')}</button></div>
     {limit && <><p className="muted small">{L('হোম, নিজের প্রোফাইল ও পাসওয়ার্ড বদলানো সবসময় খোলা থাকে। টিক দেওয়া পাতা তখনই দেখাবে যখন রোলের সেই পাতার অনুমতিও আছে।',
       'Home, own profile and password are always open. A ticked page shows only when the role also has the permission for it.')}</p>
+      <h3 className="rd-h">{L('মেনুর ক্রম', 'Menu order')}</h3>
+      <p className="muted small">{L('উপরের আইটেমগুলো একই বিভাগের মধ্যে ↑ ↓ দিয়ে সাজান।', 'Use ↑ ↓ to arrange selected pages within each section.')}</p>
+      <div className="nv-rows rd-list" data-list="menu-order">{groups.map(g => {
+        const selected = picked.filter(to => groupOf(to) === g.key)
+        return selected.length ? <div key={g.key} className="nv-row"><span className="tx"><b>{L(g.bn, g.en)}</b>
+          <span>{selected.map((to, index) => {
+            const item = g.items.find(i => i.to === to)!
+            return <span key={to} className="rd-menu-item"><span>{index + 1}. {L(item.bn, item.en)}</span>
+              <span className="rd-acts"><button type="button" className="secondary sm" aria-label={L('উপরে নিন', 'Move up')} disabled={index === 0} onClick={() => movePage(to, -1)}>↑</button>
+                <button type="button" className="secondary sm" aria-label={L('নিচে নিন', 'Move down')} disabled={index === selected.length - 1} onClick={() => movePage(to, 1)}>↓</button></span></span>
+          })}</span></span></div> : null
+      })}</div>
+      <h3 className="rd-h">{L('পাতা বাছুন', 'Choose pages')}</h3>
       <div className="pg-pick">{groups.map(g => <fieldset key={g.key}><legend>{L(g.bn, g.en)}
-        <button type="button" className="link small" onClick={() => { const all = g.items.map(i => i.to); setPicked(p => all.every(t => p.includes(t)) ? p.filter(t => !all.includes(t)) : [...new Set([...p, ...all])]) }}>{L('সব', 'all')}</button></legend>
+        <button type="button" className="link small" onClick={() => { const all = g.items.filter(i => !i.only || (i.only === 'web') === advancedAccessHere()).map(i => i.to); setPicked(p => all.every(t => p.includes(t)) ? p.filter(t => !all.includes(t)) : [...new Set([...p, ...all])]) }}>{L('সব', 'all')}</button></legend>
         {g.items.filter(i => !i.only || (i.only === 'web') === advancedAccessHere()).map(i => <label key={i.to} className="da-check"><input type="checkbox" checked={picked.includes(i.to)} onChange={() => toggle(i.to)} /> {L(i.bn, i.en)}</label>)}</fieldset>)}</div>
       <p className="muted small">{L(`${picked.length}টি পাতা বাছা হয়েছে`, `${picked.length} pages chosen`)}</p></>}
     {err && <p className="da-error" role="alert">{err}</p>}
