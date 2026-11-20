@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import './Employees.css'
 import { Contact } from '../../components/Contact'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
