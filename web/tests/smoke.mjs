@@ -692,8 +692,8 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
       const adminPanels = (await panels()).split(',')
-      check(['accounts', 'office', 'self', 'hub', 'zone'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
-        && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
+      check(['accounts', 'office', 'self', 'hub', 'zone', 'admin'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
+        && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
         `${size}: the Super Admin sees the accounts and office groups plus staff, manager and zonal panels`)
       check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/workforce/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
       check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 12 && await inPanel('office', 'কারা থাকেন') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
@@ -728,9 +728,11 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.first-steps', { timeout: 5000 }).catch(() => {})
       check(await extras() === '1,1,1' && await page.locator('.first-steps').count() === 1, `${size}: the zonal level keeps the training centre, the AI helper and the first-steps box`)
       permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.da-main h1')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.da-main .greet h2')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
-      check(await panels() === 'accounts,self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1
+      const managerPanels = (await panels()).split(',')
+      check(['accounts', 'self', 'hub', 'sorting'].every(k => managerPanels.includes(k)) && new Set(managerPanels).size === managerPanels.length
+        && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 0 && await inPanel('sorting', 'পার্সেল আদান-প্রদান') === 1
         && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
@@ -771,11 +773,12 @@ try {
     await page.locator('.da-modal-acts button').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
     check(flowCalls.at(-1)?.fn === 'role_dashboard_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_panels?.join() === 'quick_links,hub_today', `${size}: the arranged home page is saved for the role`)
     { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আমার কাজ' || t === 'দ্রুত যাওয়া').join(' > ')
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1')
+      const ready = () => page.waitForFunction(() => { const h = [...document.querySelectorAll('.da-main section.panel > .da-bar h2')].map(e => e.textContent?.trim()); return h.includes('আমার কাজ') && h.includes('দ্রুত যাওয়া') })
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main .greet h2'); await ready()
       const first = await order()
       check(await page.locator('.dash-edit').count() === 1, `${size}: the Super Admin's home has a shortcut to arrange dashboards`)
       homePanels = ['quick_links', 'my_work']
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main .greet h2'); await ready()
       check(first === 'আমার কাজ > দ্রুত যাওয়া' && await order() === 'দ্রুত যাওয়া > আমার কাজ', `${size}: the home page shows panels in the saved order`)
       homePanels = ['my_work', 'quick_links'] }
     // arranging the staff panel for a role: hide a part, change the order, save
@@ -1120,7 +1123,7 @@ try {
       // a role: module -> sub-menu -> view / create / edit / delete / approve / export, and its pages
       await page.locator('.ax-role[data-role=hub_manager]').click(); await page.waitForSelector('.ax-mod button.ax-box')
       check((await page.locator('.ax-mod[data-module=hr] .ax-row.ax-head span').allTextContents()).join('|') === 'সাব-মেনু|পাতা|দেখা|তৈরি|এডিট|ডিলিট|অনুমোদন|এক্সপোর্ট'
-        && await page.locator('.ax-mod').count() >= 10, `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access`)
+        && await page.locator('.ax-mod').count() === new Set(permRows.map(p => p.module)).size, `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access`)
       await box('/app/hr/leave', 4).click()   // approve: gives hr.leave.approve + hr.leave.reject
       await page.getByRole('button', { name: 'শুধু টিক দেওয়া পাতা' }).click()
       await page.locator('.ax-row[data-sub="/app/hr/attendance"] .ax-pg button').click()
