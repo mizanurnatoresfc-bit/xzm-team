@@ -57,6 +57,8 @@ export function Employees() {
   const activeCount = all.filter(e => e.status === 'active').length
   const applicantCount = all.filter(e => e.status === 'applicant').length
   const inactiveCount = all.filter(e => ['inactive', 'resigned', 'terminated'].includes(e.status)).length
+  const hasFilters = !!(q || zone || hub || status !== 'active' || post)
+  const clearFilters = () => { setQ(''); setZone(''); setHub(''); setStatus('active'); setPost('') }
 
   return <AppShell title="কর্মী ব্যবস্থাপনা" subtitle={`${bn(all.filter(e => e.status === 'active').length)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।`}
     actions={<><button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hub || null, status: status || 'active' }).then(n => toast(n ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ আইডি তৈরির ফাইল</button>
@@ -70,6 +72,7 @@ export function Employees() {
       <article className="hr-emp-stat gray"><small>নিষ্ক্রিয়</small><strong>{list.loading ? "—" : bn(inactiveCount)}</strong><span>নিষ্ক্রিয় / পদত্যাগ / সমাপ্ত</span></article>
     </section>
     <section className="panel emp-board hr-emp-board">
+      <div className="hr-emp-list-heading"><div><h2>কর্মী তালিকা</h2><p>{list.loading ? 'তথ্য লোড হচ্ছে…' : bn(rows.length) + ' জন কর্মী দেখানো হচ্ছে'}</p></div>{hasFilters && <button type="button" className="hr-emp-clear" onClick={clearFilters}>সব ফিল্টার মুছুন ×</button>}</div>
       <div className="eb-top no-print">
         <div className="eb-chips" role="group" aria-label="পদ অনুযায়ী">
           <button type="button" className={`chip-toggle${post === '' ? ' on' : ''}`} aria-pressed={post === ''} onClick={() => setPost('')}>সব <b>{bn(scoped.length)}</b></button>
