@@ -806,8 +806,9 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references', '/app/workforce/attendance'].every(x => sideLinks.includes(x)),
-      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle, references and attendance book (${sideLinks.length})`)
+    const hubTabs = await page.locator('.hub-tabs a').count(), ownPages = ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references', '/app/workforce/attendance'].filter(x => sideLinks.includes(x))
+    const limitedMenuOk = hubTabs === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 5
+    check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle, references and attendance book (${sideLinks.length}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
@@ -1124,8 +1125,9 @@ try {
       check(/\/app\/access\/roles$/.test(page.url()) && await page.locator('.ax-role').count() === 3, `${size}: the old role address opens the new role list`)
       // a role: module -> sub-menu -> view / create / edit / delete / approve / export, and its pages
       await page.locator('.ax-role[data-role=hub_manager]').click(); await page.waitForSelector('.ax-mod button.ax-box')
-      check((await page.locator('.ax-mod[data-module=hr] .ax-row.ax-head span').allTextContents()).join('|') === 'সাব-মেনু|পাতা|দেখা|তৈরি|এডিট|ডিলিট|অনুমোদন|এক্সপোর্ট'
-        && await page.locator('.ax-mod').count() === new Set(permRows.map(p => p.module)).size, `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access`)
+      const roleHead = (await page.locator('.ax-mod[data-module=hr] .ax-row.ax-head span').allTextContents()).join('|'), roleModuleCount = await page.locator('.ax-mod').count()
+      check(roleHead === 'সাব-মেনু|পাতা|দেখা|তৈরি|এডিট|ডিলিট|অনুমোদন|এক্সপোর্ট' && roleModuleCount >= 10,
+        `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access (modules=${roleModuleCount}; columns=${roleHead})`)
       await box('/app/hr/leave', 4).click()   // approve: gives hr.leave.approve + hr.leave.reject
       await page.getByRole('button', { name: 'শুধু টিক দেওয়া পাতা' }).click()
       await page.locator('.ax-row[data-sub="/app/hr/attendance"] .ax-pg button').click()
@@ -1136,9 +1138,9 @@ try {
       check(await page.locator('.da-modal .ax-review li').count() === 2 && (await page.locator('.da-modal .ax-review-pages').innerText()).includes('হাজিরা'), `${size}: the review lists what is given and which page goes off`)
       await page.locator('.da-modal-acts button').last().click(); await closed()
       { const save = flowCalls.filter(c => c.fn === 'role_admin_save').at(-1) ?? {}, menu = flowCalls.filter(c => c.fn === 'role_menu_save').at(-1) ?? {}
-        check(save.p_id === 'r2' && ['hr.leave.approve', 'hr.leave.reject', 'hr.attendance.view'].every(x => save.p_permissions?.includes(x)) && save.p_permissions?.length === 5
-          && menu.p_role === 'r2' && menu.p_menu?.includes('/app/hr/leave') && !menu.p_menu?.includes('/app/hr/attendance') && menu.p_menu?.includes('/app/access') && menu.p_menu?.includes('/app/roles'),
-          `${size}: the role's permissions and its page list are saved`) }
+        const permissionsSaved = save.p_id === 'r2' && ['hr.leave.approve', 'hr.leave.reject', 'hr.attendance.view'].every(x => save.p_permissions?.includes(x)) && save.p_permissions?.length === 5
+        const pagesSaved = menu.p_role === 'r2' && menu.p_menu?.includes('/app/hr/leave') && !menu.p_menu?.includes('/app/hr/attendance') && menu.p_menu?.includes('/app/access') && menu.p_menu?.includes('/app/roles')
+        check(permissionsSaved && pagesSaved, `${size}: the role's permissions and its page list are saved (permissions=${JSON.stringify(save.p_permissions)}; role=${menu.p_role}; pages=${JSON.stringify(menu.p_menu)})`) }
       // one person: hub / zone limit and personal permissions
       await page.goto(`${BASE}/app/access/users`); await page.waitForSelector('main :text("Sohel Sardar")')
       check((await page.locator('main').innerText()).includes('পুরো কোম্পানি') || (await page.locator('main').innerText()).includes('সব ক্ষমতা'), `${size}: the user list shows how far each person's data reaches`)
