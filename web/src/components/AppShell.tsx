@@ -97,15 +97,15 @@ export const GROUPS: Group[] = [
       { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
       { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
     ] },
-    { bn: 'শটিং সেন্টার', en: 'Sorting centre', items: [
-      { to: '/app/sorting/dashboard', icon: 'dash', bn: 'শটিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
-      { to: '/app/sorting/routes', icon: 'map', bn: 'শটিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
-      { to: '/app/sorting/staff', icon: 'users', bn: 'শটিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
+    { bn: 'সোর্টিং সেন্টার', en: 'Sorting centre', items: [
+      { to: '/app/sorting/dashboard', icon: 'dash', bn: 'সোর্টিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
+      { to: '/app/sorting/routes', icon: 'map', bn: 'সোর্টিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
+      { to: '/app/sorting/staff', icon: 'users', bn: 'সোর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
       { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
       { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
       { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
-      { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও শটিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
-      { to: '/app/sorting/centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
+      { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও সোর্টিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
+      { to: '/app/sorting/centers', icon: 'hub', bn: 'সোর্টিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
     ] },
     { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
       { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
@@ -125,7 +125,7 @@ export const GROUPS: Group[] = [
  * It is not one of the three level panels: anyone whose role may do accounts work sees it, at the top.
  */
 const DA = ['da.sheet.view', 'da.sheet.create']
-export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও নদী শিক্ষক', 'Accounts & Nodi teacher', [
+export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও শেখা', 'Accounts & learning', [
   { bn: 'প্রতিদিনের হিসাব', en: 'Every day', items: [
     { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা (আমার)', en: 'My sheet today', perms: ['da.sheet.create'] },
     { to: '/app/accounts/daily', icon: 'ledger', bn: 'হাবের দৈনিক হিসাব খাতা', en: 'Hub daily sheets', perms: DA, count: 'sheets' },
@@ -371,6 +371,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
   // may open are listed in their own top panel, so a rider never gets a "manager" heading for one page.
   const level = panelLevel(can)
+  const defaultOpenGroup = level === 2 ? 'zone' : level === 1 ? 'hub' : 'self'
   // Only show what this person can use: + needs at least one quick action, search needs the staff list.
   const quickItems = QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to))
   const canSearch = can('hr.employee.view')
@@ -427,7 +428,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
         const has = vis.some(i => i.to.split('?')[0] === here)
-        const isOpen = groupOpen[g.key] ?? true
+        const isOpen = groupOpen[g.key] ?? (g.key === defaultOpenGroup || has)
         const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
         return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`} data-panel={g.key}>
           <button type="button" className="ngh" aria-expanded={isOpen} title={L(g.bn, g.en)} onClick={() => toggleGroup(g.key, !isOpen)}>
