@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
-import { Login } from './pages/Login'
+import { Login } from './pages/Login'\nimport { DemoUsersPreview } from './pages/users/DemoUsersPreview'
 import { Dashboard } from './pages/Dashboard'
 import './styles.css'
 import './accounts.css'
@@ -121,7 +121,7 @@ function HomeOrPanel() {
 
 export default function App() {
   return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes>
-    <Route path="/staff/login" element={<Login />} />
+    <Route path="/staff/login" element={<Login />} />\n    {/* Public, isolated preview: renders hard-coded sample data only; no auth or API access. */}\n    <Route path="/preview/users" element={<DemoUsersPreview />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />
       <Route path="/app/staff" element={<StaffPanel />} />
