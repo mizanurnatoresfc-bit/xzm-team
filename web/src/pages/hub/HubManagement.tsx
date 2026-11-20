@@ -576,6 +576,11 @@ function HubTeam({ hub }: { hub: Hub }) {
   const [q, setQ] = useState('')
   const [newApp, setNewApp] = useState(false)
   const [del, setDel] = useState<Employee | null>(null)
+  const [leaving, setLeaving] = useState<Employee | null>(null)
+  const [leaveDate, setLeaveDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' }))
+  const [leaveReason, setLeaveReason] = useState('')
+  const [leaveErr, setLeaveErr] = useState('')
+  const [leaveBusy, setLeaveBusy] = useState(false)
   const [reason, setReason] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const team = useLoad(() => hubApi.team(hub.id, status || null), [hub.id, status])
   const posName = (e: Employee) => (e.position_id && o.names.pos[e.position_id]) || L('পদবি নেই', 'No post')
@@ -598,6 +603,19 @@ function HubTeam({ hub }: { hub: Hub }) {
     setBusy(true); setErr('')
     try { await hr.archive(del.id, reason.trim()); setDel(null); setReason(''); await team.reload(); refreshShellCounts(); toast(L('তালিকা থেকে সরানো হয়েছে', 'Removed from the list')) }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
+  async function confirmLeaving() {
+    if (!leaving) return
+    if (!leaveDate || leaveDate > new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' }))
+      return setLeaveErr(L('আজ বা আগের তারিখ দিন', 'Choose today or an earlier date'))
+    if (leaveReason.trim().length < 3) return setLeaveErr(L('কারণ লিখুন', 'Enter a reason'))
+    setLeaveBusy(true); setLeaveErr('')
+    try {
+      await hr.changeStatus(leaving.id, 'resigned', leaveDate, leaveReason.trim())
+      setLeaving(null); setLeaveReason('')
+      await team.reload(); refreshShellCounts()
+      toast(L(leaving.full_name + ' সক্রিয় হাব তালিকা থেকে সরানো হয়েছে', leaving.full_name + ' was removed from the active hub list'))
+    } catch (e) { setLeaveErr(hrFriendly(e)) } finally { setLeaveBusy(false) }
   }
   return <>
     {node}
@@ -629,6 +647,8 @@ function HubTeam({ hub }: { hub: Hub }) {
           { key: 'hub', label: L('হাব', 'Hub'), value: () => hub.name },
           { key: 'status', label: L('অবস্থা', 'Status'), value: r => r.status, render: r => <EmpBadge status={r.status} /> },
           { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
+            {can('hr.employee.edit') && r.status === 'active' && <button className="danger sm" onClick={e => { e.stopPropagation(); setLeaveErr(''); setLeaveDate(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })); setLeaveReason(''); setLeaving(r) }}>
+              <Icon name="out" size={14} />{L('চাকরি ছাড়লেন', 'Resigned')}</button>}
             {can('hr.employee.edit') && r.status !== 'applicant' && <button className="secondary sm" onClick={e => { e.stopPropagation(); nav(`/app/hr/employees/${r.id}?edit=1`) }}>{L('এডিট', 'Edit')}</button>}
             <button className="sm" onClick={e => { e.stopPropagation(); nav(`/app/hr/employees/${r.id}`) }}>{L('দেখুন', 'View')}</button>
             {can('hr.employee.archive') && <button className="secondary sm" title={L('ডিলিট', 'Delete')} onClick={e => { e.stopPropagation(); setErr(''); setReason(''); setDel(r) }}><Icon name="trash" size={14} /></button>}
@@ -636,6 +656,17 @@ function HubTeam({ hub }: { hub: Hub }) {
         ]} />}
     </section>
     {newApp && <NewApplication onClose={() => setNewApp(false)} onDone={id => nav(`/app/hr/employees/${id}`)} />}
+    {leaving && <Modal title={L('চাকরি ছাড়ার বিষয়টি নিশ্চিত করুন', 'Confirm resignation')} onClose={() => setLeaving(null)}
+      actions={<><button className="secondary" disabled={leaveBusy} onClick={() => setLeaving(null)}>{L('বাতিল', 'Cancel')}</button>
+        <button className="danger" disabled={leaveBusy} onClick={() => void confirmLeaving()}>{leaveBusy ? L('সেভ হচ্ছে…', 'Saving…') : L('নিশ্চিত করুন', 'Confirm')}</button></>}>
+      <p><strong>{leaving.employee_code ? leaving.employee_code + ' · ' : ''}{leaving.full_name}</strong></p>
+      <p>{L('নিশ্চিত করলে কর্মীটি এই হাবের সক্রিয় তালিকা থেকে সরে যাবেন। তাঁর প্রোফাইল ও ইতিহাস সংরক্ষিত থাকবে।', 'Confirming removes this person from the hub’s active list. Their profile and history stay on record.')}</p>
+      <Field label={L('শেষ কর্মদিবস', 'Last working day')} required>
+        <input type="date" value={leaveDate} max={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })} onChange={e => setLeaveDate(e.target.value)} /></Field>
+      <Field label={L('কারণ', 'Reason')} required>
+        <textarea rows={3} value={leaveReason} onChange={e => setLeaveReason(e.target.value)} placeholder={L('যেমন: নিজে থেকে চাকরি ছেড়েছেন', 'e.g. employee resigned')} /></Field>
+      {leaveErr && <p className="da-error" role="alert">{leaveErr}</p>}
+    </Modal>}
     {del && <Modal title={L('তালিকা থেকে সরান', 'Remove from the list')} onClose={() => setDel(null)}
       actions={<><button className="secondary" onClick={() => setDel(null)}>{L('বাতিল', 'Cancel')}</button><button className="danger" disabled={busy} onClick={() => void archive()}>{L('সরান', 'Remove')}</button></>}>
       <p><strong>{del.employee_code ? `${del.employee_code} · ` : ''}{del.full_name}</strong></p>
