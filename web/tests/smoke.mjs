@@ -691,9 +691,11 @@ try {
       const inPanel = (k, t) => page.locator(`.side .ngrp[data-panel=${k}] a.nl`, { hasText: t }).count()
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
-      check(await panels() === 'accounts,office,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
-        `${size}: the Super Admin's menu is the accounts menu, the office menu and three panels (staff, manager, zonal manager)`)
-      check(await page.locator('.side a[href="/app/workforce/attendance"]').count() === 1, `${size}: personal attendance appears once in the sidebar`)
+      const adminPanels = (await panels()).split(',')
+      check(['accounts', 'office', 'self', 'hub', 'zone'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
+        && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
+        `${size}: the Super Admin sees the accounts and office groups plus staff, manager and zonal panels`)
+      check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/workforce/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
       check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 12 && await inPanel('office', 'কারা থাকেন') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
         `${size}: আমার অফিস is a menu of its own, in five headed parts`)
       { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
@@ -726,7 +728,7 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.first-steps', { timeout: 5000 }).catch(() => {})
       check(await extras() === '1,1,1' && await page.locator('.first-steps').count() === 1, `${size}: the zonal level keeps the training centre, the AI helper and the first-steps box`)
       permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.home-tiles')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.da-main h1')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
       check(await panels() === 'accounts,self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1
         && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
