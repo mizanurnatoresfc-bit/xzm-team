@@ -47,7 +47,6 @@ export function Dashboard() {
   const cur: DashView | null = views.find(x => x[0] === view)?.[0] ?? views.find(x => x[0] === defView)?.[0] ?? views[views.length - 1]?.[0] ?? null
   const vis = (p: PanelCode) => has(p) && !!cur && !!VIEW_OF[p]?.includes(cur)
   const pickView = (v: DashView) => { setV(v); setView(v) }
-  const [allTiles, setAllTiles] = useState(false)
   // Let the tab bar follow the view on show, without saving it as the person's choice.
   useEffect(() => { if (cur) setView(cur, false) }, [cur])
   const where = [d?.me?.position, d?.me?.hub, d?.me?.zone].filter(Boolean).join(' · ')
@@ -55,24 +54,6 @@ export function Dashboard() {
   const hour = Number(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', hour12: false }))
   const hello = hour < 5 ? L('শুভ রাত্রি', 'Good night') : hour < 12 ? L('শুভ সকাল', 'Good morning') : hour < 17 ? L('শুভ দুপুর', 'Good afternoon') : hour < 20 ? L('শুভ সন্ধ্যা', 'Good evening') : L('শুভ রাত্রি', 'Good night')
   const day = new Date().toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', weekday: 'long', day: 'numeric', month: 'long' })
-  const TILES: Array<[string, string, string, string, string, string[] | null]> = [
-    ['/app/hub/attendance', 'cal', 'হাজিরা', 'Attendance', 'g', ['hr.attendance.view', 'hr.attendance.create']],
-    ['/app/hub/late', 'clock', 'দেরি', 'Late', 'o', ['hr.attendance.view', 'hr.attendance.create']],
-    ['/app/hub/pickup', 'box', 'পিকআপ', 'Pickups', 'b', ['ops.pickup.view', 'ops.pickup_as_hub_manager.create']],
-    ['/app/hub/tasks', 'tasks', 'কাজ', 'Tasks', 'p', ['zonal.task.view', 'zonal.task.create']],
-    ['/app/accounts/daily', 'ledger', 'হিসাব খাতা', 'Daily sheet', 'g', null],
-    ['/app/hub/team', 'users', 'হাব টিম', 'Hub team', 'b', ['hr.employee.view']],
-    ['/app/org/hubs', 'hub', 'হাব ম্যাপ', 'Hub map', 'r', ['org.hub.view']],
-    ['/app/sorting/dashboard', 'truck', 'শটিং', 'Sorting', 'o', ['sorting.center.view', 'sorting.report.view']],
-    ['/app/office/overview', 'home', 'অফিস', 'Office', 'p', ['office.property.view']],
-    ['/app/hub/routes', 'map', 'রাইডার রুট', 'Rider routes', 'r', ['ops.route.view']],
-    ['/app/accounts/mine', 'wallet', 'আমার হিসাব', 'My accounts', 'g', null],
-    ['/app/hr/leave', 'log', 'ছুটি', 'Leave', 'b', ['hr.leave.view', 'hr.leave.create']],
-    ['/app/hr/requests', 'form', 'এইচআর রিকুয়েস্ট', 'HR requests', 'o', null],
-    ['/app/me', 'user', 'প্রোফাইল', 'Profile', 'p', null],
-  ]
-
-  const tiles = TILES.filter(t => !t[5] || t[5].some(p => can(p)))
   return <AppShell title={`${L('স্বাগতম', 'Welcome')}, ${name}`}
     subtitle={d?.me?.employee_code ? `${L('আইডি', 'ID')} ${d.me.employee_code}${where ? ` — ${where}` : ''}` : L('আপনার রোল অনুযায়ী আজকের চিত্র', 'Today at a glance, for your role')}>
     {grants.length === 0 && <p className="notice">{L('আপনার অ্যাকাউন্টে এখনো কোনো রোল দেওয়া হয়নি। সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন।', 'No role has been given to your account yet. Contact your system administrator.')}</p>}
@@ -102,11 +83,6 @@ export function Dashboard() {
     {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
     <MyApprovalCard />
     <RiderSendCard />
-    <div className="home-tiles">{tiles.slice(0, allTiles || tiles.length <= 8 ? tiles.length : 7).map(([to, ic, bn, en, tone]) =>
-      <Link key={to} to={to} className={`quick-tile t-${tone}`}><span className="qi"><Icon name={ic} size={24} /></span><span>{L(bn, en)}</span></Link>)}
-      {tiles.length > 8 && <button type="button" className="quick-tile t-b more-tile" onClick={() => setAllTiles(v => !v)}>
-        <span className="qi"><Icon name={allTiles ? 'x' : 'grid'} size={24} /></span><span>{allTiles ? L('কম দেখুন', 'Less') : L(`আরও ${n(tiles.length - 7)}`, `${tiles.length - 7} more`)}</span></button>}</div>
-
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
     {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
     <AppDownloadCard />
