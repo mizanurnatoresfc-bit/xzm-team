@@ -18,14 +18,14 @@ import {
 
 type Sec = 'dashboard' | 'routes' | 'staff' | 'fuel' | 'parcels' | 'drivers' | 'reports' | 'centers'
 export const SORTING_SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: string; perms: string[] }> = [
-  { key: 'dashboard', icon: 'dash', bn: 'শটিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
-  { key: 'routes', icon: 'map', bn: 'শটিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
-  { key: 'staff', icon: 'users', bn: 'শটিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
+  { key: 'dashboard', icon: 'dash', bn: 'সোর্টিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
+  { key: 'routes', icon: 'map', bn: 'সোর্টিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
+  { key: 'staff', icon: 'users', bn: 'সোর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
   { key: 'fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
   { key: 'parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
   { key: 'drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট (রুট অনুযায়ী)', en: 'Driver reports by route', perms: ['sorting.driver.view', 'sorting.driver.create'] },
-  { key: 'reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও শটিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
-  { key: 'centers', icon: 'hub', bn: 'শটিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
+  { key: 'reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও সোর্টিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
+  { key: 'centers', icon: 'hub', bn: 'সোর্টিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
 ]
 
 const CKEY = 'xzm_sorting_center'
@@ -58,21 +58,21 @@ export function Sorting() {
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={center ? center.name : undefined}>
     <section className="da-filters panel no-print hub-top">
-      {sec.key !== 'centers' && <Field label={L('শটিং সেন্টার', 'Sorting center')}><select value={cid} onChange={e => setCid(e.target.value)}>
+      {sec.key !== 'centers' && <Field label={L('সোর্টিং সেন্টার', 'Sorting center')}><select value={cid} onChange={e => setCid(e.target.value)}>
         {list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>}
       {dated && <><Field label={L('থেকে', 'From')}><input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></Field>
         <Field label={L('পর্যন্ত', 'To')}><input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} /></Field>
         <div className="da-seg" style={{ alignSelf: 'flex-end' }}>
           <button className="secondary sm" onClick={() => { setFrom(today()); setTo(today()) }}>{L('আজ', 'Today')}</button>
           <button className="secondary sm" onClick={() => { setFrom(monthStart()); setTo(today()) }}>{L('এই মাস', 'This month')}</button></div></>}
-      <nav className="hub-tabs" aria-label={L('শটিং সেন্টার ম্যানেজমেন্ট', 'Sorting center management')}>
+      <nav className="hub-tabs" aria-label={L('সোর্টিং সেন্টার ম্যানেজমেন্ট', 'Sorting center management')}>
         {tabs.map(t => <Link key={t.key} to={`/app/sorting/${t.key}`} className={t.key === sec.key ? 'on' : ''}><Icon name={t.icon} size={15} /><span>{L(t.bn, t.en)}</span></Link>)}
       </nav>
     </section>
     {centers.error ? <p className="da-error">{hrFriendly(centers.error)}</p> : null}
     {!sec.perms.some(p => can(p)) ? <p className="notice">{L('এই পাতা দেখার অনুমতি আপনার রোলে নেই।', 'Your role may not open this page.')}</p>
       : sec.key === 'centers' ? <Centers onChange={() => void centers.reload()} />
-      : centers.data && !list.length ? <p className="notice">{L('এখনো কোনো শটিং সেন্টার নেই।', 'No sorting center yet.')} {can('sorting.center.create') && <Link to="/app/sorting/centers">{L('সেন্টার যোগ করুন →', 'Add one →')}</Link>}</p>
+      : centers.data && !list.length ? <p className="notice">{L('এখনো কোনো সোর্টিং সেন্টার নেই।', 'No sorting center yet.')} {can('sorting.center.create') && <Link to="/app/sorting/centers">{L('সেন্টার যোগ করুন →', 'Add one →')}</Link>}</p>
       : !center ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
       : <Body sec={sec.key} ctx={{ center, hubs, hubName, from, to }} />}
     {sec.key === 'dashboard' && <AppDownloadCard />}
@@ -136,8 +136,8 @@ function Dashboard({ ctx }: { ctx: Ctx }) {
   }
   return <>
     <div className="da-stats">
-      <Stat icon="box" label={L('হাব থেকে শটিংয়ে এসেছে', 'Hub → sorting')} value={n(g('in_parcels'))} />
-      <Stat icon="truck" label={L('শটিং থেকে হাবে গেছে', 'Sorting → hub')} value={n(g('out_parcels'))} />
+      <Stat icon="box" label={L('হাব থেকে সোর্টিংয়ে এসেছে', 'Hub → sorting')} value={n(g('in_parcels'))} />
+      <Stat icon="truck" label={L('সোর্টিং থেকে হাবে গেছে', 'Sorting → hub')} value={n(g('out_parcels'))} />
       <Stat icon="alert" tone={g('wrong') ? 'warn' : undefined} label={L('ভুল পার্সেল', 'Wrong parcels')} value={n(g('wrong'))} />
       <Stat icon="back" tone={g('returned') ? 'warn' : undefined} label={L('ব্যাক দিয়েছে', 'Returned')} value={n(g('returned'))} />
       <Stat icon="x" tone={g('damaged') ? 'bad' : undefined} label={L('ড্যামেজ', 'Damaged')} value={n(g('damaged'))} />
@@ -196,11 +196,11 @@ function Centers({ onChange }: { onChange: () => void }) {
     try { await sorting.archiveCenter(c.id, r.trim()); await list.reload(); onChange() } catch (e) { setErr(hrFriendly(e)) }
   }
   return <section className="panel">{node}
-    <div className="da-bar"><h2>{L('শটিং সেন্টার', 'Sorting centers')}</h2>
+    <div className="da-bar"><h2>{L('সোর্টিং সেন্টার', 'Sorting centers')}</h2>
       {can('sorting.center.create') && <button onClick={() => { setErr(''); setF({ code: '', name: '', zone_id: o.data?.zones[0]?.id ?? '', status: 'active' }) }}><Icon name="plus" size={15} />{L('নতুন সেন্টার', 'New center')}</button>}</div>
     {err && !f && <p className="da-error">{err}</p>}
-    <DataTable<Center> title={L('শটিং সেন্টার', 'Sorting centers')} file="sorting-centers" rows={list.data} rowKey={r => r.id}
-      empty={<p className="muted">{L('এখনো কোনো শটিং সেন্টার নেই।', 'No sorting center yet.')}</p>}
+    <DataTable<Center> title={L('সোর্টিং সেন্টার', 'Sorting centers')} file="sorting-centers" rows={list.data} rowKey={r => r.id}
+      empty={<p className="muted">{L('এখনো কোনো সোর্টিং সেন্টার নেই।', 'No sorting center yet.')}</p>}
       cols={[
         { key: 'name', label: L('নাম', 'Name'), value: r => r.name, render: r => <strong>{r.name}</strong> },
         { key: 'zone', label: L('এরিয়া', 'Area'), value: r => o.names.zone[r.zone_id] ?? '' },
@@ -215,7 +215,7 @@ function Centers({ onChange }: { onChange: () => void }) {
       ]} />
     {asg && <Modal title={L(`হাব এসাইন — ${asg.c.name}`, `Assign hubs — ${asg.c.name}`)} onClose={() => setAsg(null)}
       actions={<><button className="secondary" onClick={() => setAsg(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void assign()}>{L('সেভ', 'Save')}</button></>}>
-      <p className="muted small">{L('এই শটিং সেন্টার যে হাবগুলোর পার্সেল আনা-নেওয়া করে সেগুলো বাছুন। একটা হাব একটাই সেন্টারে থাকে — অন্য সেন্টারে থাকলে এখানে বাছলে এখানে চলে আসবে।',
+      <p className="muted small">{L('এই সোর্টিং সেন্টার যে হাবগুলোর পার্সেল আনা-নেওয়া করে সেগুলো বাছুন। একটা হাব একটাই সেন্টারে থাকে — অন্য সেন্টারে থাকলে এখানে বাছলে এখানে চলে আসবে।',
         'Choose the hubs this sorting center serves. A hub belongs to one center only.')}</p>
       <Field label={L('সেন্টারের নিজের হাব (যদি থাকে)', 'The center’s own hub (if any)')} hint={L('যেমন “Natore Shorting Centre” — সেই হাবের স্টাফরাই সেন্টারের স্টাফ', 'e.g. “Natore Shorting Centre”')}>
         <select value={asg.home} onChange={e => setAsg({ ...asg, home: e.target.value })}><option value="">—</option>
@@ -230,7 +230,7 @@ function Centers({ onChange }: { onChange: () => void }) {
           {other && <span className="muted small"> ({L(`এখন ${other}-এ`, `now in ${other}`)})</span>}</label> })}</div>
       {err && <p className="da-error">{err}</p>}
     </Modal>}
-    {f && <Modal title={f.id ? L('সেন্টার এডিট', 'Edit center') : L('নতুন শটিং সেন্টার', 'New sorting center')} onClose={() => setF(null)}
+    {f && <Modal title={f.id ? L('সেন্টার এডিট', 'Edit center') : L('নতুন সোর্টিং সেন্টার', 'New sorting center')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Field label={L('নাম', 'Name')}><input value={f.name ?? ''} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
@@ -280,7 +280,7 @@ function Routes({ ctx }: { ctx: Ctx }) {
   const toggleHub = (id: string) => f && setF({ ...f, hubs: f.hubs.some(h => h.hub_id === id) ? f.hubs.filter(h => h.hub_id !== id) : [...f.hubs, { hub_id: id, can_charge: false }] })
   return <>{node}
     <section className="panel">
-      <div className="da-bar"><h2>{L('শটিং টু হাব রুট', 'Sorting to hub routes')} <span className="count-pill">{n(routesQ.data?.length ?? 0)}</span></h2>
+      <div className="da-bar"><h2>{L('সোর্টিং টু হাব রুট', 'Sorting to hub routes')} <span className="count-pill">{n(routesQ.data?.length ?? 0)}</span></h2>
         <span className="row-acts"><span className="da-seg"><button className={view === 'map' ? 'sm' : 'secondary sm'} onClick={() => setView('map')}><Icon name="map" size={14} />{L('ছবি', 'Map')}</button>
           <button className={view === 'list' ? 'sm' : 'secondary sm'} onClick={() => setView('list')}><Icon name="table" size={14} />{L('তালিকা', 'List')}</button></span>
         {edit && <button onClick={() => { setErr(''); setF({ code: '', name: '', vehicle_id: '', driver: null, depart_time: '', note: '', hubs: [] }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
@@ -354,7 +354,7 @@ function Staff({ ctx }: { ctx: Ctx }) {
   const editable = can('sorting.staff.edit')
   return <>{node}
     <section className="panel">
-      <div className="da-bar"><h2>{L('শটিং সেন্টারের স্টাফ', 'Sorting staff')} <span className="count-pill">{n(q.data?.length ?? 0)}</span></h2>
+      <div className="da-bar"><h2>{L('সোর্টিং সেন্টারের স্টাফ', 'Sorting staff')} <span className="count-pill">{n(q.data?.length ?? 0)}</span></h2>
         {editable && <button onClick={() => { setErr(''); setF({ emp: null, role: 'sorter', shift: '', duties: '' }) }}><Icon name="plus" size={15} />{L('স্টাফ যোগ', 'Add staff')}</button>}</div>
       <div className="team-cards">
         <button type="button" className={`team-card all${role === null ? ' on' : ''}`} onClick={() => setRole(null)}><span className="ti"><Icon name="users" size={22} /></span>
@@ -365,7 +365,7 @@ function Staff({ ctx }: { ctx: Ctx }) {
     </section>
     <section className="panel">
       {err && !f && <p className="da-error">{err}</p>}
-      <DataTable<StaffRow> title={`${L('শটিং স্টাফ', 'Sorting staff')} — ${ctx.center.name}`} file="sorting-staff" rows={q.data ? rows : null} rowKey={r => r.id}
+      <DataTable<StaffRow> title={`${L('সোর্টিং স্টাফ', 'Sorting staff')} — ${ctx.center.name}`} file="sorting-staff" rows={q.data ? rows : null} rowKey={r => r.id}
         empty={<p className="muted">{L('এখানে কেউ নেই।', 'Nobody here.')}</p>}
         cols={[
           { key: 'code', label: L('আইডি', 'ID'), value: r => emp[r.employee_id]?.employee_code ?? '' },
@@ -459,7 +459,7 @@ function FuelPage({ ctx }: { ctx: Ctx }) {
           { key: 'who', label: L('কে তুলেছে', 'By'), value: r => empLabel(refs.emp[r.employee_id ?? '']) },
           { key: 'litres', label: L('লিটার × দর', 'L × rate'), value: r => r.litres ? `${r.litres} × ${r.rate ?? '—'}` : '' },
           { key: 'amount', label: L('টাকা', 'Amount'), className: 'r', value: r => taka(r.amount) },
-          { key: 'charge', label: L('খরচ যাবে', 'Charged to'), value: r => r.charge_to === 'hub' ? `${L('হাব', 'Hub')}: ${ctx.hubName[r.charge_hub_id ?? ''] ?? ''}` : L('শটিং', 'Sorting') },
+          { key: 'charge', label: L('খরচ যাবে', 'Charged to'), value: r => r.charge_to === 'hub' ? `${L('হাব', 'Hub')}: ${ctx.hubName[r.charge_hub_id ?? ''] ?? ''}` : L('সোর্টিং', 'Sorting') },
           { key: 'status', label: L('অবস্থা', 'Status'), value: r => L(FUEL_STATUS[r.status][0], FUEL_STATUS[r.status][1]),
             render: r => <><Badge tone={FUEL_STATUS[r.status][2]}>{L(FUEL_STATUS[r.status][0], FUEL_STATUS[r.status][1])}</Badge>{r.review_note && <span className="sec">{r.review_note}</span>}</> },
           { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
@@ -494,7 +494,7 @@ function FuelPage({ ctx }: { ctx: Ctx }) {
         <Field label={L('স্লিপের ছবি', 'Slip photo')} hint={f.slipPath && !f.file ? L('আগের ছবি আছে', 'A photo is attached') : undefined}>
           <input type="file" accept="image/*,application/pdf" capture="environment" onChange={e => setF({ ...f, file: e.target.files?.[0] ?? null })} /></Field>
         <Field label={L('খরচ কোথা থেকে যাবে', 'Charge to')} hint={chargeable(f.route).length ? undefined : L('রুটে "গাড়ি খরচ হাবের খাতা থেকে" চালু করা হাব নেই', 'No hub on this route allows it')}>
-          <select value={f.chargeHub} onChange={e => setF({ ...f, chargeHub: e.target.value })}><option value="">{L('শটিং সেন্টারের হিসাবে', 'Sorting center')}</option>
+          <select value={f.chargeHub} onChange={e => setF({ ...f, chargeHub: e.target.value })}><option value="">{L('সোর্টিং সেন্টারের হিসাবে', 'Sorting center')}</option>
             {[...new Map<string, RouteHub>(chargeable(f.route).map(h => [h.hub_id, h] as [string, RouteHub])).values()].map(h => <option key={h.hub_id} value={h.hub_id}>{L('হাবের খাতা', 'Hub sheet')}: {ctx.hubName[h.hub_id]}</option>)}</select></Field>
         <Field label={L('নোট', 'Note')} wide><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Field>
       </div>
@@ -543,15 +543,15 @@ function Parcels({ ctx }: { ctx: Ctx }) {
   const creator = can('sorting.parcel.create')
   return <>{node}
     <div className="da-stats">
-      <Stat icon="box" label={L('হাব → শটিং', 'Hub → sorting')} value={n(t('parcel_count', 'hub_to_sorting'))} />
-      <Stat icon="truck" label={L('শটিং → হাব', 'Sorting → hub')} value={n(t('parcel_count', 'sorting_to_hub'))} />
+      <Stat icon="box" label={L('হাব → সোর্টিং', 'Hub → sorting')} value={n(t('parcel_count', 'hub_to_sorting'))} />
+      <Stat icon="truck" label={L('সোর্টিং → হাব', 'Sorting → hub')} value={n(t('parcel_count', 'sorting_to_hub'))} />
       <Stat icon="alert" tone={t('wrong_count') ? 'warn' : undefined} label={L('ভুল', 'Wrong')} value={n(t('wrong_count'))} />
       <Stat icon="back" tone={t('returned_count') ? 'warn' : undefined} label={L('ব্যাক', 'Returned')} value={n(t('returned_count'))} />
       <Stat icon="x" tone={t('damaged_count') ? 'bad' : undefined} label={L('ড্যামেজ', 'Damaged')} value={n(t('damaged_count'))} />
     </div>
     <section className="panel">
       <div className="da-bar"><h2>{L('পার্সেল আদান-প্রদান', 'Parcel handovers')}</h2><span className="row-acts">
-        <span className="da-seg">{([['', 'সব', 'All'], ['hub_to_sorting', 'হাব → শটিং', 'Hub → sorting'], ['sorting_to_hub', 'শটিং → হাব', 'Sorting → hub']] as const).map(([k, b, e]) =>
+        <span className="da-seg">{([['', 'সব', 'All'], ['hub_to_sorting', 'হাব → সোর্টিং', 'Hub → sorting'], ['sorting_to_hub', 'সোর্টিং → হাব', 'Sorting → hub']] as const).map(([k, b, e]) =>
           <button key={k} className={dir === k ? 'sm' : 'secondary sm'} onClick={() => setDir(k)}>{L(b, e)}</button>)}</span>
         {creator && <button onClick={() => { setErr(''); setF({ direction: dir || 'sorting_to_hub', route: '', hub: '', date: today(), vehicle: '', driver: null, by: '', parcels: '', bags: '', wrong: '', returned: '', damaged: '', note: '' }) }}>
           <Icon name="plus" size={15} />{L('নতুন এন্ট্রি', 'New entry')}</button>}</span></div>
@@ -560,7 +560,7 @@ function Parcels({ ctx }: { ctx: Ctx }) {
         empty={<p className="muted">{L('এই সময়ে কোনো এন্ট্রি নেই।', 'No entries in this period.')}</p>}
         cols={[
           { key: 'date', label: L('তারিখ', 'Date'), value: r => r.work_date },
-          { key: 'dir', label: L('দিক', 'Direction'), value: r => r.direction === 'hub_to_sorting' ? L('হাব → শটিং', 'Hub → sorting') : L('শটিং → হাব', 'Sorting → hub') },
+          { key: 'dir', label: L('দিক', 'Direction'), value: r => r.direction === 'hub_to_sorting' ? L('হাব → সোর্টিং', 'Hub → sorting') : L('সোর্টিং → হাব', 'Sorting → hub') },
           { key: 'route', label: L('রুট', 'Route'), value: r => r.route_id ? refs.routeName[r.route_id] ?? '' : '' },
           { key: 'hub', label: L('হাব', 'Hub'), value: r => ctx.hubName[r.hub_id] ?? '' },
           { key: 'by', label: L('কে দিয়েছে', 'Handed by'), value: r => [r.handed_by_name, r.driver_id && empLabel(refs.emp[r.driver_id])].filter(Boolean).join(' · ') },
@@ -581,7 +581,7 @@ function Parcels({ ctx }: { ctx: Ctx }) {
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form">
         <Field label={L('দিক', 'Direction')}><select value={f.direction} onChange={e => setF({ ...f, direction: e.target.value as Handover['direction'] })}>
-          <option value="sorting_to_hub">{L('শটিং → হাব', 'Sorting → hub')}</option><option value="hub_to_sorting">{L('হাব → শটিং', 'Hub → sorting')}</option></select></Field>
+          <option value="sorting_to_hub">{L('সোর্টিং → হাব', 'Sorting → hub')}</option><option value="hub_to_sorting">{L('হাব → সোর্টিং', 'Hub → sorting')}</option></select></Field>
         <Field label={L('রুট', 'Route')}><select value={f.route} onChange={e => { const r = refs.routes.data?.find(x => x.id === e.target.value)
           setF({ ...f, route: e.target.value, hub: '', vehicle: f.vehicle || r?.vehicle_id || '' }) }}><option value="">—</option>
           {refs.routes.data?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>
@@ -708,15 +708,15 @@ function Reports({ ctx }: { ctx: Ctx }) {
   const q = useLoad(() => sorting.report(ctx.center.id, ctx.from, ctx.to), [ctx.center.id, ctx.from, ctx.to])
   if (q.error) return <p className="da-error">{hrFriendly(q.error)}</p>
   return <section className="panel">
-    <h2>{L('রিপোর্ট: হাব → শটিং ও শটিং → হাব', 'Report: hub → sorting and sorting → hub')}</h2>
+    <h2>{L('রিপোর্ট: হাব → সোর্টিং ও সোর্টিং → হাব', 'Report: hub → sorting and sorting → hub')}</h2>
     <p className="muted small">{L('রুট ও হাব অনুযায়ী — কোন হাব কত পার্সেল দিয়েছে, কত পেয়েছে, কত ভুল/ব্যাক/ড্যামেজ, তেল খরচ, ট্রিপ।', 'By route and hub: parcels given, received, wrong / returned / damaged, fuel, trips.')}</p>
-    <DataTable<RouteReport> title={`${L('শটিং রিপোর্ট', 'Sorting report')} ${ctx.from} – ${ctx.to}`} file={`sorting-report-${ctx.from}-${ctx.to}`} rows={q.data}
+    <DataTable<RouteReport> title={`${L('সোর্টিং রিপোর্ট', 'Sorting report')} ${ctx.from} – ${ctx.to}`} file={`sorting-report-${ctx.from}-${ctx.to}`} rows={q.data}
       rowKey={r => `${r.route_id}-${r.hub_id}`} empty={<p className="muted">{L('এই সময়ে কিছু নেই।', 'Nothing in this period.')}</p>}
       cols={[
         { key: 'route', label: L('রুট', 'Route'), value: r => r.route_name },
         { key: 'hub', label: L('হাব', 'Hub'), value: r => r.hub_name },
-        { key: 'in', label: L('হাব → শটিং', 'Hub → sorting'), className: 'r', value: r => n(r.to_sorting) },
-        { key: 'out', label: L('শটিং → হাব', 'Sorting → hub'), className: 'r', value: r => n(r.to_hub) },
+        { key: 'in', label: L('হাব → সোর্টিং', 'Hub → sorting'), className: 'r', value: r => n(r.to_sorting) },
+        { key: 'out', label: L('সোর্টিং → হাব', 'Sorting → hub'), className: 'r', value: r => n(r.to_hub) },
         { key: 'wrong', label: L('ভুল', 'Wrong'), className: 'r', value: r => n(r.wrong) },
         { key: 'ret', label: L('ব্যাক', 'Returned'), className: 'r', value: r => n(r.returned) },
         { key: 'dmg', label: L('ড্যামেজ', 'Damaged'), className: 'r', value: r => n(r.damaged) },
