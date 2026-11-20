@@ -60,3 +60,9 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript check
         run: npm run typecheck
+      - name: Build app
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser smoke tests
+        run: npm run test:smoke

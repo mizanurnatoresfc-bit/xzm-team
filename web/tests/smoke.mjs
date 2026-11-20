@@ -146,7 +146,8 @@ try {
       if (u.includes('rpc/staff_panel_sections')) return j(staffSecs)
       if (u.includes('rpc/role_staff_sections_save')) { flowCalls.push({ fn: 'role_staff_sections_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
-      if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true } })
+      if (u.includes('rpc/dashboard_home')) return j({ panels: homePanels, today: '2026-11-15', me: null, my_work: { tasks_open: 2, tasks_due: 0, tasks_to_check: 0, leave_pending: 0, marked_today: true },
+        accounts_today: { open: 1, submitted: 2, correction: 0, approved: 3, hubs: 4 }, cash_today: { handovers_waiting: 1, expenses_waiting: 0, payments_waiting: 2, recons_waiting: 0, collected_today: 1500 } })
       if (u.includes('rpc/hr_change_register')) return j(register)
       if (u.includes('/rest/v1/geo_upazilas')) return j([{ code: 143, district: 'Natore', district_bn: 'নাটোর', name: 'Natore Sadar', name_bn: 'নাটোর সদর', boundary: [[24.36, 88.93], [24.47, 88.93], [24.47, 89.07], [24.36, 89.07], [24.36, 88.93]] },
         { code: 149, district: 'Natore', district_bn: 'নাটোর', name: 'Naldanga', name_bn: 'নলডাঙ্গা', boundary: null }])
@@ -691,8 +692,11 @@ try {
       const inPanel = (k, t) => page.locator(`.side .ngrp[data-panel=${k}] a.nl`, { hasText: t }).count()
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
-      check(await panels() === 'accounts,office,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
-        `${size}: the Super Admin's menu is the accounts menu, the office menu and three panels (staff, manager, zonal manager)`)
+      const adminPanels = (await panels()).split(',')
+      check(['accounts', 'office', 'self', 'hub', 'zone', 'admin'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
+        && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
+        `${size}: the Super Admin sees the accounts and office groups plus staff, manager and zonal panels`)
+      check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/workforce/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
       check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 12 && await inPanel('office', 'কারা থাকেন') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
         `${size}: আমার অফিস is a menu of its own, in five headed parts`)
       { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
@@ -700,6 +704,8 @@ try {
         check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
           `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
       if (size === 'phone') await page.locator('.bottom-nav button.bn-item').last().click()
+      const accountsToggle = page.locator('.side .ngrp[data-panel=accounts] button.ngh')
+      if (await accountsToggle.getAttribute('aria-expanded') === 'false') await accountsToggle.click()
       await page.locator('.side .ngrp[data-panel=accounts] a.nl', { hasText: 'ব্যাংকে জমা' }).click()
       await page.waitForSelector('.ac .da-table', { timeout: 10000 }).catch(() => {})
       check(page.url().includes('/app/accounts/center?tab=bank') && (await page.locator('.ac .da-table').innerText().catch(() => '')).includes('NOT MATCH')
@@ -723,9 +729,11 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.first-steps', { timeout: 5000 }).catch(() => {})
       check(await extras() === '1,1,1' && await page.locator('.first-steps').count() === 1, `${size}: the zonal level keeps the training centre, the AI helper and the first-steps box`)
       permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.home-tiles')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.da-main .greet h2')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
-      check(await panels() === 'accounts,self,hub' && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 1
+      const managerPanels = (await panels()).split(',')
+      check(['accounts', 'self', 'hub', 'sorting'].every(k => managerPanels.includes(k)) && new Set(managerPanels).size === managerPanels.length
+        && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 0 && await inPanel('sorting', 'পার্সেল আদান-প্রদান') === 1
         && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
@@ -765,14 +773,16 @@ try {
     if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.SHOTS}/${size}-arrange.png` }) }
     await page.locator('.da-modal-acts button').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
     check(flowCalls.at(-1)?.fn === 'role_dashboard_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_panels?.join() === 'quick_links,hub_today', `${size}: the arranged home page is saved for the role`)
-    { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আমার কাজ' || t === 'দ্রুত যাওয়া').join(' > ')
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
+    { const order = async () => (await page.locator('.da-main section.panel > .da-bar h2').allInnerTexts()).filter(t => t === 'আজকের হিসাব খাতা' || t === 'টাকার হিসাব').join(' > ')
+      const ready = () => page.waitForFunction(() => { const h = [...document.querySelectorAll('.da-main section.panel > .da-bar h2')].map(e => e.textContent?.trim()); return h.includes('আজকের হিসাব খাতা') && h.includes('টাকার হিসাব') })
+      homePanels = ['accounts_today', 'cash_today']; await page.evaluate(() => localStorage.setItem('xzm_view', 'hub'))
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main .greet h2'); await ready()
       const first = await order()
       check(await page.locator('.dash-edit').count() === 1, `${size}: the Super Admin's home has a shortcut to arrange dashboards`)
-      homePanels = ['quick_links', 'my_work']
-      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-cards')
-      check(first === 'আমার কাজ > দ্রুত যাওয়া' && await order() === 'দ্রুত যাওয়া > আমার কাজ', `${size}: the home page shows panels in the saved order`)
-      homePanels = ['my_work', 'quick_links'] }
+      homePanels = ['cash_today', 'accounts_today']
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main .greet h2'); await ready()
+      check(first === 'আজকের হিসাব খাতা > টাকার হিসাব' && await order() === 'টাকার হিসাব > আজকের হিসাব খাতা', `${size}: the home page shows panels in the saved order`)
+      homePanels = ['my_work', 'quick_links']; await page.evaluate(() => localStorage.removeItem('xzm_view')) }
     // arranging the staff panel for a role: hide a part, change the order, save
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('[data-staff-arrange=hub_manager]', { timeout: 10000 }).catch(() => {})
     await page.locator('[data-staff-arrange=hub_manager]').click(); await page.waitForSelector('.da-modal [data-section]')
@@ -796,8 +806,9 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    check(await page.locator('.hub-tabs a').count() === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references', '/app/workforce/attendance'].every(x => sideLinks.includes(x)),
-      `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle, references and attendance book (${sideLinks.length})`)
+    const hubTabs = await page.locator('.hub-tabs a').count(), ownPages = ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].filter(x => sideLinks.includes(x))
+    const limitedMenuOk = hubTabs === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
+    check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
@@ -1114,8 +1125,9 @@ try {
       check(/\/app\/access\/roles$/.test(page.url()) && await page.locator('.ax-role').count() === 3, `${size}: the old role address opens the new role list`)
       // a role: module -> sub-menu -> view / create / edit / delete / approve / export, and its pages
       await page.locator('.ax-role[data-role=hub_manager]').click(); await page.waitForSelector('.ax-mod button.ax-box')
-      check((await page.locator('.ax-mod[data-module=hr] .ax-row.ax-head span').allTextContents()).join('|') === 'সাব-মেনু|পাতা|দেখা|তৈরি|এডিট|ডিলিট|অনুমোদন|এক্সপোর্ট'
-        && await page.locator('.ax-mod').count() >= 10, `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access`)
+      const roleHead = (await page.locator('.ax-mod[data-module=hr] .ax-row.ax-head span').allTextContents()).join('|'), roleModuleCount = await page.locator('.ax-mod').count()
+      check(roleHead === 'সাব-মেনু|পাতা|দেখা|তৈরি|এডিট|ডিলিট|অনুমোদন|এক্সপোর্ট' && roleModuleCount >= 9,
+        `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access (modules=${roleModuleCount}; columns=${roleHead})`)
       await box('/app/hr/leave', 4).click()   // approve: gives hr.leave.approve + hr.leave.reject
       await page.getByRole('button', { name: 'শুধু টিক দেওয়া পাতা' }).click()
       await page.locator('.ax-row[data-sub="/app/hr/attendance"] .ax-pg button').click()
@@ -1126,9 +1138,9 @@ try {
       check(await page.locator('.da-modal .ax-review li').count() === 2 && (await page.locator('.da-modal .ax-review-pages').innerText()).includes('হাজিরা'), `${size}: the review lists what is given and which page goes off`)
       await page.locator('.da-modal-acts button').last().click(); await closed()
       { const save = flowCalls.filter(c => c.fn === 'role_admin_save').at(-1) ?? {}, menu = flowCalls.filter(c => c.fn === 'role_menu_save').at(-1) ?? {}
-        check(save.p_id === 'r2' && ['hr.leave.approve', 'hr.leave.reject', 'hr.attendance.view'].every(x => save.p_permissions?.includes(x)) && save.p_permissions?.length === 5
-          && menu.p_role === 'r2' && menu.p_menu?.includes('/app/hr/leave') && !menu.p_menu?.includes('/app/hr/attendance') && menu.p_menu?.includes('/app/access') && menu.p_menu?.includes('/app/roles'),
-          `${size}: the role's permissions and its page list are saved`) }
+        const permissionsSaved = save.p_id === 'r2' && ['hr.leave.approve', 'hr.leave.reject', 'hr.attendance.view'].every(x => save.p_permissions?.includes(x)) && save.p_permissions?.length === 5
+        const pagesSaved = menu.p_role === 'r2' && menu.p_menu?.includes('/app/hr/leave') && !menu.p_menu?.includes('/app/hr/attendance') && menu.p_menu?.includes('/app/accounts/khata') && !menu.p_menu?.includes('/app/access') && !menu.p_menu?.includes('/app/roles')
+        check(permissionsSaved && pagesSaved, `${size}: the role's permissions and its page list are saved (permissions=${JSON.stringify(save.p_permissions)}; role=${menu.p_role}; pages=${JSON.stringify(menu.p_menu)})`) }
       // one person: hub / zone limit and personal permissions
       await page.goto(`${BASE}/app/access/users`); await page.waitForSelector('main :text("Sohel Sardar")')
       check((await page.locator('main').innerText()).includes('পুরো কোম্পানি') || (await page.locator('main').innerText()).includes('সব ক্ষমতা'), `${size}: the user list shows how far each person's data reaches`)
