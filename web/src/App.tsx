@@ -57,6 +57,7 @@ const ProfileGaps = lazy(() => import('./pages/hr/ProfileGaps').then(m => ({ def
 const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
 const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
+const UsersDemoPreview = lazy(() => import('./pages/users/UsersDemoPreview').then(m => ({ default: m.UsersDemoPreview })))
 const RouteSettings = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RouteSettings })))
 const ZonalAssistant = lazy(() => import('./pages/zonal/ZonalAssistant').then(m => ({ default: m.ZonalAssistant })))
 const Training = lazy(() => import('./pages/Training').then(m => ({ default: m.Training })))
@@ -122,6 +123,8 @@ function HomeOrPanel() {
 export default function App() {
   return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes>
     <Route path="/staff/login" element={<Login />} />
+    {/* Public, read-only mock screen. Never renders live user records or auth-backed components. */}
+    <Route path="/preview/users" element={<UsersDemoPreview />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />
       <Route path="/app/staff" element={<StaffPanel />} />
