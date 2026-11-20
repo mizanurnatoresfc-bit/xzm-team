@@ -84,39 +84,53 @@ export const GROUPS: Group[] = [
       { to: '/app/zonal/routes', icon: 'map', bn: 'রুট সেটিং (রাইডার রুট ম্যাপ)', en: 'Route settings (rider route map)', perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
-    { bn: 'কর্মী ও এইচআর', en: 'Staff & HR', items: [
-      { to: '/app/notices', icon: 'bell', bn: 'নোটিশ বোর্ড ও রিমাইন্ডার', en: 'Notice board & reminders', perms: null },
-      { to: '/app/references', icon: 'users', bn: 'রেফারেন্স তালিকা', en: 'Reference list', perms: null },
+    { bn: 'কর্মী ও আইডি', en: 'Staff & IDs', items: [
       { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
       { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
       { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
       { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল (বদলি/চালু/বন্ধ)', en: 'Zonal files', perms: ['hr.request.create', 'hr.request.approve'] },
+      { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
+    ] },
+    { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
       { to: '/app/hr/attendance', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/zonal/assistant', icon: 'cal', bn: 'জোনাল অ্যাসিস্ট্যান্ট (হাজিরার ফাঁকা দিন)', en: 'Zonal assistant (attendance gaps)', perms: ['hr.attendance_gap.view'] },
       { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
-      { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
-      { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
     ] },
-    { bn: 'সোর্টিং সেন্টার', en: 'Sorting centre', items: [
+    { bn: 'নোটিশ ও রেফারেন্স', en: 'Notices & references', items: [
+      { to: '/app/notices', icon: 'bell', bn: 'নোটিশ বোর্ড ও রিমাইন্ডার', en: 'Notice board & reminders', perms: null },
+      { to: '/app/references', icon: 'users', bn: 'রেফারেন্স তালিকা', en: 'Reference list', perms: null },
+      { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
+    ] },
+    { bn: 'সোর্টিং কাজ', en: 'Sorting work', items: [
       { to: '/app/sorting/dashboard', icon: 'dash', bn: 'সোর্টিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
       { to: '/app/sorting/routes', icon: 'map', bn: 'সোর্টিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
-      { to: '/app/sorting/staff', icon: 'users', bn: 'সোর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
-      { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
       { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
-      { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
-      { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও সোর্টিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
+      { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
+    ] },
+    { bn: 'সেন্টার সেটআপ', en: 'Center setup', items: [
+      { to: '/app/sorting/staff', icon: 'users', bn: 'সোর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
       { to: '/app/sorting/centers', icon: 'hub', bn: 'সোর্টিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
     ] },
-    { bn: 'সেটিং ও অনুমতি', en: 'Settings & permissions', items: [
+    { bn: 'সোর্টিং রিপোর্ট', en: 'Sorting reports', items: [
+      { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
+      { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও সোর্টিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
+    ] },
+    { bn: 'ইউজার ও অনুমতি', en: 'Users & permissions', items: [
       { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
       { to: '/app/access', icon: 'shield', bn: 'অ্যাডভান্সড রোল ও পারমিশন', en: 'Advanced roles & permissions', perms: ['system.role.view'], only: 'web' },
       { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'], only: 'app' },
+    ] },
+    { bn: 'ড্যাশবোর্ড ও সাইট সেটিং', en: 'Dashboard & site settings', items: [
       { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
+      { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
+    ] },
+    { bn: 'এইচআর সেটআপ', en: 'HR setup', items: [
       { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
       { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
+    ] },
+    { bn: 'নদী AI', en: 'Nodi AI', items: [
       { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
       { to: '/app/nodi', icon: 'gear', bn: 'নদী AI (API ও সীমা)', en: 'Nodi AI (API & limits)', perms: ['nodi.settings.configure'] },
-      { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
     ] },
   ]),
 ]
