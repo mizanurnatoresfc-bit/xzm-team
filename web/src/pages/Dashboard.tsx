@@ -18,18 +18,6 @@ import { PersonalMenu } from '../components/PersonalMenu'
 import { WorkforceAlerts } from '../components/WorkforceAlerts'
 import { AppDownloadCard } from '../components/AppDownloadCard'
 
-const CARDS: Array<[to: string, icon: string, bn: string, en: string, dbn: string, den: string, perms: string[] | null]> = [
-  ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', 'রিজিওন, এরিয়া, হাব, GPS ও লোকেশন', 'Regions, areas, hubs, GPS & location', ['org.hub.view']],
-  ['/app/org', 'org', 'এরিয়া, হাব ও পদ', 'Areas, hubs & posts', 'প্রতিষ্ঠান, এরিয়া, হাব, বিভাগ ও পদবি', 'Organisation, areas, hubs, departments, positions', ['org.zone.view', 'org.hub.view']],
-  ['/app/zonal/staff', 'users', 'হাব অনুযায়ী কর্মী', 'Staff by hub', 'হাবের হিসাব, বদলি, আইডি, এক্সপোর্ট', 'Hub figures, transfers, IDs, export', ['hr.employee.view']],
-  ['/app/hr/employees', 'users', 'কর্মী', 'Employees', 'তালিকা, প্রোফাইল, নতুন আইডি আবেদন', 'List, profiles, new ID application', ['hr.employee.view', 'hr.application.create']],
-  ['/app/hr/applications', 'form', 'আইডি আবেদন', 'ID applications', 'যাচাই করে এমপ্লয়ি আইডি দিন', 'Review and give Employee IDs', ['hr.application.view']],
-  ['/app/hr/attendance', 'cal', 'হাজিরা', 'Attendance', 'দৈনিক হাজিরা ও মাসিক হিসাব', 'Daily marking and monthly summary', ['hr.attendance.view', 'hr.attendance.create']],
-  ['/app/hr/leave', 'log', 'ছুটি', 'Leave', 'অনুরোধ ও অনুমোদন', 'Requests and approval', ['hr.leave.view', 'hr.leave.create']],
-  ['/app/accounts/daily', 'ledger', 'আজকের হিসাব খাতা', 'Daily accounts', 'হাবের দৈনিক হিসাব', 'Hub daily sheets', null],
-  ['/app/accounts/mine', 'wallet', 'আমার হিসাব', 'My accounts', 'নিজের লাইন ও খরচ', 'Your own lines and expenses', null],
-]
-
 export function Dashboard() {
   const { session, grants, can, viewAs, isSuperAdmin } = useAuth()
   const { L, n, lang } = usePrefs()
@@ -174,11 +162,7 @@ export function Dashboard() {
         <Stat icon="chart" tone={d.zonal_overview.metrics_waiting ? 'warn' : undefined} label={L('হাবের হিসাব যাচাই', 'Hub figures to check')} value={n(d.zonal_overview.metrics_waiting)} />
       </div>
     </Panel> : null
-      case 'quick_links': return <Panel code="quick_links">
-      <div className="da-cards">{CARDS.filter(c => !c[6] || c[6].some(p => can(p))).map(([to, ic, bn, en, dbn, den]) =>
-        <Link key={to} to={to} className="da-card" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <span className="ri"><Icon name={ic} /></span><strong>{L(bn, en)}</strong><span className="muted small">{L(dbn, den)}</span></Link>)}</div>
-    </Panel>
+      case 'quick_links': return null   // destinations are already available in the role-filtered main menu
       default: return null
     }
   }
