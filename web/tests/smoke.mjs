@@ -1017,7 +1017,7 @@ try {
         `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
       check(await page.locator('.sp-hero .hoodie-av').count() === 1 && await page.locator('.sp-hero .my-av-cam input[type=file][accept="image/*"]').count() === 1,
         `${size}: with no photo the staff panel shows the hoodie avatar, with a button to put up my own photo`)
-      check(await page.locator('.sp a.nv-row[href*="do=hand"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel rows open the working pages`)
+      check(await page.locator('.sp a.nv-row[href="/app/workforce/hand"]').count() === 1 && await page.locator('.sp a.nv-row[href="/app/workforce/given"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel people rows open their personal workforce pages`)
       check(await page.locator('.sp a.nv-row[href="/app/issues?tab=zone&z=z1"]', { hasText: 'জোন গ্রুপ — Natore Area' }).count() === 1 && await page.locator('.sp .sp-soon').count() === 0,
         `${size}: the zone group row opens my zone's group, with nothing left marked "soon"`)
       await page.locator('.sp button.nv-row', { hasText: 'জোনাল ম্যানেজার — Zonal Karim' }).click(); await page.waitForSelector('.da-modal .zm-acts')
