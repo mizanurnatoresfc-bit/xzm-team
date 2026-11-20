@@ -693,6 +693,7 @@ try {
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
       check(await panels() === 'accounts,office,self,hub,zone' && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('zone', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
         `${size}: the Super Admin's menu is the accounts menu, the office menu and three panels (staff, manager, zonal manager)`)
+      check(await page.locator('.side a[href="/app/workforce/attendance"]').count() === 1, `${size}: personal attendance appears once in the sidebar`)
       check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 12 && await inPanel('office', 'কারা থাকেন') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
         `${size}: আমার অফিস is a menu of its own, in five headed parts`)
       { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
