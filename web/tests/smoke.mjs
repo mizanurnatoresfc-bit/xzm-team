@@ -60,6 +60,7 @@ const officePatches = []
 const officeResidents =['e01', 'e02', 'e03'].map((e, i) => ({ id: `or${i}`, property_id: 'rs1', room_id: null, employee_id: e, since: '2026-10-01', note: null, archived_at: null }))
 const officeBills = [{ id: 'ob1', property_id: 'rs2', kind: 'rent', bill_month: dhakaToday.slice(0, 8) + '01', amount: 6000, paid_on: dhakaToday, method: 'cash', txn_id: null, payee: null, payee_phone: null,
   units: null, has_memo: true, memo_file: null, memo_no: null, proof_file: null, da_expense_id: null, note: null, created_by_name: 'Owner', created_at: dhakaToday + 'T04:00:00Z', archived_at: null }]
+officeBills.push({ ...officeBills[0], id: 'ob2', kind: 'water', amount: 350, has_memo: false, memo_no: 'OM-2611-00001' })
 
 const fails = []
 const check =(ok, what) => { if (!ok) fails.push(what); console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`) }
@@ -744,7 +745,7 @@ try {
       await page.goto(`${BASE}/app/office/residential/reports`); await page.waitForSelector('.da-stats')
       await page.locator('table, .dv-cards, .dv-list').first().waitFor({ timeout: 8000 }).catch(() => {})
       { const t = await page.locator('main').innerText()
-        check(t.includes('Staff Mess A') && t.includes('Staff Mess B') && !t.includes('Natore Hub Office') && t.includes('৳ ৬০০০') && t.includes('চুক্তির মেয়াদ')
+        check(t.includes('Staff Mess A') && t.includes('Staff Mess B') && !t.includes('Natore Hub Office') && t.includes('৳ ৬০০০') && t.includes('পানির বিল') && t.includes('৳ ৬৩৫০') && t.includes('চুক্তির মেয়াদ')
           && (Number(dhakaToday.slice(8)) === 1 || t.includes('বাকি')), `${size}: the residential monthly report adds up the bills, marks missing rent and lists ending contracts`) }
       await fits('the residential monthly report')
       await page.goto(`${BASE}/app/office/residential`); await page.waitForURL(/\/app\/office\/residential\/overview$/, { timeout: 8000 }).catch(() => {})

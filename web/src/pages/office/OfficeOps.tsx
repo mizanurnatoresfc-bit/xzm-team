@@ -126,7 +126,9 @@ function BillBlock({ ctx, kinds }: { ctx: Ctx; kinds: BillKind[] }) {
       const cur = mine.find(b => b.bill_month.slice(0, 7) === thisMonth)
       const loose = exp.filter(x => !x.bill_id)
       const year = mine.slice(0, 12).reduce((s, b) => s + Number(b.amount), 0)
-      if (kind === 'other' && !mine.length && !edit) return null
+      // other, water and gas: shown only when there is a bill or the person may write one; no accounts category matches them yet
+      const light = kind === 'other' || kind === 'water' || kind === 'gas'
+      if (light && !mine.length && !edit) return null
       return <section key={kind} className="panel">
         <div className="da-bar"><h2><Icon name={BILL_KIND[kind][2]} size={18} /> {L(BILL_KIND[kind][0], BILL_KIND[kind][1])} <span className="count-pill">{n(mine.length)}</span></h2>
           {edit && <button onClick={() => open(kind)}><Icon name="plus" size={15} />{L('বিল লিখুন', 'Write a bill')}</button>}</div>
@@ -152,7 +154,7 @@ function BillBlock({ ctx, kinds }: { ctx: Ctx; kinds: BillKind[] }) {
               {edit && <button className="secondary sm" onClick={() => open(kind, b)}><Icon name="edit" size={13} /></button>}
               {edit && <button className="secondary sm" onClick={() => void remove(b)}><Icon name="trash" size={13} /></button>}
             </div></article>)}</div>}
-        {kind !== 'other' && <>
+        {!light && <>
           <h3 className="oo-h3">{L('হিসাব খাতার খরচ থেকে (খাত মিললে)', 'From the daily accounts (matching category)')}</h3>
           {!p.hub_id ? <p className="muted small">{L('এই জায়গাটা কোনো হাবের সাথে যুক্ত নয়, তাই হিসাব খাতা থেকে কিছু আসছে না।', 'This place is not tied to a hub, so nothing comes from the accounts.')}</p>
             : !exp.length ? <p className="muted small">{L('গত ১২ মাসে এই হাবের খাতায় এই খাতের কোনো খরচ ওঠেনি।', 'No expense in this category on the hub’s sheets in 12 months.')}</p>
@@ -312,7 +314,7 @@ export function Bills({ ctx }: { ctx: Ctx }) {
       </dl>
       <p className="muted small">{L('বিদ্যুৎ বিল কেমন আসা উচিত আর কীভাবে কমবে — ', 'What the electricity should cost and how to lower it — ')}<Link to={scopePath(p.kind === 'residence' ? 'residential' : 'office', 'power')}>{L('ইলেকট্রনিক ও বিদ্যুৎ হিসাব →', 'Devices & power →')}</Link></p>
     </section>
-    <BillBlock ctx={ctx} kinds={['electricity', 'wifi', 'other']} />
+    <BillBlock ctx={ctx} kinds={['electricity', 'water', 'gas', 'wifi', 'other']} />
     {f && <Modal title={L('মিটার ও ইন্টারনেট', 'Meter & internet')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>

@@ -11,7 +11,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
   const { data, error } = await supabase.rpc(fn, args); fail(error); return data as T
 }
 
-export type BillKind = 'rent' | 'electricity' | 'wifi' | 'other'
+export type BillKind = 'rent' | 'electricity' | 'wifi' | 'water' | 'gas' | 'other'
 export type Bill = { id: string; property_id: string; kind: BillKind; bill_month: string; amount: number; paid_on: string | null; method: string | null
   txn_id: string | null; payee: string | null; payee_phone: string | null; units: number | null; has_memo: boolean; memo_file: string | null
   memo_no: string | null; proof_file: string | null; da_expense_id: string | null; note: string | null; created_by_name: string | null; created_at: string }
@@ -32,7 +32,8 @@ export type HubVehicle = { id: string; name: string; reg_no: string | null; kind
   crew: Array<{ role: 'driver' | 'helper'; name: string; code: string | null; mobile: string | null }> }
 
 export const BILL_KIND: Record<BillKind, [string, string, string]> = {
-  rent: ['ভাড়া', 'Rent', 'home'], electricity: ['বিদ্যুৎ বিল', 'Electricity', 'sun'], wifi: ['ওয়াইফাই বিল', 'Wifi', 'globe'], other: ['অন্য বিল', 'Other', 'receipt'],
+  rent: ['ভাড়া', 'Rent', 'home'], electricity: ['বিদ্যুৎ বিল', 'Electricity', 'sun'], wifi: ['ওয়াইফাই বিল', 'Wifi', 'globe'],
+  water: ['পানির বিল', 'Water', 'receipt'], gas: ['গ্যাস বিল', 'Gas', 'a_stove'], other: ['অন্য বিল', 'Other', 'receipt'],
 }
 export const METHOD: Record<string, [string, string]> = {
   cash: ['নগদ', 'Cash'], bkash: ['বিকাশ', 'bKash'], nagad: ['নগদ (Nagad)', 'Nagad'], rocket: ['রকেট', 'Rocket'], bank: ['ব্যাংক', 'Bank'], other: ['অন্য', 'Other'],
@@ -174,6 +175,8 @@ const BN: Array<[RegExp, string]> = [
   [/Could not find the (function|table)|PGRST20[25]|office_(bills|notices|secrets|residents|asset_loans)|function public\.office_\w+.*does not exist|column .* does not exist|schema cache/i,
     'অফিস অপারেশনের নতুন অংশ ডাটাবেসে এখনো বসানো হয়নি — বসানো হলে এই পাতা চালু হবে'],
   [/office_bill_electricity_proof/i, 'বিদ্যুৎ বিলে মোবাইল ব্যাংকিংয়ের স্ক্রিনশট দিতে হবে'],
+  // water / gas before migration 20261121000100 is on the database
+  [/office_bills_kind_check|বিলের ধরন ঠিক নয়/i, 'পানি / গ্যাস বিল ডাটাবেসে এখনো চালু হয়নি — হেড অফিসকে জানান'],
   [/office_residents_once|duplicate key/i, 'এটা আগেই লেখা আছে'],
   [/row-level security|42501|permission denied/i, 'এই কাজের অনুমতি আপনার নেই'],
   [/Bucket not found/i, 'ছবি রাখার জায়গা (office-docs) এখনো তৈরি হয়নি'],

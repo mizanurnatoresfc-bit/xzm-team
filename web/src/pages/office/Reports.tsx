@@ -8,7 +8,7 @@ import { usePrefs } from '../../lib/prefs'
 import { scopePath, type OfficeScope, type Property } from '../../lib/office'
 import { BILL_KIND, daysLeft, ops, opsFriendly, type Bill, type BillKind } from '../../lib/officeOps'
 
-const KINDS: BillKind[] = ['rent', 'electricity', 'wifi', 'other']
+const KINDS: BillKind[] = ['rent', 'electricity', 'water', 'gas', 'wifi', 'other']
 const dhaka = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
 type Line = { p: Property; hub: string; by: Record<BillKind, number>; total: number; count: number; rentMissing: boolean }
@@ -49,7 +49,7 @@ export function Reports({ scope, places, hubName, onPick }: { scope: OfficeScope
     </section>
     <div className="da-stats">
       <Stat icon="cash" label={L('মোট খরচ', 'Total')} value={bills.data ? tk(grand) : '…'} sub={monthName} />
-      {KINDS.filter(k => k !== 'other' || sum('other')).map(k => <Stat key={k} icon={BILL_KIND[k][2]} label={L(BILL_KIND[k][0], BILL_KIND[k][1])} value={bills.data ? tk(sum(k)) : '…'} />)}
+      {KINDS.filter(k => !['water', 'gas', 'other'].includes(k) || sum(k)).map(k => <Stat key={k} icon={BILL_KIND[k][2]} label={L(BILL_KIND[k][0], BILL_KIND[k][1])} value={bills.data ? tk(sum(k)) : '…'} />)}
       <Stat icon="alert" label={L('ভাড়া লেখা হয়নি', 'Rent not recorded')} value={bills.data ? n(missing.length) : '…'} tone={missing.length ? 'bad' : 'ok'} />
     </div>
     {bills.error ? <p className="da-error">{opsFriendly(bills.error)}</p> : null}
