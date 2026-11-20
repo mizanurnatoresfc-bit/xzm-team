@@ -3229,3 +3229,12 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
 .sp-hero .my-av-face{box-shadow:0 0 0 3px rgba(255,255,255,.55)}
 .p-hero .p-photo .my-av-up{width:100%;height:100%}
 .p-hero .p-photo .my-av-cam{right:4px;bottom:4px;width:36px;height:36px}
+
+
+/* Users page: compact, responsive filter action row */
+.da-filters .da-filter-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;align-self:end;padding-bottom:2px}
+.da-filters .da-filter-actions .muted{font-size:.8125rem}
+@media(max-width:700px){
+  .da-filters .da-filter-actions{grid-column:1/-1;width:100%;padding-top:4px}
+  .da-filters .da-filter-actions button{min-height:38px}
+}
