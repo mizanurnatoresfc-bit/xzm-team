@@ -131,7 +131,6 @@ export function StaffPanel() {
   const managers = (zm?.managers ?? []).filter(m => !m.is_me)
   const [zmOpen, setZmOpen] = useState(false)
   const people = (c: number) => (c ? L(`${n(c)} জন`, `${c} people`) : L('এখনো কেউ নেই', 'Nobody yet'))
-  const desk = can('hr.request.create') ? null : '/app/hr/requests?tab=new&do='   // the plain-words staff desk; others keep these on their profile
   const canLeave = can('hr.leave.create') || can('hr.leave.view')
 
   const row = (to: string | null, tone: string, icon: string, title: string, sub: string, end?: ReactNode) => {
@@ -244,11 +243,11 @@ export function StaffPanel() {
       </div>
     </>,
     people: () => <>
-      {ok(desk ? desk + 'hand' : '/app/me') && <>
+      {ok('/app/workforce/hand') && ok('/app/workforce/given') && <>
       <h2 className="sd-h">{L('আমার লোক', 'My people')}</h2>
       <div className="nv-rows">
-        {row(desk ? desk + 'hand' : '/app/me', 'b', 'plus', L('আমার হাতে লোক আছে', 'I have people in hand'), `${L('কাজ করতে চায় এমন কারো নাম দিন', 'Add someone who wants work')} · ${people(v?.hand ?? 0)}`)}
-        {row(desk ? desk + 'brought' : '/app/me', 'g', 'users', L('আমি যাদের দিয়েছি', 'People I brought'), `${L('আমার আনা লোকের তালিকা', 'Who joined through me')} · ${people(v?.brought ?? 0)}`)}
+        {row('/app/workforce/hand', 'b', 'plus', L('আমার হাতে লোক আছে', 'I have people in hand'), `${L('কাজ করতে চায় এমন কারো নাম দিন', 'Add someone who wants work')} · ${people(v?.hand ?? 0)}`)}
+        {row('/app/workforce/given', 'g', 'users', L('আমি যাদের দিয়েছি', 'People I brought'), `${L('আমার আনা লোকের তালিকা', 'Who joined through me')} · ${people(v?.brought ?? 0)}`)}
       </div>
       </>}
     </>,
