@@ -701,6 +701,8 @@ try {
         check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
           `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
       if (size === 'phone') await page.locator('.bottom-nav button.bn-item').last().click()
+      const accountsToggle = page.locator('.side .ngrp[data-panel=accounts] button.ngh')
+      if (await accountsToggle.getAttribute('aria-expanded') === 'false') await accountsToggle.click()
       await page.locator('.side .ngrp[data-panel=accounts] a.nl', { hasText: 'ব্যাংকে জমা' }).click()
       await page.waitForSelector('.ac .da-table', { timeout: 10000 }).catch(() => {})
       check(page.url().includes('/app/accounts/center?tab=bank') && (await page.locator('.ac .da-table').innerText().catch(() => '')).includes('NOT MATCH')
