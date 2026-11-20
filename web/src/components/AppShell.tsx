@@ -115,25 +115,29 @@ export const GROUPS: Group[] = [
       { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
       { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও সোর্টিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
     ] },
-    { bn: 'ইউজার ও অনুমতি', en: 'Users & permissions', items: [
-      { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
-      { to: '/app/access', icon: 'shield', bn: 'অ্যাডভান্সড রোল ও পারমিশন', en: 'Advanced roles & permissions', perms: ['system.role.view'], only: 'web' },
-      { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'], only: 'app' },
-    ] },
-    { bn: 'ড্যাশবোর্ড ও সাইট সেটিং', en: 'Dashboard & site settings', items: [
-      { to: '/app/role-dashboards', icon: 'chart', bn: 'রোল অনুযায়ী ড্যাশবোর্ড', en: 'Dashboard by role', perms: ['system.role.edit'] },
-      { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
-    ] },
-    { bn: 'এইচআর সেটআপ', en: 'HR setup', items: [
-      { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
-      { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
-    ] },
-    { bn: 'নদী AI', en: 'Nodi AI', items: [
-      { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
-      { to: '/app/nodi', icon: 'gear', bn: 'নদী AI (API ও সীমা)', en: 'Nodi AI (API & limits)', perms: ['nodi.settings.configure'] },
-    ] },
   ]),
 ]
+/** Site and role configuration is kept separate from day-to-day zonal operations. */
+export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অনুমতি', 'Settings & permissions', [
+  { bn: 'ইউজার ও অনুমতি', en: 'Users & permissions', items: [
+    { to: '/app/users', icon: 'key', bn: 'ইউজার ও রোল', en: 'Users & roles', perms: ['system.user.view'] },
+    { to: '/app/access', icon: 'shield', bn: 'অ্যাডভান্সড রোল ও পারমিশন', en: 'Advanced roles & permissions', perms: ['system.role.view'], only: 'web' },
+    { to: '/app/roles', icon: 'shield', bn: 'রোল ও অনুমতি', en: 'Roles & permissions', perms: ['system.role.view'], only: 'app' },
+  ] },
+  { bn: 'ড্যাশবোর্ড ও সাইট সেটিং', en: 'Dashboard & site settings', items: [
+    { to: '/app/role-dashboards', icon: 'chart', bn: 'রোলভিত্তিক ড্যাশবোর্ড বিল্ডার', en: 'Role-based Dashboard Builder', perms: ['system.role.edit'] },
+    { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
+  ] },
+  { bn: 'এইচআর সেটআপ', en: 'HR setup', items: [
+    { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
+    { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
+  ] },
+  { bn: 'নদী AI', en: 'Nodi AI', items: [
+    { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
+    { to: '/app/nodi', icon: 'gear', bn: 'নদী AI (API ও সীমা)', en: 'Nodi AI (API & limits)', perms: ['nodi.settings.configure'] },
+  ] },
+])
+
 /**
  * হিসাব — a menu of its own (owner, 17 Nov 2026): every SteadFast accounts part one tap away, in the order of the day's work.
  * It is not one of the three level panels: anyone whose role may do accounts work sees it, at the top.
@@ -399,7 +403,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
   const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
-  const accSecs = own(ACCOUNTS), officeSecs = own(OFFICE)
+  const accSecs = own(ACCOUNTS), officeSecs = own(OFFICE), adminSecs = own(ADMIN)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
   const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
@@ -444,7 +448,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
       {HOME.filter(i => forMe(i) && hit(i)).map(link)}
-      {[{ g: ACCOUNTS, secs: accSecs }, { g: OFFICE, secs: officeSecs }, ...shown].map(({ g, secs }) => {
+      {[{ g: ACCOUNTS, secs: accSecs }, { g: OFFICE, secs: officeSecs }, ...shown, { g: ADMIN, secs: adminSecs }].map(({ g, secs }) => {
         const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
         const has = vis.some(i => i.to.split('?')[0] === here)
