@@ -57,12 +57,18 @@ export function Employees() {
   const applicantCount = all.filter(e => e.status === 'applicant').length
   const inactiveCount = all.filter(e => ['inactive', 'resigned', 'terminated'].includes(e.status)).length
 
-  return <AppShell title="কর্মী" subtitle={`${bn(all.filter(e => e.status === 'active').length)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।`}
+  return <AppShell title="কর্মী ব্যবস্থাপনা" subtitle={`${bn(all.filter(e => e.status === 'active').length)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।`}
     actions={<><button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hub || null, status: status || 'active' }).then(n => toast(n ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ আইডি তৈরির ফাইল</button>
       <ExportByFormat zone={zone || null} hub={hub || null} status={status || null} q={q || null} title="কর্মী তালিকা" />
       {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setOpen(true)}>+ নতুন কর্মী</button>}</>}>
     {node}
-    <section className="panel emp-board">
+    <section className="hr-emp-stats" aria-label="কর্মীর সারসংক্ষেপ">
+      <article className="hr-emp-stat blue"><small>মোট কর্মী</small><strong>{list.loading ? "—" : bn(all.length)}</strong><span>সিস্টেমে থাকা সব রেকর্ড</span></article>
+      <article className="hr-emp-stat green"><small>সক্রিয় কর্মী</small><strong>{list.loading ? "—" : bn(activeCount)}</strong><span>বর্তমানে কর্মরত</span></article>
+      <article className="hr-emp-stat amber"><small>আইডির অপেক্ষায়</small><strong>{list.loading ? "—" : bn(applicantCount)}</strong><span>আবেদন / অনুমোদন বাকি</span></article>
+      <article className="hr-emp-stat gray"><small>নিষ্ক্রিয়</small><strong>{list.loading ? "—" : bn(inactiveCount)}</strong><span>নিষ্ক্রিয় / পদত্যাগ / সমাপ্ত</span></article>
+    </section>
+    <section className="panel emp-board hr-emp-board">
       <div className="eb-top no-print">
         <div className="eb-chips" role="group" aria-label="পদ অনুযায়ী">
           <button type="button" className={`chip-toggle${post === '' ? ' on' : ''}`} aria-pressed={post === ''} onClick={() => setPost('')}>সব <b>{bn(scoped.length)}</b></button>
