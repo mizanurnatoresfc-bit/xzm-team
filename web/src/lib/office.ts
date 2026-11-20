@@ -99,7 +99,7 @@ export type OfficeSec = 'overview' | 'places' | 'rooms' | 'desks' | 'people' | '
 export type OfficePart = { key: OfficeSec; icon: string; bn: string; en: string; perms: string[] }
 export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] }> = [
   { bn: 'এক নজরে', en: 'At a glance', parts: [
-    { key: 'overview', icon: 'map', bn: 'অফিস ভিজ্যুয়াল', en: 'Office visual', perms: ['office.property.view'] },
+    { key: 'overview', icon: 'map', bn: 'অফিসের সারসংক্ষেপ', en: 'Office overview', perms: ['office.property.view'] },
     { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.asset.view'] },
   ] },
   // office_properties · office_rooms · office_desks · office_residents
