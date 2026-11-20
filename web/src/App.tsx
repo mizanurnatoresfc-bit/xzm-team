@@ -121,10 +121,16 @@ function HomeOrPanel() {
 }
 
 export default function App() {
-  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes>
-    <Route path="/staff/login" element={<Login />} />
-    {/* Public, isolated preview: renders hard-coded sample data only; no auth or API access. */}
+  return <BrowserRouter><Routes>
+    {/* Public demo is outside AuthProvider: no Supabase session or profile lookup. */}
     <Route path="/preview/users" element={<DemoUsersPreview />} />
+    <Route path="*" element={<AuthenticatedApp />} />
+  </Routes></BrowserRouter>
+}
+
+function AuthenticatedApp() {
+  return <PrefsProvider><AuthProvider><Suspense fallback={<Loading />}><Routes>
+    <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />
       <Route path="/app/staff" element={<StaffPanel />} />
@@ -232,5 +238,5 @@ export default function App() {
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
-  </Routes></Suspense></BrowserRouter></AuthProvider></PrefsProvider>
+  </Routes></Suspense></AuthProvider></PrefsProvider>
 }
