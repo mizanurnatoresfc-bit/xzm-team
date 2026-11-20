@@ -389,10 +389,16 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // Only show what this person can use: + needs at least one quick action, search needs the staff list.
   const quickItems = QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to))
   const canSearch = can('hr.employee.view')
-  const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i)
-    && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length) }))
+  // A role's saved menu list also defines page order; keep the existing category headings and sort within each section.
+  const orderMenuItems = (items: Item[]) => {
+    if (!menu?.length) return items
+    const rank = new Map(menu.map((to, index) => [to, index]))
+    return [...items].sort((a, b) => (rank.get(a.to) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.to) ?? Number.MAX_SAFE_INTEGER))
+  }
+  const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i)
+    && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
-  const own = (g: Group) => g.secs.map(x => ({ ...x, items: x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq))) })).filter(x => x.items.length)
+  const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
   const accSecs = own(ACCOUNTS), officeSecs = own(OFFICE)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
