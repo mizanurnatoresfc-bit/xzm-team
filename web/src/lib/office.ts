@@ -54,6 +54,9 @@ export const ROOM_DEFAULT: Record<string, string[]> = {
   office_room: ['light', 'fan'], meeting: ['light', 'fan', 'chair', 'table'], dining: ['light', 'fan', 'table'], store: ['light'], veranda: ['light'], other: [],
 }
 
+export type AuditLine = { id: number; occurred_at: string; actor_id: string | null; action: string; old_data: Record<string, unknown> | null
+  new_data: Record<string, unknown> | null; changed_fields: string[] | null; reason: string | null }
+
 const archive = (table: string) => async (id: string, reason: string) => {
   const { error } = await supabase.from(table).update({ archived_at: new Date().toISOString(), archive_reason: reason }).eq('id', id); fail(error)
 }
@@ -79,6 +82,29 @@ export const office = {
     const { data, error } = await supabase.from('office_assets').select('*').eq('property_id', p).is('archived_at', null).order('kind').order('name'); fail(error)
     return (data ?? []) as Asset[]
   },
+  /** Places that were removed (archived) — for "ফেরত আনুন". Nothing is ever deleted, so they are all still here. */
+  archivedProperties: async () => {
+    const { data, error } = await supabase.from('office_properties').select('*').not('archived_at', 'is', null).order('archived_at', { ascending: false }).limit(500); fail(error)
+    return (data ?? []) as Array<Property & { archived_at: string; archive_reason: string | null }>
+  },
+  restoreProperty: async (id: string) => {
+    const { error } = await supabase.from('office_properties').update({ archived_at: null, archived_by: null, archive_reason: null }).eq('id', id); fail(error)
+  },
+  /** Several places changed in one go (only the fields given). Row-level security decides, row by row, what may change. */
+  updateMany: async (ids: string[], patch: Record<string, unknown>) => {
+    if (!ids.length) return
+    const { error } = await supabase.from('office_properties').update(patch).in('id', ids); fail(error)
+  },
+  archiveMany: async (ids: string[], reason: string) => {
+    if (!ids.length) return
+    const { error } = await supabase.from('office_properties').update({ archived_at: new Date().toISOString(), archive_reason: reason }).in('id', ids); fail(error)
+  },
+  /** What changed on one row, newest first, from the audit log (only for those who may read the audit log). */
+  history: async (table: string, id: string) => {
+    const { data, error } = await supabase.from('audit_logs').select('id, occurred_at, actor_id, action, old_data, new_data, changed_fields, reason')
+      .eq('table_name', table).eq('record_id', id).order('id', { ascending: false }).limit(100); fail(error)
+    return (data ?? []) as AuditLine[]
+  },
   createHubOffices: async (zone: string | null) => { const { data, error } = await supabase.rpc('office_create_hub_offices', { p_zone: zone }); fail(error); return (data ?? 0) as number },
   saveProperty: save('office_properties'), saveRoom: save('office_rooms'), saveDesk: save('office_desks'), saveAsset: save('office_assets'),
   archiveProperty: archive('office_properties'), archiveRoom: archive('office_rooms'), archiveDesk: archive('office_desks'), archiveAsset: archive('office_assets'),
@@ -95,7 +121,7 @@ export const office = {
  * "আমার অফিস" — the office menu of its own, arranged by what the database keeps (owner, 19 Nov 2026).
  * One list for the side menu and the tabs of the office page; `perms` are the ones the page itself checks.
  */
-export type OfficeSec = 'overview' | 'places' | 'rooms' | 'desks' | 'people' | 'assets' | 'power' | 'rent' | 'bills' | 'security' | 'notices' | 'zone'
+export type OfficeSec = 'overview' | 'places' | 'rooms' | 'desks' | 'people' | 'assets' | 'power' | 'rent' | 'bills' | 'security' | 'notices' | 'zone' | 'reports'
 /** `more`: shown in the page's tab bar but not in the side menu (kept so nothing already written becomes unreachable). */
 export type OfficePart = { key: OfficeSec; icon: string; bn: string; en: string; perms: string[]; more?: boolean }
 export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] }> = [
@@ -119,6 +145,7 @@ export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] 
   { bn: 'ভাড়া ও বিল', en: 'Rent & bills', parts: [
     { key: 'rent', icon: 'cash', bn: 'ভাড়া ও চুক্তি', en: 'Rent & contract', perms: ['office.bill.view', 'office.property.edit'] },
     { key: 'bills', icon: 'receipt', bn: 'বিদ্যুৎ ও ওয়াইফাই বিল', en: 'Electricity & wifi bills', perms: ['office.bill.view'] },
+    { key: 'reports', icon: 'chart', bn: 'অফিসের মাসিক রিপোর্ট', en: 'Office monthly report', perms: ['office.bill.view'] },
   ] },
   // office_secrets · office_notices
   { bn: 'নিরাপত্তা ও রিপোর্ট', en: 'Security & reports', parts: [
@@ -143,6 +170,7 @@ export const RESIDENTIAL_PARTS: OfficePart[] = [
   { key: 'rent', icon: 'cash', bn: 'ফ্ল্যাটের ভাড়া ও চুক্তি', en: 'Flat rent & contracts', perms: ['office.bill.view', 'office.property.edit'] },
   { key: 'bills', icon: 'receipt', bn: 'ফ্ল্যাটের বিদ্যুৎ ও অন্য বিল', en: 'Flat utility bills', perms: ['office.bill.view'] },
   { key: 'assets', icon: 'box', bn: 'ফ্ল্যাটের জিনিসপত্র', en: 'Flat items', perms: ['office.asset.view', 'office.asset.edit'] },
+  { key: 'reports', icon: 'chart', bn: 'আবাসিকের মাসিক রিপোর্ট', en: 'Residential monthly report', perms: ['office.bill.view'] },
   // Before the split these pages also served residences; they stay reachable from the page's tabs.
   { key: 'power', icon: 'sun', bn: 'বিদ্যুৎ হিসাব', en: 'Power', perms: ['office.asset.view'], more: true },
   { key: 'security', icon: 'key', bn: 'তালা, সিসি ও পাসওয়ার্ড', en: 'Locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'], more: true },

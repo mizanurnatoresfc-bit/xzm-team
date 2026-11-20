@@ -55,7 +55,9 @@ const place = (id, name, kind, more) => ({ id, code: id.toUpperCase(), name, kin
 const officePlaces = [place('of1', 'Natore Hub Office', 'office', {}),
   place('rs1', 'Staff Mess A', 'residence', { rent: 8000, rent_due_day: 1, capacity: 2, contract_from: inDays(-345), contract_to: inDays(20) }),
   place('rs2', 'Staff Mess B', 'residence', { rent: 6000, rent_due_day: 1, capacity: 4, contract_from: inDays(-30), contract_to: inDays(335) })]
-const officeResidents = ['e01', 'e02', 'e03'].map((e, i) => ({ id: `or${i}`, property_id: 'rs1', room_id: null, employee_id: e, since: '2026-10-01', note: null, archived_at: null }))
+const officeGone = place('rs9', 'Old Mess C', 'residence', { archived_at: '2026-11-01T00:00:00Z', archive_reason: 'ছেড়ে দেওয়া হয়েছে' })
+const officePatches = []
+const officeResidents =['e01', 'e02', 'e03'].map((e, i) => ({ id: `or${i}`, property_id: 'rs1', room_id: null, employee_id: e, since: '2026-10-01', note: null, archived_at: null }))
 const officeBills = [{ id: 'ob1', property_id: 'rs2', kind: 'rent', bill_month: dhakaToday.slice(0, 8) + '01', amount: 6000, paid_on: dhakaToday, method: 'cash', txn_id: null, payee: null, payee_phone: null,
   units: null, has_memo: true, memo_file: null, memo_no: null, proof_file: null, da_expense_id: null, note: null, created_by_name: 'Owner', created_at: dhakaToday + 'T04:00:00Z', archived_at: null }]
 
@@ -359,6 +361,8 @@ try {
       if (u.includes('/rest/v1/employees') && u.includes('hub_id=eq.h2') && r.request().method() === 'GET') return j(staffRows)
       if (u.includes('/rest/v1/issues') && u.includes('DUP123456')) return j([{ id: 'i9', issue_no: 'IS-0009', title: 'x', status: 'open' }])
       // আমার অফিস / আবাসিক: one office and two residences, three people in a flat for two, one rent recorded this month
+      if (u.includes('/rest/v1/office_properties') && r.request().method() === 'PATCH') { officePatches.push({ u, body: r.request().postDataJSON() }); return j(null) }
+      if (u.includes('/rest/v1/office_properties') && u.includes('archived_at=not.is.null')) return j([officeGone])
       if (u.includes('/rest/v1/office_properties')) return j(officePlaces)
       if (u.includes('/rest/v1/office_residents')) return j(officeResidents)
       if (u.includes('/rest/v1/office_bills')) return j(officeBills)
@@ -714,7 +718,7 @@ try {
         && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
         `${size}: the Super Admin sees the accounts and office groups plus staff, manager and zonal panels`)
       check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/workforce/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
-      check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 19
+      check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 21
         && await inPanel('office', 'কারা থাকেন') === 2 && await inPanel('office', 'আবাসিকের সারসংক্ষেপ') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
         `${size}: আমার অফিস is a menu of its own, in five headed parts plus আবাসিক`)
       // Office and Residential: the same rows, split by kind
@@ -725,6 +729,24 @@ try {
       await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.panel h2')
       { const t = await page.locator('main').innerText()
         check(t.includes('Staff Mess A') && t.includes('Staff Mess B') && !t.includes('Natore Hub Office'), `${size}: the residential list shows residences only`) }
+      // remove asks for the reason in a box of its own (no browser prompt), and a removed place comes back with one tap
+      officePatches.length = 0
+      await page.locator('button[aria-label="Staff Mess B সরান"]').first().click()
+      await page.locator('.da-modal textarea').fill('বাসা ছেড়ে দেওয়া হলো'); await page.locator('.da-modal button', { hasText: 'ঠিক আছে' }).click()
+      await page.waitForTimeout(300)
+      check(officePatches.length === 1 && officePatches[0].u.includes('id=eq.rs2') && officePatches[0].body.archive_reason === 'বাসা ছেড়ে দেওয়া হলো' && !!officePatches[0].body.archived_at,
+        `${size}: removing a residence asks the reason in the page's own box and archives it (nothing deleted)`)
+      await page.locator('button', { hasText: 'সরানোগুলো' }).click(); await page.locator('.oo-gone .duty').first().waitFor({ timeout: 8000 }).catch(() => {})
+      await page.locator('.oo-gone button', { hasText: 'ফেরত আনুন' }).click(); await page.waitForTimeout(300)
+      check(await page.locator('.oo-gone').innerText().then(t => t.includes('Old Mess C')).catch(() => false) && officePatches.some(p => p.u.includes('id=eq.rs9') && p.body.archived_at === null),
+        `${size}: a removed residence is listed and restored`)
+      // monthly report: this month's bills by place, the rent still missing, and contracts ending
+      await page.goto(`${BASE}/app/office/residential/reports`); await page.waitForSelector('.da-stats')
+      await page.locator('table, .dv-cards, .dv-list').first().waitFor({ timeout: 8000 }).catch(() => {})
+      { const t = await page.locator('main').innerText()
+        check(t.includes('Staff Mess A') && t.includes('Staff Mess B') && !t.includes('Natore Hub Office') && t.includes('৳ ৬০০০') && t.includes('চুক্তির মেয়াদ')
+          && (Number(dhakaToday.slice(8)) === 1 || t.includes('বাকি')), `${size}: the residential monthly report adds up the bills, marks missing rent and lists ending contracts`) }
+      await fits('the residential monthly report')
       await page.goto(`${BASE}/app/office/residential`); await page.waitForURL(/\/app\/office\/residential\/overview$/, { timeout: 8000 }).catch(() => {})
       await page.locator('.duty-list').waitFor({ timeout: 8000 }).catch(() => {})
       { const t = await page.locator('main').innerText()

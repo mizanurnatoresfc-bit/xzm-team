@@ -13,6 +13,9 @@ import {
   type Asset, type OfficeScope, type OfficeSec, type Desk, type PlaceKind, type Property, type Room,
 } from '../../lib/office'
 import { ResidentialOverview } from './Residential'
+import { askText, askWith } from './askText'
+import { HistoryModal } from './History'
+import { Reports } from './Reports'
 import { POWER } from '../../lib/officeOps'
 import { Bills, LendModal, NoticeModal, Notices, People, Power, Rent, roomSplit, Security, useLoans, Zone, type Ctx } from './OfficeOps'
 import { useOrg } from '../hr/common'
@@ -56,7 +59,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const reloadPlaces = async () => { await props.reload() }
   const res = scope === 'residential'
   // The residential overview covers every flat at once; the other pages work on the one picked above.
-  const allFlats = res && sec.key === 'overview'
+  const allFlats = (res && sec.key === 'overview') || sec.key === 'reports'
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={p && !allFlats ? `${p.name} · ${L(PLACE_KIND[p.kind][0], PLACE_KIND[p.kind][1])}` : undefined}>
     <section className="da-filters panel no-print hub-top">
@@ -70,6 +73,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
     {!sec.perms.some(x => can(x)) ? <p className="notice">{L('এই পাতা দেখার অনুমতি আপনার রোলে নেই।', 'Your role may not open this page.')}</p>
       : sec.key === 'places' ? <Places scope={scope} list={list} otherSide={otherSide} reload={async () => { await props.reload() }} />
       : !props.data && !props.error ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
+      : sec.key === 'reports' ? <Reports scope={scope} places={list} hubName={hubName} onPick={setPid} />
       : allFlats ? <ResidentialOverview flats={list} hubName={hubName} onPick={setPid} />
       : props.data && !list.length ? <p className="notice">{res ? L('এখনো কোনো আবাসিক ফ্ল্যাট যোগ হয়নি।', 'No residence yet.') : L('এখনো কোনো অফিস যোগ হয়নি।', 'No office yet.')} <Link to={scopePath(scope, 'places')}>{L('যোগ করুন →', 'Add one →')}</Link></p>
       : !p ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
@@ -94,7 +98,6 @@ function Body({ sec, ctx }: { sec: Sec; ctx: Ctx }) {
   }
 }
 
-const ask = (q: string) => (window.prompt(q) ?? '').trim()
 
 // ---------------------------------------------------------------- overview: visual layout + checks
 function Overview({ ctx }: { ctx: Ctx }) {
@@ -217,13 +220,36 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(x: Property) {
-    const r = ask(L(`"${x.name}" সরানোর কারণ`, `Why remove "${x.name}"?`)); if (!r) return
-    try { await office.archiveProperty(x.id, r); await reload() } catch (e) { setErr(hrFriendly(e)) }
+    const r = await askWith(L)(L(`"${x.name}" সরানোর কারণ`, `Why remove "${x.name}"?`)); if (!r) return
+    try { await office.archiveProperty(x.id, r); await reload(); toast(L('সরানো হয়েছে — "সরানোগুলো" থেকে ফেরত আনা যায়', 'Removed — it can be restored from "Removed"')) } catch (e) { setErr(hrFriendly(e)) }
   }
+  // Removed places: listed on demand, and brought back with one tap.
+  const canEdit = can('office.property.edit'); const canArchive = can('office.property.archive')
+  const [showGone, setShowGone] = useState(false)
+  const gone = useLoad(() => showGone ? office.archivedProperties() : Promise.resolve([]), [showGone])
+  const goneHere = (gone.data ?? []).filter(x => inScope(scope, x))
+  async function restore(x: Property) {
+    const same = list.find(y => y.name.trim().toLowerCase() === x.name.trim().toLowerCase() && (y.hub_id ?? '') === (x.hub_id ?? ''))
+    if (same) return setErr(L(`"${x.name}" নামে এই হাবে এখন আরেকটা আছে — আগে সেটা দেখুন`, `Another "${x.name}" is now in this hub — check that one first`))
+    try { await office.restoreProperty(x.id); await Promise.all([reload(), gone.reload()]); toast(L(`${x.name} ফেরত আনা হয়েছে`, `${x.name} restored`)) } catch (e) { setErr(hrFriendly(e)) }
+  }
+  // Marked rows: one reason for all, or one rent day for all.
+  async function bulkArchive(rows: Property[], clear: () => void) {
+    const r = await askWith(L)(L(`${n(rows.length)}টি সরানোর কারণ`, `Why remove these ${rows.length}?`)); if (!r) return
+    try { await office.archiveMany(rows.map(x => x.id), r); clear(); await reload(); toast(L(`${n(rows.length)}টি সরানো হয়েছে`, `${rows.length} removed`)) } catch (e) { setErr(hrFriendly(e)) }
+  }
+  async function bulkDueDay(rows: Property[], clear: () => void) {
+    const v = await askText(L('মাসের কোন তারিখে ভাড়া দেওয়া হয়? (১–৩১)', 'Rent day of the month? (1–31)'), { ok: L('সেভ', 'Save'), cancel: L('বাতিল', 'Cancel'), label: L('তারিখ', 'Day') })
+    const day = Number(v.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))); if (!v) return
+    if (!Number.isInteger(day) || day < 1 || day > 31) return setErr(L('১ থেকে ৩১-এর মধ্যে একটা তারিখ দিন', 'Give a day between 1 and 31'))
+    try { await office.updateMany(rows.map(x => x.id), { rent_due_day: day }); clear(); await reload(); toast(L(`${n(rows.length)}টিতে ভাড়ার তারিখ ${n(day)} বসানো হয়েছে`, `Rent day ${day} set on ${rows.length}`)) } catch (e) { setErr(hrFriendly(e)) }
+  }
+  const [hist, setHist] = useState<Property | null>(null)
   const title = res ? L('আবাসিক ফ্ল্যাটের তালিকা', 'Residential list') : L('অফিস ও গ্যারেজের তালিকা', 'Offices & garages')
   return <section className="panel">{node}
     <div className="da-bar"><h2>{title} <span className="count-pill">{n(list.length)}</span></h2>
       <span className="row-acts">
+        {(canEdit || canArchive) && <button className={showGone ? 'sm' : 'secondary sm'} aria-pressed={showGone} onClick={() => setShowGone(v => !v)}><Icon name="log" size={14} />{L('সরানোগুলো', 'Removed')}</button>}
         {!res && can('office.property.create') && <button className="secondary" disabled={busy} onClick={() => void fromHubs()}><Icon name="hub" size={15} />{L('হাব থেকে অফিস তৈরি', 'Offices from hubs')}</button>}
         {can('office.property.create') && <button onClick={() => { setErr(''); setF({ kind: kindsHere[0], code: '', name: '', zone_id: o.data?.zones[0]?.id }) }}><Icon name="plus" size={15} />{res ? L('নতুন ফ্ল্যাট', 'Add residence') : L('নতুন যোগ', 'Add')}</button>}</span></div>
     {!res && <p className="muted small">{L('হাবের ঠিকানা এখানে রাখা হয়: হাবের অফিসের ঠিকানা বদলালে হাবের ঠিকানাও বদলে যায়।', 'Hub addresses live here: changing a hub office address changes the hub address too.')}</p>}
@@ -231,7 +257,18 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
       ? <>{L(`অফিস ও গ্যারেজ (${n(otherSide)}টি) আছে`, `Offices & garages (${otherSide})`)} <Link to={scopePath('office', 'places')}>{L('অফিসের তালিকায় →', 'in the office list →')}</Link></>
       : <>{L(`আবাসিক ফ্ল্যাট (${n(otherSide)}টি) এখন আলাদা পাতায়`, `Residences (${otherSide}) now have their own pages`)} <Link to={scopePath('residential', 'places')}>{L('আবাসিকের তালিকা →', 'Residential list →')}</Link></>}</p>}
     {err && !f && <p className="da-error">{err}</p>}
+    {showGone && <div className="oo-gone">
+      <h3>{L('সরানো জায়গা', 'Removed places')} <span className="count-pill">{n(goneHere.length)}</span></h3>
+      {gone.error ? <p className="da-error">{hrFriendly(gone.error)}</p> : gone.loading ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
+        : !goneHere.length ? <p className="muted">{L('কিছু সরানো হয়নি।', 'Nothing removed.')}</p>
+        : <ul className="duty-list">{goneHere.map(x => <li key={x.id} className="duty">
+          <span style={{ flex: 1, minWidth: 0 }}><b>{x.name}</b> <span className="muted small">{[x.hub_id ? o.names.hub[x.hub_id] : null, x.archive_reason].filter(Boolean).join(' · ')}</span></span>
+          {canEdit && <button className="secondary sm" onClick={() => void restore(x)}><Icon name="back" size={14} />{L('ফেরত আনুন', 'Restore')}</button>}</li>)}</ul>}
+    </div>}
     <DataTable<Property> title={title} file={res ? 'residential-places' : 'office-places'} rows={list} rowKey={r => r.id}
+      bulk={canEdit || canArchive ? (rows, clear) => <>
+        {canEdit && <button className="secondary sm" onClick={() => void bulkDueDay(rows, clear)}><Icon name="cal" size={14} />{L('ভাড়ার তারিখ বসান', 'Set rent day')}</button>}
+        {canArchive && <button className="secondary sm" onClick={() => void bulkArchive(rows, clear)}><Icon name="trash" size={14} />{L('সরান', 'Remove')}</button>}</> : undefined}
       empty={<p className="muted">{res ? L('এখনো কোনো আবাসিক ফ্ল্যাট যোগ হয়নি।', 'No residence yet.') : L('এখনো কিছু যোগ হয়নি।', 'Nothing yet.')}</p>}
       cols={[
         { key: 'kind', label: L('ধরন', 'Kind'), value: r => L(PLACE_KIND[r.kind][0], PLACE_KIND[r.kind][1]),
@@ -243,8 +280,10 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
         { key: 'rent', label: L('ভাড়া', 'Rent'), className: 'r', value: r => r.rent ?? '' },
         { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
           {can('office.property.edit') && <button className="secondary sm" onClick={() => { setErr(''); setF({ ...r }) }}><Icon name="edit" size={14} /></button>}
-          {can('office.property.archive') && <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span> },
+          {can('system.audit.view') && <button className="secondary sm" title={L('পরিবর্তনের ইতিহাস', 'Change history')} aria-label={L('পরিবর্তনের ইতিহাস', 'Change history')} onClick={() => setHist(r)}><Icon name="log" size={14} /></button>}
+          {can('office.property.archive') && <button className="secondary sm" aria-label={L(`${r.name} সরান`, `Remove ${r.name}`)} onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span> },
       ]} />
+    {hist && <HistoryModal table="office_properties" id={hist.id} name={hist.name} onClose={() => setHist(null)} />}
     {f && <Modal wide title={f.id ? L('এডিট', 'Edit') : res ? L('নতুন আবাসিক ফ্ল্যাট', 'New residence') : L('নতুন অফিস / গ্যারেজ', 'New office / garage')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form">
@@ -294,7 +333,7 @@ function Rooms({ ctx }: { ctx: Ctx }) {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(r: Room) {
-    const why = ask(L(`"${r.name}" সরানোর কারণ`, `Why remove "${r.name}"?`)); if (!why) return
+    const why = await askWith(L)(L(`"${r.name}" সরানোর কারণ`, `Why remove "${r.name}"?`)); if (!why) return
     try { await office.archiveRoom(r.id, why); await ctx.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   return <section className="panel">{node}
@@ -356,7 +395,7 @@ function Desks({ ctx }: { ctx: Ctx }) {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(d: Desk) {
-    const why = ask(L(`"${d.name}" সরানোর কারণ`, `Why remove "${d.name}"?`)); if (!why) return
+    const why = await askWith(L)(L(`"${d.name}" সরানোর কারণ`, `Why remove "${d.name}"?`)); if (!why) return
     try { await office.archiveDesk(d.id, why); await ctx.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   const next = ctx.desks.length + 1
@@ -428,7 +467,7 @@ function Assets({ ctx }: { ctx: Ctx }) {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(a: Asset) {
-    const why = ask(L(`"${a.name}" সরানোর কারণ`, `Why remove "${a.name}"?`)); if (!why) return
+    const why = await askWith(L)(L(`"${a.name}" সরানোর কারণ`, `Why remove "${a.name}"?`)); if (!why) return
     try { await office.archiveAsset(a.id, why); await ctx.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   const byKind = Object.entries(ctx.assets.reduce((m, a) => { m[a.kind] = (m[a.kind] ?? 0) + a.quantity; return m }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1])

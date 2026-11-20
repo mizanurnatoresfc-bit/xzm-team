@@ -16,13 +16,13 @@ import {
 } from '../../lib/officeOps'
 import { parsePayment, readImage } from '../../lib/ocr'
 import { takaInWords } from '../../lib/voucher'
+import { askWith } from './askText'
 import { EmpPicker, empLabel } from '../sorting/Sorting'
 
 export type Ctx = { p: Property; all: Property[]; hubName: (id: string | null) => string; rooms: Room[]; desks: Desk[]; assets: Asset[]
   emp: Record<string, EmpLite>; reload: () => Promise<void>; reloadPlaces: () => Promise<void> }
 
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
-const ask = (q: string) => (window.prompt(q) ?? '').trim()
 const monthBn = (d: string, lang: string) => new Date(d.slice(0, 7) + '-01T00:00:00').toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { month: 'long', year: 'numeric' })
 const dayBn = (d: string, lang: string) => new Date(d.length > 10 ? d : d + 'T00:00:00').toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', year: 'numeric' })
 /** How the rooms of a place split: office work, living, everything else. */
@@ -112,7 +112,7 @@ function BillBlock({ ctx, kinds }: { ctx: Ctx; kinds: BillKind[] }) {
     } catch (e) { setErr(opsFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(b: Bill) {
-    const why = ask(L('বিলটা সরানোর কারণ', 'Why remove this bill?')); if (!why) return
+    const why = await askWith(L)(L('বিলটা সরানোর কারণ', 'Why remove this bill?')); if (!why) return
     try { await ops.billRemove(b.id, why); await Promise.all([bills.reload(), lines.reload()]) } catch (e) { setErr(opsFriendly(e)) }
   }
   const memo = (b: Bill) => printHtml(`XZM-TEAM-মেমো-${b.memo_no ?? ''}`, memoHtml(b, p, p.hub_id ? ctx.hubName(p.hub_id) : null, takaInWords(Number(b.amount))))
@@ -455,7 +455,7 @@ export function Notices({ ctx }: { ctx: Ctx }) {
   const rows = (list.data ?? []).filter(x => !openOnly || x.status === 'open' || x.status === 'seen')
   async function act(x: Notice, status: 'seen' | 'done' | 'rejected') {
     let reply: string | null = null; let fixed = false
-    if (status === 'rejected') { reply = ask(L('কেন হবে না, লিখুন', 'Why not?')); if (!reply) return }
+    if (status === 'rejected') { reply = await askWith(L)(L('কেন হবে না, লিখুন', 'Why not?')); if (!reply) return }
     if (status === 'done') { reply = (window.prompt(L('কী ব্যবস্থা হলো (ইচ্ছা হলে)', 'What was done (optional)')) ?? '').trim() || null
       if (x.kind === 'broken' && x.asset_id) fixed = window.confirm(L('জিনিসটা ঠিক হয়ে গেছে? ("OK" দিলে অবস্থা "ভালো" হবে)', 'Is the item working again? (OK marks it good)')) }
     setErr('')
@@ -521,7 +521,7 @@ export function Security({ ctx }: { ctx: Ctx }) {
       setSf(null); await sec.reload(); toast(L('সেভ হয়েছে', 'Saved')) } catch (e) { setErr(opsFriendly(e)) } finally { setBusy(false) }
   }
   async function dropSecret(s: Secret) {
-    const why = ask(L(`"${s.label}" সরানোর কারণ`, `Why remove "${s.label}"?`)); if (!why) return
+    const why = await askWith(L)(L(`"${s.label}" সরানোর কারণ`, `Why remove "${s.label}"?`)); if (!why) return
     try { await ops.secretSave({ archived_at: new Date().toISOString(), archive_reason: why }, s.id); await sec.reload() } catch (e) { setErr(opsFriendly(e)) }
   }
   const pcs = ctx.assets.filter(a => a.kind === 'pc' || a.kind === 'laptop' || a.kind === 'dvr' || a.kind === 'router' || a.kind === 'cctv')
@@ -633,7 +633,7 @@ export function People({ ctx }: { ctx: Ctx }) {
       setF(null); await res.reload(); toast(L('সেভ হয়েছে', 'Saved')) } catch (e) { setErr(opsFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(id: string, name: string) {
-    const why = ask(L(`${name} আর এখানে থাকেন না — কারণ / কবে থেকে`, `${name} no longer lives here — why / since when`)); if (!why) return
+    const why = await askWith(L)(L(`${name} আর এখানে থাকেন না — কারণ / কবে থেকে`, `${name} no longer lives here — why / since when`)); if (!why) return
     try { await ops.residentSave({ archived_at: new Date().toISOString(), archive_reason: why }, id); await res.reload() } catch (e) { setErr(opsFriendly(e)) }
   }
   const list = res.data ?? []
