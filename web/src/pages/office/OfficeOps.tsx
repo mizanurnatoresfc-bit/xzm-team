@@ -9,7 +9,7 @@ import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { useNodiFeatures } from '../../lib/useNodiFeatures'
 import { sorting, type EmpLite } from '../../lib/sorting'
-import { ASSET_KIND, office, PLACE_KIND, type Asset, type Desk, type Property, type Room } from '../../lib/office'
+import { ASSET_KIND, office, PLACE_KIND, scopePath, type Asset, type Desk, type Property, type Room } from '../../lib/office'
 import {
   BILL_KIND, contractDraft, daysLeft, DEFAULT_RATE, memoHtml, METHOD, NOTICE_KIND, NOTICE_STATUS, ops, opsFriendly, powerRows, powerTips, printHtml, printText,
   SECRET_KIND, type Bill, type BillKind, type BillMore, type ExpenseLine, type Loan, type Notice, type NoticeKind, type Secret, type SecretKind,
@@ -310,7 +310,7 @@ export function Bills({ ctx }: { ctx: Ctx }) {
         <div><dt>{L('ওয়াইফাই কোম্পানি', 'Wifi provider')}</dt><dd>{p.wifi_provider || '—'}</dd></div>
         <div><dt>{L('মাসিক ওয়াইফাই বিল', 'Monthly wifi bill')}</dt><dd>{p.wifi_bill ? `৳ ${n(p.wifi_bill)}` : '—'}</dd></div>
       </dl>
-      <p className="muted small">{L('বিদ্যুৎ বিল কেমন আসা উচিত আর কীভাবে কমবে — ', 'What the electricity should cost and how to lower it — ')}<Link to="/app/office/power">{L('ইলেকট্রনিক ও বিদ্যুৎ হিসাব →', 'Devices & power →')}</Link></p>
+      <p className="muted small">{L('বিদ্যুৎ বিল কেমন আসা উচিত আর কীভাবে কমবে — ', 'What the electricity should cost and how to lower it — ')}<Link to={scopePath(p.kind === 'residence' ? 'residential' : 'office', 'power')}>{L('ইলেকট্রনিক ও বিদ্যুৎ হিসাব →', 'Devices & power →')}</Link></p>
     </section>
     <BillBlock ctx={ctx} kinds={['electricity', 'wifi', 'other']} />
     {f && <Modal title={L('মিটার ও ইন্টারনেট', 'Meter & internet')} onClose={() => setF(null)}
@@ -360,7 +360,7 @@ export function Power({ ctx }: { ctx: Ctx }) {
     </div>
     <section className="panel">
       <h2>{L('বিল কমানোর সাজেশন', 'Ways to lower the bill')} <span className="count-pill">{n(tips.length)}</span></h2>
-      {!rows.length ? <p className="muted">{L('লাইট, ফ্যান, পিসি ইত্যাদি "অফিসের রিসোর্স"-এ যোগ করলে এখানে হিসাব আসবে।', 'Add lights, fans, PCs under "Office resources" to see the numbers here.')} <Link to="/app/office/assets">{L('যোগ করুন →', 'Add →')}</Link></p>
+      {!rows.length ? <p className="muted">{L('লাইট, ফ্যান, পিসি ইত্যাদি "অফিসের রিসোর্স"-এ যোগ করলে এখানে হিসাব আসবে।', 'Add lights, fans, PCs under "Office resources" to see the numbers here.')} <Link to={scopePath(ctx.p.kind === 'residence' ? 'residential' : 'office', 'assets')}>{L('যোগ করুন →', 'Add →')}</Link></p>
         : <ul className="duty-list">{tips.map((t, i) => <li key={i} className="duty"><Badge tone={t.tone}>{t.tone === 'bad' ? '!' : t.tone === 'warn' ? '•' : 'i'}</Badge>
           <span>{t.text}{t.save ? <b className="oo-save"> {L(`— মাসে প্রায় ${tk(t.save * rate)} কম`, `— about ${tk(t.save * rate)} less a month`)}</b> : null}</span></li>)}
           {!tips.length && <li className="muted">{L('চোখে পড়ার মতো কিছু নেই — ব্যবহার ঠিক আছে।', 'Nothing stands out.')}</li>}</ul>}
@@ -552,7 +552,7 @@ export function Security({ ctx }: { ctx: Ctx }) {
         </article>)}</div>}
     </section>
     <section className="panel">
-      <div className="da-bar"><h2><Icon name="eye" size={18} /> {L('সিসি ক্যামেরা ও নেটওয়ার্ক', 'CCTV & network')}</h2><Link className="secondary sm" to="/app/office/assets">{L('রিসোর্সে যোগ করুন →', 'Add under resources →')}</Link></div>
+      <div className="da-bar"><h2><Icon name="eye" size={18} /> {L('সিসি ক্যামেরা ও নেটওয়ার্ক', 'CCTV & network')}</h2><Link className="secondary sm" to={scopePath(ctx.p.kind === 'residence' ? 'residential' : 'office', 'assets')}>{L('রিসোর্সে যোগ করুন →', 'Add under resources →')}</Link></div>
       <div className="da-stats">
         <Stat icon="eye" label={L('সিসি ক্যামেরা', 'Cameras')} value={n(count('cctv'))} />
         <Stat icon="box" label="DVR / NVR" value={n(count('dvr'))} sub={specs('dvr') || L('কত পোর্ট — "মাপ/ধরন"-এ লিখুন', 'ports — write under size/type')} />

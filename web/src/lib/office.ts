@@ -96,7 +96,8 @@ export const office = {
  * One list for the side menu and the tabs of the office page; `perms` are the ones the page itself checks.
  */
 export type OfficeSec = 'overview' | 'places' | 'rooms' | 'desks' | 'people' | 'assets' | 'power' | 'rent' | 'bills' | 'security' | 'notices' | 'zone'
-export type OfficePart = { key: OfficeSec; icon: string; bn: string; en: string; perms: string[] }
+/** `more`: shown in the page's tab bar but not in the side menu (kept so nothing already written becomes unreachable). */
+export type OfficePart = { key: OfficeSec; icon: string; bn: string; en: string; perms: string[]; more?: boolean }
 export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] }> = [
   { bn: 'এক নজরে', en: 'At a glance', parts: [
     { key: 'overview', icon: 'map', bn: 'অফিসের সারসংক্ষেপ', en: 'Office overview', perms: ['office.property.view'] },
@@ -126,3 +127,29 @@ export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] 
   ] },
 ]
 export const OFFICE_PARTS: OfficePart[] = OFFICE_GROUPS.flatMap(g => g.parts)
+
+/**
+ * আবাসিক (Residential) — the same tables seen only for residences (kind = 'residence'), under /app/office/residential/….
+ * Nothing is stored apart: a flat is an office_properties row, its rooms office_rooms, its people office_residents, its bills office_bills.
+ * Each page has the same key and permissions as its twin under /app/office/…, so a role limited to the office page may open this one too (lib/menu.ts).
+ */
+export type OfficeScope = 'office' | 'residential'
+export const RESIDENTIAL_BASE = '/app/office/residential'
+export const RESIDENTIAL_PARTS: OfficePart[] = [
+  { key: 'overview', icon: 'map', bn: 'আবাসিকের সারসংক্ষেপ', en: 'Residential overview', perms: ['office.property.view'] },
+  { key: 'places', icon: 'home', bn: 'আবাসিক ফ্ল্যাটের তালিকা', en: 'Residential list', perms: ['office.property.view', 'office.property.create'] },
+  { key: 'rooms', icon: 'grid', bn: 'ফ্ল্যাট ও রুম', en: 'Flats & rooms', perms: ['office.property.view'] },
+  { key: 'people', icon: 'users', bn: 'ফ্ল্যাটে কারা থাকেন', en: 'Residents', perms: ['office.property.view'] },
+  { key: 'rent', icon: 'cash', bn: 'ফ্ল্যাটের ভাড়া ও চুক্তি', en: 'Flat rent & contracts', perms: ['office.bill.view', 'office.property.edit'] },
+  { key: 'bills', icon: 'receipt', bn: 'ফ্ল্যাটের বিদ্যুৎ ও অন্য বিল', en: 'Flat utility bills', perms: ['office.bill.view'] },
+  { key: 'assets', icon: 'box', bn: 'ফ্ল্যাটের জিনিসপত্র', en: 'Flat items', perms: ['office.asset.view', 'office.asset.edit'] },
+  // Before the split these pages also served residences; they stay reachable from the page's tabs.
+  { key: 'power', icon: 'sun', bn: 'বিদ্যুৎ হিসাব', en: 'Power', perms: ['office.asset.view'], more: true },
+  { key: 'security', icon: 'key', bn: 'তালা, সিসি ও পাসওয়ার্ড', en: 'Locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'], more: true },
+  { key: 'notices', icon: 'bell', bn: 'নষ্ট / লাগবে', en: 'Broken / needed', perms: ['office.notice.create', 'office.notice.approve'], more: true },
+  { key: 'desks', icon: 'table', bn: 'ডেস্ক', en: 'Desks', perms: ['office.property.view'], more: true },
+]
+export const RESIDENTIAL_GROUP = { bn: 'আবাসিক', en: 'Residential', parts: RESIDENTIAL_PARTS.filter(p => !p.more) }
+/** Which side a place belongs to: residences are Residential, everything else (office, garage, auto garage) is Office. */
+export const inScope = (scope: OfficeScope, p: Pick<Property, 'kind'>) => (p.kind === 'residence') === (scope === 'residential')
+export const scopePath = (scope: OfficeScope, key: string) => scope === 'residential' ? `${RESIDENTIAL_BASE}/${key}` : `/app/office/${key}`

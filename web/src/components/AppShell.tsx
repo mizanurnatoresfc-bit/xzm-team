@@ -16,7 +16,7 @@ import { hrReq } from '../lib/hrreq'
 import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 import { PersonalMenu, WfCountsHost } from './PersonalMenu'
-import { OFFICE_GROUPS } from '../lib/office'
+import { OFFICE_GROUPS, RESIDENTIAL_BASE, RESIDENTIAL_GROUP } from '../lib/office'
 import { myPhoto, onMyPhotoChange } from '../lib/myPhoto'
 import { MyFace } from './MyAvatar'
 import { menuKeys, useDialog, usePageFocus } from '../lib/a11y'
@@ -29,7 +29,7 @@ type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 /** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
 const NEW_UNTIL: Record<string, string> = {
   '/app/manpower': '2026-11-30', '/app/workforce/attendance': '2026-11-30', '/app/workforce/hub': '2026-11-30',
-  '/app/zonal/hub-ops': '2026-11-30', '/app/office/overview': '2026-11-30',
+  '/app/zonal/hub-ops': '2026-11-30', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
 }
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
 
@@ -185,8 +185,11 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
  * আমার অফিস — a menu of its own (owner, 19 Nov 2026), arranged by what the database keeps: places and people,
  * things, rent and bills, security and reports. Like হিসাব it is not a level panel: anyone whose role may see an office sees it.
  */
-export const OFFICE: Group = panel('office', 'home', 'আমার অফিস', 'My office',
-  OFFICE_GROUPS.map(g => ({ bn: g.bn, en: g.en, items: g.parts.map(p => ({ to: `/app/office/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) })))
+export const OFFICE: Group = panel('office', 'home', 'আমার অফিস', 'My office', [
+  ...OFFICE_GROUPS.map(g => ({ bn: g.bn, en: g.en, items: g.parts.map(p => ({ to: `/app/office/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) })),
+  // আবাসিক: the residences on pages of their own (owner, 21 Nov 2026) — same tables, same permissions.
+  { bn: RESIDENTIAL_GROUP.bn, en: RESIDENTIAL_GROUP.en, items: RESIDENTIAL_GROUP.parts.map(p => ({ to: `${RESIDENTIAL_BASE}/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) },
+])
 
 /**
  * Pages taken off the menu because another page does the same job. The pages still open by their address;

@@ -97,6 +97,14 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/office/bills', codes: ['office.bill.view', 'office.bill.edit'] },
     { to: '/app/office/security', res: ['office.secret'] },
     { to: '/app/office/notices', res: ['office.notice'] },
+    // আবাসিক — the residence side of the same pages
+    { to: '/app/office/residential/overview', codes: ['office.property.view'] },
+    { to: '/app/office/residential/places', res: ['office.property'] },
+    { to: '/app/office/residential/rooms', codes: ['office.property.view', 'office.property.edit'] },
+    { to: '/app/office/residential/people', codes: ['office.property.view', 'office.property.edit'] },
+    { to: '/app/office/residential/rent', res: ['office.bill'] },
+    { to: '/app/office/residential/bills', codes: ['office.bill.view', 'office.bill.edit'] },
+    { to: '/app/office/residential/assets', res: ['office.asset'] },
   ] },
   { key: 'fleet', icon: 'truck', bn: 'গাড়ি', en: 'Vehicles', db: ['vehicle'], subs: [
     { to: '/app/fleet', res: ['vehicle.vehicle', 'vehicle.holder', 'vehicle.log', 'vehicle.khoraki', 'vehicle.report', 'vehicle.requisition', 'vehicle.document', 'vehicle.settings'] },

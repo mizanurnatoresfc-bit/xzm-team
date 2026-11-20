@@ -20,14 +20,22 @@ const WITH: Record<string, string[]> = {
 const TWIN: Record<string, string> = { '/app/roles': '/app/access', '/app/access': '/app/roles' }
 const withTwins = (menu: string[]) => [...new Set([...menu, ...menu.map(p => TWIN[p.split('?')[0]]).filter(Boolean)])]
 const bare = (p: string) => p.split('?')[0].replace(/\/+$/, '') || '/app'
+/** The Residential pages (/app/office/residential/x) are the residence side of the office page /app/office/x:
+ *  a role whose page list has the office page may open its residential twin, so splitting the menu took nothing away from anyone. */
+const RES = '/app/office/residential/'
+const officeTwin = (p: string) => p + '/' === RES ? '/app/office/overview' : p.startsWith(RES) ? '/app/office/' + p.slice(RES.length) : null
 
 /** A menu entry is shown when it is on the list. */
-export const inMenu = (menu: string[] | null, to: string) => !menu || ALWAYS.includes(bare(to)) || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))
+export const inMenu = (menu: string[] | null, to: string): boolean => {
+  if (!menu || ALWAYS.includes(bare(to)) || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))) return true
+  const twin = officeTwin(bare(to)); return !!twin && inMenu(menu, twin)
+}
 /** A page may be opened when it is on the list, under a listed page, or belongs to one. */
 export function pageAllowed(menu: string[] | null, pathname: string): boolean {
   if (!menu) return true
   const here = bare(pathname)
   if (ALWAYS.includes(here)) return true
+  const twin = officeTwin(here); if (twin && pageAllowed(menu, twin)) return true
   const open = menu.map(bare).flatMap(p => [p, ...(WITH[p] ?? [])])
   return open.some(p => p !== '/app' && (here === p || here.startsWith(p + '/')))
 }

@@ -152,6 +152,8 @@ export default function App() {
       <Route path="/app/hr/profile-gaps" element={<ProfileGaps />} />
       <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
       <Route path="/app/office/:section" element={<Office />} />
+      <Route path="/app/office/residential" element={<Navigate to="/app/office/residential/overview" replace />} />
+      <Route path="/app/office/residential/:section" element={<Office key="residential" scope="residential" />} />
       <Route path="/app/issues" element={<Issues />} />
       <Route path="/app/fleet" element={<Fleet />} />
       <Route path="/app/fleet/mine" element={<FleetMine />} />

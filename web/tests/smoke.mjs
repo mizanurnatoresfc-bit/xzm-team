@@ -46,8 +46,21 @@ const auditRows = [
 const ownRows = [{ id: 'o1', user_id: 'u2', user_name: 'Sohel Sardar', permission: 'da.report.export', effect: 'grant', scope_type: 'hub', zone_id: null, hub_id: 'h2', zone: null, hub: 'Lalpur',
   valid_from: '2026-11-10', valid_to: '2099-12-31', reason: 'রিপোর্ট দেখবেন', created_at: '2026-11-10T05:00:00Z', created_by_name: 'Owner', revoked_at: null, revoke_reason: null, live: true }]
 
+// Office & Residential: kept apart by kind, nothing else
+const dhakaToday = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
+const inDays = d => new Date(Date.parse(dhakaToday + 'T00:00:00Z') + d * 86400000).toISOString().slice(0, 10)
+const place = (id, name, kind, more) => ({ id, code: id.toUpperCase(), name, kind, zone_id: 'z1', hub_id: 'h1', sorting_center_id: null, address: 'Natore', floor_note: null,
+  owner_name: 'Landlord', owner_phone: '01700000000', rent: null, front_direction: null, note: null, status: 'active', advance: null, contract_from: null, contract_to: null,
+  contract_file: null, rent_due_day: null, meter_no: null, unit_rate: null, wifi_provider: null, wifi_bill: null, capacity: null, archived_at: null, ...more })
+const officePlaces = [place('of1', 'Natore Hub Office', 'office', {}),
+  place('rs1', 'Staff Mess A', 'residence', { rent: 8000, rent_due_day: 1, capacity: 2, contract_from: inDays(-345), contract_to: inDays(20) }),
+  place('rs2', 'Staff Mess B', 'residence', { rent: 6000, rent_due_day: 1, capacity: 4, contract_from: inDays(-30), contract_to: inDays(335) })]
+const officeResidents = ['e01', 'e02', 'e03'].map((e, i) => ({ id: `or${i}`, property_id: 'rs1', room_id: null, employee_id: e, since: '2026-10-01', note: null, archived_at: null }))
+const officeBills = [{ id: 'ob1', property_id: 'rs2', kind: 'rent', bill_month: dhakaToday.slice(0, 8) + '01', amount: 6000, paid_on: dhakaToday, method: 'cash', txn_id: null, payee: null, payee_phone: null,
+  units: null, has_memo: true, memo_file: null, memo_no: null, proof_file: null, da_expense_id: null, note: null, created_by_name: 'Owner', created_at: dhakaToday + 'T04:00:00Z', archived_at: null }]
+
 const fails = []
-const check = (ok, what) => { if (!ok) fails.push(what); console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`) }
+const check =(ok, what) => { if (!ok) fails.push(what); console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`) }
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })
 const stop = () => { try { server.kill() } catch { /* already gone */ } }
@@ -345,6 +358,10 @@ try {
       if (u.includes('/rest/v1/employees') && u.includes('mobile=eq.01711000000')) return j([{ id: 'e01', employee_code: '1001', full_name: 'Staff 01', status: 'active', hub_id: 'h2' }])
       if (u.includes('/rest/v1/employees') && u.includes('hub_id=eq.h2') && r.request().method() === 'GET') return j(staffRows)
       if (u.includes('/rest/v1/issues') && u.includes('DUP123456')) return j([{ id: 'i9', issue_no: 'IS-0009', title: 'x', status: 'open' }])
+      // আমার অফিস / আবাসিক: one office and two residences, three people in a flat for two, one rent recorded this month
+      if (u.includes('/rest/v1/office_properties')) return j(officePlaces)
+      if (u.includes('/rest/v1/office_residents')) return j(officeResidents)
+      if (u.includes('/rest/v1/office_bills')) return j(officeBills)
       return j([])
     })
     const page = await ctx.newPage()
@@ -697,8 +714,31 @@ try {
         && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hub', 'আমার হাব টিম') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
         `${size}: the Super Admin sees the accounts and office groups plus staff, manager and zonal panels`)
       check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/workforce/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
-      check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 12 && await inPanel('office', 'কারা থাকেন') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
-        `${size}: আমার অফিস is a menu of its own, in five headed parts`)
+      check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 19
+        && await inPanel('office', 'কারা থাকেন') === 2 && await inPanel('office', 'আবাসিকের সারসংক্ষেপ') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
+        `${size}: আমার অফিস is a menu of its own, in five headed parts plus আবাসিক`)
+      // Office and Residential: the same rows, split by kind
+      await page.goto(`${BASE}/app/office/places`); await page.waitForSelector('.panel h2')
+      { const t = await page.locator('main').innerText()
+        check(t.includes('Natore Hub Office') && !t.includes('Staff Mess A') && await page.locator('a[href="/app/office/residential/places"]').count() > 0,
+          `${size}: the office list shows offices only, and points to the residential list`) }
+      await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.panel h2')
+      { const t = await page.locator('main').innerText()
+        check(t.includes('Staff Mess A') && t.includes('Staff Mess B') && !t.includes('Natore Hub Office'), `${size}: the residential list shows residences only`) }
+      await page.goto(`${BASE}/app/office/residential`); await page.waitForURL(/\/app\/office\/residential\/overview$/, { timeout: 8000 }).catch(() => {})
+      await page.locator('.duty-list').waitFor({ timeout: 8000 }).catch(() => {})
+      { const t = await page.locator('main').innerText()
+        check(/\/residential\/overview$/.test(page.url()) && t.includes('Staff Mess A: চুক্তি') && t.includes('Staff Mess A: ধারণক্ষমতা') && !t.includes('Natore Hub Office')
+          && (Number(dhakaToday.slice(8)) === 1 || t.includes('Staff Mess A: এ মাসের ভাড়া')) && !t.includes('Staff Mess B: এ মাসের ভাড়া'),
+          `${size}: the residential overview lists every flat and what needs attention (contract, crowding, unpaid rent)`) }
+      await fits('the residential overview')
+      await page.locator('.duty-list .linkish', { hasText: 'Staff Mess A: চুক্তি' }).click()
+      await page.waitForURL(/\/residential\/rent$/, { timeout: 8000 }).catch(() => {})
+      { const sel = page.locator('.hub-top select').first()
+        check(/\/residential\/rent$/.test(page.url()) && await sel.inputValue().catch(() => '') === 'rs1' && await sel.locator('option').count() === 2,
+          `${size}: a line of the overview opens that flat's page, and the picker holds residences only`) }
+      await fits('a residential flat page')
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
         check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),

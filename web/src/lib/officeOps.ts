@@ -205,6 +205,18 @@ export const ops = {
     const { data, error } = await supabase.from('office_residents').select('*').eq('property_id', property).is('archived_at', null).order('since'); fail(error)
     return (data ?? []) as Resident[]
   },
+  /** Everyone living in the given places, in one call (row-level security still decides what comes back). */
+  residentsOf: async (properties: string[]) => {
+    if (!properties.length) return [] as Resident[]
+    const { data, error } = await supabase.from('office_residents').select('*').in('property_id', properties).is('archived_at', null); fail(error)
+    return (data ?? []) as Resident[]
+  },
+  /** The bills of one month for the given places, in one call. `month` = 'YYYY-MM-01'. */
+  billsOfMonth: async (properties: string[], month: string) => {
+    if (!properties.length) return [] as Bill[]
+    const { data, error } = await supabase.from('office_bills').select('*').in('property_id', properties).eq('bill_month', month).is('archived_at', null); fail(error)
+    return (data ?? []) as Bill[]
+  },
   residentSave: async (row: Record<string, unknown>, id?: string) => {
     const q = id ? supabase.from('office_residents').update(row).eq('id', id) : supabase.from('office_residents').insert(row)
     const { error } = await q; fail(error)
