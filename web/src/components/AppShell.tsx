@@ -47,7 +47,7 @@ export const GROUPS: Group[] = [
     { bn: '', en: '', items: [
       { to: '/app/staff', icon: 'grid', bn: 'আমার প্যানেল', en: 'My panel', perms: null },
       { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
-      { to: '/app/workforce/attendance', icon: 'cal', bn: 'আমার উপস্থিতি', en: 'My attendance', perms: null },
+      // My attendance is already linked in the personal menu above; keep one primary sidebar entry.
       { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
       { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
       { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
