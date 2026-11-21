@@ -13,27 +13,27 @@ export type Contrast = 'system' | 'more'
 export type Motion = 'system' | 'reduce'
 /** Bangla typefaces the person can choose from (Google Fonts). The first one ships with the page. */
 export const FONTS = [
-  { key: 'hind', family: 'Hind Siliguri', label: 'হিন্দ শিলিগুড়ি', css: '' },
+  { key: 'baloo', family: 'Baloo Da 2', label: 'বালু দা', css: '' },
+  { key: 'hind', family: 'Hind Siliguri', label: 'হিন্দ শিলিগুড়ি', css: 'Hind+Siliguri:wght@400;500;600;700' },
   { key: 'noto', family: 'Noto Sans Bengali', label: 'নোটো সান্স বাংলা', css: 'Noto+Sans+Bengali:wght@400;500;600;700' },
   { key: 'anek', family: 'Anek Bangla', label: 'অনেক বাংলা', css: 'Anek+Bangla:wght@400;500;600;700' },
-  { key: 'baloo', family: 'Baloo Da 2', label: 'বালু দা', css: 'Baloo+Da+2:wght@400;500;600;700' },
   { key: 'tiro', family: 'Tiro Bangla', label: 'তিরো বাংলা (বইয়ের মতো)', css: 'Tiro+Bangla' },
 ] as const
 export type FontKey = typeof FONTS[number]['key']
-const okFont = (v: string): FontKey => FONTS.find(f => f.key === v)?.key ?? 'hind'
+const okFont = (v: string): FontKey => FONTS.find(f => f.key === v)?.key ?? 'baloo'
 function applyFont(key: FontKey) {
   const f = FONTS.find(x => x.key === key) ?? FONTS[0]
   const root = document.documentElement
-  if (f.key === 'hind') { root.style.removeProperty('--font-body'); root.style.removeProperty('--font-display'); return }
+  if (f.key === 'baloo') { root.style.removeProperty('--font-body'); root.style.removeProperty('--font-display'); return }
   const id = 'xzm-font-' + f.key
   if (!document.getElementById(id)) {
     const l = document.createElement('link'); l.id = id; l.rel = 'stylesheet'
     l.href = `https://fonts.googleapis.com/css2?family=${f.css}&display=swap`
     document.head.appendChild(l)
   }
-  // Hind Siliguri stays as the fallback, so text is readable while (or if) the new font does not load.
-  root.style.setProperty('--font-body', `"Inter","${f.family}","Hind Siliguri",system-ui,"Segoe UI",Roboto,sans-serif`)
-  root.style.setProperty('--font-display', `"${f.family}","Hind Siliguri","Inter",system-ui,sans-serif`)
+  // Baloo Da 2 (shipped with the page) stays as the fallback, so text is readable while (or if) the new font does not load.
+  root.style.setProperty('--font-body', `"Inter","${f.family}","Baloo Da 2",system-ui,"Segoe UI",Roboto,sans-serif`)
+  root.style.setProperty('--font-display', `"${f.family}","Baloo Da 2","Inter",system-ui,sans-serif`)
 }
 
 type Prefs = { lang: Lang; theme: Theme; font: FontKey; setLang: (l: Lang) => void; setTheme: (t: Theme) => void; setFont: (f: FontKey) => void
@@ -53,7 +53,7 @@ function mark(name: string, value: string, dflt: string) {
 export function PrefsProvider({ children }: PropsWithChildren) {
   const [lang, setLangS] = useState<Lang>(() => (read('lang', 'bn') === 'en' ? 'en' : 'bn'))
   const [theme, setThemeS] = useState<Theme>(() => { const t = read('theme', 'system'); return t === 'dark' || t === 'light' ? t : 'system' })
-  const [font, setFontS] = useState<FontKey>(() => okFont(read('font', 'hind')))
+  const [font, setFontS] = useState<FontKey>(() => okFont(read('font', 'baloo')))
   useEffect(() => { applyFont(font) }, [font])
   const setFont = useCallback((f: FontKey) => { setFontS(f); write('font', f) }, [])
   useEffect(() => { document.documentElement.lang = lang }, [lang])
