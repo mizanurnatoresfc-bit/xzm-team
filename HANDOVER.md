@@ -673,4 +673,4 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   has **রিপোর্টের ছবি** (`lib/reportImage.ts`): one PNG of the day — report IDs, merchant cash payments, expenses with "বিলের ছবি" / "অটো <voucher no>" /
   "বিল/ভাউচার নেই", bank deposits with slip state, totals from `da_center_overview`, due/fund. Shares through the phone's share sheet (WhatsApp) or downloads.
 - Tests: `99…_dynamic_voucher.sql` (22 assertions); whole suite 2175 pass locally.
-- **Live:** not applied yet — waits for the owner's yes. Until then the settings card shows the default and saving it is refused; the report picture works without it.
+- **Live:** migration applied on Supabase 21 Nov as `20261121202903 dynamic_voucher` (owner said yes first; all 5 function bodies equal the tested file by hash; the setting is at its default, so numbering is unchanged). The site gets the card and the picture button when the pull request is merged to `main`.
