@@ -11,6 +11,7 @@ import { da, dateBn, num, taka, timeBn, todayDhaka, addDays, type Category, type
 import { supabase } from '../../lib/supabase'
 import { printVoucher } from '../../lib/voucher'
 import { downloadVoucherPng } from '../../lib/voucherImage'
+import { shareReportPng } from '../../lib/reportImage'
 import { AccountsShell, Badge, ErrorNote, Field, StatusBadge, useLoad, useToast } from './ui'
 
 type Tab = 'overview' | 'reports' | 'expenses' | 'merchant' | 'bank' | 'due' | 'staff' | 'transport' | 'vouchers' | 'missing' | 'history' | 'new'
@@ -78,7 +79,7 @@ export function AccountsCenter() {
       <nav className="da-tabs ac-tabs no-print" aria-label="হিসাব কেন্দ্রের অংশ">{TABS.filter(([k]) => k !== 'new' || canCreate).map(([k, l]) =>
         <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => go(k)}>{l}</button>)}</nav>
 
-      {tab === 'overview' && <Overview rows={hub ? rows.filter(r => r.id === hub) : rows} loading={ov.loading} date={date} />}
+      {tab === 'overview' && <Overview rows={hub ? rows.filter(r => r.id === hub) : rows} loading={ov.loading} date={date} cats={cats} />}
       {(tab === 'expenses' || tab === 'staff' || tab === 'transport' || tab === 'vouchers' || tab === 'missing') &&
         <ExpenseList kind={tab} hub={hub} from={tab === 'missing' ? addDays(date, -30) : from} to={date} setFrom={setFrom} cats={cats} hubs={hubs} />}
       {tab === 'reports' && <ReportList hub={hub} from={from} to={date} setFrom={setFrom} hubs={hubs} />}
@@ -92,7 +93,7 @@ export function AccountsCenter() {
 }
 
 // ---- one card per hub: report, expenses, payments, bank, slips, vouchers, times ----
-function Overview({ rows, loading, date }: { rows: CenterRow[]; loading: boolean; date: string }) {
+function Overview({ rows, loading, date, cats }: { rows: CenterRow[]; loading: boolean; date: string; cats: Category[] }) {
   if (loading && !rows.length) return <p className="muted">লোড হচ্ছে…</p>
   if (!rows.length) return <p className="muted">দেখার মতো কোনো হাব নেই।</p>
   return <div className="ac-hubs">{rows.map(r => <section key={r.id} className="panel ac-hub" data-hub={r.id}>
@@ -123,7 +124,8 @@ function Overview({ rows, loading, date }: { rows: CenterRow[]; loading: boolean
       </ul>
       <div className="row no-print"><Link className="btn-ghost" to={`/app/accounts/daily/${r.session_id}`}>খাতা খুলুন →</Link>
         <button type="button" className="secondary sm" onClick={() => topSheet(r, date)}><Icon name="print" size={15} />টপ শিট</button>
-        <button type="button" className="secondary sm" onClick={() => void shareTop(r, date)}><Icon name="wa" size={15} />শেয়ার</button></div>
+        <button type="button" className="secondary sm" onClick={() => void shareTop(r, date)}><Icon name="wa" size={15} />শেয়ার</button>
+        <ReportPngButton row={r} cats={cats} /></div>
     </> : <p className="muted small">এই দিনে হাবের হিসাব খাতা খোলা হয়নি।{r.bills_waiting > 0 ? ` কর্মীর ${num(r.bills_waiting)}টি বিল অপেক্ষায়।` : ''}</p>}
   </section>)}</div>
 }
@@ -156,6 +158,21 @@ async function shareTop(r: CenterRow, date: string) {
   const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string }) => Promise<void> }
   try { if (nav.share) { await nav.share({ title: 'টপ শিট', text }); return } } catch { return }
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+}
+
+/** The day's report sheet as one picture: every line, and for each expense its bill photo or automatic voucher. */
+function ReportPngButton({ row, cats }: { row: CenterRow; cats: Category[] }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<unknown>(null)
+  const go = async () => {
+    if (!row.session_id) return
+    setBusy(true); setErr(null)
+    try { await shareReportPng(await da.sheet(row.session_id), row, cats) } catch (e) { setErr(e) } finally { setBusy(false) }
+  }
+  return <>
+    <button type="button" className="secondary sm" disabled={busy} onClick={() => void go()}><Icon name="file" size={15} />{busy ? 'তৈরি হচ্ছে…' : 'রিপোর্টের ছবি'}</button>
+    {err != null && <ErrorNote error={err} />}
+  </>
 }
 
 // ---- expense lists: all, staff, transport, vouchers, missing vouchers ----

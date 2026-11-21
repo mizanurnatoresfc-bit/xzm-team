@@ -4,6 +4,7 @@ import { autoCode, org } from '../../lib/hr'
 import { AccountsShell, Field, ErrorNote, Badge, Modal, useLoad, useToast } from './ui'
 import { BankChargeCard, LayoutCard } from './sheetTools'
 import { HubCollectorsCard } from './sheetFlow'
+import { VoucherCard } from './voucherSettings'
 
 // Zonal / Accounts settings for Daily Accounts. Every change is validated and audited in the database.
 export function AccountsSettings() {
@@ -79,6 +80,8 @@ export function AccountsSettings() {
         <button onClick={() => void save(['da.reference_setup', 'da.bill_upload', 'da.ocr'])}>সেভ</button></section>
     </div>
 
+    <VoucherCard value={st.data?.['da.voucher']} billOver={s['da.bill_upload'].required_over}
+      onSave={async v => { set('da.voucher', v); setErr(null); try { await da.configure('da.voucher', v); toast('ভাউচারের নিয়ম সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />
     <div className="da-grid2">
       <RefPeopleCard list={s['da.reference_people'] ?? []}
         onSave={async r => { set('da.reference_people', r); setErr(null); try { await da.configure('da.reference_people', r); toast('রেফারেন্স তালিকা সংরক্ষিত'); await st.reload() } catch (e) { setErr(e) } }} />

@@ -179,7 +179,13 @@ export type DaSettings = {
   'da.require_assignment': boolean
   'da.layout'?: Layout
   'da.bank_charge'?: BankCharge
+  /** Expense voucher number format + the automatic voucher for an expense with no bill (closing one's part / submitting). */
+  'da.voucher'?: VoucherSetting
 }
+
+export type VoucherSetting = { prefix: string; date: 'none' | 'YYMM' | 'YYYYMM' | 'YYMMDD'; digits: number
+  reset: 'never' | 'monthly' | 'daily'; per_hub: boolean; hub_code: boolean; auto_on_submit: boolean }
+export const VOUCHER_DEFAULT: VoucherSetting = { prefix: 'V-', date: 'YYMM', digits: 5, reset: 'never', per_hub: false, hub_code: false, auto_on_submit: true }
 
 export type FixedExpense = { name: string; category: string; kind?: 'transport' | 'employee'; amount?: number }
 
