@@ -21,7 +21,7 @@ export function MyProfileComplete() {
   const { toast, node } = useToast()
   const me = useLoad(() => hrReq.myEmployee(), [])
   const id = me.data?.id ?? ''
-  const gap = useLoad(() => id ? hr.profileGaps().then(l => l.find(g => g.employee_id === id) ?? null) : Promise.resolve(null), [id])
+  const gap = useLoad(() => id ? hr.myProfileGap(id) : Promise.resolve(null), [id])
   const files = useLoad(() => id ? docs.list(id) : Promise.resolve([]), [id])
   const [form, setForm] = useState(false)
   const [busy, setBusy] = useState(''); const [err, setErr] = useState('')

@@ -196,6 +196,12 @@ export const hr = {
   missingFields: (id: string) => rpc<string[]>('hr_application_missing_fields', { p_employee: id }),
   /** Everyone the caller may see, with what their profile still lacks for an ID (the ID-create format). */
   profileGaps: (zone: string | null = null, hub: string | null = null) => rpc<ProfileGap[]>('hr_profile_gaps', { p_zone: zone, p_hub: hub }),
+  /** Only the signed-in person's own line (null when they have no staff record). Falls back to the full list where
+   *  `my_profile_gaps` is not on the database yet. */
+  myProfileGap: async (myId: string): Promise<ProfileGap | null> => {
+    try { const l = await rpc<ProfileGap[]>('my_profile_gaps'); return (l ?? [])[0] ?? null }
+    catch { return ((await rpc<ProfileGap[]>('hr_profile_gaps', { p_zone: null, p_hub: null })) ?? []).find(g => g.employee_id === myId) ?? null }
+  },
   submitApplication: (id: string) => rpc<void>('hr_submit_application', { p_employee: id }),
   approveApplication: (id: string, code: string, note: string | null) =>
     rpc<void>('hr_approve_application', { p_employee: id, p_employee_code: code, p_note: note }),

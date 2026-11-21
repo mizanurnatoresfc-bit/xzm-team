@@ -55,14 +55,15 @@ export function RoleDashboards() {
       </section>
       <section className="panel" id="staff-panel">
         <h2>{L('স্টাফ প্যানেল সাজান', 'Arrange the staff panel')}</h2>
-        <p className="muted small">{L('স্টাফ প্যানেল পাতায় কোন রোল কোন অংশ দেখবে আর কোন ক্রমে। কিছু না সাজালে সবাই পুরো পাতা দেখবেন। কারও একাধিক রোল থাকলে যেকোনো রোলে রাখা অংশ দেখাবে।',
-          'Which parts of the staff panel each role sees, and in what order. Nothing set means the whole page. With several roles, a part shows if any of them has it.')}</p>
-        <div className="nv-rows">{(list.data ?? []).filter(r => !r.is_super).map(r => { const cur = staff.data?.[r.role_id] ?? null
+        <p className="muted small">{L('স্টাফ প্যানেল পাতায় কোন রোল কোন অংশ দেখবে আর কোন ক্রমে। কিছু না সাজালে সবাই পুরো পাতা দেখবেন। কারও একাধিক রোল থাকলে যেকোনো রোলে রাখা অংশ দেখাবে; কোনো একটি রোল পুরো পাতায় থাকলে পুরো পাতাই দেখাবে। যাকে আজকের কাজের হিসাব দিতে হয়, তার “আজকের কাজের হিসাব” অংশ লুকানো থাকলেও নিচে দেখাবে।',
+          'Which parts of the staff panel each role sees, and in what order. Nothing set means the whole page. With several roles, a part shows if any of them has it; if any role is on the whole page, the whole page shows. Someone who must give today’s work count still gets that part at the bottom, even when it is hidden.')}</p>
+        <div className="nv-rows">{(list.data ?? []).filter(r => !r.is_super).map(r => { const cur = staff.data?.[r.role_id] ?? null, known = !!staff.data && !staff.error
           return <div key={r.role_id} className="nv-row">
             <span className="tx"><b>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</b>
-              <span>{cur ? cur.map(k => staffSectionName(k, lang)).join(' · ') : L('পুরো পাতা (স্ট্যান্ডার্ড)', 'Whole page (standard)')}</span></span>
+              <span>{!known ? '—' : cur ? cur.map(k => staffSectionName(k, lang)).join(' · ') : L('পুরো পাতা (স্ট্যান্ডার্ড)', 'Whole page (standard)')}</span></span>
             <span className="end">{cur ? <Badge tone="info">{L(`${n(cur.length)}টি অংশ`, `${cur.length} parts`)}</Badge> : null}
-              <button type="button" className="secondary sm" data-staff-arrange={r.code} onClick={() => setStaffEdit(r)}>{L('সাজান', 'Arrange')}</button></span>
+              <button type="button" className="secondary sm" data-staff-arrange={r.code} disabled={!known}
+                title={known ? undefined : L('আগে বর্তমান সাজানো লোড হতে হবে', 'The current setting has to load first')} onClick={() => setStaffEdit(r)}>{L('সাজান', 'Arrange')}</button></span>
           </div> })}</div>
         {staff.error ? <p className="da-error">{dashboardFriendly(staff.error)}</p> : null}
       </section>
@@ -82,7 +83,7 @@ export function RoleDashboards() {
         <ul className="muted small">{PANELS.map(([code]) => <li key={code}><strong>{panelLabel(code, lang)}</strong> — {panelNote(code, lang)}</li>)}</ul>
       </section>
     </>}
-    {staffEdit && <StaffEditor role={staffEdit} current={staff.data?.[staffEdit.role_id] ?? null} onClose={() => setStaffEdit(null)}
+    {staffEdit && staff.data && !staff.error && <StaffEditor role={staffEdit} current={staff.data?.[staffEdit.role_id] ?? null} onClose={() => setStaffEdit(null)}
       onDone={() => { setStaffEdit(null); toast(L('স্টাফ প্যানেল সেভ হয়েছে', 'Staff panel saved')); void staff.reload() }} />}
     {pages && <PagesEditor role={pages} onClose={() => setPages(null)} onDone={() => { setPages(null); toast(L('পাতার তালিকা সেভ হয়েছে', 'Pages saved')); void menus.reload() }} />}
     {edit && <LayoutEditor role={edit} onClose={() => setEdit(null)}

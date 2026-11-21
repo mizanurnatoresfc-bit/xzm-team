@@ -599,3 +599,20 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `99zzzzzzzzzzzzzzzzzzzzz_notice_workflow.sql` (63 assertions); whole suite 2086 passed on local PostgreSQL (not real Supabase).
 - Not done / open: the Edge Function `push-send` still sends every push at the same (high) priority — it was not changed; a settings page for the workflow numbers (use `system_settings` for now); choosing who approves each kind of request is still by permission, not a configurable chain.
 - **To go live:** apply the migration on Supabase, then merge to `main`.
+
+## 2026-11-21 — স্টাফ প্যানেল অডিট: fixes 1–8
+- **Web:** `StaffPanel.tsx`
+  - A failed 60-second refresh no longer removes the "আজকের কাজের হিসাব" card, which used to lose what was being typed.
+  - Someone who must give today's numbers (`ops_expected`) gets that card at the bottom even when their role's layout hides it. The returns tile is greyed out when the card is not on the page.
+- **Web:** `RoleDashboards.tsx`. The staff panel "সাজান" buttons stay disabled until the current setting has loaded, so a failed load can no longer overwrite a role's layout. The help text now explains the merge rule.
+- **Web:** `lib/staffPanel.ts`. The editor drops section keys it does not know.
+- **Web:** `hr.myProfileGap()` uses the new `my_profile_gaps()`. If that function is not on the database yet, it falls back to the old full list, so the site works before the migration is applied.
+- Migration `20261121000300_staff_panel_audit_fixes.sql` (**not yet applied on Supabase**):
+  - `att_self_decide`: approving a mark on a day already on the register as leave, holiday or weekly off now succeeds instead of failing the whole batch, and never overwrites that day.
+  - `att_self_mark`: the reason is capped at 500 characters. Managers are notified only for a new mark, a change of kind, or a mark given again after it was returned.
+  - `staff_panel_sections`: if any active role is on the standard page, the whole page shows. Inactive or archived roles are ignored. It uses `da_today()`.
+  - New `my_profile_gaps()`: returns the caller's own line only.
+  - `in_zone_group` and `zone_contacts`: only an active employee record counts. `zone_contacts` picks the newest record.
+- **Tests:** `99zzzzzzzzzzzzzzzzzzzzzzzz_staff_panel_audit.sql` (17 assertions). The whole suite passes with 2118 assertions on local PostgreSQL (not real Supabase). Typecheck, build and the smoke tests pass.
+- **Not done (low items from the audit):** reducing the number of requests on the staff panel load, the lock on the zone note limit, and the other low items.
+- **To go live:** apply the migration on Supabase, then merge to `main`.
