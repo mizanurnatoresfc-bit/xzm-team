@@ -883,9 +883,10 @@ select tests.ok(private.wf_remind() >= 0, 'F7: reminders still run');
 select tests.ok(not exists (select 1 from public.notifications where kind = 'workforce' and title = 'অনুমোদনের জন্য অপেক্ষায়'), 'F7: the digest title names the hub');
 
 -- 19 from this module + 4 from 20261118200000_workforce_earlier_dates (wf_book_fill, wf_window_save, wf_window_end, wf_windows)
-select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 23 and count(*) = 23
+-- + 2 from 20261121000400_book_full_month (wf_book_mode, wf_book_full_month_set)
+select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 25 and count(*) = 25
                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'),
-  'all twenty-three public functions are security definer with an empty search path');
+  'all twenty-five public functions are security definer with an empty search path');
 select tests.ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'
                               and (has_function_privilege('anon', p.oid, 'execute') or not has_function_privilege('authenticated', p.oid, 'execute'))), 'anon cannot run any of them; signed-in users can');
 rollback;
