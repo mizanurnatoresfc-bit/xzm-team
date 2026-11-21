@@ -242,6 +242,8 @@ export const ops = {
       p_item_kind: n.itemKind ?? null, p_quantity: n.qty ?? 1, p_note: n.note ?? null, p_urgent: n.urgent ?? false }),
   noticeUpdate: (id: string, status: 'seen' | 'done' | 'rejected', reply: string | null, fixed = false) =>
     rpc<void>('office_notice_update', { p_id: id, p_status: status, p_reply: reply, p_fixed: fixed }),
+  /** One line in the audit log for an export / print; refused (42501) without office.report.export / .print. */
+  logExport: (list: string, format: 'excel' | 'pdf' | 'print', rows: number) => rpc<void>('office_log_export', { p_report: list, p_format: format, p_rows: rows }),
   /** The hub's vehicles with their crew (the fleet's own function decides what the person may see). */
   vehicles: async (hub: string): Promise<HubVehicle[]> => rpc<HubVehicle[]>('fleet_board', { p_hub: hub }),
   upload: async (property: string, file: File) => {

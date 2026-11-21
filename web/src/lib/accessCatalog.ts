@@ -105,8 +105,8 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/office/residential/rent', res: ['office.bill'] },
     { to: '/app/office/residential/bills', codes: ['office.bill.view', 'office.bill.edit'] },
     { to: '/app/office/residential/assets', res: ['office.asset'] },
-    { to: '/app/office/reports', codes: ['office.bill.view'] },
-    { to: '/app/office/residential/reports', codes: ['office.bill.view'] },
+    { to: '/app/office/reports', codes: ['office.bill.view'], res: ['office.report'] },
+    { to: '/app/office/residential/reports', codes: ['office.bill.view'], res: ['office.report'] },
   ] },
   { key: 'fleet', icon: 'truck', bn: 'গাড়ি', en: 'Vehicles', db: ['vehicle'], subs: [
     { to: '/app/fleet', res: ['vehicle.vehicle', 'vehicle.holder', 'vehicle.log', 'vehicle.khoraki', 'vehicle.report', 'vehicle.requisition', 'vehicle.document', 'vehicle.settings'] },

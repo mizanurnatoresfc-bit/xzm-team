@@ -7,6 +7,7 @@ import { Field, Stat, Badge, useLoad } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { scopePath, type OfficeScope, type Property } from '../../lib/office'
 import { BILL_KIND, daysLeft, ops, opsFriendly, type Bill, type BillKind } from '../../lib/officeOps'
+import { useOfficeOutput } from './useOutput'
 
 const KINDS: BillKind[] = ['rent', 'electricity', 'water', 'gas', 'wifi', 'other']
 const dhaka = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
@@ -16,6 +17,7 @@ type Line = { p: Property; hub: string; by: Record<BillKind, number>; total: num
 export function Reports({ scope, places, hubName, onPick }: { scope: OfficeScope; places: Property[]; hubName: (id: string | null) => string; onPick: (id: string) => void }) {
   const { L, n, lang } = usePrefs()
   const go = useNavigate()
+  const outCosts = useOfficeOutput(`${scope}-costs`), outContracts = useOfficeOutput(`${scope}-contracts`)
   const [month, setMonth] = useState(() => dhaka().slice(0, 7))
   const first = `${month}-01`
   const ids = places.map(p => p.id).sort().join(',')
@@ -54,7 +56,7 @@ export function Reports({ scope, places, hubName, onPick }: { scope: OfficeScope
     </div>
     {bills.error ? <p className="da-error">{opsFriendly(bills.error)}</p> : null}
     <section className="panel">
-      <DataTable<Line> title={`${side} — ${L('মাসিক খরচ', 'monthly costs')} — ${monthName}`} file={`${scope}-costs-${month}`} rows={bills.loading ? null : lines} rowKey={l => l.p.id} phoneView="card"
+      <DataTable<Line> {...outCosts} title={`${side} — ${L('মাসিক খরচ', 'monthly costs')} — ${monthName}`} file={`${scope}-costs-${month}`} rows={bills.loading ? null : lines} rowKey={l => l.p.id} phoneView="card"
         onRowClick={l => open(l.p.id, l.rentMissing ? 'rent' : 'bills')}
         empty={<p className="muted">{L('এই দিকে কোনো জায়গা নেই।', 'No places on this side.')}</p>}
         cols={[
@@ -69,7 +71,7 @@ export function Reports({ scope, places, hubName, onPick }: { scope: OfficeScope
     </section>
     <section className="panel">
       <h2>{L('চুক্তির মেয়াদ (৯০ দিনের মধ্যে / শেষ)', 'Contracts ending within 90 days / ended')} <span className="count-pill">{n(contracts.length)}</span></h2>
-      <DataTable title={`${side} — ${L('চুক্তির মেয়াদ', 'contracts')}`} file={`${scope}-contracts`} rows={contracts} rowKey={c => c.p.id} views={['table', 'list']}
+      <DataTable {...outContracts} title={`${side} — ${L('চুক্তির মেয়াদ', 'contracts')}`} file={`${scope}-contracts`} rows={contracts} rowKey={c => c.p.id} views={['table', 'list']}
         onRowClick={c => open(c.p.id, 'rent')} empty={<p className="muted">{L('৯০ দিনের মধ্যে কোনো চুক্তি শেষ হচ্ছে না।', 'No contract ends within 90 days.')}</p>}
         cols={[
           { key: 'name', label: L('জায়গা', 'Place'), primary: true, value: c => c.p.name },

@@ -32,7 +32,7 @@ const VIEW_ICON: Record<ViewKind, string> = { table: 'table', card: 'grid', list
 
 /** One list, several views: table, cards or compact lines of the same rows — with search, sorting, quick filters,
  *  pages, mark / unmark, print, Excel and PDF. Search, filters and sorting also decide what is printed or exported. */
-export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, empty, file, prefKey, views = ['table', 'card', 'list'], search = true, bulk, phoneView }: {
+export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, empty, file, prefKey, views = ['table', 'card', 'list'], search = true, bulk, phoneView, canExport = true, canPrint = true, beforeOutput }: {
   title: string; rows: T[] | null | undefined; cols: Array<Col<T>>; rowKey: (r: T) => string; onRowClick?: (r: T) => void; empty?: ReactNode; file?: string
   /** Name under which this list's view choices are remembered (default: `file`). */
   prefKey?: string; views?: ViewKind[]
@@ -41,6 +41,10 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   bulk?: (marked: T[], clear: () => void) => ReactNode
   /** The view a phone starts in, until the person picks one (a wide table is a long scroll on a phone). */
   phoneView?: ViewKind
+  /** false hides Excel and PDF / Print (the page decides from the person's permissions). Default: shown. */
+  canExport?: boolean; canPrint?: boolean
+  /** Called before an Excel / PDF / print; return false (or throw) to stop it — e.g. to log it in the database first. */
+  beforeOutput?: (format: 'excel' | 'pdf' | 'print', rows: number) => Promise<boolean> | boolean
 }) {
   const { L, n } = usePrefs()
   const id = prefKey ?? file
@@ -107,6 +111,10 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   const toggleMark = (k: string, on: boolean) => { const s = new Set(mk); if (on) s.add(k); else s.delete(k); setMarked(s) }
   const show = (c: Col<T>, r: T): ReactNode => c.render ? c.render(r) : String(cell(c, r) || '—')
   const titleCol = cols.find(c => c.primary) ?? cols.find(c => !c.noExport) ?? cols[0]
+  async function out(format: 'excel' | 'pdf' | 'print', go: () => void) {
+    if (beforeOutput) { try { if (await beforeOutput(format, pick().length) === false) return } catch { return } }
+    go()
+  }
   function excel() {
     const data = pick().map((r, i) => [i + 1, ...exp.map(c => cell(c, r))])
     download(xlsxBlob(`XZM-TEAM — ${title}`, `${scope()} · ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}`, ['S/L', ...exp.map(c => c.label)], data),
@@ -142,9 +150,9 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
         <button type="button" className={`tb${mk.size ? ' on' : ''}`} onClick={() => setMarked(mk.size ? new Set() : new Set(list.map(rowKey)))}
           title={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')} aria-label={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')}>
           <Icon name={mk.size ? 'uncheck' : 'checkall'} size={16} /><span className="tl">{mk.size ? L('তুলুন', 'Unmark') : L('সব', 'All')}</span></button>
-        <button type="button" className="tb" onClick={() => print(false)} disabled={!list.length} title={L('প্রিন্ট', 'Print')} aria-label={L('প্রিন্ট', 'Print')}><Icon name="print" size={16} /><span className="tl">{L('প্রিন্ট', 'Print')}</span></button>
-        <button type="button" className="tb xls" onClick={excel} disabled={!list.length} title="Excel" aria-label="Excel"><Icon name="xls" size={16} /><span className="tl">Excel</span></button>
-        <button type="button" className="tb pdf" onClick={() => print(true)} disabled={!list.length} title="PDF" aria-label="PDF"><Icon name="pdf" size={16} /><span className="tl">PDF</span></button>
+        {canPrint && <button type="button" className="tb" onClick={() => void out('print', () => print(false))} disabled={!list.length} title={L('প্রিন্ট', 'Print')} aria-label={L('প্রিন্ট', 'Print')}><Icon name="print" size={16} /><span className="tl">{L('প্রিন্ট', 'Print')}</span></button>}
+        {canExport && <button type="button" className="tb xls" onClick={() => void out('excel', excel)} disabled={!list.length} title="Excel" aria-label="Excel"><Icon name="xls" size={16} /><span className="tl">Excel</span></button>}
+        {canExport && <button type="button" className="tb pdf" onClick={() => void out('pdf', () => print(true))} disabled={!list.length} title="PDF" aria-label="PDF"><Icon name="pdf" size={16} /><span className="tl">PDF</span></button>}
       </div>
     </div>
     {bulk && mk.size > 0 && <div className="dv-bulk no-print" role="region" aria-label={L('চিহ্নিত সারির কাজ', 'Actions for marked rows')}>

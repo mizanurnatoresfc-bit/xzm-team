@@ -10,6 +10,7 @@ import { Badge, Stat, useLoad } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { scopePath, type Property } from '../../lib/office'
 import { daysLeft, ops, opsFriendly, type Bill, type Resident } from '../../lib/officeOps'
+import { useOfficeOutput } from './useOutput'
 
 type Tone = 'ok' | 'warn' | 'bad' | 'info' | 'neutral'
 const thisMonth = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' }).slice(0, 8) + '01'
@@ -21,6 +22,7 @@ export function ResidentialOverview({ flats, hubName, onPick }: { flats: Propert
   const { can } = useAuth()
   const { L, n } = usePrefs()
   const go = useNavigate()
+  const output = useOfficeOutput('residential-overview')
   const ids = flats.map(f => f.id).sort().join(',')
   const month = thisMonth()
   const seeBills = can('office.bill.view')
@@ -84,7 +86,7 @@ export function ResidentialOverview({ flats, hubName, onPick }: { flats: Propert
       {todo.length > 12 && <p className="muted small">{L(`আরও ${n(todo.length - 12)}টি — নিচের তালিকায় দেখুন`, `${todo.length - 12} more — see the list below`)}</p>}
     </section>
     <section className="panel">
-      <DataTable<Row> title={L('সব আবাসিক ফ্ল্যাট', 'All residences')} file="residential-overview" rows={rows} rowKey={r => r.p.id} phoneView="card"
+      <DataTable<Row> {...output} title={L('সব আবাসিক ফ্ল্যাট', 'All residences')} file="residential-overview" rows={rows} rowKey={r => r.p.id} phoneView="card"
         onRowClick={r => open(r.p.id, 'people')}
         cols={[
           { key: 'name', label: L('ফ্ল্যাট', 'Residence'), primary: true, value: r => r.p.name,

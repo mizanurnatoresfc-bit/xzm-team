@@ -16,6 +16,7 @@ import { ResidentialOverview } from './Residential'
 import { askText, askWith } from './askText'
 import { HistoryModal } from './History'
 import { Reports } from './Reports'
+import { useOfficeOutput } from './useOutput'
 import { POWER } from '../../lib/officeOps'
 import { Bills, LendModal, NoticeModal, Notices, People, Power, Rent, roomSplit, Security, useLoans, Zone, type Ctx } from './OfficeOps'
 import { useOrg } from '../hr/common'
@@ -194,6 +195,7 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
   const o = useOrg()
   const { toast, node } = useToast()
   const res = scope === 'residential'
+  const output = useOfficeOutput(res ? 'residential-places' : 'office-places')
   // Office adds offices and garages; Residential adds residences. An edit keeps the row's own kind in the list even if it is the other side's.
   const kindsHere = (Object.keys(PLACE_KIND) as PlaceKind[]).filter(k => inScope(scope, { kind: k }))
   type F = Partial<Property> & { id?: string }
@@ -265,7 +267,7 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
           <span style={{ flex: 1, minWidth: 0 }}><b>{x.name}</b> <span className="muted small">{[x.hub_id ? o.names.hub[x.hub_id] : null, x.archive_reason].filter(Boolean).join(' · ')}</span></span>
           {canEdit && <button className="secondary sm" onClick={() => void restore(x)}><Icon name="back" size={14} />{L('ফেরত আনুন', 'Restore')}</button>}</li>)}</ul>}
     </div>}
-    <DataTable<Property> title={title} file={res ? 'residential-places' : 'office-places'} rows={list} rowKey={r => r.id}
+    <DataTable<Property> {...output} title={title} file={res ? 'residential-places' : 'office-places'} rows={list} rowKey={r => r.id}
       bulk={canEdit || canArchive ? (rows, clear) => <>
         {canEdit && <button className="secondary sm" onClick={() => void bulkDueDay(rows, clear)}><Icon name="cal" size={14} />{L('ভাড়ার তারিখ বসান', 'Set rent day')}</button>}
         {canArchive && <button className="secondary sm" onClick={() => void bulkArchive(rows, clear)}><Icon name="trash" size={14} />{L('সরান', 'Remove')}</button>}</> : undefined}
@@ -446,6 +448,7 @@ function Assets({ ctx }: { ctx: Ctx }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const [rep, setRep] = useState<{ a: Asset | null; kind: 'broken' | 'need' } | null>(null)
   const [lend, setLend] = useState<Asset | null>(null)
+  const output = useOfficeOutput(ctx.p.kind === 'residence' ? 'residential-assets' : 'office-assets')
   const loans = useLoans(ctx.p.id)
   const mineOut = loans.list.filter(l => l.from_property_id === ctx.p.id); const mineIn = loans.list.filter(l => l.to_property_id === ctx.p.id)
   const canRep = can('office.notice.create')
@@ -487,7 +490,7 @@ function Assets({ ctx }: { ctx: Ctx }) {
     </section>
     <section className="panel">
       {err && !f && <p className="da-error">{err}</p>}
-      <DataTable<Asset> title={`${L('রিসোর্স', 'Resources')} — ${ctx.p.name}`} file={`office-assets-${ctx.p.code}`} rows={rows} rowKey={r => r.id}
+      <DataTable<Asset> {...output} title={`${L('রিসোর্স', 'Resources')} — ${ctx.p.name}`} file={`office-assets-${ctx.p.code}`} rows={rows} rowKey={r => r.id}
         empty={<p className="muted">{L('কিছু নেই।', 'Nothing here.')}</p>}
         cols={[
           { key: 'kind', label: L('ধরন', 'Kind'), value: r => L(ASSET_KIND[r.kind]?.[0] ?? r.kind, ASSET_KIND[r.kind]?.[1] ?? r.kind) },

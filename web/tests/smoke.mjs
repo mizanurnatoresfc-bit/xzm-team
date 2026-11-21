@@ -56,7 +56,7 @@ const officePlaces = [place('of1', 'Natore Hub Office', 'office', {}),
   place('rs1', 'Staff Mess A', 'residence', { rent: 8000, rent_due_day: 1, capacity: 2, contract_from: inDays(-345), contract_to: inDays(20) }),
   place('rs2', 'Staff Mess B', 'residence', { rent: 6000, rent_due_day: 1, capacity: 4, contract_from: inDays(-30), contract_to: inDays(335) })]
 const officeGone = place('rs9', 'Old Mess C', 'residence', { archived_at: '2026-11-01T00:00:00Z', archive_reason: 'ছেড়ে দেওয়া হয়েছে' })
-const officePatches = []
+const officePatches = [], officeLogs = []
 const officeResidents =['e01', 'e02', 'e03'].map((e, i) => ({ id: `or${i}`, property_id: 'rs1', room_id: null, employee_id: e, since: '2026-10-01', note: null, archived_at: null }))
 const officeBills = [{ id: 'ob1', property_id: 'rs2', kind: 'rent', bill_month: dhakaToday.slice(0, 8) + '01', amount: 6000, paid_on: dhakaToday, method: 'cash', txn_id: null, payee: null, payee_phone: null,
   units: null, has_memo: true, memo_file: null, memo_no: null, proof_file: null, da_expense_id: null, note: null, created_by_name: 'Owner', created_at: dhakaToday + 'T04:00:00Z', archived_at: null }]
@@ -347,6 +347,7 @@ try {
       if (u.includes('rpc/hr_correct_employee_code')) { recoded.push(r.request().postDataJSON()); return j('5555') }
       if (u.includes('rpc/my_mobile_set')) { mobiles.push(r.request().postDataJSON()); return j('01711000000') }
       if (u.includes('rpc/my_employee_id')) return j(asEmployee ? 'e01' : null)
+      if (u.includes('rpc/office_log_export')) { officeLogs.push(r.request().postDataJSON()); return j(null) }
       if (u.includes('/rpc/')) return j(null)
       if (u.includes('/rest/v1/leave_types')) return j([{ id: 'lt1', code: 'CL', name: 'Casual leave', name_bn: 'নৈমিত্তিক ছুটি', is_paid: true, annual_quota: 10, status: 'active' }])
       if (u.includes('/rest/v1/leave_requests') && u.includes('status=eq.approved')) return j([{ employee_id: 'e03' }])
@@ -741,6 +742,20 @@ try {
       await page.locator('.oo-gone button', { hasText: 'ফেরত আনুন' }).click(); await page.waitForTimeout(300)
       check(await page.locator('.oo-gone').innerText().then(t => t.includes('Old Mess C')).catch(() => false) && officePatches.some(p => p.u.includes('id=eq.rs9') && p.body.archived_at === null),
         `${size}: a removed residence is listed and restored`)
+      // export / print: logged in the database first, and shown only to roles that may
+      officeLogs.length = 0
+      await page.locator('.list-tools .tb.xls').first().click(); await page.waitForTimeout(400)
+      check(officeLogs.length === 1 && officeLogs[0].p_report === 'residential-places' && officeLogs[0].p_format === 'excel' && officeLogs[0].p_rows === 2,
+        `${size}: an Excel export of the residential list is written to the audit log first`)
+      permsNow = ['office.property.view']
+      await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.list-tools')
+      const tools = async () => [await page.locator('.list-tools .tb.xls').count(), await page.locator('.list-tools .tb.pdf').count(), await page.locator('.list-tools .tb[aria-label="প্রিন্ট"]').count()].join(',')
+      { const noneShown = await tools(); permsNow = ['office.property.view', 'office.report.print']
+        await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.list-tools')
+        const printOnly = await tools()
+        check(noneShown === '0,0,0' && printOnly === '0,0,1' && (await page.locator('main').innerText()).includes('Staff Mess A'),
+          `${size}: without office export / print the list still shows but has no Excel, PDF or print; print alone gives print only`) }
+      permsNow = null
       // monthly report: this month's bills by place, the rent still missing, and contracts ending
       await page.goto(`${BASE}/app/office/residential/reports`); await page.waitForSelector('.da-stats')
       await page.locator('table, .dv-cards, .dv-list').first().waitFor({ timeout: 8000 }).catch(() => {})
