@@ -3233,6 +3233,49 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
 .p-hero .p-photo .my-av-up{width:100%;height:100%}
 .p-hero .p-photo .my-av-cam{right:4px;bottom:4px;width:36px;height:36px}
 
+/* ---- company sheets (HR requests → কোম্পানি শিট): the company's own Excel layout, filled from the system ---- */
+.cs-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px}
+.cs-item{display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font-weight:500;min-height:56px}
+.cs-item:hover:not(:disabled){background:var(--primary-50);border-color:var(--primary);color:var(--text)}
+.cs-item.on{border-color:var(--primary);box-shadow:0 0 0 1.5px var(--primary) inset;background:var(--primary-50)}
+.cs-item .qi{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--primary-50);color:var(--primary)}
+.cs-item-t{display:flex;flex-direction:column;min-width:0}.cs-item-t b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.cs-item-t small{color:var(--muted);font-size:.8125rem}
+.cs-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.cs-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}.cs-hub{min-width:200px;flex:0 1 260px}
+.cs-note{margin:6px 0}
+.cs-wrap{overflow:auto;max-height:68vh;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.cs-grid,.cs-map{border-collapse:separate;border-spacing:0;font-size:.875rem;width:max-content;min-width:100%}
+.cs-grid th,.cs-grid td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:6px 9px;white-space:pre-line;max-width:260px;min-width:64px;vertical-align:middle;text-align:left}
+.cs-grid thead th{position:sticky;top:0;z-index:2;background:var(--primary-50);color:var(--text);font-weight:700;text-align:center;white-space:normal}
+.cs-grid thead tr.cs-band th{font-size:.9375rem}.cs-grid thead tr.cs-band th.cs-none{background:var(--surface)}
+.cs-grid thead tr.cs-band + tr th{top:35px}
+.cs-grid td[tabindex]{cursor:text}.cs-grid td[tabindex]:hover,.cs-grid td[tabindex]:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.cs-grid td.cs-empty{background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(245,158,11,.14) 6px 12px)}
+.cs-grid td.cs-typed{background:rgba(37,99,235,.09)}
+.cs-grid td.cs-edit{padding:0}.cs-grid td.cs-edit input{margin:0;border:0;border-radius:0;min-width:140px;width:100%;padding:6px 9px;outline:2px solid var(--primary);outline-offset:-2px}
+.cs-grid .cs-tick{min-width:0;width:34px;text-align:center;position:sticky;left:0;background:var(--surface);z-index:1}.cs-grid thead .cs-tick{z-index:3;background:var(--primary-50)}
+.cs-grid .cs-tick input{width:16px!important;height:16px;margin:0!important;accent-color:var(--primary)}
+.cs-grid tr.cs-out td{color:var(--muted);text-decoration:line-through;background:transparent}
+.cs-mark{margin-top:10px}
+.cs-drop{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1.5px dashed var(--border);border-radius:12px;margin-bottom:12px}
+.cs-tabs{margin-bottom:12px}
+.cs-map th{position:sticky;top:0;z-index:1;background:var(--surface);text-align:left;font-size:.8125rem;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.cs-map td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top;min-width:40px}
+.cs-map td input,.cs-map td select{margin:0;min-width:150px;width:100%}.cs-map td small{display:block;margin-top:2px}
+.cs-map tr.cs-unsure td{background:rgba(245,158,11,.10)}.cs-map tr.cs-new td{background:rgba(37,99,235,.06)}
+.cs-map .cs-btns{white-space:nowrap}
+.cs-map td input,.cs-map td select{padding:6px 8px;min-height:36px;height:auto;font-size:.875rem}
+.cs-map td .da-badge{margin-top:3px}
+/* inside the editor the whole dialog scrolls, not the column list */
+.da-modal .cs-wrap{flex:none;max-height:none;overflow-x:auto;overflow-y:visible}.da-modal .cs-drop,.da-modal .cs-tabs{flex:none}
+@media(max-width:640px){.cs-hub{flex:1 1 100%}.cs-wrap{max-height:60vh}
+  .cs-map thead{display:none}.cs-map,.cs-map tbody{display:block;width:100%;min-width:0}
+  .cs-map tr{display:grid;grid-template-columns:1fr auto;gap:6px;padding:10px 8px;border-bottom:1px solid var(--border)}
+  .cs-map td{border:0;padding:0;min-width:0}.cs-map td:first-child{display:none}
+  .cs-map td:nth-child(3){order:1;grid-column:1/-1}.cs-map td:nth-child(2){order:2}.cs-map td:nth-child(6){order:3}
+  .cs-map td:nth-child(4){order:4;grid-column:1/-1}.cs-map td:nth-child(5){order:5;grid-column:1/-1}.cs-map td:nth-child(5):empty{display:none}
+  .cs-map td input,.cs-map td select{min-width:0}}
+.cs-grid tr.cs-direct-row td.cs-tick{box-shadow:inset 3px 0 0 #2563eb}
 /* =====================================================================
    Home page & theme audit fixes (21 Nov 2026)
    ===================================================================== */

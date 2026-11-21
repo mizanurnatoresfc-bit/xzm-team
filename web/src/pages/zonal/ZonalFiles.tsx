@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
@@ -126,6 +127,7 @@ function Files({ onToast }: { onToast: (m: string) => void }) {
   const [source, setSource] = useState<'' | 'request' | 'system'>('')
   const reg = useLoad(() => manpower.register(zone || null, from, to), [zone, from, to])
   const reqs = useLoad(() => hrReq.list(), [])
+  const nav = useNavigate()
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
   const key = (r: RegisterRow, i: number) => `${r.source}-${r.request_no ?? ''}-${r.employee_id ?? ''}-${r.recorded_at}-${i}`
@@ -203,6 +205,7 @@ function Files({ onToast }: { onToast: (m: string) => void }) {
           <button className="secondary sm" onClick={() => exportFile('transfer')}><Icon name="xls" size={14} />বদলির ফাইল</button>
           <button className="secondary sm" onClick={() => exportFile('status')}><Icon name="xls" size={14} />চালু/বন্ধের ফাইল</button>
           <button className="secondary sm" onClick={() => exportFile('create')}><Icon name="xls" size={14} />নতুন আইডির ফাইল</button>
+          <button className="soft sm" title="কোম্পানির নিজের এক্সেল ফরম্যাটে — শিরোনাম, কলাম আর ক্রম হুবহু" onClick={() => nav('/app/hr/requests?tab=sheets')}><Icon name="xls" size={14} />কোম্পানির ফরম্যাটে</button>
           {can('hr.request.approve') && <button className="sm" disabled={busy} onClick={() => void applyMarked()}><Icon name="check" size={14} />মার্ক করাগুলো সিস্টেমে প্রয়োগ</button>}
           {sel.size > 0 && <button className="secondary sm" onClick={() => setSel(new Set())}>বাছাই মুছুন</button>}</span></div>
       {err && <p className="da-error">{err}</p>}

@@ -1,39 +1,31 @@
-// The company's "New Admin & Rider ID Creat Information" sheet, filled from the staff records:
-// the same 25 columns, in the same order, with the same headings — nothing more.
-import { supabase } from './supabase'
-import { dmy } from './hr'
-import { staffAdmin } from './staffAdmin'
-import { download, xlsxBlob } from './xlsx'
+// The company's "New Admin & Rider ID Creat Information" sheet, filled from the staff records.
+// The layout lives with the other company sheets (HR requests → কোম্পানি শিট), so when the company
+// changes its columns it is changed there, not in code. The layout below is only the fallback for
+// a database that has no such sheet yet.
+import { buildSheet, companySheets, downloadSheet, type CompanySheet, type SheetCol } from './companySheet'
+import { customFields } from './staffAdmin'
 
-export const ID_CREATE_HEADS = ['SL', 'Name', 'Phone Number', 'Alternative Phone Number', 'Hub Name', 'Designation', 'Gmail Only for Admin', 'Blood Group',
-  'Date Of Birth', 'Permament Address', 'Raferance Name & ID', 'NID/ Birth Certificate Number', 'Employee Picture', 'NID Front Picture', 'NID Back Picture',
-  'Basic', 'Phn bill', 'Conveyance', 'Commission', 'Pick & Drop', 'Return', 'Weight Bonus', 'Entry Com.', 'Reason', 'Remarks']
-const FIELDS = ['employee_code', 'full_name', 'mobile', 'cf:alt_mobile', 'hub_name', 'position_name', 'email', 'cf:blood_group', 'date_of_birth', 'permanent_address',
-  'referrer_name', 'referrer_code', 'nid_number', 'basic_salary', 'transport_allowance', 'commission']
+const B = 'blank'
+export const ID_CREATE_COLUMNS: SheetCol[] = [
+  { head: 'SL', src: 'sl', w: 7.4 }, { head: 'Name', src: 'emp:full_name', w: 17.6 }, { head: 'Phone Number', src: 'emp:mobile', w: 26.7 },
+  { head: 'Alternative Phone Number', src: 'emp:cf:alt_mobile|emp:emergency_contact_phone', w: 29.9 }, { head: 'Hub Name', src: 'emp:hub_name' },
+  { head: 'Designation', src: 'emp:position_name' }, { head: 'Gmail Only for Admin', src: 'emp:email', w: 24.4 }, { head: 'Blood Group', src: 'emp:cf:blood_group' },
+  { head: 'Date Of Birth', src: 'emp:date_of_birth' }, { head: 'Permament Address', src: 'emp:permanent_address|emp:present_address', w: 20.7 },
+  { head: 'Raferance Name & ID', src: 'ref', w: 21.4 }, { head: 'NID/ Birth Certificate Number', src: 'emp:nid_number', w: 25.6 },
+  { head: 'Employee Picture', src: 'doc:photo', w: 21.3 }, { head: 'NID Front Picture', src: 'doc:nid_front', w: 19.7 }, { head: 'NID Back Picture', src: 'doc:nid_back', w: 23.7 },
+  { head: 'Basic', src: 'emp:basic_salary' }, { head: 'Phn bill', src: B }, { head: 'Conveyance', src: 'emp:transport_allowance' }, { head: 'Commission', src: 'emp:commission' },
+  { head: 'Pick & Drop', src: B }, { head: 'Return', src: B }, { head: 'Weight Bonus', src: B, w: 18.7 }, { head: 'Entry Com.', src: B }, { head: 'Reason', src: B }, { head: 'Remarks', src: B }]
+type Layout = Pick<CompanySheet, 'name' | 'source' | 'kind' | 'format_id' | 'title' | 'title_at' | 'columns' | 'file_name'>
+const FALLBACK: Layout = { name: 'New Admin & Rider ID Creat Information', source: 'staff', kind: null, format_id: null,
+  title: 'New Admin & Rider ID Creat Format', title_at: null, columns: ID_CREATE_COLUMNS, file_name: 'New-Admin-Rider-ID-Creat-Information.xlsx' }
 
-type Row = Record<string, unknown>
-const text = (v: unknown): string => (v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v))
-const num = (v: unknown): number | string => (typeof v === 'number' ? v : v === null || v === undefined || v === '' ? '' : Number(v))
-
-/** Builds and downloads the sheet for the staff the signed-in person may see (optionally one hub / status). Returns how many rows. */
-export async function downloadIdCreateFile(o: { zone?: string | null; hub?: string | null; status?: string | null; hubName?: string } = {}): Promise<number> {
-  const rows = (await staffAdmin.exportRows(FIELDS, { zone: o.zone, hub: o.hub, status: o.status })) as Row[]
-  if (!rows.length) return 0
-  // which pictures are on file (the pictures themselves cannot go into a sheet)
-  const have = new Map<string, Set<string>>()
-  const ids = rows.map(r => text(r._id)).filter(Boolean)
-  for (let i = 0; i < ids.length; i += 100) {
-    const { data } = await supabase.from('employee_documents').select('employee_id, doc_type').is('archived_at', null).in('doc_type', ['photo', 'nid_front', 'nid_back']).in('employee_id', ids.slice(i, i + 100))
-    for (const d of (data ?? []) as Array<{ employee_id: string; doc_type: string }>) { const s = have.get(d.employee_id) ?? new Set<string>(); s.add(d.doc_type); have.set(d.employee_id, s) }
-  }
-  const pic = (r: Row, t: string) => (have.get(text(r._id))?.has(t) ? 'Yes' : '')
-  const sorted = [...rows].sort((a, b) => text(a.hub_name).localeCompare(text(b.hub_name)) || text(a.full_name).localeCompare(text(b.full_name)))
-  const body = sorted.map((r, i) => [i + 1, text(r.full_name), text(r.mobile), text(r['cf:alt_mobile']), text(r.hub_name), text(r.position_name), text(r.email), text(r['cf:blood_group']),
-    r.date_of_birth ? dmy(text(r.date_of_birth)) : '', text(r.permanent_address),
-    [text(r.referrer_name), r.referrer_code ? `(${text(r.referrer_code)})` : ''].filter(Boolean).join(' '), text(r.nid_number),
-    pic(r, 'photo'), pic(r, 'nid_front'), pic(r, 'nid_back'),
-    num(r.basic_salary), '', num(r.transport_allowance), num(r.commission), '', '', '', '', '', r.employee_code ? `ID ${text(r.employee_code)}` : ''])
-  const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
-  download(xlsxBlob('New Admin & Rider ID Creat Information', `${o.hubName || 'All hubs'} · ${sorted.length} staff · ${day}`, ID_CREATE_HEADS, body), `New-Admin-Rider-ID-Creat-Information-${day}.xlsx`)
-  return sorted.length
+/** Builds and downloads the sheet for the staff the signed-in person may see (optionally one zone / hub / status / search). Returns how many rows. */
+export async function downloadIdCreateFile(o: { zone?: string | null; hub?: string | null; status?: string | null; q?: string | null } = {}): Promise<number> {
+  const [sheets, custom] = await Promise.all([companySheets.list().catch(() => [] as CompanySheet[]), customFields()])
+  const staff = sheets.filter(s => s.source === 'staff')
+  const layout: Layout = staff.find(s => /creat/i.test(s.name)) ?? staff[0] ?? FALLBACK
+  const built = await buildSheet(layout, { zone: o.zone, hub: o.hub, status: o.status, q: o.q, custom })
+  if (!built.rows.length) return 0
+  downloadSheet(layout, built.rows.map(r => r.cells))
+  return built.rows.length
 }

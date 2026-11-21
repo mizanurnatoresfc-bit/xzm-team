@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 // database answers faked, and checks the screens that every change must keep working.
 // Run:  npm run build && npm run test:smoke      (CI runs it before the site is published)
 import { spawn } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 const { chromium } = createRequire(import.meta.url)('playwright')
 
@@ -123,6 +124,30 @@ try {
         riders: [{ employee_id: 'e01', code: '1001', name: 'Staff 01', mobile: null, from: '2026-11-01' }] }],
       visits_today: { rt1: 2 } }
     const answered = [], checked = []
+    let sheetsOn = false
+    const sc = (head, src, more = {}) => ({ head, src, ...more })
+    const sheetRows = [
+      { id: 'cs1', name: 'New Admin & Rider ID Creat Information', name_bn: 'নতুন আইডি তৈরির শিট', source: 'staff', kind: null, format_id: null, title: 'New Admin & Rider ID Creat Format', title_at: null, file_name: null, sort_order: 10, archived_at: null,
+        columns: [sc('SL', 'sl'), sc('Name', 'emp:full_name'), sc('Phone Number', 'emp:mobile'), sc('Employee Picture', 'doc:photo'), sc('Basic', 'emp:basic_salary'), sc('Remarks', 'blank')] },
+      { id: 'cs3', name: 'Transfer - 02 (with salary)', name_bn: 'আইডি বদলির শিট — বেতনসহ', source: 'requests', kind: 'id_transfer', format_id: null, title: 'Admin & Rider ID Create Information', title_at: [4, 7], file_name: 'Transfer - 02.xlsx', sort_order: 30, archived_at: null,
+        columns: [sc('SL', 'sl'), sc('Name', 'emp:full_name|req:full_name'), sc('Phone Number', 'emp:mobile'), sc('ID', 'emp:employee_code|req:employee_code'), sc('Designation', 'emp:position_name|req:position'),
+          sc('Old Hub', 'req.hub|req:from_hub'), sc('New Hub Name', 'req:to_hub'), sc('Date Of Birth', 'emp:date_of_birth'), sc('NID/ Birth Certificate Number', 'emp:nid_number'), sc('Transfer Raferance Name & ID', 'ref'),
+          sc('Basic', 'emp:basic_salary', { group: 'Previous Salary System' }), sc('Fuyel/Phn Bill', 'emp:transport_allowance', { group: 'Previous Salary System' }), sc('Commision', 'emp:commission', { group: 'Previous Salary System' }),
+          sc('Basic', 'req:new_basic|emp:basic_salary', { group: 'New Salary System' }), sc('Fuyel/Phn Bill', 'req:new_bill|emp:transport_allowance', { group: 'New Salary System' }), sc('Commision', 'req:new_commission|emp:commission', { group: 'New Salary System' }),
+          sc('Transfer Reason/ Remarks', 'req:reason|req.note')] }]
+    const rqf = (key, label, type = 'text', more = {}) => ({ key, label, type, ...more })
+    const sheetFormats = [
+      { id: 'f-transfer', code: 'ID_TRANSFER', kind: 'id_transfer', name: 'ID TRANSFER', name_bn: 'আইডি বদলি', description: null, needs_employee: true, self_service: false, sort_order: 20, archived_at: null,
+        fields: [rqf('employee_code', 'আইডি', 'text', { prefill: 'employee_code' }), rqf('full_name', 'নাম', 'text', { prefill: 'full_name' }), rqf('from_hub', 'বর্তমান হাব', 'text', { prefill: 'hub' }), rqf('position', 'পদবি', 'text', { prefill: 'position' }),
+          rqf('to_hub', 'নতুন হাব', 'hub', { required: true }), rqf('reason', 'কারণ', 'textarea', { required: true }), rqf('new_basic', 'নতুন বেসিক', 'number'), rqf('new_bill', 'নতুন বিল', 'number'), rqf('new_commission', 'নতুন কমিশন', 'number')] },
+      { id: 'f-active', code: 'ID_ACTIVE', kind: 'id_active', name: 'ID ACTIVE', name_bn: 'আইডি চালু', description: null, needs_employee: true, self_service: true, sort_order: 30, archived_at: null,
+        fields: [rqf('employee_code', 'আইডি', 'text', { prefill: 'employee_code' }), rqf('full_name', 'নাম', 'text', { prefill: 'full_name' }), rqf('reason', 'কারণ', 'textarea')] }]
+    const rq = (id, no, emp, hub, status, data, more = {}) => ({ id, request_no: no, format_id: 'f-transfer', kind: 'id_transfer', employee_id: emp, zone_id: 'z1', hub_id: hub, data, note: null, status, submitted_by: 'u1',
+      submitter_employee_id: null, decided_by: null, decided_at: null, decision_note: null, result: null, ref_employee_id: null, ref_name: null, ref_code: null, ref_hub: null, ref_position: null, created_at: `${dhakaToday}T05:0${no.slice(-1)}:00Z`, ...more })
+    const sheetRequests = [
+      rq('q2', 'HR-00002', 'e02', 'h4', 'processing', { employee_code: '5002', full_name: 'Karim Ali', from_hub: 'Boraigram', to_hub: 'h1', effective_date: '2026-11-22', reason: 'Punishment transfer', new_basic: '14000' }),
+      rq('q1', 'HR-00001', 'e01', 'h4', 'submitted', { employee_code: '5001', full_name: 'Rahim Sheikh', from_hub: 'Boraigram', to_hub: 'h2', effective_date: '2026-11-20', reason: 'Lalpur service better' }, { ref_name: 'Zonal Karim', ref_code: '777' }),
+      { ...rq('q3', 'HR-00003', 'e03', 'h1', 'submitted', { full_name: 'Someone Else' }), kind: 'id_active', format_id: 'f-active' }]
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
@@ -133,6 +158,17 @@ try {
       if (u.includes('rpc/my_permissions') && permsNow) return j(permsNow.map(c => ({ permission_code: c, scope_type: 'global', zone_id: null, hub_id: null, is_super: false })))
       if (u.includes('rpc/my_permissions')) return j(plainStaff ? [{ permission_code: 'hr.attendance.self', scope_type: 'global', zone_id: null, hub_id: null, is_super: false }]
         : [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])
+      // কোম্পানি শিট: the company's own Excel layouts, two transfer requests waiting, and what the staff records say about those two people
+      if (sheetsOn && u.includes('/rest/v1/company_sheets')) { if (r.request().method() === 'GET') return j(sheetRows)
+        flowCalls.push({ fn: 'company_sheets', method: r.request().method(), ...r.request().postDataJSON() }); return j(null) }
+      if (sheetsOn && u.includes('/rest/v1/hr_request_formats')) { if (r.request().method() === 'GET') return j(sheetFormats)
+        flowCalls.push({ fn: 'hr_request_formats', url: u, ...r.request().postDataJSON() }); return j(null) }
+      if (sheetsOn && u.includes('/rest/v1/hr_requests') && r.request().method() === 'GET') return j(sheetRequests)
+      if (sheetsOn && u.includes('rpc/hr_request_update')) { flowCalls.push({ fn: 'hr_request_update', ...r.request().postDataJSON() }); return j(null) }
+      if (u.includes('rpc/hr_sheet_people')) { flowCalls.push({ fn: 'hr_sheet_people', ...r.request().postDataJSON() })
+        return j({ e01: { full_name: 'Rahim Sheikh', employee_code: '5001', mobile: '01711000111', position_name: 'Shorting+Loader', hub_name: 'Lalpur', date_of_birth: '2005-10-10', nid_number: '1234567890',
+            basic_salary: 10000, transport_allowance: 250, commission: 0, 'doc:photo': true },
+          e02: { full_name: 'Karim Ali', employee_code: '5002', mobile: '01711000222', position_name: 'Shorting+Loader', hub_name: 'Boraigram', nid_number: '12345678901234567', basic_salary: 13000, transport_allowance: 250, commission: 0 } }) }
       if (u.includes('/rest/v1/hr_request_formats') && u.includes('order=sort_order')) return j([
         { id: 'f-active', code: 'ID_ACTIVE', kind: 'id_active', name: 'ID ACTIVE', name_bn: 'আইডি চালু', description: null, needs_employee: true, self_service: true, sort_order: 30, archived_at: null, fields: [
           { key: 'employee_code', label: 'আইডি', type: 'text', prefill: 'employee_code' }, { key: 'full_name', label: 'নাম', type: 'text', prefill: 'full_name' },
@@ -1043,8 +1079,9 @@ try {
       `${size}: the staff list has one set of filters, and its heading counts what is on screen`)
     check(await page.locator(staffSel).first().locator('.row-acts button').count() === 2, `${size}: every row has Edit and View`)
     { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), page.getByRole('button', { name: /আইডি তৈরির ফাইল/ }).click()])
-      const sent = exported.at(-1)
-      check(!!dl && /^New-Admin-Rider-ID-Creat-Information-.*\.xlsx$/.test(dl.suggestedFilename()) && sent?.p_status === 'active' && sent.p_fields.includes('nid_number'), `${size}: the staff page makes the company's ID Create sheet`)
+      const sent = exported.at(-1), asked = flowCalls.findLast(c => c.fn === 'hr_sheet_people')
+      check(!!dl && /^New-Admin-Rider-ID-Creat-Information \d{4}-\d\d-\d\d\.xlsx$/.test(dl.suggestedFilename()) && sent?.p_status === 'active' && asked?.p_ids?.join() === 'e02,e01'
+        && ['nid_number', 'cf:blood_group', 'doc:nid_front', 'basic_salary'].every(f => asked.p_fields.includes(f)), `${size}: the staff page makes the company's ID Create sheet`)
       if (dl && process.env.KEEP_ID_FILE) await dl.saveAs(process.env.KEEP_ID_FILE) }
     await page.locator('.eb-chips .chip-toggle').last().click()
     check(await staffRowsShown() === 1, `${size}: the leave chip shows who is on leave today`)
@@ -1358,6 +1395,74 @@ try {
       await app.goto(`${BASE}/app/access`); await app.waitForURL(/\/app\/roles$/, { timeout: 8000 }).catch(() => {})
       check(/\/app\/roles$/.test(app.url()), `${size}: inside the Android app the advanced pages are not shown yet (the older role page opens)`)
       await app.close() }
+
+    // --- কোম্পানি শিট: the company's layout filled from the system, downloaded as its own Excel, and a changed layout learnt from the file
+    { sheetsOn = true; plainStaff = false; permsNow = null; menuNow = null; asEmployee = false
+      const cs = await ctx.newPage(); const csErrors = []; cs.on('pageerror', e => csErrors.push(String(e)))
+      const csFits = async where => check(await cs.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${size}: ${where} does not scroll sideways`)
+      await cs.goto(`${BASE}/app/hr/requests?tab=sheets`); await cs.waitForSelector('.cs-item')
+      check(await cs.locator('.cs-item').count() === 2 && await cs.locator('.rq-tab.on').innerText().then(t => t.includes('কোম্পানি শিট')), `${size}: the company sheets tab lists the saved layouts`)
+      await cs.waitForSelector('.cs-grid tbody tr')
+      check((await cs.locator('.cs-grid').innerText()).includes('Rahim Sheikh') && await cs.locator('.cs-grid thead tr:last-child th').nth(4).innerText() === 'Employee Picture' && (await cs.locator('.cs-grid tbody').innerText()).includes('Yes'),
+        `${size}: a staff sheet fills itself from the staff records, in the company's own columns`)
+      await cs.locator('.cs-item', { hasText: 'বেতনসহ' }).click(); await cs.waitForSelector('.cs-band')
+      await cs.waitForSelector('.cs-grid tbody tr')
+      const band = await cs.locator('.cs-band th').evaluateAll(l => l.map(th => [th.textContent, th.colSpan]))
+      check(band.some(([t, n]) => t === 'Previous Salary System' && n === 3) && band.some(([t, n]) => t === 'New Salary System' && n === 3) && band.some(([t, n]) => t === 'Admin & Rider ID Create Information' && n === 4),
+        `${size}: grouped headings and the title sit over the same columns as in the company's file`)
+      const cells = r => cs.locator('.cs-grid tbody tr').nth(r).locator('td').allInnerTexts()
+      // transfers made straight in the system (no request) are listed too, until that is switched off
+      await cs.waitForFunction(() => document.querySelectorAll('.cs-grid tbody tr').length === 22, null, { timeout: 8000 }).catch(() => {})
+      { const d = await cells(0)
+        check(await cs.locator('.cs-grid tbody tr').count() === 22 && await cs.locator('.cs-grid tr.cs-direct-row').count() === 20 && d[2] === 'Staff 01' && d[6] === 'Natore' && d[7] === 'Bogura' && d[17] === 'test',
+          `${size}: transfers made straight in the system join the sheet, old and new hub filled` ) }
+      await cs.locator('.cs-direct input').uncheck(); await cs.waitForFunction(() => document.querySelectorAll('.cs-grid tbody tr').length === 2, null, { timeout: 8000 }).catch(() => {})
+      const r1 = await cells(0), r2 = await cells(1)
+      check(r1[1] === '1' && r1[2] === 'Rahim Sheikh' && r1[3] === '01711000111' && r1[6] === 'Boraigram' && r1[7] === 'Lalpur' && r1[8] === '10/10/2005' && r1[10].replace(/\s+/g, ' ') === 'Zonal Karim ID: 777' && r1[17] === 'Lalpur service better',
+        `${size}: a transfer request becomes one row: person from the profile, old hub from the request, new hub by name, reference with ID`)
+      check(r1[14] === '10000' && r2[14] === '14000' && r2[11] === '13000' && r2[7] === 'Natore Sadar', `${size}: new salary comes from the form, and falls back to the present salary when left empty`)
+      check(await cs.locator('.cs-grid tbody tr').count() === 2 && r2[8] === '' && await cs.locator('.cs-grid td.cs-empty').count() === 2, `${size}: only requests of this kind are listed, and an empty box is marked`)
+      await cs.locator('.cs-grid td.cs-empty').first().click(); await cs.locator('.cs-grid td.cs-edit input').fill('08/08/2008'); await cs.keyboard.press('Enter')
+      check((await cells(1))[8] === '08/08/2008' && await cs.locator('.cs-grid td.cs-typed').count() === 1, `${size}: an empty box can be typed by hand before sending`)
+      await cs.locator('.cs-mark input').check()
+      const [dl] = await Promise.all([cs.waitForEvent('download'), cs.locator('button', { hasText: 'এক্সেল নামান' }).click()])
+      const xlsxPath = `${tmpdir()}/xzm-smoke-${size}-${dl.suggestedFilename()}`; await dl.saveAs(xlsxPath)
+      const xl = readFileSync(xlsxPath).toString('utf8')
+      check(/^Transfer - 02 \d{4}-\d\d-\d\d\.xlsx$/.test(dl.suggestedFilename()) && ['<mergeCell ref="E1:H2"/>', '<mergeCell ref="K1:M2"/>', '<mergeCell ref="N1:P2"/>', 'Previous Salary System', 'Transfer Raferance Name &amp; ID', '08/08/2008', '<v>14000</v>', '01711000111']
+        .every(t => xl.includes(t)), `${size}: the Excel carries the company's merged headings, the rows and the hand-typed box`)
+      await cs.waitForFunction(() => document.querySelector('.da-toast')?.textContent?.includes('কাজ চলছে'), null, { timeout: 5000 }).catch(() => {})
+      { const moved = flowCalls.filter(c => c.fn === 'hr_request_update'); check(moved.length >= 1 && moved.every(c => c.p_id === 'q1' && c.p_status === 'processing'), `${size}: on request, the waiting ones move to "in progress" after the download` ) }
+      // the company sends a changed file: the same sheet reads it again
+      await cs.locator('.cs-acts button').first().click(); await cs.waitForSelector('.da-modal .cs-map tbody tr')
+      await cs.locator('.da-modal input[type=file]').setInputFiles(xlsxPath)
+      await cs.waitForFunction(() => document.querySelector('.da-modal .cs-drop b')?.textContent?.includes('Transfer - 02 2'), null, { timeout: 8000 }).catch(() => {})
+      check(await cs.locator('.da-modal .cs-map tbody tr').count() === 17 && await cs.locator('.da-modal .cs-map tr.cs-unsure, .da-modal .cs-map tr.cs-new').count() === 0
+        && await cs.locator('.da-modal input[placeholder^="যেমন: Admin"]').inputValue() === 'Admin & Rider ID Create Information'
+        && await cs.locator('.da-modal .cs-map tbody tr').nth(13).locator('input').first().inputValue() === 'New Salary System',
+        `${size}: reading the company's file again finds the same 17 columns, title and groups, and keeps where each one comes from`)
+      await csFits('company sheet editor')
+      if (process.env.SHOTS) await cs.screenshot({ path: `${process.env.SHOTS}/${size}-company-sheet-editor.png` })
+      await cs.locator('.da-modal-acts button', { hasText: 'বাতিল' }).click()
+      // a brand new layout for another kind of request: what the form lacks becomes a new box on the form
+      await cs.locator('button', { hasText: 'নতুন ফরম্যাট' }).click(); await cs.waitForSelector('.da-modal .cs-drop')
+      await cs.locator('.da-modal select').nth(1).selectOption('id_active')
+      await cs.locator('.da-modal input[type=file]').setInputFiles(xlsxPath); await cs.waitForSelector('.da-modal .cs-map tbody tr')
+      check(await cs.locator('.da-modal .cs-map tbody tr').count() === 17 && await cs.locator('.da-modal .cs-map tr.cs-unsure').count() === 4
+        && await cs.locator('.da-modal .cs-map tbody tr').nth(1).locator('select').first().inputValue() === 'emp:full_name', `${size}: a new file is read and its headings matched; the four the system has nowhere to take from are pointed out`)
+      await cs.locator('.da-modal .cs-map tbody tr').nth(13).locator('select').first().selectOption('__new:number')
+      await cs.locator('.da-modal input[placeholder="ID Transfer Information"]').fill('Active with salary')
+      const before = flowCalls.length
+      await cs.locator('.da-modal-acts button', { hasText: 'সেভ' }).click(); await cs.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+      { const calls = flowCalls.slice(before), f = calls.find(c => c.fn === 'hr_request_formats'), n = calls.find(c => c.fn === 'company_sheets')
+        const box = f?.fields?.at(-1)
+        check(!!f && f.url.includes('id=eq.f-active') && f.fields.length === 4 && box.label === 'New Salary System — Basic' && box.type === 'number', `${size}: the missing column becomes a new number box on that request form`)
+        check(!!n && n.method === 'POST' && n.name === 'Active with salary' && n.source === 'requests' && n.kind === 'id_active' && n.columns.length === 17 && n.columns[13].src === `req:${box?.key}` && n.columns[13].group === 'New Salary System'
+          && n.columns[0].src === 'sl' && JSON.stringify(n.title_at) === '[4,7]' && n.columns[6].src === 'blank', `${size}: the new sheet is saved with every column pointed at its source`) }
+      await cs.locator('.cs-item', { hasText: 'বেতনসহ' }).click(); await cs.waitForSelector('.cs-band')
+      await csFits('company sheet')
+      if (process.env.SHOTS) await cs.screenshot({ path: `${process.env.SHOTS}/${size}-company-sheet.png`, fullPage: true })
+      check(csErrors.length === 0, `${size}: company sheets run with no script errors${csErrors.length ? ' — ' + csErrors[0] : ''}`)
+      await cs.close(); sheetsOn = false }
 
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
     await ctx.close()

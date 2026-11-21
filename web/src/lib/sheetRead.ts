@@ -1,4 +1,4 @@
-// Reads the first worksheet of an .xlsx file (or a .csv) in the browser, with no extra library:
+// Reads an .xlsx file (or a .csv) in the browser, with no extra library:
 // an .xlsx is a zip of XML files; the browser's DecompressionStream unpacks it.
 // Returns rows as arrays of cell text (dates stay as Excel serial numbers; see excelDate()).
 
@@ -39,41 +39,79 @@ async function readEntry(buf: ArrayBuffer, e: Entry): Promise<string> {
 const xml = (s: string) => new DOMParser().parseFromString(s, 'application/xml')
 const colIndex = (ref: string) => { let n = 0; for (const ch of ref.replace(/[0-9]/g, '')) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1 }
 
-async function readXlsx(file: File): Promise<string[][]> {
+/** One worksheet as the company laid it out: the cell texts, which cells are merged and how wide each column is. */
+export type BookSheet = { name: string; rows: string[][]; merges: Array<{ r0: number; c0: number; r1: number; c1: number }>; widths: Record<number, number> }
+
+async function readBook(file: File, onlyFirst: boolean): Promise<BookSheet[]> {
   const buf = await file.arrayBuffer()
   const entries = zipEntries(buf)
   const get = async (name: string) => { const e = entries.find(x => x.name === name); return e ? await readEntry(buf, e) : null }
   const shared: string[] = []
   const ss = await get('xl/sharedStrings.xml')
-  if (ss) for (const si of Array.from(xml(ss).getElementsByTagName('si'))) shared.push(Array.from(si.getElementsByTagName('t')).map(t => t.textContent ?? '').join(''))
-  // first sheet in workbook order
-  let sheetPath = 'xl/worksheets/sheet1.xml'
+  // phonetic guides (<rPh>) are not part of the text
+  if (ss) for (const si of Array.from(xml(ss).getElementsByTagName('si'))) shared.push(Array.from(si.getElementsByTagName('t')).filter(t => t.parentElement?.tagName !== 'rPh').map(t => t.textContent ?? '').join(''))
+  // sheets in workbook order
+  let list: Array<{ name: string; path: string }> = [{ name: 'Sheet1', path: 'xl/worksheets/sheet1.xml' }]
   const wb = await get('xl/workbook.xml'), rels = await get('xl/_rels/workbook.xml.rels')
   if (wb && rels) {
-    const first = xml(wb).getElementsByTagName('sheet')[0]
-    const rid = first?.getAttribute('r:id') ?? first?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')
-    const rel = Array.from(xml(rels).getElementsByTagName('Relationship')).find(r => r.getAttribute('Id') === rid)
-    const target = rel?.getAttribute('Target')
-    if (target) sheetPath = target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '')
+    const relList = Array.from(xml(rels).getElementsByTagName('Relationship'))
+    const found = Array.from(xml(wb).getElementsByTagName('sheet')).map(sh => {
+      const rid = sh.getAttribute('r:id') ?? sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')
+      const target = relList.find(r => r.getAttribute('Id') === rid)?.getAttribute('Target')
+      return target ? { name: sh.getAttribute('name') ?? '', path: target.startsWith('/') ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '') } : null
+    }).filter(Boolean) as Array<{ name: string; path: string }>
+    if (found.length) list = found
   }
-  const sheet = await get(sheetPath)
-  if (!sheet) throw new Error('not_xlsx')
-  const rows: string[][] = []
-  for (const row of Array.from(xml(sheet).getElementsByTagName('row'))) {
-    const r = Number(row.getAttribute('r') ?? rows.length + 1) - 1
-    const cells: string[] = []
-    for (const c of Array.from(row.getElementsByTagName('c'))) {
-      const t = c.getAttribute('t'), ref = c.getAttribute('r')
-      const vEl = c.getElementsByTagName('v')[0]
-      let val = ''
-      if (t === 's') val = shared[Number(vEl?.textContent ?? -1)] ?? ''
-      else if (t === 'inlineStr') val = Array.from(c.getElementsByTagName('t')).map(x => x.textContent ?? '').join('')
-      else val = vEl?.textContent ?? ''
-      cells[ref ? colIndex(ref) : cells.length] = val.trim()
+  const out: BookSheet[] = []
+  for (const item of onlyFirst ? list.slice(0, 1) : list) {
+    const sheet = await get(item.path)
+    if (!sheet) { if (onlyFirst) throw new Error('not_xlsx'); continue }
+    const doc = xml(sheet)
+    const rows: string[][] = []
+    for (const row of Array.from(doc.getElementsByTagName('row'))) {
+      const r = Number(row.getAttribute('r') ?? rows.length + 1) - 1
+      const cells: string[] = []
+      for (const c of Array.from(row.getElementsByTagName('c'))) {
+        const t = c.getAttribute('t'), ref = c.getAttribute('r')
+        const vEl = c.getElementsByTagName('v')[0]
+        let val = ''
+        if (t === 's') val = shared[Number(vEl?.textContent ?? -1)] ?? ''
+        else if (t === 'inlineStr') val = Array.from(c.getElementsByTagName('t')).map(x => x.textContent ?? '').join('')
+        else val = vEl?.textContent ?? ''
+        cells[ref ? colIndex(ref) : cells.length] = val.trim()
+      }
+      rows[r] = Array.from(cells, x => x ?? '')
     }
-    rows[r] = Array.from(cells, x => x ?? '')
+    const merges = Array.from(doc.getElementsByTagName('mergeCell')).map(m => {
+      const [a, b = a] = (m.getAttribute('ref') ?? '').split(':')
+      const rowOf = (s: string) => Number(s.replace(/[^0-9]/g, '')) - 1
+      return { r0: rowOf(a), c0: colIndex(a), r1: rowOf(b), c1: colIndex(b) }
+    }).filter(m => m.r0 >= 0 && m.c0 >= 0)
+    const widths: Record<number, number> = {}
+    for (const c of Array.from(doc.getElementsByTagName('col'))) {
+      const min = Number(c.getAttribute('min')), max = Number(c.getAttribute('max')), w = Number(c.getAttribute('width'))
+      if (!(w > 0) || !(min > 0) || c.getAttribute('hidden') === '1') continue
+      for (let i = min; i <= Math.min(max, min + 200); i++) widths[i - 1] = Math.round(w * 10) / 10
+    }
+    out.push({ name: item.name, rows: Array.from(rows, x => x ?? []), merges, widths })
   }
-  return Array.from(rows, x => x ?? [])
+  return out
+}
+
+async function readXlsx(file: File): Promise<string[][]> {
+  const first = (await readBook(file, true))[0]
+  if (!first) throw new Error('not_xlsx')
+  return first.rows
+}
+
+/** Every worksheet of an .xlsx with its merged cells and column widths — for learning a company's layout from its own file. */
+export async function readWorkbook(file: File): Promise<BookSheet[]> {
+  if (!/\.xlsx$/i.test(file.name)) throw new Error('শুধু .xlsx ফাইল দিন (পুরনো .xls হলে Excel-এ "Save As → .xlsx" করে নিন)')
+  if (typeof DecompressionStream === 'undefined') throw new Error('এই ব্রাউজারে এক্সেল পড়া যাচ্ছে না — Chrome আপডেট করুন')
+  let book: BookSheet[]
+  try { book = await readBook(file, false) } catch { throw new Error('ফাইলটা পড়া যায়নি — এক্সেলে খুলে .xlsx হিসেবে আবার সেভ করে দিন') }
+  if (!book.length) throw new Error('ফাইলে কোনো শিট পাওয়া যায়নি')
+  return book
 }
 
 function readCsv(text: string): string[][] {
