@@ -655,4 +655,5 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   salary on the day of the download, not a copy taken when the request was sent.
 - **Tests:** `99…_company_sheets.sql` (35 assertions); smoke test: the tab, a staff sheet, a transfer sheet with grouped headings, hand-typed box, the downloaded
   file's merged cells, moving requests on, reading the file back into the editor, a new sheet that adds a form box.
-- **Live:** the migration must be on Supabase before this reaches `main` — the tab and the staff page button call `hr_sheet_people`.
+- **Live:** migration applied on Supabase 21 Nov as `20261121165015 company_sheets` (owner said yes first; the 3 function bodies equal the file by hash). The site gets the page when
+  the pull request is merged to `main`.
