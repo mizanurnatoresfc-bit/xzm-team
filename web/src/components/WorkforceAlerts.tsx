@@ -21,7 +21,7 @@ export function WorkforceAlerts() {
   if (mine && mine.missing_days > 0) rows.push({ key: 'missing', to: '/app/workforce/attendance', tone: 'warn', icon: 'clock',
     title: L(`${n(mine.missing_days)} দিনের হাজিরা বাকি`, `${mine.missing_days} day${mine.missing_days === 1 ? '' : 's'} of attendance not given`),
     sub: mine.catch_up_until
-      ? L(`জোনাল ম্যানেজার আগের তারিখ খুলে দিয়েছেন — ${dayBn(mine.catch_up_until)} পর্যন্ত, হাজিরা বইয়ে একসাথে দিন`, `Earlier dates are open until ${mine.catch_up_until} — give them all at once in the book`)
+      ? L(`আগের তারিখগুলো খোলা আছে — ${dayBn(mine.catch_up_until)} পর্যন্ত, হাজিরা বইয়ে একসাথে দিন`, `Earlier dates are open until ${mine.catch_up_until} — give them all at once in the book`)
       : L('হাজিরা বইয়ে প্রতিটি তারিখ আলাদা করে দিন', 'Give each date in the attendance book') })
   if (mine && mine.returned_days > 0) rows.push({ key: 'returned', to: '/app/workforce/attendance', tone: 'bad', icon: 'alert',
     title: L(`${n(mine.returned_days)} দিনের হাজিরা ফেরত এসেছে`, `${mine.returned_days} day${mine.returned_days === 1 ? '' : 's'} of attendance returned`),

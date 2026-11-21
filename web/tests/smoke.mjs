@@ -377,7 +377,7 @@ try {
     const fits = async where => check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${size}: ${where} does not scroll sideways`)
 
     await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1', { state: 'attached' })
-    check((await page.locator('.da-main h1').textContent()).includes('Owner'), `${size}: dashboard opens`); await fits('dashboard')
+    check((await page.locator('.da-main h1').textContent()).includes('হোম') && (await page.locator('.greet h2').textContent()).includes('Owner'), `${size}: dashboard opens (title হোম, name in the greeting)`); await fits('dashboard')
     // আমার অনুমোদন: riders' pickup, delivery and money, and staff bills, on one card
     await page.waitForSelector('.myapp .ri-list li', { timeout: 8000 }).catch(() => {})
     { const sumTxt = (await page.locator('.myapp .ma-sum').innerText()).replace(/\s+/g, ' ')
@@ -825,7 +825,7 @@ try {
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       { const dl = page.locator('.app-dl'); await dl.waitFor({ timeout: 5000 }).catch(() => {})
-        check(await dl.count() === 1 && (await dl.locator('input').inputValue()) === 'https://xzmteam.com/download/XZM-TEAM.apk' && await dl.locator('button').count() === 4,
+        check(await dl.count() === 1 && await dl.locator('input').count() === 0 && await dl.locator('button').count() === 4,
           `${size}: the dashboard ends with the Android app card (download, WhatsApp, share, copy link)`)
         if (process.env.SHOTS) await dl.screenshot({ path: `${process.env.SHOTS}/${size}-app-download.png` }) }
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
