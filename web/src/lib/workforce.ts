@@ -211,6 +211,10 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
 }
 type Range = { zone?: string | null; hub?: string | null }
 
+/** `wf_book_mode()` — the "whole month (1–31)" switch and the normal book days it falls back to. */
+export type BookMode = { full_month: boolean; from_day: number; to_day: number; normal_from_day: number; normal_to_day: number
+  can_set: boolean; changed_at: string | null; changed_by_name: string | null }
+
 export const wf = {
   // staff — attendance book
   myBook: (month?: IsoDate | null) => rpc<MyBook | null>('wf_my_book', { p_month: month ?? null }),
@@ -229,6 +233,9 @@ export const wf = {
   windowSave: (zone: string, from: IsoDate, to: IsoDate, until: IsoDate, note?: string | null) =>
     rpc<string>('wf_window_save', { p_zone: zone, p_from: from, p_to: to, p_until: until, p_note: note || null }),
   windowEnd: (id: string, note?: string | null) => rpc<void>('wf_window_end', { p_window: id, p_note: note || null }),
+  // company-wide switch: the book open on every day of the month (1–31); only the Super Admin flips it
+  bookMode: () => rpc<BookMode>('wf_book_mode'),
+  bookFullMonth: (on: boolean, note?: string | null) => rpc<BookMode>('wf_book_full_month_set', { p_on: on, p_note: note || null }),
   // staff — the four numbers
   myOps: (days = 14) => rpc<MyOps | null>('wf_ops_mine', { p_days: days }),
   submitOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
@@ -260,7 +267,8 @@ export const wf = {
 const BN: Array<[RegExp, string]> = [
   [/already on the register/i, 'এই তারিখের হাজিরা আগেই খাতায় উঠেছে'],
   [/already approved/i, 'এই তারিখের হাজিরা আগেই অনুমোদিত — বদলাতে ম্যানেজারকে বলুন'],
-  [/book is closed/i, 'এই তারিখের হাজিরা বই বন্ধ — বই প্রতি মাসের ১–১৭ তারিখ চালু থাকে, আগের তারিখ শুধু জোনাল ম্যানেজার খুলে দিলে দেওয়া যায়'],
+  [/book is closed/i, 'এই তারিখের হাজিরা বই বন্ধ — বই শুধু মাসের নির্দিষ্ট দিনগুলোতে চালু থাকে, আগের তারিখ শুধু জোনাল ম্যানেজার খুলে দিলে দেওয়া যায়'],
+  [/whole month/i, 'শুধু সুপার অ্যাডমিন হাজিরা বই পুরো মাস খুলতে বা বন্ধ করতে পারেন'],
   [/chosen twice/i, 'একই তারিখ দুই জায়গায় বাছা হয়েছে'],
   [/future/i, 'আগামী তারিখের হাজিরা এখন দেওয়া যায় না'],
   [/website question|applied on site/i, 'ওয়েবসাইটে আবেদন করেছেন কি না — আগে সেটা বলুন'],

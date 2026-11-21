@@ -58,7 +58,6 @@ export const GROUPS: Group[] = [
     { bn: 'আজকের কাজ', en: 'Today', items: [
       { to: '/app/hub/attendance', icon: 'cal', bn: 'আজকের হাজিরা খাতা', en: "Today's attendance", perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/workforce/hub', icon: 'table', bn: 'হাজিরা বই ও দৈনিক রিপোর্ট', en: 'Attendance book & daily report', perms: ['hr.attendance.view', 'ops.staff_daily.view'] },
-      { to: '/app/hub/days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/hub/late', icon: 'clock', bn: 'আজকের দেরিতে হাজিরা', en: 'Late today', perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
       { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
@@ -197,8 +196,9 @@ export const OFFICE: Group = panel('office', 'home', 'আমার অফিস'
  *   /app/hub/accounts        -> /app/accounts/daily (the hub's sheets for today)
  *   /app/hr                  -> the home page's staff panels
  *   /app/issues?tab=orders   -> a tab inside /app/issues
+ *   /app/hub/days            -> nothing: never used (no rows on 21 Nov 2026); the attendance book shows each day's state
  */
-export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders']
+export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders', '/app/hub/days']
 
 // ---- small caches so the frame does not refetch on every page ----
 type MyRole = { code: string; name: string; scope_type: string; zone: string | null; hub: string | null }

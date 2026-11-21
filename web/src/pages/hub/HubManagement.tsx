@@ -16,7 +16,6 @@ import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts
 import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
-import { selfAtt, selfAttFriendly, type Decided, type SelfMark } from '../../lib/selfAtt'
 
 export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'days' | 'logins' | 'routes'
 
@@ -54,8 +53,9 @@ export function HubManagement() {
   if (!sec) return <Navigate to="/app/hub/team" replace />
   const allowed = sec.perms.some(p => can(p))
   const current = hubs.find(h => h.id === hub) ?? null
-  // "আজকের হিসাব" is off the strip: the hub's sheets page does the same job (see HIDDEN_PAGES in AppShell).
-  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`) && (s.key !== 'accounts' || section === 'accounts'))
+  // "আজকের হিসাব" and "হাজিরার দিন মেলানো" are off the strip (see HIDDEN_PAGES in AppShell); they still open by address.
+  const offStrip = (k: HubSection) => (k === 'accounts' || k === 'days') && section !== k
+  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`) && !offStrip(s.key))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
     <section className="da-filters panel no-print hub-top">
@@ -127,7 +127,7 @@ function AttendanceToday({ hub }: { hub: Hub }) {
       <Stat icon="x" tone={c('absent') ? 'bad' : undefined} label={L('অনুপস্থিত', 'Absent')} value={n(c('absent'))} />
       <Stat icon="alert" tone={total - (day.data?.length ?? 0) ? 'warn' : undefined} label={L('এখনো বাকি', 'Not marked')} value={n(total - (day.data?.length ?? 0))} />
     </div>
-    {canAdd && <SelfMarks hub={hub.id} date={date} onDone={() => void day.reload()} />}
+    {canAdd && <SelfMarks hub={hub.id} />}
     <section className="panel">
       <div className="da-bar"><h2>{L('আজকের হাজিরা খাতা', "Today's attendance")}</h2>
         {canAdd && staff.data?.some(e => !byEmp[e.id]) && <button className="secondary sm" onClick={() => void allPresent()}>{L('বাকি সবাই উপস্থিত', 'Rest are present')}</button>}</div>
@@ -143,51 +143,15 @@ function AttendanceToday({ hub }: { hub: Hub }) {
   </>
 }
 
-/** Attendance staff gave themselves today: it goes on the register only when a manager approves it. */
-function SelfMarks({ hub, date, onDone }: { hub: string; date: string; onDone: () => void }) {
-  const { L, n } = usePrefs()
-  const { toast, node } = useToast()
-  const list = useLoad(() => selfAtt.list(hub, date), [hub, date])
-  const [busy, setBusy] = useState(''); const [err, setErr] = useState('')
-  const [back, setBack] = useState<SelfMark | null>(null); const [why, setWhy] = useState('')
-  const rows = list.data ?? []
-  const waiting = rows.filter(r => r.status === 'waiting')
-  if (!rows.length) return null
-  async function decide(ids: string[], ok: boolean, as?: Decided, note?: string) {
-    setBusy(ids.join()); setErr('')
-    try {
-      const c = await selfAtt.decide(ids, ok, as ?? null, note); await list.reload(); onDone(); setBack(null); refreshShellCounts()
-      toast(ok ? L(`${n(c)} জনের হাজিরা অনুমোদিত`, `${c} approved`) : L('ফেরত দেওয়া হয়েছে', 'Returned'))
-    } catch (e) { setErr(selfAttFriendly(e)) } finally { setBusy('') }
-  }
-  const DONE: Record<string, string> = { present: 'উপস্থিত', late: 'দেরিতে', half_day: 'অর্ধদিবস', absent: 'অনুপস্থিত' }
+/** Attendance staff gave themselves is approved on the workforce hub page (every date, one list); this box only points there. */
+function SelfMarks({ hub }: { hub: string }) {
+  const { L } = usePrefs()
   return <section className="panel self-marks">
-    {node}
-    <div className="da-bar"><h2>{L('স্টাফের দেওয়া হাজিরা', 'Attendance staff gave')} {waiting.length > 0 && <Badge tone="warn">{L(`${n(waiting.length)} জন অনুমোদন বাকি`, `${waiting.length} waiting`)}</Badge>}</h2>
-      {waiting.filter(r => r.kind === 'present').length > 1 && <button className="sm" disabled={!!busy} onClick={() => void decide(waiting.filter(r => r.kind === 'present').map(r => r.id), true, 'present')}>
-        <Icon name="check" size={15} />{L('হাবে আসা সবাইকে উপস্থিত', 'Approve all arrivals')}</button>}</div>
-    <p className="muted small">{L('স্টাফ নিজে দিয়েছেন। আপনি অনুমোদন দিলে তবেই হাজিরা খাতায় উঠবে।', 'Staff gave these themselves. They go on the register once you approve.')}</p>
-    {err && <p className="da-error">{err}</p>}
-    <div className="nv-rows">{rows.map(r => <div key={r.id} className="nv-row">
-      <span className={`nv-av sd-i ${r.kind === 'present' ? 'g' : 'r'}`}><Icon name={r.kind === 'present' ? 'check' : 'log'} size={20} /></span>
-      <span className="tx"><b>{r.full_name}{r.employee_code ? ` · ${r.employee_code}` : ''}</b>
-        <span>{r.kind === 'present' ? `${L('হাবে এসেছেন', 'Arrived')} ${timeOf(r.marked_at)}` : `${L('আজ আসবেন না', 'Not coming')} — ${r.note ?? ''}`}</span>
-        {r.status !== 'waiting' && <span className="who">{r.status === 'approved' ? `${L('অনুমোদিত', 'Approved')}: ${DONE[r.decided_as ?? ''] ?? ''}` : `${L('ফেরত', 'Returned')}: ${r.decide_note ?? ''}`}{r.decided_by_name ? ` · ${r.decided_by_name}` : ''}</span>}</span>
-      {r.status === 'waiting' ? <span className="self-acts">
-        {r.kind === 'present' ? <>
-          <button className="sm" disabled={!!busy} onClick={() => void decide([r.id], true, 'present')}>{L('উপস্থিত', 'Present')}</button>
-          <button className="secondary sm" disabled={!!busy} onClick={() => void decide([r.id], true, 'late')}>{L('দেরিতে', 'Late')}</button></>
-          : <button className="sm" disabled={!!busy} onClick={() => void decide([r.id], true, 'absent')}>{L('ঠিক আছে', 'Approve')}</button>}
-        <button className="danger sm" disabled={!!busy} onClick={() => { setErr(''); setWhy(''); setBack(r) }}>{L('ফেরত', 'Return')}</button></span>
-        : <Badge tone={r.status === 'approved' ? 'ok' : 'bad'}>{r.status === 'approved' ? L('অনুমোদিত', 'Approved') : L('ফেরত', 'Returned')}</Badge>}
-    </div>)}</div>
-    {back && <Modal title={L('হাজিরা ফেরত দিন', 'Return attendance')} onClose={() => setBack(null)}
-      actions={<><button className="secondary" onClick={() => setBack(null)}>{L('বাতিল', 'Cancel')}</button>
-        <button className="danger" disabled={!!busy || !why.trim()} onClick={() => void decide([back.id], false, undefined, why.trim())}>{L('ফেরত দিন', 'Return')}</button></>}>
-      <p className="muted small">{back.full_name} — {L('কারণটা স্টাফ তাঁর প্যানেলে দেখবেন।', 'The staff member sees this reason on their panel.')}</p>
-      <Field label={L('কারণ *', 'Reason *')}><input id="self-back-why" autoFocus value={why} onChange={e => setWhy(e.target.value)} /></Field>
-      {err && <p className="da-error">{err}</p>}
-    </Modal>}
+    <div className="nv-rows"><Link to={`/app/workforce/hub?hub=${hub}&tab=approve`} className="nv-row">
+      <span className="nv-av sd-i g"><Icon name="check" size={20} /></span>
+      <span className="tx"><b>{L('স্টাফের দেওয়া হাজিরা — অনুমোদন', 'Attendance staff gave — approvals')}</b>
+        <span>{L('আজকের ও আগের সব তারিখ এক জায়গায়: হাজিরা বই ও দৈনিক রিপোর্ট → অনুমোদন', 'Today and every earlier date in one place: Attendance book & daily report → Approvals')}</span></span>
+      <Icon name="chev" size={18} /></Link></div>
   </section>
 }
 

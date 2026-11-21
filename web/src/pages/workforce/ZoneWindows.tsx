@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { addDays } from '../../lib/dailyAccounts'
 import { usePrefs } from '../../lib/prefs'
-import { monthLabel, monthOf, useLiveLoad, wf, wfFriendly, type IsoDate, type WindowRow, type WindowsPage } from '../../lib/workforce'
+import { monthLabel, monthOf, useLiveLoad, wf, wfFriendly, type BookMode, type IsoDate, type WindowRow, type WindowsPage } from '../../lib/workforce'
 import { Badge, Field, Modal, useToast } from '../accounts/ui'
 import { shortDate } from './AbsenceApply'
 import { Empty, Loading, Section, fmtStamp } from './shared'
@@ -14,6 +14,58 @@ import { Empty, Loading, Section, fmtStamp } from './shared'
  * The database (wf_window_save / wf_window_end / wf_windows) checks every rule and the zone scope; this page only asks and shows.
  * When a window opens, the zone's staff are told at once and reminded every afternoon until it ends; inputs still wait for the hub manager.
  */
+/**
+ * হাজিরা বই পুরো মাস (১–৩১) — অন/অফ. One switch for the whole company (setting workforce.book_full_month).
+ * Everyone on this tab sees whether it is on; only the Super Admin flips it (the database checks that too).
+ */
+function BookFullMonth({ onChanged }: { onChanged: () => void }) {
+  const { L, n, lang } = usePrefs()
+  const { toast, node } = useToast()
+  const q = useLiveLoad<BookMode>(() => wf.bookMode(), [])
+  const [asking, setAsking] = useState(false)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const m = q.data
+  if (!m) return q.error ? <Section title={L('হাজিরা বই: পুরো মাস (১–৩১)', 'Attendance book: whole month (1–31)')}><p className="da-error" role="alert">{wfFriendly(q.error)}</p></Section> : null
+  const on = m.full_month
+  const normal = L(`${n(m.normal_from_day)}–${n(m.normal_to_day)} তারিখ`, `days ${m.normal_from_day}–${m.normal_to_day}`)
+  const flip = async () => {
+    setBusy(true); setErr('')
+    try {
+      await wf.bookFullMonth(!on, note.trim() || null); setAsking(false); setNote(''); await q.reload(); onChanged()
+      toast(!on ? L('হাজিরা বই এখন পুরো মাস (১–৩১) খোলা', 'The book is now open all month (1–31)') : L(`হাজিরা বই আবার ${n(m.normal_from_day)}–${n(m.normal_to_day)} তারিখে`, `The book is back to days ${m.normal_from_day}–${m.normal_to_day}`))
+    } catch (e) { setErr(wfFriendly(e)) } finally { setBusy(false) }
+  }
+  return <Section title={L('হাজিরা বই: পুরো মাস (১–৩১)', 'Attendance book: whole month (1–31)')}
+    hint={L(`চালু থাকলে স্টাফরা মাসের প্রতিটি দিনের হাজিরা বইয়ে দিতে পারেন। বন্ধ থাকলে বই শুধু ${normal} খোলা থাকে। পুরো কোম্পানির জন্য একটাই সেটিং।`,
+      `When on, staff give every day of the month in the book. When off, the book is open on ${normal} only. One setting for the whole company.`)}>
+    {node}
+    <div className="wm-win-h">
+      <b>{on ? L('চালু — ১ থেকে ৩১ তারিখ খোলা', 'On — open days 1 to 31') : L(`বন্ধ — শুধু ${normal}`, `Off — ${normal} only`)}</b>
+      <Badge tone={on ? 'ok' : 'neutral'}>{on ? L('অন', 'On') : L('অফ', 'Off')}</Badge>
+    </div>
+    {m.changed_at && m.changed_by_name && <small className="muted">{L('শেষ বদল', 'Last changed')}: {m.changed_by_name} · {fmtStamp(m.changed_at, lang)}</small>}
+    {m.can_set
+      ? <div className="wm-win-act"><button type="button" className={on ? 'secondary' : undefined} disabled={busy} onClick={() => { setErr(''); setAsking(true) }}>
+          <Icon name={on ? 'x' : 'check'} size={16} />{on ? L('অফ করুন', 'Turn off') : L('অন করুন (১–৩১)', 'Turn on (1–31)')}</button></div>
+      : <p className="muted small">{L('শুধু সুপার অ্যাডমিন এটা অন/অফ করতে পারেন।', 'Only the Super Admin can turn this on or off.')}</p>}
+    {asking && <Modal title={on ? L('পুরো মাস বন্ধ করবেন?', 'Turn the whole month off?') : L('পুরো মাস খুলবেন?', 'Open the whole month?')} onClose={() => !busy && setAsking(false)}
+      actions={<>
+        <button type="button" className="secondary" disabled={busy} onClick={() => setAsking(false)}>{L('না, থাক', 'No, keep it')}</button>
+        <button type="button" disabled={busy} onClick={() => void flip()}>{busy ? L('হচ্ছে…', 'Working…') : on ? L('হ্যাঁ, অফ করুন', 'Yes, turn off') : L('হ্যাঁ, অন করুন', 'Yes, turn on')}</button>
+      </>}>
+      <p style={{ margin: 0 }}>{on
+        ? L(`বই আবার শুধু ${normal} খোলা থাকবে। তার পরের দিনে স্টাফরা স্টাফ প্যানেলের "আজকের হাজিরা" দিয়ে আজকের দিনটা দেবেন। যা দেওয়া হয়ে গেছে, তা থাকবে।`,
+            `The book is open on ${normal} only again. After that, staff give today from the staff panel. What was given stays.`)
+        : L('সব জোনের স্টাফরা মাসের যেকোনো দিনের হাজিরা (আজ পর্যন্ত) বইয়ে দিতে পারবেন, আর প্রতিদিন বিকেলের মনে করানো পুরো মাস চলবে। অনুমোদন আগের মতোই হাব ম্যানেজারের।',
+            'Staff in every zone give any day of the month (up to today) in the book, and the afternoon reminder runs all month. The hub manager still approves.')}</p>
+      <Field label={L('কারণ (ইচ্ছা হলে)', 'Reason (optional)')}><input value={note} maxLength={300} onChange={e => setNote(e.target.value)} /></Field>
+      {err && <p className="da-error" role="alert">{err}</p>}
+    </Modal>}
+  </Section>
+}
+
 const nextMonth = (ym: IsoDate) => { const [y, m] = ym.slice(0, 7).split('-').map(Number); return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01` }
 const minIso = (a: IsoDate, b: IsoDate) => (a < b ? a : b)
 
@@ -87,6 +139,7 @@ export function ZoneWindows({ zone }: { zone: string }) {
   return <>
     {node}
     <div ref={top} className="wm-win-top" aria-hidden="true" />
+    <BookFullMonth onChanged={() => void q.reload()} />
     {canSet && <Section title={L('আগের তারিখ খোলা', 'Open earlier dates')}
       hint={L(`হাজিরা বই প্রতি মাসের ${n(d.window.from_day)}–${n(d.window.to_day)} তারিখ নিজে থেকে খোলা থাকে। তার পরে আগের তারিখ দিতে হলে এখান থেকে খুলে দিন — স্টাফরা হাজিরা বইয়ে "একসাথে সব দিন" দিয়ে সব তারিখ এক পাতায় দেবেন, হাব ম্যানেজার অনুমোদন দেবেন। জোনের স্টাফদের সাথে সাথে জানানো হবে, আর বন্ধ না হওয়া পর্যন্ত প্রতিদিন বিকেলে মনে করানো হবে।`,
         `The book opens by itself on days ${d.window.from_day}–${d.window.to_day} of each month. To let staff give earlier dates after that, open them here — staff give them all on one page ("Give all at once"), the hub manager approves. The zone’s staff are told at once and reminded every afternoon until it closes.`)}>
