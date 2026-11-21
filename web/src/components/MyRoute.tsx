@@ -11,10 +11,12 @@ const navLink = (lat: number, lng: number) => `https://www.google.com/maps/dir/?
 export function MyRouteCard() {
   const { L, n } = usePrefs()
   const fmt = { L, n }
-  const d = useLoad(() => routeApi.mine().catch(() => ({ date: '', routes: [] as MyRoute[] })), [])
+  const d = useLoad(() => routeApi.mine(), [])
   const [me, setMe] = useState<{ lat: number; lng: number; accuracy: number } | null>(null)
   const [busy, setBusy] = useState(''); const [msg, setMsg] = useState<{ tone: 'ok' | 'warn' | 'bad'; text: string } | null>(null)
-  const routes = (d.data?.routes ?? []).filter(r => r.stops.some(hasGps))
+  const routes = (d.data?.routes ?? []).filter((r: MyRoute) => r.stops.some(hasGps))
+  if (d.error) return <p className="da-error" style={{ marginTop: 10 }}>{L('আপনার রুট আনা যায়নি', 'Your route could not be loaded')}: {routeFriendly(d.error)}{' '}
+    <button className="secondary sm" onClick={() => void d.reload()}>{L('আবার চেষ্টা', 'Try again')}</button></p>
   if (!routes.length) return null
 
   async function checkin(stopId: string) {
@@ -23,8 +25,8 @@ export function MyRouteCard() {
       const p = await myLocation(); setMe(p)
       const res = await routeApi.checkin(stopId, p.lat, p.lng, p.accuracy)
       setMsg(res.near ? { tone: 'ok', text: L(`চেক-ইন হয়েছে — স্টপ থেকে ${fmtDist(res.distance_m, fmt)} দূরে।`, `Checked in — ${res.distance_m} m from the stop.`) }
-        : { tone: 'warn', text: L(`চেক-ইন রাখা হলো, তবে আপনি স্টপ থেকে ${fmtDist(res.distance_m, fmt)} দূরে (সীমা ${fmtDist(res.radius_m, fmt)})। কাছে গিয়ে আবার চাপ দিন।`,
-          `Saved, but you are ${res.distance_m} m away (limit ${res.radius_m} m).`) })
+        : { tone: 'warn', text: L(`চেক-ইন রাখা হলো, তবে আপনি স্টপ থেকে ${fmtDist(res.distance_m, fmt)} দূরে (সীমা ${fmtDist(res.radius_m, fmt)})। কাছে গিয়ে তালিকায় "আবার চেষ্টা" চাপুন।`,
+          `Saved, but you are ${res.distance_m} m away (limit ${res.radius_m} m). Go closer and press "Try again" in the list.`) })
       await d.reload()
     } catch (e) { setMsg({ tone: 'bad', text: e instanceof Error && /লোকেশন/.test(e.message) ? e.message : routeFriendly(e) }) } finally { setBusy('') }
   }
@@ -56,7 +58,8 @@ export function MyRouteCard() {
       {msg && <p className={msg.tone === 'bad' ? 'da-error' : 'small'} style={msg.tone === 'warn' ? { color: '#ea580c' } : undefined}>{msg.text}</p>}
       <ol className="small" style={{ margin: '8px 0 0', paddingLeft: 22 }}>{r.stops.map(s => { const v = s.id ? done.get(s.id) : undefined
         return <li key={s.id} style={{ marginBottom: 4 }}>{s.name}{' '}
-          {v ? <Badge tone={v.near ? 'ok' : 'warn'}>{n(new Date(v.at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }))}{v.near ? '' : ` · ${L('দূরে', 'far')}`}</Badge>
+          {v ? <><Badge tone={v.near ? 'ok' : 'warn'}>{n(new Date(v.at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }))}{v.near ? '' : ` · ${L('দূরে', 'far')}`}</Badge>{!v.near && r.can_checkin && <>{' '}
+            <button className="secondary sm" disabled={!!busy} onClick={() => void checkin(s.id!)}>{busy === s.id ? '…' : L('আবার চেষ্টা', 'Try again')}</button></>}</>
             : !hasGps(s) ? <span className="muted">· {L('লোকেশন নেই', 'no location')}</span>
             : r.can_checkin && s.id !== next?.id ? <button className="secondary sm" disabled={!!busy} onClick={() => void checkin(s.id!)}>{busy === s.id ? '…' : L('পৌঁছেছি', 'Here')}</button> : null}</li> })}</ol>
       {!r.can_checkin && <p className="muted small">{L('স্টপে চেক-ইন এখনো আপনার জন্য চালু হয়নি।', 'Stop check-in is not on for you yet.')}</p>}

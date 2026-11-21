@@ -237,7 +237,7 @@ function PlaceForm({ place, upazilas, onClose, onSaved }: { place: Partial<Place
         {upazilas.map(x => <option key={x.code} value={x.code}>{lang === 'en' ? x.name : x.name_bn}</option>)}</select></Field>
       <Field label={L('লোকেশন (ম্যাপে চাপুন, বা lat, lng / লিংক)', 'Location (tap the map, or lat, lng / link)')} wide><input value={loc} onChange={e => setLoc(e.target.value)} /></Field>
     </div>
-    <OsmMap height={260} pins={ll ? [{ id: 'p', lat: ll.lat, lng: ll.lng, label: f.name_bn || '' }] : []} lines={boundaryLine(u)} onPick={(lat, lng) => setLoc(`${lat}, ${lng}`)} tags="all" />
+    <OsmMap height={260} pins={ll ? [{ id: 'p', lat: ll.lat, lng: ll.lng, label: f.name_bn || '' }] : []} lines={boundaryLine(u)} onPick={(lat, lng) => setLoc(`${lat}, ${lng}`)} tags="all" keepView fitKey={f.upazila_code} />
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }

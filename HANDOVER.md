@@ -657,3 +657,25 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   file's merged cells, moving requests on, reading the file back into the editor, a new sheet that adds a form box.
 - **Live:** migration applied on Supabase 21 Nov as `20261121165015 company_sheets` (owner said yes first; the 3 function bodies equal the file by hash). The site gets the page when
   the pull request is merged to `main`.
+
+## 2026-11-21 — রুট ম্যাপ অডিট ও ঠিক করা (route map audit fixes)
+- Owner: "রুট প্যানেল ম্যাপস আগে ভালোভাবে অডিট করো", then "বাগ গুলা ফিক্সড কর". Audited: `OsmMap.tsx`, `RouteSettings.tsx`, `RoutePlaces.tsx`, `MyRoute.tsx`, `lib/routes.ts`,
+  `20261119030000_route_settings.sql`, `20261119040000_route_places.sql`.
+- **Map (`components/OsmMap.tsx`, every map in the app gains this):** the mouse wheel and double-click zoom at the pointer, two fingers zoom on a phone; the fit
+  takes whole lines (a boundary used to count as one corner, so "নতুন জায়গা" opened on a corner at full zoom); a `focus` point moves the map only when it changes;
+  on a phone the map is at most 58% of the screen height so the page can be scrolled beside it; a broken saved line no longer breaks the page.
+  New props `keepView` (fit once, then leave zoom and place alone while pins come and go; ⤢ fits again) and `fitKey` (fit again when it changes). The route editor
+  and the place form use `keepView`: before, every tapped stop threw the zoom back, and after a place search every tap jumped back to the found place.
+- **আমার রুট (`components/MyRoute.tsx`):** a check-in from far now has "আবার চেষ্টা" beside it (the message asked to press again but no button was left);
+  a route that fails to load shows the reason and a retry instead of nothing.
+- **Migration `20261121000600_route_map_audit_fixes.sql`** (functions `route_checkin`, `route_day`, `private.hub_routes_follow_areas` replaced; nothing dropped but one constraint):
+  a near check-in is not undone by a later press from far (`kept: true` in the answer); the old hub page changing the area list, or the hub's GPS moving
+  (new trigger `hubs_moved_routes`), clears the saved road line and measures the straight distance again; `route_day` names each rider once (off and on the same
+  day used to list them twice) and also names a rider who checked in but is no longer on the route; `unique (hub_id, code)` on `hub_routes` became the partial index
+  `hub_routes_hub_code_live` (live routes only), so a removed route's code can be used again; check `hub_routes_road_path_ok`: a road line is `[lat, lng]` pairs inside Bangladesh.
+- **Not changed (owner's decision / later):** place names cover Natore district only, and a hub outside it gets the nearest Natore upazila as "its own" (no distance limit in
+  `upazilaNear`); map tiles, place search and the road line come from free public services (tile.openstreetmap.org, Nominatim, the OSRM demo server) that are not meant for
+  steady business use — the owner is weighing a paid map; on a phone the zone map sits below the six number cards; `route_save` answers a too-large number with the raw database text.
+- **Tests:** `99…_route_map_audit.sql` (16 assertions; whole SQL suite 2169 pass); smoke test: the editor map keeps its zoom after a stop is added, the wheel zooms (all 622 checks pass).
+  The "আবার চেষ্টা" button was type-checked only, not driven in a browser.
+- **Live:** the migration is NOT applied on Supabase yet (ask the owner first). The site changes work with the database as it is now; the five database fixes arrive with the migration.

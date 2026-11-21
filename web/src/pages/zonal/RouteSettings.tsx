@@ -458,7 +458,7 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
             <button type="button" className={mode === 'move' ? 'sm' : 'secondary sm'} disabled={sel === null} onClick={() => setMode('move')}><Icon name="map" size={13} />{L('চাপ দিলে বাছাই করা স্টপ সরবে', 'Tap = move picked stop')}</button></span>
           <button type="button" className="secondary sm" disabled={busy === 'gps'} onClick={() => void here(null)}><Icon name="map" size={13} />{L('আমার লোকেশনে স্টপ', 'Stop at my location')}</button>
         </div>
-        <OsmMap pins={pins} lines={lines} circles={circles} height={430} focus={focus} onPick={pick} tags="all"
+        <OsmMap pins={pins} lines={lines} circles={circles} height={430} focus={focus} onPick={pick} tags="all" keepView
           selected={sel !== null ? `s${sel}` : null} onSelect={id => { if (id.startsWith('p:')) { extra.add(id); return } if (id.startsWith('s')) { const i = Number(id.slice(1)); setSel(i); setOpen(i) } }} />
         <div className="rt-search" style={{ marginTop: 8 }}>
           <div className="rt-bar"><input style={{ flex: 1, minWidth: 0 }} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void find() }}
