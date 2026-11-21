@@ -71,19 +71,27 @@ export function StaffPanel() {
   }, [])
   const v = d.data
   const layout = useLoad(() => staffPanel.mine(), [])
-  const order: StaffSection[] = layout.loading && !layout.data ? [] : layout.data ?? STAFF_DEFAULT   // wait for it, so nothing jumps
+  const chosen: StaffSection[] = layout.loading && !layout.data ? [] : layout.data ?? STAFF_DEFAULT   // wait for it, so nothing jumps
   // Today's four numbers (My Workforce): the returns tile reads them; the input card below saves them. Live, so a submit shows here at once.
   const ops = useLiveLoad(() => wf.myOps(1), [], ['wf_daily_ops'])
   const reloadOps = ops.reload
   useEffect(() => { const f = () => void reloadOps(); window.addEventListener('wf:changed', f); return () => window.removeEventListener('wf:changed', f) }, [reloadOps])
   const todayOps = ops.data?.entry ?? null
   const returnsToday = todayOps ? todayOps.pickup_return + todayOps.delivery_return : null
-  const wfOpen = useWfCounts().data?.open === true   // the attendance book is open today (days 1-17): "not coming" is given there
-  const opsHere = !!ops.data && !ops.error   // a login with no active staff profile gets no input card
+  const wfCounts = useWfCounts().data
+  const wfOpen = wfCounts?.open === true   // the attendance book is open today (days 1-17): "not coming" is given there
+  // A login with no active staff profile gets no input card. Only the first load decides: a failed 60-second refresh keeps the card
+  // (and what the person is typing in it); DailyOpsCard shows its own error.
+  const opsHere = !!ops.data
+  // Someone who must give today's four numbers always gets the input card, even when their role's layout hides it:
+  // otherwise the "not given yet" alert and the returns tile would point at a card that is not on the page.
+  const mustReport = wfCounts?.mine?.ops_expected === true
+  const order: StaffSection[] = chosen.length && !chosen.includes('work') && opsHere && mustReport ? [...chosen, 'work'] : chosen
+  const workShown = order.includes('work') && opsHere
   const { hash } = useLocation()
   useEffect(() => { if (hash === '#wf-ops' && opsHere) document.getElementById('wf-ops')?.scrollIntoView({ block: 'start' }) }, [hash, opsHere])
   const toOps = (e: MouseEvent) => { const el = document.getElementById('wf-ops'); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }) } }
-  const gapQ = useLoad(() => v?.me ? hr.profileGaps().then(l => l.find(g => g.employee_id === v.me!.id) ?? null).catch(() => null) : Promise.resolve(null), [v?.me?.id])
+  const gapQ = useLoad(() => v?.me ? hr.myProfileGap(v.me.id).catch(() => null) : Promise.resolve(null), [v?.me?.id])
   const profilePct = gapQ.data ? Math.round(100 * (gapQ.data.total_checks - gapQ.data.missing.length) / Math.max(1, gapQ.data.total_checks)) : null
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
   const name = v?.home?.me?.name || v?.me?.full_name || session?.user.user_metadata?.full_name || L('স্টাফ', 'Staff')
@@ -153,7 +161,7 @@ export function StaffPanel() {
       <div className="sp-tiles">
         <Link to="/app/accounts/mine" className="sp-tile t-b"><span className="i"><Icon name="box" size={20} /></span><b>{n(sum(l => l.line.pickup_qty))}</b><small>{L('আজকের পিকআপ', 'Pickups today')}</small></Link>
         <Link to="/app/accounts/mine" className="sp-tile t-g"><span className="i"><Icon name="truck" size={20} /></span><b>{n(sum(l => l.line.delivery_qty))}</b><small>{L('আজকের ডেলিভারি', 'Deliveries today')}</small></Link>
-        {opsHere
+        {workShown
           ? <a href="#wf-ops" className="sp-tile t-o" onClick={toOps}><span className="i"><Icon name="back" size={20} /></span><b>{returnsToday === null ? '—' : n(returnsToday)}</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></a>
           : <div className="sp-tile t-o off"><span className="i"><Icon name="back" size={20} /></span><b>—</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></div>}
         <Link to="/app/accounts/mine" className="sp-tile t-p"><span className="i"><Icon name="cash" size={20} /></span><b>{taka(sum(l => Number(l.line.amount)))}</b><small>{L('আজকের টাকা', 'Money today')}</small></Link>
