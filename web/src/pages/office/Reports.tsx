@@ -62,7 +62,7 @@ export function Reports({ scope, places, hubName, onPick }: { scope: OfficeScope
         cols={[
           { key: 'name', label: L('জায়গা', 'Place'), primary: true, value: l => l.p.name, render: l => <><strong>{l.p.name}</strong>{l.hub && <span className="sec">{l.hub}</span>}</> },
           { key: 'hub', label: L('হাব', 'Hub'), hidden: true, value: l => l.hub },
-          ...KINDS.map(k => ({ key: k, label: L(BILL_KIND[k][0], BILL_KIND[k][1]), className: 'r', value: (l: Line) => l.by[k] || '',
+          ...KINDS.filter(k => k === 'rent' || k === 'electricity' || sum(k)).map(k => ({ key: k, label: L(BILL_KIND[k][0], BILL_KIND[k][1]), className: 'r', value: (l: Line) => l.by[k] || '',
             render: (l: Line) => k === 'rent' && l.rentMissing ? <Badge tone="bad">{L('বাকি', 'Missing')}</Badge> : tk(l.by[k]) })),
           { key: 'total', label: L('মোট', 'Total'), className: 'r', value: l => l.total || '', render: l => <b>{tk(l.total)}</b> },
           { key: 'count', label: L('বিল', 'Bills'), className: 'r', value: l => l.count },

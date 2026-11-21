@@ -776,6 +776,19 @@ try {
         check(/\/residential\/rent$/.test(page.url()) && await sel.inputValue().catch(() => '') === 'rs1' && await sel.locator('option').count() === 2,
           `${size}: a line of the overview opens that flat's page, and the picker holds residences only`) }
       await fits('a residential flat page')
+      // every office and residential page opens, shows its tabs, has no error box and fits the screen
+      { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports'].map(k => `/app/office/${k}`),
+          ...['overview', 'places', 'rooms', 'people', 'rent', 'bills', 'assets', 'reports', 'power', 'security', 'notices', 'desks'].map(k => `/app/office/residential/${k}`)]
+        const bad = []
+        for (const path of pages) {
+          await page.goto(`${BASE}${path}`); await page.waitForSelector('.hub-tabs', { timeout: 8000 }).catch(() => {})
+          await page.waitForTimeout(150)
+          const ok = await page.locator('.hub-tabs a.on').count() === 1 && await page.locator('main.crash, .da-error').count() === 0
+            && await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)
+          if (!ok) bad.push(path)
+          if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}${path.replaceAll('/', '-')}.png`, fullPage: true })
+        }
+        check(!bad.length, `${size}: all ${pages.length} office and residential pages open cleanly and fit the screen${bad.length ? ' — ' + bad.join(', ') : ''}`) }
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))

@@ -211,14 +211,19 @@ export const ops = {
   /** Everyone living in the given places, in one call (row-level security still decides what comes back). */
   residentsOf: async (properties: string[]) => {
     if (!properties.length) return [] as Resident[]
-    const { data, error } = await supabase.from('office_residents').select('*').in('property_id', properties).is('archived_at', null); fail(error)
-    return (data ?? []) as Resident[]
+    // A long id list would make the address too long: past 100 places, read everything the person may see and keep the ones asked for.
+    let q = supabase.from('office_residents').select('*').is('archived_at', null)
+    if (properties.length <= 100) q = q.in('property_id', properties)
+    const { data, error } = await q; fail(error)
+    const want = new Set(properties); return ((data ?? []) as Resident[]).filter(r => want.has(r.property_id))
   },
   /** The bills of one month for the given places, in one call. `month` = 'YYYY-MM-01'. */
   billsOfMonth: async (properties: string[], month: string) => {
     if (!properties.length) return [] as Bill[]
-    const { data, error } = await supabase.from('office_bills').select('*').in('property_id', properties).eq('bill_month', month).is('archived_at', null); fail(error)
-    return (data ?? []) as Bill[]
+    let q = supabase.from('office_bills').select('*').eq('bill_month', month).is('archived_at', null)
+    if (properties.length <= 100) q = q.in('property_id', properties)
+    const { data, error } = await q; fail(error)
+    const want = new Set(properties); return ((data ?? []) as Bill[]).filter(b => want.has(b.property_id))
   },
   residentSave: async (row: Record<string, unknown>, id?: string) => {
     const q = id ? supabase.from('office_residents').update(row).eq('id', id) : supabase.from('office_residents').insert(row)
