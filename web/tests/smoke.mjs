@@ -351,7 +351,8 @@ try {
       if (u.includes('/rpc/')) return j(null)
       if (u.includes('/rest/v1/leave_types')) return j([{ id: 'lt1', code: 'CL', name: 'Casual leave', name_bn: 'নৈমিত্তিক ছুটি', is_paid: true, annual_quota: 10, status: 'active' }])
       if (u.includes('/rest/v1/leave_requests') && u.includes('status=eq.approved')) return j([{ employee_id: 'e03' }])
-      if (u.includes('/rest/v1/employees') && u.includes('limit=2000') && r.request().method() === 'GET' && !u.includes('profile_id=is.null')) return j(staffRows.map(e => ({ ...e, zone_id: 'z1',
+      // two of them sit in another hub, so the list has a column a remembered filter could narrow
+      if (u.includes('/rest/v1/employees') && u.includes('limit=2000') && r.request().method() === 'GET' && !u.includes('profile_id=is.null')) return j(staffRows.map((e, i) => ({ ...e, zone_id: 'z1', hub_id: i >= 10 ? 'h1' : e.hub_id,
         full_name_bn: null, email: null, department_id: 'd1', joining_date: '2026-01-01', status_since: '2026-01-01', archived_at: null, profile_id: null, reporting_manager_id: null,
         emergency_contact_name: null, emergency_contact_phone: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' })))
       if (u.includes('/rest/v1/employees') && u.includes('profile_id=is.null')) return j([...staffRows.map(e => ({ ...e, zone_id: 'z1' })),
@@ -1036,10 +1037,15 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-training.png` })
 
     // staff list: post chips, leave chip, search, View / Edit on every row, and an action on several marked rows
+    // A hub filter this device remembered from the list's own filter bar (before the page had its own filters)
+    // must not hide staff: it once left 2 rows on screen while the page's cards said 145.
+    await page.evaluate(() => { try { const all = JSON.parse(localStorage.getItem('xzm_dataview') || '{}'); all.employees = { ...all.employees, filters: { hub: ['Natore Sadar #80'] } }; localStorage.setItem('xzm_dataview', JSON.stringify(all)) } catch { /* ignore */ } })
     await page.goto(`${BASE}/app/hr/employees`); const staffSel = '.emp-board .da-table tbody tr, .emp-board .dv-list > li'   // table on a PC, compact list on a phone
     await page.waitForSelector(staffSel)
     const staffRowsShown = () => page.locator(staffSel).count()
-    check(await staffRowsShown() === 12 && (await page.locator('.eb-chips').innerText()).includes('Rider'), `${size}: the staff list shows everyone with a chip per post`)
+    check(await staffRowsShown() === 12 && (await page.locator('.eb-chips').innerText()).includes('Rider'), `${size}: the staff list shows everyone with a chip per post (${await staffRowsShown()})`)
+    check(await page.locator('.emp-board .dv-fbtn').count() === 0 && (await page.locator('.hr-emp-list-heading p').innerText()).includes('১২ জনের মধ্যে ১২ জন'),
+      `${size}: the staff list has one set of filters, and its heading counts what is on screen`)
     check(await page.locator(staffSel).first().locator('.row-acts button').count() === 2, `${size}: every row has Edit and View`)
     { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), page.getByRole('button', { name: /আইডি তৈরির ফাইল/ }).click()])
       const sent = exported.at(-1)

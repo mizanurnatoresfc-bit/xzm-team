@@ -32,7 +32,7 @@ const VIEW_ICON: Record<ViewKind, string> = { table: 'table', card: 'grid', list
 
 /** One list, several views: table, cards or compact lines of the same rows — with search, sorting, quick filters,
  *  pages, mark / unmark, print, Excel and PDF. Search, filters and sorting also decide what is printed or exported. */
-export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, empty, file, prefKey, views = ['table', 'card', 'list'], search = true, bulk, phoneView, canExport = true, canPrint = true, beforeOutput }: {
+export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, empty, file, prefKey, views = ['table', 'card', 'list'], search = true, bulk, phoneView, canExport = true, canPrint = true, beforeOutput, quickFilters = true }: {
   title: string; rows: T[] | null | undefined; cols: Array<Col<T>>; rowKey: (r: T) => string; onRowClick?: (r: T) => void; empty?: ReactNode; file?: string
   /** Name under which this list's view choices are remembered (default: `file`). */
   prefKey?: string; views?: ViewKind[]
@@ -45,6 +45,10 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   canExport?: boolean; canPrint?: boolean
   /** Called before an Excel / PDF / print; return false (or throw) to stop it — e.g. to log it in the database first. */
   beforeOutput?: (format: 'excel' | 'pdf' | 'print', rows: number) => Promise<boolean> | boolean
+  /** false = the page has its own filters, so the list adds none of its own and ignores any it remembered.
+   *  Two sets of filters on one page let a filter remembered on this device hide rows the page's own
+   *  counts and "clear filters" button know nothing about. */
+  quickFilters?: boolean
 }) {
   const { L, n } = usePrefs()
   const id = prefKey ?? file
@@ -63,13 +67,13 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   const size = SIZES.includes(saved.size ?? 0) ? saved.size! : 50
   const big = source.length > 8
   // Columns with a handful of repeating values (status, hub, post…) become one-tap filters.
-  const filterable = useMemo(() => !big ? [] : exp.map(c => {
+  const filterable = useMemo(() => !big || !quickFilters ? [] : exp.map(c => {
     const vals = new Set<string>(); for (const r of source) { vals.add(String(cell(c, r))); if (vals.size > 14) break }
     vals.delete('')
     return vals.size >= 2 && vals.size <= 14 && vals.size < source.length ? { c, vals: [...vals].sort((x, y) => x.localeCompare(y, 'bn')) } : null
   }).filter((x): x is { c: Col<T>; vals: string[] } => !!x),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [source, cols, big])
+  [source, cols, big, quickFilters])
   // A remembered filter only counts while its value still exists in the list.
   const filters: Record<string, string[]> = Object.fromEntries(Object.entries(saved.filters ?? {})
     .map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).filter(x => filterable.some(f => f.c.key === k && f.vals.includes(x)))] as [string, string[]])

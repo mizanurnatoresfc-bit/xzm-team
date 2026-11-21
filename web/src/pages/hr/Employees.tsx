@@ -59,20 +59,23 @@ export function Employees() {
   const inactiveCount = all.filter(e => ['inactive', 'resigned', 'terminated'].includes(e.status)).length
   const hasFilters = !!(q || zone || hub || status !== 'active' || post)
   const clearFilters = () => { setQ(''); setZone(''); setHub(''); setStatus('active'); setPost('') }
+  // Counts show only once the list has really loaded: "০" while loading or after an error reads as "nobody".
+  const ready = !!list.data && !list.error
+  const stat = (v: number) => ready ? bn(v) : '—'
 
-  return <AppShell title="কর্মী ব্যবস্থাপনা" subtitle={`${bn(all.filter(e => e.status === 'active').length)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।`}
+  return <AppShell title="কর্মী ব্যবস্থাপনা" subtitle={ready ? `${bn(activeCount)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।` : 'পদ, এরিয়া বা হাব ধরে কর্মী দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।'}
     actions={<><button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hub || null, status: status || 'active' }).then(n => toast(n ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ আইডি তৈরির ফাইল</button>
       <ExportByFormat zone={zone || null} hub={hub || null} status={status || null} q={q || null} title="কর্মী তালিকা" />
       {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setOpen(true)}>+ নতুন কর্মী</button>}</>}>
     {node}
     <section className="hr-emp-stats" aria-label="কর্মীর সারসংক্ষেপ">
-      <article className="hr-emp-stat blue"><small>মোট কর্মী</small><strong>{list.loading ? "—" : bn(all.length)}</strong><span>সিস্টেমে থাকা সব রেকর্ড</span></article>
-      <article className="hr-emp-stat green"><small>সক্রিয় কর্মী</small><strong>{list.loading ? "—" : bn(activeCount)}</strong><span>বর্তমানে কর্মরত</span></article>
-      <article className="hr-emp-stat amber"><small>আইডির অপেক্ষায়</small><strong>{list.loading ? "—" : bn(applicantCount)}</strong><span>আবেদন / অনুমোদন বাকি</span></article>
-      <article className="hr-emp-stat gray"><small>নিষ্ক্রিয়</small><strong>{list.loading ? "—" : bn(inactiveCount)}</strong><span>নিষ্ক্রিয় / পদত্যাগ / সমাপ্ত</span></article>
+      <article className="hr-emp-stat blue"><small>মোট কর্মী</small><strong>{stat(all.length)}</strong><span>আপনি যে এলাকা দেখতে পারেন</span></article>
+      <article className="hr-emp-stat green"><small>সক্রিয় কর্মী</small><strong>{stat(activeCount)}</strong><span>বর্তমানে কর্মরত</span></article>
+      <article className="hr-emp-stat amber"><small>আইডির অপেক্ষায়</small><strong>{stat(applicantCount)}</strong><span>আবেদন / অনুমোদন বাকি</span></article>
+      <article className="hr-emp-stat gray"><small>নিষ্ক্রিয়</small><strong>{stat(inactiveCount)}</strong><span>নিষ্ক্রিয় / পদত্যাগ / সমাপ্ত</span></article>
     </section>
     <section className="panel emp-board hr-emp-board">
-      <div className="hr-emp-list-heading"><div><h2>কর্মী তালিকা</h2><p>{list.loading ? 'তথ্য লোড হচ্ছে…' : bn(rows.length) + ' জন কর্মী দেখানো হচ্ছে'}</p></div>{hasFilters && <button type="button" className="hr-emp-clear" onClick={clearFilters}>সব ফিল্টার মুছুন ×</button>}</div>
+      <div className="hr-emp-list-heading"><div><h2>কর্মী তালিকা</h2><p aria-live="polite">{list.error ? 'তালিকা আনা যায়নি' : !list.data ? 'তথ্য লোড হচ্ছে…' : `${bn(all.length)} জনের মধ্যে ${bn(rows.length)} জন দেখানো হচ্ছে`}</p></div>{hasFilters && <button type="button" className="hr-emp-clear" onClick={clearFilters}>সব ফিল্টার মুছুন ×</button>}</div>
       <div className="eb-top no-print">
         <div className="eb-chips" role="group" aria-label="পদ অনুযায়ী">
           <button type="button" className={`chip-toggle${post === '' ? ' on' : ''}`} aria-pressed={post === ''} onClick={() => setPost('')}>সব <b>{bn(scoped.length)}</b></button>
@@ -90,9 +93,9 @@ export function Employees() {
         <div className="emp-status" role="group" aria-label="অবস্থা">{STATUS_TABS.map(([k, l]) => <button key={k || 'all'} type="button" className={`chip-toggle${status === k ? ' on' : ''}`} aria-pressed={status === k} onClick={() => setStatus(k)}>
           {l} <b>{bn(base.filter(e => inStatus(e, k)).length)}</b></button>)}</div>
       </div>
-      {list.error ? <p className="da-error">{hrFriendly(list.error)}</p> : null}
-      <DataTable<Employee> title="কর্মী তালিকা" file="employees" rows={list.data ? rows : null} rowKey={e => e.id} search={false} phoneView="list" onRowClick={e => nav(`/app/hr/employees/${e.id}`)}
-        empty={<p className="muted">{list.loading ? 'লোড হচ্ছে…' : 'কোনো কর্মী পাওয়া যায়নি।'}</p>}
+      {list.error ? <p className="da-error" role="alert">{hrFriendly(list.error)} <button type="button" className="link" onClick={() => void list.reload()}>আবার চেষ্টা করুন</button></p> : null}
+      <DataTable<Employee> title="কর্মী তালিকা" file="employees" rows={list.data ? rows : null} rowKey={e => e.id} search={false} quickFilters={false} phoneView="list" onRowClick={e => nav(`/app/hr/employees/${e.id}`)}
+        empty={<p className="muted">{hasFilters ? <>এই বাছাইয়ে কোনো কর্মী নেই। <button type="button" className="link" onClick={clearFilters}>সব ফিল্টার মুছুন</button></> : 'এখনো কোনো কর্মী নেই।'}</p>}
         bulk={(marked, clear) => <>
           {canMove && <button type="button" className="sm" onClick={() => setAct({ kind: 'transfer', list: marked, clear })}>অন্য হাবে বদলি</button>}
           {can('hr.employee.edit') && <button type="button" className="sm" onClick={() => setAct({ kind: 'status', list: marked, clear })}>সক্রিয় / নিষ্ক্রিয়</button>}
