@@ -616,3 +616,43 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Tests:** `99zzzzzzzzzzzzzzzzzzzzzzzz_staff_panel_audit.sql` (17 assertions). The whole suite passes with 2118 assertions on local PostgreSQL (not real Supabase). Typecheck, build and the smoke tests pass.
 - **Not done (low items from the audit):** reducing the number of requests on the staff panel load, the lock on the zone note limit, and the other low items.
 - **Live:** migration applied, then merged to `main` (the site deploys itself; build the APK by hand from Actions if needed).
+
+## 2026-11-21 — কোম্পানি শিট: the company's own Excel layouts, filled from the system
+- Owner (with the company's three files: *New Admin & Rider ID Creat Information*, *…ID Transfer Information*, *Transfer - 02*): the company asks for reports in its own
+  format, the format changes and new ones arrive — the system should take the layout, fill it from its own data and make the report. Also: audit the earlier functions.
+- **What was there before (audit):** three places made "company files", each with the columns written in code — `lib/idCreateFile.ts` (25 columns, title in row 1,
+  a sub-line in row 2, headings in row 4, "ID 123" put under Remarks), `ZonalFiles.tsx` (three files with guessed headings: no date of birth, no NID, no salary) and the
+  request report list. None matched the company's file, and a changed layout meant a code change. `idCreateFile` also asked for `cf:alt_mobile` / `cf:blood_group` by name:
+  with either profile box removed the whole download failed ("Unknown column").
+- **New: `company_sheets`** (migration `20261121000500_company_sheets.sql`). One row = one layout: title, where the title sits, and the columns in order, each with its
+  heading, optional grouped heading, width and **source**. A source is one or more places, first with a value wins (`a|b`): `sl`, `emp:<field>` (every `hr_export_rows`
+  column, `cf:` boxes too), `doc:<type>` ("Yes" when the paper is on file), `req:<form key>`, `req.hub / no / date / status / result / note / decision`, `ref`
+  (reference name + ID), `fixed:<text>`, `blank`. `source = 'requests'` (a row per HR request of one kind) or `'staff'` (a row per employee).
+  Read: anyone with a role. Write: `hr.request.configure`. Never hard-deleted; guarded by `private.company_sheet_guard`.
+- **`hr_sheet_people(ids, fields)`**: staff details for exactly the people on a sheet, under the rules of `hr_export_rows` (who you may see; NID / birth date / address
+  only with `hr.employee_sensitive.view`; salary only with `hr.compensation.view`; private details go to the audit log). A column that no longer exists is skipped.
+- The migration seeds the company's three sheets and adds three optional number boxes to the ID TRANSFER form (`new_basic`, `new_bill`, `new_commission`); the
+  salary sheet shows them and falls back to the present salary when left empty.
+- **Page:** HR requests → new tab **কোম্পানি শিট** (`pages/hr/CompanySheets.tsx`, `lib/companySheet.ts`). Pick a sheet → date range / hub / status → the table shows the
+  sheet as it will go out (grouped headings included). Empty boxes are hatched; any box can be typed by hand for this file only; rows can be left out (SL recounts).
+  "এক্সেল নামান" writes a real .xlsx with the company's merged title and grouped headings, borders, widths, frozen headings, landscape one-page-wide print set-up
+  (`laidXlsxBlob` in `lib/xlsx.ts`). Optional tick: move the "জমা হয়েছে" ones to "কাজ চলছে" after the download.
+  Request sheets also list transfers / active / inactive made **straight in the system** with no request (from `hr_change_register`; chip "সিস্টেমে সরাসরি করা", on by
+  default; a person a listed request already covers is not repeated).
+- **When the format changes / a new format arrives:** "নতুন ফরম্যাট (ফাইল থেকে)" or "ফরম্যাট বদলেছে?" → give the company's .xlsx. `readWorkbook` (`lib/sheetRead.ts`, all
+  sheets, merged cells, widths) + `learnLayout` find the heading row, the title, the grouped headings and the column order; `guessSrc` points each heading at its source
+  (English and Bangla headings, the company's spellings such as "Raferance", "Permament", "Fuyel"). On an existing sheet a column that stayed keeps its source and only
+  the new ones are flagged; removed ones are listed. A column the system has nowhere to take from can become **a new box on the request form** in the same save
+  (`addFormFields`), so the manager fills it when submitting. All three of the company's files are read with every column pointed correctly (checked by hand).
+- `downloadIdCreateFile` (staff page button "আইডি তৈরির ফাইল") now uses the staff sheet saved in `company_sheets` (built-in copy only if there is none).
+  The zonal file page has a "কোম্পানির ফরম্যাটে" button to the new tab; its three older files are unchanged.
+- **Other fixes from the audit:** `xlsx.ts` drops characters XML forbids (one pasted control character made Excel call a whole file damaged) — every Excel download gains
+  this; `hrReq.list()` keeps every still-waiting request on the approval list beyond the newest 500; two stale checks that had the test run red were repaired
+  (`99…_workforce.sql` counted 23 `wf_` functions, there are 25 since `book_full_month`; the smoke test ticked "হাজিরার দিন মেলানো", which left the menu the same day).
+- **Still open (not changed):** approving a transfer applies it in the system and then closes the request in two separate calls — if the second fails the person is
+  already moved but the request stays open; saved request reports live in the browser only (one device); the ID CREATE request form has six boxes while the company's sheet
+  has 25 (the staff sheet covers it from the profile; "নিয়োগ দিন" does not link the request to the applicant it creates); "previous salary" on the transfer sheet is the
+  salary on the day of the download, not a copy taken when the request was sent.
+- **Tests:** `99…_company_sheets.sql` (35 assertions); smoke test: the tab, a staff sheet, a transfer sheet with grouped headings, hand-typed box, the downloaded
+  file's merged cells, moving requests on, reading the file back into the editor, a new sheet that adds a form box.
+- **Live:** the migration must be on Supabase before this reaches `main` — the tab and the staff page button call `hr_sheet_people`.

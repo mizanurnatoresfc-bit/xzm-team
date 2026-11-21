@@ -13,8 +13,9 @@ import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { NewApplication, useOrg } from './common'
 import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { StaffDesk } from './StaffDesk'
+import { CompanySheets } from './CompanySheets'
 
-type Tab = 'new' | 'list' | 'report' | 'settings'
+type Tab = 'new' | 'list' | 'report' | 'sheets' | 'settings'
 const errText = (e: unknown) => (e instanceof Error && !('code' in e) ? e.message : hrFriendly(e))
 const today = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 const when = (s: string) => new Date(s).toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
@@ -25,16 +26,19 @@ export function Requests() {
   const canOthers = can('hr.request.create')
   const canDecide = can('hr.request.approve')
   const canConfig = can('hr.request.configure')
+  // The company's own Excel layouts, filled from the requests: for everyone who handles other people's requests.
+  const canSheets = canOthers || canDecide || canConfig || can('hr.request.view')
   const tab = (sp.get('tab') as Tab) || (sp.get('id') ? 'list' : 'new')
   const setTab = (t: Tab) => { const n = new URLSearchParams(sp); n.set('tab', t); n.delete('id'); setSp(n, { replace: true }) }
   // Staff who act only for themselves get a plain desk instead of the format picker.
   const tabs: Array<[Tab, string, string]> = [['new', canOthers ? 'নতুন রিকুয়েস্ট' : 'আবেদন করুন', canOthers ? 'plus' : 'grid'], ['list', canDecide ? 'অনুমোদন প্যানেল' : canOthers ? 'আমার রিকুয়েস্ট' : 'আমার আবেদন', 'check'],
-    ['report', 'রিপোর্ট', 'chart'], ...(canConfig ? [['settings', 'ফরম্যাট সেটিং', 'gear'] as [Tab, string, string]] : [])]
+    ['report', 'রিপোর্ট', 'chart'], ...(canSheets ? [['sheets', 'কোম্পানি শিট', 'xls'] as [Tab, string, string]] : []), ...(canConfig ? [['settings', 'ফরম্যাট সেটিং', 'gear'] as [Tab, string, string]] : [])]
   return <AppShell title={canOthers ? 'এইচআর ও অপারেশন রিকুয়েস্ট' : 'আমার আবেদন ও আমার লোক'} subtitle={canOthers ? 'হাব → স্টাফ → ফরম্যাট বাছুন; আগের তথ্য নিজে বসে যায়' : 'আমার প্রোফাইল, আমার লোক আর অফিসে আবেদন'}>
     <div className="rq-tabs">{tabs.map(([k, l, ic]) => <button key={k} type="button" className={`rq-tab${tab === k ? ' on' : ''}`} onClick={() => setTab(k)}><Icon name={ic} size={16} />{l}</button>)}</div>
     {tab === 'new' && <NewRequest onDone={id => { const n = new URLSearchParams(); n.set('tab', 'list'); n.set('id', id); setSp(n) }} />}
     {tab === 'list' && <RequestList openId={sp.get('id')} onOpen={id => { const n = new URLSearchParams(sp); if (id) n.set('id', id); else n.delete('id'); setSp(n, { replace: true }) }} />}
     {tab === 'report' && <Report />}
+    {tab === 'sheets' && canSheets && <CompanySheets />}
     {tab === 'settings' && canConfig && <Settings />}
   </AppShell>
 }

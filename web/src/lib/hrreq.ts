@@ -67,9 +67,16 @@ export const hrReq = {
   archiveFormat: async (id: string, reason: string) => {
     const { error } = await supabase.from('hr_request_formats').update({ archived_at: new Date().toISOString(), archive_reason: reason }).eq('id', id); fail(error)
   },
+  /** The newest 500, plus every request still waiting however old — so nothing open drops off the approval list. */
   list: async () => {
-    const { data, error } = await supabase.from('hr_requests').select('*').order('created_at', { ascending: false }).limit(500); fail(error)
-    return (data ?? []) as HrRequest[]
+    const [recent, open] = await Promise.all([
+      supabase.from('hr_requests').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('hr_requests').select('*').in('status', ['submitted', 'processing']).order('created_at', { ascending: false }).limit(2000)])
+    fail(recent.error); fail(open.error)
+    const rows = (recent.data ?? []) as HrRequest[]
+    if (rows.length < 500) return rows
+    const seen = new Set(rows.map(r => r.id))
+    return [...rows, ...((open.data ?? []) as HrRequest[]).filter(r => !seen.has(r.id))]
   },
   /** Every request the person may see between two dates (Dhaka days), oldest last. */
   between: async (from: string | null, to: string | null) => {

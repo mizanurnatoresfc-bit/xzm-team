@@ -64,7 +64,7 @@ export function Employees() {
   const stat = (v: number) => ready ? bn(v) : '—'
 
   return <AppShell title="কর্মী ব্যবস্থাপনা" subtitle={ready ? `${bn(activeCount)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।` : 'পদ, এরিয়া বা হাব ধরে কর্মী দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।'}
-    actions={<><button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hub || null, status: status || 'active' }).then(n => toast(n ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ আইডি তৈরির ফাইল</button>
+    actions={<><button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hub || null, status: status || 'active', q: q || null }).then(n => toast(n ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ আইডি তৈরির ফাইল</button>
       <ExportByFormat zone={zone || null} hub={hub || null} status={status || null} q={q || null} title="কর্মী তালিকা" />
       {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setOpen(true)}>+ নতুন কর্মী</button>}</>}>
     {node}
