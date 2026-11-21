@@ -607,7 +607,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Web:** `RoleDashboards.tsx`. The staff panel "সাজান" buttons stay disabled until the current setting has loaded, so a failed load can no longer overwrite a role's layout. The help text now explains the merge rule.
 - **Web:** `lib/staffPanel.ts`. The editor drops section keys it does not know.
 - **Web:** `hr.myProfileGap()` uses the new `my_profile_gaps()`. If that function is not on the database yet, it falls back to the old full list, so the site works before the migration is applied.
-- Migration `20261121000300_staff_panel_audit_fixes.sql` (**not yet applied on Supabase**):
+- Migration `20261121000300_staff_panel_audit_fixes.sql` (**applied on Supabase 21 Nov** as `20261121112345 staff_panel_audit_fixes`; live bodies equal to the file by hash):
   - `att_self_decide`: approving a mark on a day already on the register as leave, holiday or weekly off now succeeds instead of failing the whole batch, and never overwrites that day.
   - `att_self_mark`: the reason is capped at 500 characters. Managers are notified only for a new mark, a change of kind, or a mark given again after it was returned.
   - `staff_panel_sections`: if any active role is on the standard page, the whole page shows. Inactive or archived roles are ignored. It uses `da_today()`.
@@ -615,4 +615,4 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   - `in_zone_group` and `zone_contacts`: only an active employee record counts. `zone_contacts` picks the newest record.
 - **Tests:** `99zzzzzzzzzzzzzzzzzzzzzzzz_staff_panel_audit.sql` (17 assertions). The whole suite passes with 2118 assertions on local PostgreSQL (not real Supabase). Typecheck, build and the smoke tests pass.
 - **Not done (low items from the audit):** reducing the number of requests on the staff panel load, the lock on the zone note limit, and the other low items.
-- **To go live:** apply the migration on Supabase, then merge to `main`.
+- **Live:** migration applied, then merged to `main` (the site deploys itself; build the APK by hand from Actions if needed).
