@@ -62,14 +62,18 @@ select,textarea{width:100%;margin-top:6px;border:1px solid #cbd5e1;border-radius
 .da-notes li.ev-correction_required{border-left-color:#b91c1c}.da-notes li.ev-approved{border-left-color:#16a34a}
 .da-links{display:flex;gap:10px;flex-wrap:wrap}.da-links a{padding:10px 14px;border:1px solid #cbd5e1;border-radius:10px;text-decoration:none;color:#0f7a3d;font-weight:600}
 @media (max-width:1100px){.da-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.da-grid3{grid-template-columns:repeat(2,minmax(0,1fr))}.da-nav{order:3;flex-basis:100%;margin:0}}
-@media (max-width:760px){
-  .topbar{height:auto;flex-wrap:wrap;padding:10px 14px;gap:8px}
-  .da-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.da-grid2,.da-grid3{grid-template-columns:1fr}.da-field.wide{grid-column:auto}
+/* Lists stack into cards at the same width theme.css styles them as cards (960px),
+   so tablets never show the header row and per-cell column names together */
+@media (max-width:960px){
   .da-table thead{display:none}.da-table,.da-table tbody,.da-table tr,.da-table td{display:block;width:100%}
   .da-table tr{border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;padding:6px}
   .da-table td{border:none;display:flex;justify-content:space-between;gap:12px;padding:5px 8px;text-align:right}
   .da-table td[data-l]::before{content:attr(data-l);color:#64748b;font-size:0.8438rem;font-weight:600;text-align:left}
   .da-table tfoot{display:block}
+}
+@media (max-width:760px){
+  .topbar{height:auto;flex-wrap:wrap;padding:10px 14px;gap:8px}
+  .da-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.da-grid2,.da-grid3{grid-template-columns:1fr}.da-field.wide{grid-column:auto}
   .da-actionbar{justify-content:stretch}.da-actionbar button{flex:1}
 }
 @media print{
