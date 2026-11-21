@@ -1,0 +1,156 @@
+/* =====================================================================
+   Courier-hub skin — owner, 21 Nov 2026: the whole app takes the look of the
+   "স্টাফ ম্যানেজমেন্ট ও রিপোর্ট" design mockup.
+   One accent colour (teal), neutral grey page, flat white cards with a thin edge,
+   44px controls, a plain icon-and-name side menu, an amber "you are working in" banner.
+   Loaded after theme.css and before a11y.css. No markup depends on this file:
+   removing its import brings the previous look back.
+   ===================================================================== */
+
+/* ---------- colours ---------- */
+:root{
+  --primary:#0F766E;--primary-dark:#115E59;--on-primary:#FFFFFF;--accent:var(--primary);
+  --primary-50:color-mix(in srgb,var(--primary) 12%,var(--surface));
+  --canvas:#F3F4F6;--surface:#FFFFFF;--text:#111827;--muted:#4B5563;--border:#E5E7EB;--line:#D1D5DB;--hair:#F3F4F6;
+  --ok-fg:#065F46;--ok-bg:#D1FAE5;--warn-fg:#92400E;--warn-bg:#FEF3C7;--bad-fg:#991B1B;--bad-bg:#FEE2E2;--info-fg:#1E40AF;--info-bg:#DBEAFE;
+  --side:#FFFFFF;--side-fg:#374151;--side-muted:#4B5563;--row-hover:#F9FAFB;--th:#F9FAFB;
+  --banner-bg:#FFFBEB;--banner-fg:#78350F;--banner-edge:#FCD34D;--alert:#B91C1C;
+  --tone-g:var(--primary);--tone-b:#1D4ED8;--tone-o:#B45309;--tone-p:#6D28D9;--tone-c:var(--primary);--tone-r:#B91C1C;
+  --r:12px;--shadow:none;--card-shadow:none}
+/* light only, like the layer it replaces: with the theme on "system" a dark phone keeps its dark page */
+:root[data-theme="light"]{--canvas:#F3F4F6}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--canvas:#F3F4F6}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --primary:#2DD4BF;--primary-dark:#134E4A;--on-primary:#042F2E;--primary-50:color-mix(in srgb,var(--primary) 16%,var(--surface));
+  --canvas:#0F1419;--surface:#171C22;--text:#E5E7EB;--muted:#A8B0BA;--border:#2B323B;--line:#3A424C;--hair:#232A32;
+  --side:#12171C;--side-fg:#D6DBE1;--side-muted:#98A2AE;--row-hover:#1C2229;--th:#1A2027;
+  --banner-bg:#2E2208;--banner-fg:#FCD34D;--banner-edge:#7A5A12;--alert:#DC2626;
+  --tone-b:#60A5FA;--tone-o:#FB923C;--tone-p:#A78BFA;--tone-r:#FB7185}}
+:root[data-theme="dark"]{
+  --primary:#2DD4BF;--primary-dark:#134E4A;--on-primary:#042F2E;--primary-50:color-mix(in srgb,var(--primary) 16%,var(--surface));
+  --canvas:#0F1419;--surface:#171C22;--text:#E5E7EB;--muted:#A8B0BA;--border:#2B323B;--line:#3A424C;--hair:#232A32;
+  --side:#12171C;--side-fg:#D6DBE1;--side-muted:#98A2AE;--row-hover:#1C2229;--th:#1A2027;
+  --banner-bg:#2E2208;--banner-fg:#FCD34D;--banner-edge:#7A5A12;--alert:#DC2626;
+  --tone-b:#60A5FA;--tone-o:#FB923C;--tone-p:#A78BFA;--tone-r:#FB7185}
+
+/* ---------- type ---------- */
+body{font-size:0.9375rem}
+a:hover{color:var(--primary-dark)}
+.da-head h1{font-size:1.75rem;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.da-head p{font-size:0.9375rem;line-height:1.6;max-width:760px;margin-top:6px}
+.panel h2,.da-bar h2,.da-bar strong{font-size:1.0625rem!important;font-weight:600}
+
+/* ---------- buttons: flat, 44px ---------- */
+button{min-height:44px;padding:0 18px;border-radius:8px;font-size:0.9375rem}
+button:where(:not([class]),.primary,.sm:not(.secondary,.danger,.soft,.link)){background:var(--primary);border-color:var(--primary);box-shadow:none}
+button:where(:not([class]),.primary,.sm:not(.secondary,.danger,.soft,.link)):where(:hover:not(:disabled)){background:var(--primary-dark);border-color:var(--primary-dark);box-shadow:none}
+button.secondary{color:var(--side-fg)}
+button.sm{min-height:36px;padding:0 14px;font-size:0.875rem}
+button.link{min-height:0;padding:0}
+button.icon{width:44px;min-width:44px;padding:0;border-radius:10px}
+.da-table td button.secondary.sm{background:var(--surface)!important;color:var(--text);border:1px solid var(--line)!important}
+.da-table td button.secondary.sm:hover:not(:disabled){border-color:var(--primary)!important;color:var(--primary)}
+
+/* a row of choices: grey track, the chosen one is a white pill */
+.da-seg{gap:4px;background:var(--border);padding:4px;border-radius:10px;width:fit-content;max-width:100%}
+.da-seg button{min-height:36px;padding:0 16px;border-radius:8px;font-size:0.875rem;font-weight:600;border:0!important}
+.da-seg button.secondary{background:transparent!important;color:var(--side-fg)}
+.da-seg button:not(.secondary){background:var(--surface)!important;color:var(--text)!important;box-shadow:0 1px 2px rgba(0,0,0,.08)!important}
+
+/* ---------- cards ---------- */
+.panel{border-radius:12px!important;padding:20px}
+.da-cards .da-card,.da-card{border-radius:12px;box-shadow:none}
+.da-modal{border-radius:12px}
+
+/* number tiles: label · big number · one line under it, on plain white */
+.da-stats{gap:16px}
+.da-stats .da-stat,.net-kpis .nk{background:var(--surface)!important;border-color:var(--border)!important;border-radius:12px!important}
+.da-stat{padding:18px 20px!important;gap:6px!important}
+.da-stats .da-stat .ri,.net-kpis .nk .nk-i{display:none!important}
+.da-stat .lbl{order:1;font-size:0.875rem!important;font-weight:400;color:var(--muted)}
+.da-stat .val{order:2;font-size:clamp(1.375rem,1.1rem + 1vw,1.875rem)!important;letter-spacing:-.01em;overflow-wrap:anywhere}
+.da-stat .sub{order:3;font-size:0.8125rem!important}
+.da-stats .da-stat .val,.net-kpis .nk b{color:var(--text)!important}
+.da-stats .da-stat.warn .val{color:var(--warn-fg)!important}
+.da-stats .da-stat.bad .val{color:var(--bad-fg)!important}
+
+/* tiles and summary cards elsewhere: white with a thin edge; the icon chip keeps the tile's tone */
+.sp-tile,.quick-tile,.nv-hero,.sp-hero{background:var(--surface)!important;border-color:var(--border)!important}
+.nv-nums>div{border-color:var(--border)!important}
+
+/* ---------- tables and badges ---------- */
+.da-table th{font-size:0.8125rem!important;font-weight:600;letter-spacing:0;text-transform:none}
+.da-badge{min-height:26px;padding:0 10px;font-size:0.8125rem!important;font-weight:600}
+@media (min-width:961px){
+  .da-table th{padding:12px}
+  .da-table td{padding:14px 12px;border-bottom-color:var(--hair)}
+}
+
+/* ---------- side menu: icon · name · count ---------- */
+.app-frame .side{padding:16px 12px}
+.side,.side .ngrp,.side .wf-side a.nl{--tone:var(--primary)!important}
+.side-head{margin:-16px -12px 4px;padding:16px 12px 10px;top:-16px}
+.side-user{background:none!important;border:0!important;border-bottom:1px solid var(--border)!important;border-radius:0!important;margin:0 0 8px!important;padding:4px 8px 16px!important}
+.side-user .avatar{width:44px!important;height:44px!important;border-radius:50%!important;background:var(--primary-50)!important;color:var(--primary-dark)!important;font-weight:700;font-size:1.125rem}
+:root[data-theme="dark"] .side-user .avatar{color:var(--primary)!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .side-user .avatar{color:var(--primary)!important}}
+
+.side a.nl{min-height:44px!important;padding:0 12px!important;gap:12px!important;border-radius:8px!important;font-size:0.9375rem;font-weight:500;color:var(--side-fg)}
+.side a.nl>svg.ic{width:20px!important;height:20px!important;padding:0!important;border-radius:0!important;background:none!important;color:currentColor!important;box-shadow:none!important}
+.side a.nl:hover{background:var(--canvas)!important}
+.side a.nl.active{background:var(--primary-50)!important;color:var(--primary)!important;font-weight:600}
+.ngi{margin:2px 0 4px!important;padding-left:0!important;gap:4px!important}
+.ngi a.nl+a.nl::before{display:none}
+
+.ngh{min-height:44px!important;padding:0 12px!important;gap:12px!important;border-radius:8px!important;font-size:0.9375rem;font-weight:600!important;margin-top:4px!important}
+.ngh .gi{width:20px!important;height:20px!important;border-radius:0!important;background:none!important;color:currentColor!important}
+.ngrp.has-on>.ngh{color:var(--primary)!important}
+.ngrp.has-on>.ngh .gi{background:none!important;color:currentColor!important}
+.ngh .chev{background:none;width:20px;height:20px}
+.nsec{margin:12px 0 2px!important;padding:4px 12px!important;font-size:0.75rem!important;font-weight:600!important;letter-spacing:.04em;color:var(--side-muted)!important}
+
+/* counts: red only when something waits on this person */
+.side a.nl .nb{min-height:24px;padding:0 8px;border-radius:12px;font-size:0.8125rem;font-weight:600}
+.side a.nl .nb.urgent{background:var(--alert);box-shadow:none}
+.side a.nl .nb.new{background:var(--primary-50);color:var(--primary);border-color:transparent}
+.ngh .gdot{background:var(--alert)!important}
+.dotn{background:var(--alert)}
+
+/* the three personal shortcuts stay tiles, in the plain style */
+.side .wf-side a.nl{background:var(--surface)!important;border-color:var(--border)!important;border-radius:10px!important}
+.side .wf-side a.nl>svg.ic{width:22px!important;height:22px!important}
+
+aside.side .side-find input.side-search.side-search.side-search{min-height:40px!important;border-radius:8px!important;border-color:var(--line)!important;background-color:var(--th)!important;font-size:0.875rem!important}
+
+@media (min-width:961px){
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) :is(a.nl,.ngh){padding:0!important}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .side-user{border-bottom:0!important;padding:4px 0 10px!important}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .ngrp.has-on>.ngh .gi{box-shadow:none}
+}
+@media (max-width:960px){
+  .side-head{top:calc(-16px - env(safe-area-inset-top));margin-top:calc(-16px - env(safe-area-inset-top));padding-top:calc(16px + env(safe-area-inset-top))}
+}
+
+/* ---------- top bar ---------- */
+.top{gap:12px;padding:12px 24px}
+.top .search{max-width:640px}
+.top .search input{min-height:44px;border-radius:10px!important;background:var(--th)!important}
+.top .search .ic{top:13px;left:13px}
+.top button.icon{width:44px;height:44px;border-radius:10px;background:var(--surface)!important;border:1px solid var(--border)!important}
+.top button.icon:hover:not(:disabled){border-color:var(--primary)!important}
+button.quick-btn{width:44px;height:44px;border-radius:10px}
+button.avatar-btn{border-width:2px!important}
+.top-pop{border-radius:12px}
+
+/* "you are working in": an amber banner under the top bar */
+.scope-bar{margin:16px 24px 0;padding:12px 16px;border:1px solid var(--banner-edge);border-radius:10px;background:var(--banner-bg);color:var(--banner-fg);font-size:0.9375rem}
+.scope-bar .muted{color:inherit!important;opacity:.85}
+:root[data-theme="dark"] .scope-bar{color:var(--banner-fg)}
+
+.app-main .da-main{padding:24px 24px 110px;gap:20px}
+
+@media (max-width:960px){
+  .top{padding:8px 12px}
+  .app-main .da-main{padding:16px 12px 110px;gap:16px}
+  .panel{padding:16px}
+}
