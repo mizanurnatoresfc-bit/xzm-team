@@ -908,6 +908,16 @@ try {
     const permsOpen = await page.locator('.center-screen .notice').count() === 0
     await page.goto(`${BASE}/app/me`); await page.waitForTimeout(900)
     check(permsOpen && await page.locator('.center-screen .notice').count() === 0, `${size}: a limited role can still open its own profile and "my permissions"`)
+    // Office / Residential split: a page list saved before the split still opens the residential twin of its office page;
+    // once Super Admin names a residential page, the list is followed exactly (Office shown, the rest of Residential hidden).
+    { const blocked = async path => { await page.goto(`${BASE}${path}`); await page.waitForSelector('.center-screen .notice, .hub-tabs', { timeout: 8000 }).catch(() => {})
+        return await page.locator('.center-screen .notice').count() > 0 }
+      menuNow = ['/app/office/people']
+      const oldListOpens = !await blocked('/app/office/residential/people')
+      menuNow = ['/app/office/people', '/app/office/residential/overview']
+      const exactPeopleBlocked = await blocked('/app/office/residential/people'), exactOverviewOpens = !await blocked('/app/office/residential/overview'), officeStillOpens = !await blocked('/app/office/people')
+      check(oldListOpens && exactPeopleBlocked && exactOverviewOpens && officeStillOpens,
+        `${size}: an old page list keeps the residential twin; a list naming residential pages is followed exactly (${[oldListOpens, exactPeopleBlocked, exactOverviewOpens, officeStillOpens].join()})`) }
     menuNow = null
     // my own khata: three parts only, then Submit
     mineOpen = true

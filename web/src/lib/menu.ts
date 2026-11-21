@@ -24,18 +24,21 @@ const bare = (p: string) => p.split('?')[0].replace(/\/+$/, '') || '/app'
  *  a role whose page list has the office page may open its residential twin, so splitting the menu took nothing away from anyone. */
 const RES = '/app/office/residential/'
 const officeTwin = (p: string) => p + '/' === RES ? '/app/office/overview' : p.startsWith(RES) ? '/app/office/' + p.slice(RES.length) : null
+/** Only a page list saved before the split (it names no residential page) follows the office twin. Once Super Admin picks any
+ *  residential page for a role, its list is taken as it is — so Office can be shown and Residential hidden, or the other way round. */
+const beforeSplit = (menu: string[]) => !menu.some(p => (bare(p) + '/').startsWith(RES))
 
 /** A menu entry is shown when it is on the list. */
 export const inMenu = (menu: string[] | null, to: string): boolean => {
   if (!menu || ALWAYS.includes(bare(to)) || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))) return true
-  const twin = officeTwin(bare(to)); return !!twin && inMenu(menu, twin)
+  const twin = beforeSplit(menu) ? officeTwin(bare(to)) : null; return !!twin && inMenu(menu, twin)
 }
 /** A page may be opened when it is on the list, under a listed page, or belongs to one. */
 export function pageAllowed(menu: string[] | null, pathname: string): boolean {
   if (!menu) return true
   const here = bare(pathname)
   if (ALWAYS.includes(here)) return true
-  const twin = officeTwin(here); if (twin && pageAllowed(menu, twin)) return true
+  const twin = beforeSplit(menu) ? officeTwin(here) : null; if (twin && pageAllowed(menu, twin)) return true
   const open = menu.map(bare).flatMap(p => [p, ...(WITH[p] ?? [])])
   return open.some(p => p !== '/app' && (here === p || here.startsWith(p + '/')))
 }
