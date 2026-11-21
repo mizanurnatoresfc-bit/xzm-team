@@ -18,34 +18,34 @@ html[data-text] .bottom-nav .bn-item span{line-height:1.15}
 
 /* ---------- Contrast (যথেষ্ট রঙের Contrast) — WCAG 2.2 AA ----------
    Text ≥ 4.5:1, borders of boxes you type in and the focus ring ≥ 3:1. */
-:root{--in-border:#7B8490;--in-ph:#64748B;--focus-ring:#115E59}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--in-border:#6E8278;--in-ph:#8FA59A;--focus-ring:#5EEAD4}}
-:root[data-theme="dark"]{--in-border:#6E8278;--in-ph:#8FA59A;--focus-ring:#5EEAD4}
+:root{--in-border:#7C8A83;--in-ph:#64748B;--focus-ring:#0A5C2E}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--in-border:#6E8278;--in-ph:#8FA59A;--focus-ring:#7EE0A8}}
+:root[data-theme="dark"]{--in-border:#6E8278;--in-ph:#8FA59A;--focus-ring:#7EE0A8}
 
 /* Dark mode: the green is light, so text on green buttons is dark (6.2:1); hovering makes the green lighter, not darker. */
-@media (prefers-color-scheme:dark){:where(:root:not([data-theme="light"])) button:hover:not(:disabled){background:#5EEAD4;border-color:#5EEAD4}}
-:where(:root[data-theme="dark"]) button:hover:not(:disabled){background:#5EEAD4;border-color:#5EEAD4}
+@media (prefers-color-scheme:dark){:where(:root:not([data-theme="light"])) button:hover:not(:disabled){background:#4CC283;border-color:#4CC283}}
+:where(:root[data-theme="dark"]) button:hover:not(:disabled){background:#4CC283;border-color:#4CC283}
 
 /* Stronger contrast: the app setting, or the phone/PC "increase contrast" setting */
 :root[data-contrast="more"]:not([data-theme="dark"]){
   --text:#000000;--muted:#1F2937;--side-muted:#374151;--border:#5B6B63;--line:#5B6B63;--in-border:#3F4B45;--in-ph:#374151;
-  --primary:#115E59;--primary-dark:#134E4A;--ok-fg:#0B4A24;--warn-fg:#6B2E05;--bad-fg:#8B1414;--info-fg:#1E3A8A;--focus-ring:#000000}
+  --primary:#0A5C2E;--primary-dark:#063D1E;--ok-fg:#0B4A24;--warn-fg:#6B2E05;--bad-fg:#8B1414;--info-fg:#1E3A8A;--focus-ring:#000000}
 @media (prefers-color-scheme:dark){:root[data-contrast="more"]:not([data-theme="light"]){
   --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
-  --primary:#5EEAD4;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
+  --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
 :root[data-theme="dark"][data-contrast="more"]{
   --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
-  --primary:#5EEAD4;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}
+  --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}
 @media (prefers-contrast:more){
   :root:not([data-theme="dark"]){
     --text:#000000;--muted:#1F2937;--side-muted:#374151;--border:#5B6B63;--line:#5B6B63;--in-border:#3F4B45;--in-ph:#374151;
-    --primary:#115E59;--primary-dark:#134E4A;--ok-fg:#0B4A24;--warn-fg:#6B2E05;--bad-fg:#8B1414;--info-fg:#1E3A8A;--focus-ring:#000000}
+    --primary:#0A5C2E;--primary-dark:#063D1E;--ok-fg:#0B4A24;--warn-fg:#6B2E05;--bad-fg:#8B1414;--info-fg:#1E3A8A;--focus-ring:#000000}
   :root[data-theme="dark"]{
     --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
-    --primary:#5EEAD4;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
+    --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
 @media (prefers-contrast:more) and (prefers-color-scheme:dark){:root:not([data-theme="light"]){
     --text:#FFFFFF;--muted:#D5E0DA;--side-muted:#C6D3CC;--border:#7A8F84;--line:#7A8F84;--in-border:#9AB0A4;--in-ph:#C6D3CC;
-    --primary:#5EEAD4;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
+    --primary:#5CD08F;--ok-fg:#A7F3C4;--warn-fg:#FDE68A;--bad-fg:#FECACA;--info-fg:#BFDBFE;--focus-ring:#FFFFFF;--canvas:#05090A}}
 /* with stronger contrast, links inside pages are underlined so they are not told apart by colour alone */
 :root[data-contrast="more"] .da-main a:not([class]){text-decoration:underline;text-underline-offset:2px}
 @media (prefers-contrast:more){.da-main a:not([class]){text-decoration:underline;text-underline-offset:2px}}

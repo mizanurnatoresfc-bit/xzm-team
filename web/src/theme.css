@@ -1803,7 +1803,7 @@ button.oo-bad{color:#dc2626!important;border-color:color-mix(in srgb,#dc2626 40%
 .nh-hero,.nh-sec{max-width:1040px;margin:0 auto;padding:16px 16px 0}
 .nh-hero{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;align-items:stretch}
 .nh-hero-card{position:relative;overflow:hidden;border-radius:28px;padding:28px 24px;color:#fff;display:flex;flex-direction:column;justify-content:center;
-  background:linear-gradient(140deg,var(--primary-dark,#115E59),var(--primary,#0F766E) 55%,#14b8a6);box-shadow:0 10px 30px rgba(10,77,39,.22)}
+  background:linear-gradient(140deg,var(--primary-dark,#0A4D27),#0F7A3D 55%,#14b8a6);box-shadow:0 10px 30px rgba(10,77,39,.22)}
 .nh-hero-card::after{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.09)}
 .nh-eyebrow{margin:0 0 10px;font-size:0.8438rem;letter-spacing:1.4px;font-weight:700;opacity:.85}
 .nh-hero-card h1{margin:0;color:#fff;font-family:var(--font-body);font-size:2.125rem;line-height:1.18;font-weight:800;letter-spacing:-.4px}
@@ -1811,7 +1811,7 @@ button.oo-bad{color:#dc2626!important;border-color:color-mix(in srgb,#dc2626 40%
 .nh-bn{margin:10px 0 0;font-size:1rem;font-weight:600;opacity:.92}
 .nh-acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px;position:relative;z-index:1}
 .nh-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 22px;border-radius:999px;font-weight:700;font-size:0.9375rem;text-decoration:none;
-  background:#fff;color:var(--primary-dark,#115E59);box-shadow:0 2px 6px rgba(0,0,0,.14);transition:transform .12s}
+  background:#fff;color:#0A4D27;box-shadow:0 2px 6px rgba(0,0,0,.14);transition:transform .12s}
 .nh-btn:active{transform:scale(.97)}
 .nh-btn.ghost{background:rgba(255,255,255,.14);color:#fff;box-shadow:none;border:1px solid rgba(255,255,255,.4)}
 .nh-btn.solid{background:var(--primary);color:var(--on-primary);width:100%}
