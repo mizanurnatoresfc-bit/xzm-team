@@ -19,7 +19,7 @@ export const DEFAULT_BRANDING: Branding = {
   company_name: 'XZM-TEAM', name_bn: 'XZM-TEAM', short_name: 'X',
   tagline: { bn: 'নিজের কাজের জন্য নিজের টুল', en: 'My own tool for my own work' },
   logo: null, favicon: null,
-  theme: { primary: '#0F7A3D', primaryDark: '#0A4D27' },
+  theme: { primary: '#15803D', primaryDark: '#14532D' },
   system_title: 'XZM-TEAM',
 }
 
@@ -61,8 +61,12 @@ export function applyBranding(b: Branding) {
   if (typeof document === 'undefined') return
   document.title = b.system_title
   const root = document.documentElement
-  root.style.setProperty('--primary', b.theme.primary)
-  root.style.setProperty('--primary-dark', b.theme.primaryDark)
+  // The brand colour feeds --primary in light mode only (theme.css). Setting --primary itself inline would beat the
+  // dark-mode palette and leave dark-green text on dark backgrounds.
+  root.style.removeProperty('--primary'); root.style.removeProperty('--primary-dark')
+  root.style.setProperty('--brand-primary', b.theme.primary)
+  root.style.setProperty('--brand-primary-dark', b.theme.primaryDark)
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', b.theme.primary)
   const icon = b.favicon ?? b.logo
   let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
   if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link) }

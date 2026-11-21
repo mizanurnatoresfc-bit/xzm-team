@@ -5,7 +5,7 @@
   --canvas:#F4F7F5;--surface:#FFFFFF;--text:#0F172A;--muted:#475569;--border:#DDE5E0;
   --ok-fg:#166534;--ok-bg:#DCFCE7;--warn-fg:#92400E;--warn-bg:#FEF3C7;--bad-fg:#B91C1C;--bad-bg:#FEE2E2;--info-fg:#1D4ED8;--info-bg:#DBEAFE;
   --side:#FFFFFF;--side-fg:#1F2937;--side-muted:#6B7280;--row-hover:#F0F7F3;--th:#F8FAF9;
-  --font-body:"Inter","Hind Siliguri",system-ui,"Segoe UI",Roboto,sans-serif;--font-display:"Hind Siliguri","Inter",system-ui,sans-serif;
+  --font-body:"Inter","Baloo Da 2",system-ui,"Segoe UI",Roboto,sans-serif;--font-display:"Baloo Da 2","Inter",system-ui,sans-serif;
   --r:12px;--shadow:0 1px 2px rgba(10,77,39,.06),0 1px 1px rgba(15,23,42,.04);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
   --primary:#34A86A;--primary-dark:#0B3A20;--primary-50:#143826;--on-primary:#04150B;--canvas:#0D1512;--surface:#15201B;--text:#E6EEE9;--muted:#A5B6AD;--border:#2A3832;
@@ -2013,9 +2013,9 @@ button.link-btn{background:none!important;border:0!important;padding:0!important
    One main colour (green); orange = warning, red = problem, blue = leave/info. Bigger, darker text; flat cards with a
    thin border instead of shadows; plain white tiles where the number is the hero.
    ===================================================================== */
-:root{--primary:#15803D;--primary-dark:#14532D;--primary-50:#ECF7F0;--canvas:#F4F6F5;--muted:#4B5563;--border:#E3E8E5;--r:16px;
+:root{--primary:var(--brand-primary,#15803D);--primary-dark:var(--brand-primary-dark,#14532D);--primary-50:#ECF7F0;--canvas:#F4F6F5;--muted:#4B5563;--border:#E3E8E5;--r:16px;
   --shadow:none;--card-shadow:none;--accent:#15803D;--line:#D1D9D4;
-  --font-body:"Hind Siliguri","Inter",system-ui,"Segoe UI",Roboto,sans-serif;--font-display:"Hind Siliguri","Inter",system-ui,sans-serif;
+  --font-body:"Inter","Baloo Da 2",system-ui,"Segoe UI",Roboto,sans-serif;--font-display:"Baloo Da 2","Inter",system-ui,sans-serif;
   --t-g:var(--surface);--t-b:var(--surface);--t-o:var(--surface);--t-p:var(--surface);--t-r:var(--surface);--t-c:var(--surface);
   --t-g-fg:#15803D;--t-b-fg:#1D4ED8;--t-o-fg:#B45309;--t-p-fg:#6D28D9;--t-r-fg:#B91C1C;--t-c-fg:#0F766E}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--line:#3A4A42;--shadow:none;--card-shadow:none;
@@ -3276,3 +3276,48 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
   .cs-map td:nth-child(4){order:4;grid-column:1/-1}.cs-map td:nth-child(5){order:5;grid-column:1/-1}.cs-map td:nth-child(5):empty{display:none}
   .cs-map td input,.cs-map td select{min-width:0}}
 .cs-grid tr.cs-direct-row td.cs-tick{box-shadow:inset 3px 0 0 #2563eb}
+/* =====================================================================
+   Home page & theme audit fixes (21 Nov 2026)
+   ===================================================================== */
+/* Calm-look tile colours had no dark-mode values when the theme follows the phone, and --accent stayed light-mode green. */
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--accent:var(--primary);
+  --t-g-fg:#6EE7A0;--t-b-fg:#93B4FF;--t-o-fg:#FDBA74;--t-p-fg:#C4A6FF;--t-r-fg:#FDA4AF;--t-c-fg:#5EEAD4}}
+:root[data-theme="dark"]{--accent:var(--primary);
+  --t-g-fg:#6EE7A0;--t-b-fg:#93B4FF;--t-o-fg:#FDBA74;--t-p-fg:#C4A6FF;--t-r-fg:#FDA4AF;--t-c-fg:#5EEAD4}
+
+/* fewer accent colours: the four "my day" shortcuts are all the brand green */
+.myday-acts .ma.t-g,.myday-acts .ma.t-o,.myday-acts .ma.t-p,.myday-acts .ma.t-b{color:var(--primary)!important}
+
+/* selected tab: flat brand colour, no gradient or shadow (same as every other card) */
+.view-switch button.on{background:var(--primary)!important;color:var(--on-primary)!important;box-shadow:none!important}
+
+/* an empty row is still a link — keep it readable, only the zero is quiet */
+.ap-row.zero{opacity:1}.ap-row.zero .ap-c{color:var(--muted)}
+
+/* tap targets: at least 44px tall */
+.first-steps h2 .link,.da-bar>a.small,.da-bar>button.link.small,.home-links a{display:inline-flex;align-items:center;min-height:44px;padding:0 6px}
+.top button.icon{width:44px!important;min-width:44px!important;height:44px!important}
+
+/* bottom menu: solid, so cards under it do not tint it */
+@media (max-width:960px){.bottom-nav{background:var(--surface)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}}
+
+/* wide screens: keep the home page to a readable column instead of stretching the phone layout */
+.home-dash{max-width:760px;margin:0 auto;width:100%}
+
+/* --- one shape and no drop shadows on the home page: cards 16px, tiles and controls inside them 12px --- */
+:root{--r-card:16px;--r-tile:12px}
+.home-dash .panel,.home-dash .greet,.home-dash .alert-card,.home-dash .wf-alert,.home-dash .view-switch,.home-dash .first-steps{border-radius:var(--r-card)!important;box-shadow:none!important}
+.home-dash .da-stat,.home-dash .myday-box,.home-dash .myday-acts .ma,.home-dash .myday-att,.home-dash .myapp .ma-sum button,.home-dash .ap-row,
+.home-dash .view-switch button,.home-dash .da-tabs button,.home-dash .dash-edit,.home-dash .app-dl-row button{border-radius:var(--r-tile)!important;box-shadow:none!important}
+.home-dash .view-switch{border:1px solid var(--border)}
+/* the + button keeps its round shape; a ring in the menu colour separates it instead of a drop shadow */
+@media (max-width:960px){.bn-plus>span{box-shadow:0 0 0 4px var(--surface)!important}}
+
+/* --- "আমার অনুমোদন": one colour for the four totals (green icon, plain number); amber only when bills are waiting --- */
+.myapp .ma-sum button.t-b,.myapp .ma-sum button.t-p,.myapp .ma-sum button.t-g,.myapp .ma-sum button.t-o,
+.myapp .ma-sum button.t-b:hover:not(:disabled),.myapp .ma-sum button.t-p:hover:not(:disabled),.myapp .ma-sum button.t-g:hover:not(:disabled),.myapp .ma-sum button.t-o:hover:not(:disabled){
+  background:var(--surface)!important;color:var(--text)!important}
+.myapp .ma-sum button svg{color:var(--primary)}
+/* small icon squares in lists: brand green for ordinary items, theme colours (dark-mode aware) for warning / problem */
+.hrq-ic.t-g,.hrq-ic.t-b,.hrq-ic.t-p,.hrq-ic.t-c{background:var(--primary-50);color:var(--primary)}
+.hrq-ic.t-o{background:var(--warn-bg);color:var(--warn-fg)}.hrq-ic.t-r{background:var(--bad-bg);color:var(--bad-fg)}

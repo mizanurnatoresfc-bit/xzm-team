@@ -52,7 +52,6 @@ export function AppDownloadCard() {
       <button type="button" className="secondary" onClick={() => void share()}><Icon name="swap" size={16} />{L('শেয়ার', 'Share')}</button>
       <button type="button" className="secondary" onClick={() => void copyLink()}><Icon name="doc" size={16} />{L('লিংক কপি', 'Copy link')}</button>
     </div>
-    <div className="app-dl-link"><input readOnly value={APK_URL} aria-label={L('শেয়ার লিংক', 'Share link')} onFocus={e => e.currentTarget.select()} /></div>
     {msg && <p className="da-ok small" role="status">{msg}</p>}
   </section>
 }
