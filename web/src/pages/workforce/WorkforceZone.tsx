@@ -115,7 +115,7 @@ export function WorkforceZone() {
 
       {d && <>
         <ChipTabs<ZTab> tabs={[{ key: 'apps', label: L('অনুপস্থিতি ও আবেদন', 'Absence & applications') }, { key: 'ops', label: L('পিকআপ · রিটার্ন · ডেলিভারি', 'Pickup · return · delivery') }, { key: 'history', label: L('ইতিহাস', 'History') },
-            ...(canSet ? [{ key: 'setting' as const, label: L('সেটিং: আগের তারিখ খোলা', 'Setting: earlier dates') }] : [])]}
+            ...(canSet ? [{ key: 'setting' as const, label: L('সেটিং: হাজিরা বই', 'Setting: attendance book') }] : [])]}
           value={tab} onChange={setTab} label={L('জোনের বিভাগ', 'Zone sections')} />
         <div key={`${zone}-${tab}`}>
           {tab === 'apps' && <ZoneApps zone={zone} from={r.from} to={r.to} range={range} onHub={(id, t) => nav(`/app/workforce/hub?hub=${id}&tab=${t}`)} />}

@@ -185,13 +185,17 @@ export function StaffPanel() {
         <div className="tx"><b>{attTitle}</b><span>{attSub}</span></div>
       </div>
       {attErr && <p className="da-error">{attErr}</p>}
+      {/* Book open (days 1-17): today is given in the attendance book, like every other day. Book closed: this one tap is the only way to give today. */}
       {!rec && <div className="nv-rows">
-        {act('g', 'check', waiting?.kind === 'present' ? L('হাজিরা আবার দিন', 'Give it again') : L('হাবে এসেছি — হাজিরা দিই', 'I am at the hub — mark me'),
-          L('চাপলেই হাজিরা যাবে, হাব ম্যানেজার অনুমোদন দেবেন', 'One tap; your hub manager approves it'), () => void give('present'), busy || !v?.me)}
         {wfOpen && v?.me
-          ? row('/app/workforce/attendance?give=today', 'p', 'log', L('আজ আসব না — জানাই', 'Not coming — tell us'), L('ওয়েবসাইটে আবেদন করেছেন কি না জিজ্ঞেস করব, না করলে আবেদন পাঠাবেন', 'We ask if you applied on the website; if not, you send an application'))
-          : act('p', 'log', L('আজ আসব না — কারণ জানাই', 'Not coming — give the reason'), L('কারণ লিখুন, হাব ম্যানেজার দেখবেন', 'Write the reason for your hub manager'),
-            () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
+          ? row('/app/workforce/attendance?give=today', 'g', 'check', L('আজকের হাজিরা দিন — হাজিরা বইয়ে', "Give today's attendance — in the book"),
+            L('এসেছি, না আসব না — দুটোই হাজিরা বই থেকে', 'Came or not coming — both from the attendance book'))
+          : <>
+            {act('g', 'check', waiting?.kind === 'present' ? L('হাজিরা আবার দিন', 'Give it again') : L('হাবে এসেছি — হাজিরা দিই', 'I am at the hub — mark me'),
+              L('চাপলেই হাজিরা যাবে, হাব ম্যানেজার অনুমোদন দেবেন', 'One tap; your hub manager approves it'), () => void give('present'), busy || !v?.me)}
+            {act('p', 'log', L('আজ আসব না — কারণ জানাই', 'Not coming — give the reason'), L('কারণ লিখুন, হাব ম্যানেজার দেখবেন', 'Write the reason for your hub manager'),
+              () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
+          </>}
       </div>}
       {canLeave && ok('/app/hr/leave') && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
       <NodiGaps />

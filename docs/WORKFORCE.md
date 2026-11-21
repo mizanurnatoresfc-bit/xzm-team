@@ -34,6 +34,17 @@ Migration `20261118200000_workforce_earlier_dates.sql` · tests `supabase/tests/
 | বন্ধ | `wf_window_end(id, কারণ)` আগেই বন্ধ করে; শেষ দিন পেরোলে নিজে বন্ধ। যা দেওয়া হয়ে গেছে তা অনুমোদনের অপেক্ষায় থাকে। |
 | ফিরিয়ে নিতে | `wf_book_fill`, `wf_window_save/end`, `wf_windows`, `private.wf_zone_of/wf_date_open/wf_window_json/wf_live_window` মুছুন; ছয়টি বদলানো ফাংশন `20261117010000_workforce_attendance.sql` থেকে আবার চালান; টেবিল `wf_book_windows` ও অনুমতি `hr.attendance.configure` সরান। |
 
+## পুরো মাস খোলা (১–৩১) অন/অফ / Whole month on/off (21 Nov 2026)
+Migration `20261121000400_book_full_month.sql`. মালিক: "১-৩১ তারিখ ওপেন অন/অফ করে দেন"।
+
+| বিষয় | কীভাবে |
+|---|---|
+| কোথায় | `/app/workforce/zone?tab=setting` → "হাজিরা বই: পুরো মাস (১–৩১)"। পুরো কোম্পানির জন্য একটাই সেটিং `workforce.book_full_month` (শুরুতে অফ)। |
+| কে | অন/অফ শুধু সুপার অ্যাডমিন (`wf_book_full_month_set(on, কারণ)`); সেটিং ট্যাবের বাকিরা শুধু দেখেন (`wf_book_mode()`)। প্রতিটি বদল অডিট লগে। |
+| অন | `private.wf_from_day()` = ১, `wf_to_day()` = ৩১ — বই সারা মাস খোলা, স্টাফ প্যানেল সারা মাস বইয়ে পাঠায়, বিকেলের রিমাইন্ডার সারা মাস। |
+| অফ | আবার `book_from_day`–`book_to_day` (এখন ১–১৭), আগের মতোই। |
+| ফিরিয়ে নিতে | দুটি ফাংশন `20261117010000_workforce_attendance.sql` থেকে আবার চালান; `wf_book_mode`, `wf_book_full_month_set`, `private.wf_full_month` মুছুন; সেটিং সারি মুছুন। |
+
 ## ওয়েবসাইটের আবেদন নম্বর ও তারিখ / Website application number and date (18 Nov 2026)
 Migration `20261118210000_workforce_site_application.sql` · tests `supabase/tests/99zzzzzzzzzzzzzzzz_workforce_site_application.sql` (33 checks).
 মালিক: অনুপস্থিত ইনপুটে ওয়েবসাইটের আবেদনের তারিখ — "আবেদন নম্বরও লাগবে"।

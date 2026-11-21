@@ -659,15 +659,10 @@ try {
     check(await page.locator('.upd-bar').count() === 0, `${size}: "পরে" hides the update bar`)
     await page.unroute('**/version.json*')
     await page.evaluate(() => sessionStorage.removeItem('xzm_upd_later'))
-    // staff gave their own attendance: the manager approves it (as present or late) or returns it with a reason
-    await page.goto(`${BASE}/app/hub/attendance`); await page.waitForSelector('.self-marks .nv-row', { timeout: 10000 }).catch(() => {})
-    check(await page.locator('.self-marks .nv-row').count() === 2 && (await page.locator('.self-marks').innerText()).includes('জ্বর'), `${size}: the hub attendance page lists the attendance staff gave themselves`)
-    await page.locator('.self-marks .nv-row', { hasText: 'Alamin Sarker' }).getByRole('button', { name: 'দেরিতে' }).click(); await page.waitForTimeout(300)
-    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'att_self_decide' && c.p_ids?.join() === 'sm1' && c.p_ok === true && c.p_as === 'late', `${size}: the manager approves a staff member's attendance as late`) }
-    await page.locator('.self-marks .nv-row', { hasText: 'Md Mahin' }).getByRole('button', { name: 'ফেরত' }).click(); await page.waitForSelector('#self-back-why')
-    check(await page.locator('.da-modal-acts button.danger').isDisabled(), `${size}: returning attendance needs a reason`)
-    await page.locator('#self-back-why').fill('ফোনে পাইনি'); await page.locator('.da-modal-acts button.danger').click(); await page.waitForTimeout(300)
-    { const c = flowCalls.at(-1) ?? {}; check(c.fn === 'att_self_decide' && c.p_ok === false && c.p_note === 'ফোনে পাইনি', `${size}: the manager returns it with the reason`) }
+    // staff gave their own attendance: the hub page points to the one approval list (workforce hub → approvals)
+    await page.goto(`${BASE}/app/hub/attendance`); await page.waitForSelector('.self-marks a.nv-row', { timeout: 10000 }).catch(() => {})
+    { const href = (await page.locator('.self-marks a.nv-row').getAttribute('href')) ?? ''
+      check(href.includes('/app/workforce/hub?hub=') && href.includes('tab=approve'), `${size}: the hub attendance page sends the manager to the approval list`) }
     await fits('self attendance approval')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-self-att.png`, fullPage: true })
     // attendance days to compare: two numbers per person, a difference is pointed out, then submit
