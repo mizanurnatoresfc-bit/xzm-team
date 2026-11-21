@@ -885,10 +885,10 @@ try {
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
     await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')
     await page.locator('.da-modal .da-seg button').last().click()
-    await page.locator('.pg-pick label', { hasText: 'আমার হাব টিম' }).locator('input').check(); await page.locator('.pg-pick label', { hasText: 'হাজিরার দিন মেলানো' }).locator('input').check()
+    await page.locator('.pg-pick label', { hasText: 'আমার হাব টিম' }).locator('input').check(); await page.locator('.pg-pick label', { hasText: 'আজকের দেরিতে হাজিরা' }).locator('input').check()
     await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
-    check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_menu?.join() === '/app/hub/team,/app/hub/days', `${size}: the Super Admin picks the pages of a role`)
-    menuNow = ['/app/hub/team', '/app/hub/days', '/app/accounts/khata']
+    check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_menu?.join() === '/app/hub/team,/app/hub/late', `${size}: the Super Admin picks the pages of a role`)
+    menuNow = ['/app/hub/team', '/app/hub/late', '/app/accounts/khata']
     await page.goto(`${BASE}/app/hub/team`); await page.waitForSelector('.hub-tabs a', { timeout: 10000 }).catch(() => {})
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
