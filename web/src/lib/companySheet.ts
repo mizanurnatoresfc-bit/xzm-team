@@ -260,7 +260,8 @@ const OFF_STATUS = ['inactive', 'resigned', 'terminated']
 /** Transfers and status changes made in the system with no request, shaped like requests so the same columns fill.
  *  One that a listed request already covers (same person, same kind of change) is left out, so nobody is listed twice. */
 async function directChanges(kind: ReqKind, o: BuildOpts, requests: HrRequest[], hubs: Record<string, string>): Promise<HrRequest[]> {
-  const reg = await manpower.register(o.zone ?? null, o.from || '2000-01-01', o.to || today()).catch(() => [] as RegisterRow[])
+  // the request rows must still come out if the register cannot be read
+  const reg = (await manpower.register(o.zone ?? null, o.from || '2000-01-01', o.to || today()).catch(() => null)) ?? ([] as RegisterRow[])
   const covered = new Set(requests.map(r => r.employee_id))
   const fits = (r: RegisterRow) => kind === 'id_transfer' ? r.kind === 'transfer' && r.from_hub !== r.to_hub
     : r.kind === 'status' && (kind === 'id_active' ? r.to_status === 'active' : OFF_STATUS.includes(r.to_status ?? ''))
