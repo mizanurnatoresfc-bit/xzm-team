@@ -3260,3 +3260,21 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
 
 /* wide screens: keep the home page to a readable column instead of stretching the phone layout */
 .home-dash{max-width:760px;margin:0 auto;width:100%}
+
+/* --- one shape and no drop shadows on the home page: cards 16px, tiles and controls inside them 12px --- */
+:root{--r-card:16px;--r-tile:12px}
+.home-dash .panel,.home-dash .greet,.home-dash .alert-card,.home-dash .wf-alert,.home-dash .view-switch,.home-dash .first-steps{border-radius:var(--r-card)!important;box-shadow:none!important}
+.home-dash .da-stat,.home-dash .myday-box,.home-dash .myday-acts .ma,.home-dash .myday-att,.home-dash .myapp .ma-sum button,.home-dash .ap-row,
+.home-dash .view-switch button,.home-dash .da-tabs button,.home-dash .dash-edit,.home-dash .app-dl-row button{border-radius:var(--r-tile)!important;box-shadow:none!important}
+.home-dash .view-switch{border:1px solid var(--border)}
+/* the + button keeps its round shape; a ring in the menu colour separates it instead of a drop shadow */
+@media (max-width:960px){.bn-plus>span{box-shadow:0 0 0 4px var(--surface)!important}}
+
+/* --- "আমার অনুমোদন": one colour for the four totals (green icon, plain number); amber only when bills are waiting --- */
+.myapp .ma-sum button.t-b,.myapp .ma-sum button.t-p,.myapp .ma-sum button.t-g,.myapp .ma-sum button.t-o,
+.myapp .ma-sum button.t-b:hover:not(:disabled),.myapp .ma-sum button.t-p:hover:not(:disabled),.myapp .ma-sum button.t-g:hover:not(:disabled),.myapp .ma-sum button.t-o:hover:not(:disabled){
+  background:var(--surface)!important;color:var(--text)!important}
+.myapp .ma-sum button svg{color:var(--primary)}
+/* small icon squares in lists: brand green for ordinary items, theme colours (dark-mode aware) for warning / problem */
+.hrq-ic.t-g,.hrq-ic.t-b,.hrq-ic.t-p,.hrq-ic.t-c{background:var(--primary-50);color:var(--primary)}
+.hrq-ic.t-o{background:var(--warn-bg);color:var(--warn-fg)}.hrq-ic.t-r{background:var(--bad-bg);color:var(--bad-fg)}
