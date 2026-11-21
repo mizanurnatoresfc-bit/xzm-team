@@ -90,6 +90,7 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261119020000_zone_group_and_contact.sql` | zone_group_and_contact — objects live, no `schema_migrations` row (approval came after the call timed out); all 12 function bodies checked equal to the repository by hash |
 | `20261119030000_route_settings.sql` | route_settings — objects live, no `schema_migrations` row (applied after the tool's approval timed out); all 17 function bodies checked equal to the tested file by hash |
 | `20261119040000_route_places.sql` | route_places — objects live, no `schema_migrations` row (run in five parts in the SQL Editor); 3 function bodies equal by hash, 7 upazilas and 665 places counted |
+| `20261121000300_staff_panel_audit_fixes.sql` | 20261121112345 staff_panel_audit_fixes — the 5 replaced functions were checked equal to the repository by hash before, and all 6 after |
 
 **Check of 18 Nov 2026 (after the three files above were added):** a database built only from this repository and the live database have the same
 613 functions in `public` and `private`, with the same code (compared by hash with comments, spacing and Windows line breaks ignored — 174 live

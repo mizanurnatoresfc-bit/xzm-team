@@ -31,7 +31,7 @@ export const staffPanel = {
   /** Every role's setting (null = standard). Read straight from the table, which everyone with a role may read. */
   byRole: async (): Promise<Record<string, StaffSection[] | null>> => {
     const { data, error } = await supabase.from('role_dashboards').select('role_id, staff_sections'); fail(error)
-    return Object.fromEntries(((data ?? []) as Array<{ role_id: string; staff_sections: StaffSection[] | null }>).map(r => [r.role_id, r.staff_sections]))
+    return Object.fromEntries(((data ?? []) as Array<{ role_id: string; staff_sections: StaffSection[] | null }>).map(r => [r.role_id, r.staff_sections ? r.staff_sections.filter(k => STAFF_DEFAULT.includes(k)) : null]))
   },
   /** Super Admin: set a role's sections, or null to go back to the standard page. */
   save: async (role: string, sections: StaffSection[] | null) => {
