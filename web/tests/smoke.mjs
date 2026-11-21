@@ -145,8 +145,8 @@ try {
     const rq = (id, no, emp, hub, status, data, more = {}) => ({ id, request_no: no, format_id: 'f-transfer', kind: 'id_transfer', employee_id: emp, zone_id: 'z1', hub_id: hub, data, note: null, status, submitted_by: 'u1',
       submitter_employee_id: null, decided_by: null, decided_at: null, decision_note: null, result: null, ref_employee_id: null, ref_name: null, ref_code: null, ref_hub: null, ref_position: null, created_at: `${dhakaToday}T05:0${no.slice(-1)}:00Z`, ...more })
     const sheetRequests = [
-      rq('q2', 'HR-00002', 'e02', 'h4', 'processing', { employee_code: '67212', full_name: 'Md Mehedi Hasan', from_hub: 'Boraigram', to_hub: 'h1', effective_date: '2026-11-22', reason: 'Punishment transfer', new_basic: '14000' }),
-      rq('q1', 'HR-00001', 'e01', 'h4', 'submitted', { employee_code: '92034', full_name: 'MD SHANTO ISLAM', from_hub: 'Boraigram', to_hub: 'h2', effective_date: '2026-11-20', reason: 'Lalpur service better' }, { ref_name: 'MD. MIZANUR RAHMAN', ref_code: '520' }),
+      rq('q2', 'HR-00002', 'e02', 'h4', 'processing', { employee_code: '5002', full_name: 'Karim Ali', from_hub: 'Boraigram', to_hub: 'h1', effective_date: '2026-11-22', reason: 'Punishment transfer', new_basic: '14000' }),
+      rq('q1', 'HR-00001', 'e01', 'h4', 'submitted', { employee_code: '5001', full_name: 'Rahim Sheikh', from_hub: 'Boraigram', to_hub: 'h2', effective_date: '2026-11-20', reason: 'Lalpur service better' }, { ref_name: 'Zonal Karim', ref_code: '777' }),
       { ...rq('q3', 'HR-00003', 'e03', 'h1', 'submitted', { full_name: 'Someone Else' }), kind: 'id_active', format_id: 'f-active' }]
     await ctx.route(/supabase\.co/, r => {
       const u = r.request().url()
@@ -166,9 +166,9 @@ try {
       if (sheetsOn && u.includes('/rest/v1/hr_requests') && r.request().method() === 'GET') return j(sheetRequests)
       if (sheetsOn && u.includes('rpc/hr_request_update')) { flowCalls.push({ fn: 'hr_request_update', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/hr_sheet_people')) { flowCalls.push({ fn: 'hr_sheet_people', ...r.request().postDataJSON() })
-        return j({ e01: { full_name: 'MD SHANTO ISLAM', employee_code: '92034', mobile: '01738901027', position_name: 'Shorting+Loader', hub_name: 'Lalpur', date_of_birth: '2005-10-10', nid_number: '8279495991',
+        return j({ e01: { full_name: 'Rahim Sheikh', employee_code: '5001', mobile: '01711000111', position_name: 'Shorting+Loader', hub_name: 'Lalpur', date_of_birth: '2005-10-10', nid_number: '1234567890',
             basic_salary: 10000, transport_allowance: 250, commission: 0, 'doc:photo': true },
-          e02: { full_name: 'Md Mehedi Hasan', employee_code: '67212', mobile: '01312565832', position_name: 'Shorting+Loader', hub_name: 'Boraigram', nid_number: '20086919179102139', basic_salary: 13000, transport_allowance: 250, commission: 0 } }) }
+          e02: { full_name: 'Karim Ali', employee_code: '5002', mobile: '01711000222', position_name: 'Shorting+Loader', hub_name: 'Boraigram', nid_number: '12345678901234567', basic_salary: 13000, transport_allowance: 250, commission: 0 } }) }
       if (u.includes('/rest/v1/hr_request_formats') && u.includes('order=sort_order')) return j([
         { id: 'f-active', code: 'ID_ACTIVE', kind: 'id_active', name: 'ID ACTIVE', name_bn: 'আইডি চালু', description: null, needs_employee: true, self_service: true, sort_order: 30, archived_at: null, fields: [
           { key: 'employee_code', label: 'আইডি', type: 'text', prefill: 'employee_code' }, { key: 'full_name', label: 'নাম', type: 'text', prefill: 'full_name' },
@@ -1404,7 +1404,7 @@ try {
       await cs.goto(`${BASE}/app/hr/requests?tab=sheets`); await cs.waitForSelector('.cs-item')
       check(await cs.locator('.cs-item').count() === 2 && await cs.locator('.rq-tab.on').innerText().then(t => t.includes('কোম্পানি শিট')), `${size}: the company sheets tab lists the saved layouts`)
       await cs.waitForSelector('.cs-grid tbody tr')
-      check((await cs.locator('.cs-grid').innerText()).includes('MD SHANTO ISLAM') && await cs.locator('.cs-grid thead tr:last-child th').nth(4).innerText() === 'Employee Picture' && (await cs.locator('.cs-grid tbody').innerText()).includes('Yes'),
+      check((await cs.locator('.cs-grid').innerText()).includes('Rahim Sheikh') && await cs.locator('.cs-grid thead tr:last-child th').nth(4).innerText() === 'Employee Picture' && (await cs.locator('.cs-grid tbody').innerText()).includes('Yes'),
         `${size}: a staff sheet fills itself from the staff records, in the company's own columns`)
       await cs.locator('.cs-item', { hasText: 'বেতনসহ' }).click(); await cs.waitForSelector('.cs-band')
       await cs.waitForSelector('.cs-grid tbody tr')
@@ -1419,7 +1419,7 @@ try {
           `${size}: transfers made straight in the system join the sheet, old and new hub filled` ) }
       await cs.locator('.cs-direct input').uncheck(); await cs.waitForFunction(() => document.querySelectorAll('.cs-grid tbody tr').length === 2, null, { timeout: 8000 }).catch(() => {})
       const r1 = await cells(0), r2 = await cells(1)
-      check(r1[1] === '1' && r1[2] === 'MD SHANTO ISLAM' && r1[3] === '01738901027' && r1[6] === 'Boraigram' && r1[7] === 'Lalpur' && r1[8] === '10/10/2005' && r1[10].replace(/\s+/g, ' ') === 'MD. MIZANUR RAHMAN ID: 520' && r1[17] === 'Lalpur service better',
+      check(r1[1] === '1' && r1[2] === 'Rahim Sheikh' && r1[3] === '01711000111' && r1[6] === 'Boraigram' && r1[7] === 'Lalpur' && r1[8] === '10/10/2005' && r1[10].replace(/\s+/g, ' ') === 'Zonal Karim ID: 777' && r1[17] === 'Lalpur service better',
         `${size}: a transfer request becomes one row: person from the profile, old hub from the request, new hub by name, reference with ID`)
       check(r1[14] === '10000' && r2[14] === '14000' && r2[11] === '13000' && r2[7] === 'Natore Sadar', `${size}: new salary comes from the form, and falls back to the present salary when left empty`)
       check(await cs.locator('.cs-grid tbody tr').count() === 2 && r2[8] === '' && await cs.locator('.cs-grid td.cs-empty').count() === 2, `${size}: only requests of this kind are listed, and an empty box is marked`)
@@ -1429,7 +1429,7 @@ try {
       const [dl] = await Promise.all([cs.waitForEvent('download'), cs.locator('button', { hasText: 'এক্সেল নামান' }).click()])
       const xlsxPath = `${tmpdir()}/xzm-smoke-${size}-${dl.suggestedFilename()}`; await dl.saveAs(xlsxPath)
       const xl = readFileSync(xlsxPath).toString('utf8')
-      check(/^Transfer - 02 \d{4}-\d\d-\d\d\.xlsx$/.test(dl.suggestedFilename()) && ['<mergeCell ref="E1:H2"/>', '<mergeCell ref="K1:M2"/>', '<mergeCell ref="N1:P2"/>', 'Previous Salary System', 'Transfer Raferance Name &amp; ID', '08/08/2008', '<v>14000</v>', '01738901027']
+      check(/^Transfer - 02 \d{4}-\d\d-\d\d\.xlsx$/.test(dl.suggestedFilename()) && ['<mergeCell ref="E1:H2"/>', '<mergeCell ref="K1:M2"/>', '<mergeCell ref="N1:P2"/>', 'Previous Salary System', 'Transfer Raferance Name &amp; ID', '08/08/2008', '<v>14000</v>', '01711000111']
         .every(t => xl.includes(t)), `${size}: the Excel carries the company's merged headings, the rows and the hand-typed box`)
       await cs.waitForFunction(() => document.querySelector('.da-toast')?.textContent?.includes('কাজ চলছে'), null, { timeout: 5000 }).catch(() => {})
       { const moved = flowCalls.filter(c => c.fn === 'hr_request_update'); check(moved.length >= 1 && moved.every(c => c.p_id === 'q1' && c.p_status === 'processing'), `${size}: on request, the waiting ones move to "in progress" after the download` ) }
