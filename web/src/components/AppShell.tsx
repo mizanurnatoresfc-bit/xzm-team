@@ -10,7 +10,7 @@ import { NodiAvatar } from './NodiAvatar'
 import { useNodiFeatures } from '../lib/useNodiFeatures'
 import { clearFresh, kindOf, markAllRead, markRead, savePushDevice, startNotices, useNotices, type Notice as LiveNotice } from '../lib/notices'
 import { advancedAccessHere, setupPush } from '../lib/native'
-import { Icon } from './Icon'
+import { hasIcon, Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq } from '../lib/hrreq'
 import { getView, type DashView } from '../lib/dashboard'
@@ -37,18 +37,18 @@ export const NEW_UNTIL: Record<string, string> = {
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
 export type { Group as MenuGroup, Item as MenuItem }
 
-/** The menu as Super Admin set it in the menu editor: names from the database where given, hidden rows out, rows in the saved order. */
+/** The menu as Super Admin set it in the menu editor: names and icons from the database where given, hidden rows out, rows in the saved order. */
 export function layoutItems(items: Item[], l: MenuLayout): Item[] {
   return items.map((i, at) => ({ i, at, o: l.items[i.to] }))
     .filter(x => !x.o?.hide)
     .sort((a, b) => (a.o?.order ?? a.at) - (b.o?.order ?? b.at) || a.at - b.at)
-    .map(({ i, o }) => o?.bn || o?.en ? { ...i, bn: o.bn || i.bn, en: o.en || i.en } : i)
+    .map(({ i, o }) => o?.bn || o?.en || o?.icon ? { ...i, bn: o.bn || i.bn, en: o.en || i.en, icon: hasIcon(o.icon) ? o.icon : i.icon } : i)
 }
 export function layoutGroup(g: Group, l: MenuLayout): Group {
   const gn = l.groups[g.key]
   const secs = g.secs.map((x, n) => { const sn = l.secs[secKey(g.key, n)]
     return { bn: sn?.bn || x.bn, en: sn?.en || x.en, items: layoutItems(x.items, l) } })
-  return { ...g, bn: gn?.bn || g.bn, en: gn?.en || g.en, secs, items: secs.flatMap(x => x.items) }
+  return { ...g, bn: gn?.bn || g.bn, en: gn?.en || g.en, icon: hasIcon(gn?.icon) ? gn.icon : g.icon, secs, items: secs.flatMap(x => x.items) }
 }
 /** The "নতুন" date of a row: the editor's date when one was saved (empty = no badge), otherwise the code's. */
 export const newUntil = (to: string, l: MenuLayout): string | undefined => {

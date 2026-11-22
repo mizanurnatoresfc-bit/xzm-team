@@ -1,11 +1,12 @@
-// The sidebar's names, order, hidden rows and "নতুন" dates as Super Admin set them in the menu editor (/app/menu).
+// The sidebar's names, icons, order, hidden rows and "নতুন" dates as Super Admin set them in the menu editor (/app/menu).
 // The code keeps the default menu (AppShell); this only renames, reorders and hides rows on top of it.
 // Who may open a page is still decided by the role's permissions and page list, never by this.
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
-export type ItemLayout = { bn?: string; en?: string; hide?: boolean; order?: number; new_until?: string | null }
-export type NameLayout = { bn?: string; en?: string }
+export type ItemLayout = { bn?: string; en?: string; icon?: string; hide?: boolean; order?: number; new_until?: string | null }
+/** `icon` is kept for rows and panels; a heading (secs) has no icon. */
+export type NameLayout = { bn?: string; en?: string; icon?: string }
 export type MenuLayout = { items: Record<string, ItemLayout>; groups: Record<string, NameLayout>; secs: Record<string, NameLayout> }
 
 export const EMPTY_LAYOUT: MenuLayout = { items: {}, groups: {}, secs: {} }
@@ -37,17 +38,18 @@ export function cleanLayout(l: MenuLayout): MenuLayout {
     if (v.en?.trim()) o.en = v.en.trim()
     return o
   }
+  const iconed = (v: NameLayout) => { const o = name(v); if (v.icon && /^[a-z][a-z0-9_]{0,31}$/.test(v.icon)) o.icon = v.icon; return o }
   const keep = <T extends object>(m: Record<string, T>, f: (v: T) => T) =>
     Object.fromEntries(Object.entries(m).map(([k, v]) => [k, f(v)]).filter(([, v]) => Object.keys(v as object).length)) as Record<string, T>
   return {
     items: keep(l.items, v => {
-      const o: ItemLayout = name(v)
+      const o: ItemLayout = iconed(v)
       if (v.hide) o.hide = true
       if (typeof v.order === 'number' && Number.isFinite(v.order)) o.order = v.order
       if (v.new_until !== undefined && (v.new_until === null || /^\d{4}-\d{2}-\d{2}$/.test(v.new_until))) o.new_until = v.new_until
       return o
     }),
-    groups: keep(l.groups, name),
+    groups: keep(l.groups, iconed),
     secs: keep(l.secs, name),
   }
 }

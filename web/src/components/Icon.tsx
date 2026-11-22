@@ -89,6 +89,9 @@ const P: Record<string, string> = {
   a_cctv: "<path d=\"m3 9.5 13-4.5 2 5.5-13 4.5z\"/><path d=\"m18 10.5 2.5-1M8.5 14.5 10 18H4M4 15.5V20.5\"/>",
 }
 export type IconName = keyof typeof P
+/** Every icon name, for the menu editor's icon picker (the arrows and the close mark are not menu icons). */
+export const ICON_NAMES = Object.keys(P).filter(k => !['chev', 'back', 'x'].includes(k))
+export const hasIcon = (name: unknown): name is string => typeof name === 'string' && Object.prototype.hasOwnProperty.call(P, name)
 
 /** Inline SVG icon; decorative unless a label is given. */
 export function Icon({ name, size = 18, label, className }: { name: string; size?: number; label?: string; className?: string }) {
