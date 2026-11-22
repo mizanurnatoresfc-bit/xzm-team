@@ -1366,6 +1366,16 @@ try {
       await page.waitForSelector('main :text("দূরে")')
       check((await page.locator('main').innerText()).includes('৬৪০ মিটার'), `${size}: the day's check-ins show near and far with the distance`)
       await fits('route check-ins')
+      // কাভারেজ: every place of the district, on a route or not; the gaps are listed with their nearest hub
+      await page.locator('.da-seg button:has-text("কাভারেজ")').click(); await page.waitForSelector('.rt-card:has-text("পুরো জেলা")')
+      await page.waitForSelector('.osm-pin.sm')
+      { const t = await page.locator('main').innerText()
+        check(await page.locator('.osm-pin.sm').count() === 8 && t.includes('পুরো জেলা') && t.includes('০/৮') && t.includes('কাভারেজ নেই'), `${size}: coverage shows every place as a dot and counts none of the eight as covered`)
+        check(t.includes('আমহাটি') && t.includes('Natore Sadar'), `${size}: places without coverage are listed with their nearest hub`) }
+      await page.locator('.osm-pin.sm').first().click({ force: true }); await page.waitForSelector('main :text("কোনো রুটে নেই")')
+      check(true, `${size}: a tapped dot names the place and says it is on no route`)
+      await fits('district coverage')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-cover-${size}.png`, fullPage: true })
       // পার্সেল ও পরামর্শ: type what one rider delivers a day; the accounts say 140 a day on the one route, so riders are asked for
       loadSaved = null
       await page.locator('.da-seg button:has-text("পার্সেল ও পরামর্শ")').click(); await page.waitForSelector('section.panel:has(h2:text-is("Natore Sadar"))')

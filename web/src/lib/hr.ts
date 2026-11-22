@@ -82,6 +82,7 @@ export type ProfileGap = { employee_id: string; employee_code: string | null; fu
   hub_name: string | null; position_name: string | null; position_name_bn: string | null; missing: string[]; total_checks: number }
 
 const BN: Array<[RegExp, string]> = [
+  [/already in this hub/i, 'কর্মী এখনই এই হাবে আছেন — অন্য হাব বেছে নিন'],
   [/not authori[sz]ed|permission denied|42501|row-level security/i, 'এই কাজের অনুমতি আপনার নেই'],
   [/duplicate key|already exists|unique/i, 'এই তথ্য আগে থেকেই আছে (একই কোড/আইডি দুবার দেওয়া যায় না)'],
   [/Employee ID|employee_code|pattern/i, 'এমপ্লয়ি আইডি সঠিক নয় — ১ থেকে শুরু হওয়া সংখ্যা দিন (যেমন ১৪)'],

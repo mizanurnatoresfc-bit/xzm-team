@@ -72,7 +72,7 @@ export const RESOURCE_LABEL: Record<string, string> = {
   'ops.staff_daily': 'স্টাফের দৈনিক কাজের হিসাব (পিকআপ, রিটার্ন, ডেলিভারি)',
   'zonal.report': 'জোনাল রিপোর্ট', 'zonal.task': 'কাজ (টাস্ক)', 'zonal.visit': 'হাব ভিজিট',
   'da.import': 'আপডেট রিপোর্ট আপলোড', 'hr.attendance_gap': 'হাজিরার ফাঁকা দিন', 'hr.employee_profile': 'কর্মীর প্রোফাইল পূরণ',
-  'hr.reference': 'রেফারেন্স তালিকার অনুমোদন', 'hr.request': 'এইচআর রিকুয়েস্ট', 'hr.transfer': 'হাব বদলি',
+  'hr.reference': 'রেফারেন্স তালিকার অনুমোদন', 'hr.request': 'এইচআর রিকুয়েস্ট', 'hr.transfer': 'হাব বদলি', 'hr.status': 'সক্রিয় / নিষ্ক্রিয় করা',
   'issue.group': 'হাব গ্রুপ', 'issue.issue': 'ইস্যু', 'nodi.assistant': 'নদী AI-র সাথে কথা', 'nodi.settings': 'নদী AI সেটিংস',
   'office.bill': 'ভাড়া, বিদ্যুৎ ও ওয়াইফাই বিল', 'office.notice': 'নষ্ট / লাগবে রিপোর্ট', 'office.secret': 'সিসি / রাউটার পাসওয়ার্ড',
   'org.region': 'রিজিওন', 'system.user_hub': 'নিজের হাবের লগইন', 'zonal.pulse': 'পপআপ প্রশ্ন',

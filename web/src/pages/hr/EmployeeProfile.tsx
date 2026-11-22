@@ -268,6 +268,14 @@ function Details({ e, askEdit = 0, onChanged }: { e: Employee; askEdit?: number;
       position: e.position_id ?? '', type: 'transfer', code: '', full_name: e.full_name, full_name_bn: e.full_name_bn ?? '', mobile: e.mobile ?? '', email: e.email ?? '',
       emergency_contact_name: e.emergency_contact_name ?? '', emergency_contact_phone: e.emergency_contact_phone ?? '' })
   }
+  // Mirrors hr_change_status: active <-> inactive needs edit or status rights, resignation needs edit, dismissal and taking a leaver back need approve.
+  const statusAllowed = (s: EmployeeStatus) => {
+    const left = e.status === 'resigned' || e.status === 'terminated'
+    if (left) return s === 'active' && can('hr.employee.approve')
+    if (s === 'terminated') return can('hr.employee.approve')
+    if (s === 'resigned') return can('hr.employee.edit')
+    return can('hr.employee.edit') || can('hr.status.edit')
+  }
   async function go() {
     setBusy(true); setErr('')
     try {
@@ -303,7 +311,7 @@ function Details({ e, askEdit = 0, onChanged }: { e: Employee; askEdit?: number;
           {e.status !== 'applicant' && <>
             {can('hr.employee.edit') && <button className="secondary sm" onClick={() => open('edit')}>সম্পাদনা</button>}
             {(can('hr.employee.edit') || can('hr.transfer.edit')) && <button className="secondary sm" onClick={() => open('transfer')}>বদলি / পদোন্নতি</button>}
-            {(can('hr.employee.edit') || can('hr.employee.approve')) && <button className="secondary sm" onClick={() => open('status')}>অবস্থা পরিবর্তন</button>}
+            {(can('hr.employee.edit') || can('hr.employee.approve') || can('hr.status.edit')) && <button className="secondary sm" onClick={() => open('status')}>অবস্থা পরিবর্তন</button>}
             {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('archive')}>আর্কাইভ</button>}</>}
           {e.employee_code && can('hr.employee.edit') && can('hr.application.approve') && <button className="secondary sm" onClick={() => open('code')}>আইডি সংশোধন</button>}
           {can('hr.employee.archive') && <button className="danger sm" onClick={() => open('wrong')}>ভুল এন্ট্রি — মুছুন</button>}</div>}</div>
@@ -327,7 +335,7 @@ function Details({ e, askEdit = 0, onChanged }: { e: Employee; askEdit?: number;
     {modal && <Modal title={{ code: 'এমপ্লয়ি আইডি সংশোধন', wrong: 'ভুল এন্ট্রি — মুছুন', status: 'অবস্থা পরিবর্তন', transfer: 'বদলি / পদোন্নতি', archive: 'কর্মী আর্কাইভ', reveal: 'গোপন তথ্য দেখুন', edit: 'তথ্য সম্পাদনা' }[modal]}
       onClose={() => setModal(null)} actions={<><button className="secondary" onClick={() => setModal(null)}>বাতিল</button><button className={modal === 'archive' || modal === 'wrong' ? 'danger' : ''} disabled={busy} onClick={() => void go()}>নিশ্চিত</button></>}>
       {modal === 'status' && <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label="নতুন অবস্থা"><select value={f.status} onChange={set('status')}>{(['active', 'inactive', 'resigned', 'terminated'] as EmployeeStatus[]).filter(s => s !== e.status).map(s => <option key={s} value={s}>{EMP_STATUS[s][0]}</option>)}</select></Field>
+        <Field label="নতুন অবস্থা"><select value={f.status} onChange={set('status')}>{(['active', 'inactive', 'resigned', 'terminated'] as EmployeeStatus[]).filter(s => s !== e.status && statusAllowed(s)).map(s => <option key={s} value={s}>{EMP_STATUS[s][0]}</option>)}</select></Field>
         <Field label="কার্যকর তারিখ"><input type="date" value={f.effective} onChange={set('effective')} /></Field></div>}
       {modal === 'transfer' && <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Field label="ধরন"><select value={f.type} onChange={set('type')}>{['transfer', 'promotion', 'correction'].map(t => <option key={t} value={t}>{CHANGE_TYPE[t]}</option>)}</select></Field>

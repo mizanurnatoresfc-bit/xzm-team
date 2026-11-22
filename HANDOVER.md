@@ -700,6 +700,37 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Live:** migration applied on Supabase 22 Nov as `20261122122659 route_load` (owner said yes first). Checked after: column `hub_routes.avg_parcels`, table `route_hub_load`
   with RLS, one policy and three triggers, both functions callable by signed-in people only. The site gets the tab when the pull request is merged to `main`.
 
+## 2026-11-22 — হাব বদলি ও সক্রিয় / নিষ্ক্রিয় অডিট (zonal status right, transfer fixes)
+- Owner: "হাব টু হাব ট্রান্সফার করা যায়, ইনএকটিভ, একটিভ করা যায়? অডিট করে জানাবেন", then yes to the fix. Audited `hr_transfer_employee`, `hr_change_status`,
+  `ZonalStaff.tsx`, `ZonalFiles.tsx`, `Requests.tsx`, `EmployeeProfile.tsx`, and the live role permissions (read only).
+- **Found:** hub transfer works everywhere (14 on live). Active / inactive works in the database but had never been used on live: the two zonal managers hold
+  `hr.transfer.edit` and `hr.request.approve` but not `hr.employee.edit`, so they saw no button and an ID ACTIVE / ID INACTIVE request they marked done with
+  "সিস্টেমে প্রয়োগ" answered "no permission". Live has no HR manager or admin user, so only the Super Admin could do it.
+- **Migration `20261122000200_zonal_status_and_transfer_fixes.sql`:** new permission `hr.status.edit` (admin, head office manager, HR manager, zonal manager):
+  active ↔ inactive only, within scope. Resignation still needs `hr.employee.edit`; dismissal and taking a leaver back still need `hr.employee.approve`.
+  `hr_transfer_employee` refuses a plain transfer to the hub the person is already in (same post, same manager) — it only left an empty history row.
+- **Web:** the zonal staff page and the profile show the status button with `hr.status.edit`; the status choices follow the caller's rights (no "resigned" /
+  "terminated" for a zonal manager); someone who may approve can take leavers back from the bulk dialog; a transfer from the zonal page keeps the reporting
+  manager, like the other three places (it used to clear it). `roles.ts` / `accessCatalog.ts` know the new permission.
+- **Not changed:** an ID INACTIVE request of the kind "চাকরি ছেড়েছেন" / "বাদ" still cannot be applied by a zonal manager (owner agreed those stay with HR / admin);
+  an inactive person must be made active before a transfer; `supabase/apply-all-dev.sql` is older than the last several migrations and was not regenerated.
+- **Tests:** `99…_zonal_status.sql` (11 assertions; whole SQL suite passes on local PostgreSQL 16, also after merging the route load change), typecheck, build, smoke test pass
+  (run with `CHROME=/opt/pw-browsers/chromium`). The new buttons were not driven in a browser with a zonal login.
+- **Live:** migration applied on Supabase 22 Nov as `20261122122644 zonal_status_and_transfer_fixes` (owner said yes first). Checked after: both function
+  bodies equal the tested file by md5, anon can run neither, the four roles hold `hr.status.edit`, staff counts unchanged (144 active). The site gets the
+  buttons when the pull request is merged to `main`. Live also has a migration `20261121202903 dynamic_voucher` that is not in this repository.
+
+## 2026-11-22 — রুট: জেলার কাভারেজ ম্যাপ (district coverage)
+- Owner: "নাটোর জেলার রুট প্লানিং করবো যেন প্রতিটি এলাকা কাভারেজ দেখা যায়, কোনগুলা আমাদের কাভারেজ নেই সেইটা দেখা যাবে"।
+- Page: রুট সেটিং → new tab **কাভারেজ** (`pages/zonal/RouteCoverage.tsx`). **No database change**: it reads `geo_upazilas` / `route_places` (already loaded for the
+  suggestions tab) and the zone's routes. A place is covered when a stop of any route of the zone is within 250 m (the rule the suggestions tab uses).
+  Map: every place as a small dot (green = on a route, red = not), hubs, upazila boundaries; a tapped dot names the place, its route or "on no route", the nearest hub,
+  distance and direction. Side list: whole district and each upazila with covered / all and a bar (tap = that upazila only). Filters: kinds of place, all / not covered / covered.
+  Below: the places without coverage sorted by nearest hub (Excel / PDF); a row opens that hub's "এলাকা ও সাজেশন" to build routes from them.
+- `OsmMap`: new pin option `small` (an 11 px dot) for hundreds of places on one map; places at exactly the same point share one dot (first one's colour).
+- **Limits:** coverage counts this zone's routes only; a stop typed by hand far from the place's own point (more than 250 m) does not count as covering it;
+  places without a location (the 52 unions) are counted apart and not drawn.
+- **Tests:** smoke test: the tab, dots, counts, the gap list, tapping a dot (638 checks pass). Tried by hand with the real 665 places: 561 dots, dragging stays smooth (about 17 ms a step).
 ## 2026-11-22 — পুরো সাইটের অডিট, তিন রোলের ডেমো ও লাইভ রোডম্যাপ (full audit, role demo, go-live roadmap)
 
 - **Report and roadmap:** `docs/GO_LIVE_ROADMAP.md` (Bangla) — results, what the three roles did, the five problems found, live numbers, security advisor, steps 0–5 to a
@@ -709,7 +740,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `seed.sql` makes the demo people. Result: staff 28, hub manager 96, zonal manager 103 pages × 2 sizes — 0 crashes, 0 failed calls. Not wired into CI (needs `pg`).
 - **Driven by hand through the same set-up:** staff gives attendance → hub manager approves → register; staff sends a job-leaving request → zonal manager rejects with a reason;
   hub manager starts the day's accounts sheet. All worked.
-- **Fixes** (`20261122000200_role_demo_audit_fixes.sql`, `ZonalDashboard.tsx`, `theme.css`):
+- **Fixes** (`20261122000300_role_demo_audit_fixes.sql`, `ZonalDashboard.tsx`, `theme.css`):
   1. a new HR request now notifies everyone who may approve it for that hub at once (trigger `hr_requests_tell_approvers`; before, only the hours-later nudge told them);
   2. `private.attendance_gap_days` counts a day as missing only from the first day anyone in the person's hub has attendance on the register (live asked everyone about
      every day since 1 Oct although attendance began on 18 Nov); a hub with no attendance at all is asked about nothing;

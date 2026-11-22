@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEven
 /** A small OpenStreetMap view without any library: tiles, pins, zoom, drag, tap-to-pick. */
 export type MapPin = { id: string; lat: number; lng: number; label: string; tone?: 'ok' | 'off' | 'wait' | 'sel'
   /** a numbered round badge (route stops) instead of the drop pin; `color` fills it, `square` marks a start (hub) */
-  num?: string; color?: string; square?: boolean }
+  num?: string; color?: string; square?: boolean
+  /** a small plain dot (hundreds of places on one map): `color` fills it */
+  small?: boolean }
 /** Lines drawn under the pins (route path), points as [lat, lng]. */
 export type MapLine = { id: string; color: string; points: Array<[number, number]>; dashed?: boolean; width?: number; opacity?: number }
 /** A circle of a real size in metres (a stop's reach radius, the phone's location accuracy). */
@@ -160,7 +162,7 @@ export function OsmMap({ pins, height: wanted = 340, selected, onSelect, onPick,
     {groups.map(g => {
       const p = g[0]; const sel = g.some(x => x.id === selected)
       const showTag = tags === 'all' || sel
-      return <button key={p.id} type="button" className={`osm-pin t-${sel ? 'sel' : p.tone ?? 'ok'}${p.num !== undefined ? ' num' : ''}${p.square ? ' sq' : ''}`} title={g.map(x => x.label).join(', ')}
+      return <button key={p.id} type="button" className={`osm-pin t-${sel ? 'sel' : p.tone ?? 'ok'}${p.num !== undefined ? ' num' : ''}${p.square ? ' sq' : ''}${p.small ? ' sm' : ''}`} title={g.map(x => x.label).join(', ')}
         style={{ left: wx(p.lng, z) - left, top: wy(p.lat, z) - top }} onClick={() => onSelect?.(g.find(x => x.id !== selected)?.id ?? p.id)}>
         {p.num !== undefined ? <span className="badge" style={p.color ? { background: p.color } : undefined}>{g.map(x => x.num).join('·')}</span> : <span className="dot" />}
         {showTag && <span className="tag">{g.map(x => x.label).join(' · ')}</span>}
