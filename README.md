@@ -46,6 +46,9 @@ supabase db push
 
 Do not run `supabase/tests/local_supabase_shim.sql` on a real Supabase project.
 
-## Go-live decision
+## Go-live status
 
-**Not production-ready.** The React app is an initial scaffold only. Authentication hardening, full UI, real Supabase verification, Storage policy tests, SMTP, backup/restore, role-based E2E tests and deployment review are still required. See `docs/PRODUCTION_ROADMAP.md`.
+The site is live and in daily use (attendance, daily accounts) at a first group of hubs. The full audit of 22 Nov 2026 — every page
+opened as staff, hub manager and zonal manager against the real database rules — and the step-by-step roadmap to a company-wide
+launch are in `docs/GO_LIVE_ROADMAP.md`. Before the company-wide launch: backups, production SMTP and the Auth settings listed there.
+To repeat the role walk, see `scripts/role-demo/README.md`.

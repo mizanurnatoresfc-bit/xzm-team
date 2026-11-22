@@ -109,6 +109,8 @@ button.da-stat:hover{background:var(--surface)!important;border-color:var(--prim
 .top{display:flex;align-items:center;gap:10px;padding:10px 20px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
 .top .search{flex:1;max-width:440px;position:relative}
 .top .search input{margin:0;padding-left:36px;background:var(--canvas);min-height:38px}
+/* the form-wide input padding is !important; without this the placeholder sits under the search icon */
+.top .search input[type=search]:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]){padding-left:36px!important}
 .top .search .ic{position:absolute;left:11px;top:10px;color:var(--muted)}
 .top .spacer{flex:1}
 .top .menu-btn{display:none}

@@ -17,3 +17,5 @@ pgdata/
 .netlify/
 # Android app build output
 XZM-TEAM.apk
+web/dist-demo/
+web/role-demo-out/

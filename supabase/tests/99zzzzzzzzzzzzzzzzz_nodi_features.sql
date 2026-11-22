@@ -5,6 +5,9 @@ select tests.hr_fixture();
 insert into tests.ids values
   ('r1', tests.active_employee('Switch Rider', '851', tests.id('hub_a1'), '01711000851', '8510000000', 15000, tests.id('rider_login')));
 update public.employees set status_since = current_date - 5, joining_date = current_date - 5 where id = tests.id('r1');
+-- the hub has been giving attendance since five days ago (days before a hub's first attendance are not asked about)
+insert into tests.ids values ('r0', tests.active_employee('Earlier Rider', '850', tests.id('hub_a1'), '01711000850', '8500000000'));
+insert into public.attendance_records (employee_id, work_date, status) values (tests.id('r0'), current_date - 5, 'present');
 
 select tests.login(tests.id('hub_mgr'));
 select tests.ok(public.nodi_features() = '{"chat": true, "teach": true, "office": true, "gaps": true, "followup": true}'::jsonb, 'every part starts on');

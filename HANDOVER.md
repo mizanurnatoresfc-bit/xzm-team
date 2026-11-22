@@ -699,3 +699,23 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Tests:** `99…_route_load.sql` (14 assertions; whole SQL suite 2183 pass); smoke test: the tab, saving the rider average, hire / more-riders suggestions (630 checks pass).
 - **Live:** migration applied on Supabase 22 Nov as `20261122122659 route_load` (owner said yes first). Checked after: column `hub_routes.avg_parcels`, table `route_hub_load`
   with RLS, one policy and three triggers, both functions callable by signed-in people only. The site gets the tab when the pull request is merged to `main`.
+
+## 2026-11-22 — পুরো সাইটের অডিট, তিন রোলের ডেমো ও লাইভ রোডম্যাপ (full audit, role demo, go-live roadmap)
+
+- **Report and roadmap:** `docs/GO_LIVE_ROADMAP.md` (Bangla) — results, what the three roles did, the five problems found, live numbers, security advisor, steps 0–5 to a
+  company-wide launch, and four questions for the owner. `docs/PRODUCTION_ROADMAP.md` (13 Nov) is marked superseded.
+- **Role demo tool:** `scripts/role-demo/` — `gw.mjs` answers the app's Supabase REST requests from a local throwaway PostgreSQL (all migrations, real RLS) as the signed-in
+  person; `walk.mjs` opens every page a role reaches at PC and phone size and reports crashes, refused or failed database calls and pages wider than the screen;
+  `seed.sql` makes the demo people. Result: staff 28, hub manager 96, zonal manager 103 pages × 2 sizes — 0 crashes, 0 failed calls. Not wired into CI (needs `pg`).
+- **Driven by hand through the same set-up:** staff gives attendance → hub manager approves → register; staff sends a job-leaving request → zonal manager rejects with a reason;
+  hub manager starts the day's accounts sheet. All worked.
+- **Fixes** (`20261122000200_role_demo_audit_fixes.sql`, `ZonalDashboard.tsx`, `theme.css`):
+  1. a new HR request now notifies everyone who may approve it for that hub at once (trigger `hr_requests_tell_approvers`; before, only the hours-later nudge told them);
+  2. `private.attendance_gap_days` counts a day as missing only from the first day anyone in the person's hub has attendance on the register (live asked everyone about
+     every day since 1 Oct although attendance began on 18 Nov); a hub with no attendance at all is asked about nothing;
+  3. nine notice/reminder functions (`notice_*`, `reminder_*`, `my_report_line`) are no longer callable without signing in — `branding()` is the only one left, on purpose;
+  4. the zonal dashboard waits for the zone list, so a one-zone manager no longer sends a refused "all zones" request first;
+  5. the top search box: the placeholder no longer sits under the icon (the form-wide `!important` padding was winning).
+- **Tests:** `99…_role_demo_audit.sql` (10 assertions); `99…_nodi_features.sql` follows the gap rule (its hub now has a first attendance day). Whole SQL suite 2193 pass; smoke 630 pass.
+- **Live:** NOT applied yet — the migration waits for the owner's yes. Nothing on the live database was changed in this session (read-only counts and the security advisor only).
+- **Not covered by the demo:** real login and lockout, Edge Functions, Storage uploads, push, realtime, the APK — listed as hand checks in step 2 of the roadmap.
