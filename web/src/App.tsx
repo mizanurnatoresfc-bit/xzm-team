@@ -40,6 +40,9 @@ const ZonalFiles = lazy(() => import('./pages/zonal/ZonalFiles').then(m => ({ de
 const Manpower = lazy(() => import('./pages/Manpower').then(m => ({ default: m.Manpower })))
 const HubOps = lazy(() => import('./pages/zonal/HubOps').then(m => ({ default: m.HubOps })))
 const HubOpsPanel = lazy(() => import('./pages/zonal/HubOpsPanel').then(m => ({ default: m.HubOpsPanel })))
+const ManagerStaff = lazy(() => import('./pages/manager/ManagerStaff').then(m => ({ default: m.ManagerStaff })))
+const ZonalRequests = lazy(() => import('./pages/zonal/ZonalRequests').then(m => ({ default: m.ZonalRequests })))
+const HrRecords = lazy(() => import('./pages/zonal/HrRecords').then(m => ({ default: m.HrRecords })))
 const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
@@ -139,6 +142,14 @@ export default function App() {
       <Route path="/app/zonal/hub-ops" element={<HubOps />} />
       <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
+      {/* Staff lifecycle: the hub manager asks, the zonal manager decides, every approval leaves a file */}
+      <Route element={<AnyOf perms={['hr.request.create']} />}>
+        <Route path="/app/manager/staff" element={<ManagerStaff />} />
+      </Route>
+      <Route element={<AnyOf perms={['hr.request.approve']} />}>
+        <Route path="/app/zonal/requests" element={<ZonalRequests />} />
+        <Route path="/app/zonal/hr-records" element={<HrRecords />} />
+      </Route>
       <Route element={<AnyOf perms={['ops.route_setting.view', 'ops.route_setting.edit']} />}>
         <Route path="/app/zonal/routes" element={<RouteSettings />} />
       </Route>
@@ -230,6 +241,10 @@ export default function App() {
     </Route>
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
+    {/* short addresses of the staff lifecycle pages */}
+    <Route path="/manager/staff" element={<Navigate to="/app/manager/staff" replace />} />
+    <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
+    <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
   </Routes></Suspense></BrowserRouter></AuthProvider></PrefsProvider>
 }

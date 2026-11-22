@@ -751,3 +751,38 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Live:** migration applied on Supabase 22 Nov as `20261122142603 role_demo_audit_fixes` (owner said yes first). Checked after: the trigger is on, only `branding()` is open to visitors,
   the nine functions still work signed in, and the missing-attendance list went from 1,450 days (144 people) to 155 days (82 people), none before 18 Nov. The two website fixes go live when the pull request is merged.
 - **Not covered by the demo:** real login and lockout, Edge Functions, Storage uploads, push, realtime, the APK — listed as hand checks in step 2 of the roadmap.
+
+## 2026-11-22 — স্টাফ লাইফসাইকেল: হাব ম্যানেজার জানান, জোনাল ম্যানেজার সিদ্ধান্ত দেন (staff lifecycle)
+
+- **What:** two roles, one flow, on the tables that were already there (`hr_requests`, `employee_applications`, `employee_assignments`, `employee_status_history`).
+  The hub manager only asks; resigned / terminated / transfer happen only through `hr.request.approve`.
+- **Pages** (short addresses `/manager/staff`, `/zonal/requests`, `/zonal/hr-records` lead to them):
+  - `/app/manager/staff` (`pages/manager/ManagerStaff.tsx`, needs `hr.request.create`) — active staff of the hub only, tabs "সক্রিয় স্টাফ" and "অপেক্ষমাণ আবেদন".
+    Each row has a ⋮ menu (`components/RowMenu.tsx`) with one action, "চাকরি ছেড়ে দিয়েছে" (modal → reason → sent; the row keeps an "অপেক্ষমাণ" badge until decided).
+    "নতুন স্টাফ যোগ" opens a form built from `employee_formats` (the zone's own format first, then the default; name, mobile and post are always asked).
+    A person with `hr.request.approve` sees a hub picker, finishes an exit in the same step (resigned / terminated) and gets a second menu item, "অন্য হাবে বদলি".
+  - `/app/zonal/requests` (`pages/zonal/ZonalRequests.tsx`, needs `hr.request.approve`) — tabs নতুন আইডি | বন্ধ / ছাড়া | বদলি | চালু; each card shows the person, hub, reason,
+    sender, what the profile still lacks (new ID) and the final accounts (exit). Approve / reject are one modal each. A notification link `?id=` opens the right tab.
+  - `/app/zonal/hr-records` (`pages/zonal/HrRecords.tsx`) — every generated file; filters hub, zone, action, status, dates; Excel per row or all in one workbook.
+- **Database** (`20261122000400_staff_lifecycle.sql`):
+  - `hr_staff_leave_request`, `hr_staff_join_request` (applicant + **submitted** application + ID CREATE request), `hr_staff_transfer`, `hr_request_decide`, `hr_request_inbox`.
+  - `hr_request_decide` does the real change on approval: new ID → Employee ID (next free number unless one is typed), active, joining assignment, pending salary approved;
+    exit → resigned / terminated, status history, open assignment closed, an `exit` assignment row, login switched off; transfer → `hr_transfer_employee`; reactivate → `hr_change_status`.
+    Reject needs a note and, for a new-staff request, rejects the application too.
+  - `hr_record_files` (new, read with `hr.request.approve`): one row per joining / exit / transfer, the Excel content frozen at approval — headings and cells from the
+    `employee_formats` layout (purpose export / both), plus name, ID, mobile, post, hub and joining date when the layout lacks them, then the action's own columns. The browser turns it into .xlsx (`lib/lifecycle.ts`).
+  - Final accounts (`private.hr_exit_accounts`): last salary from the approved compensation; unpaid salary = that month's salary sheet line if there is one, else basic + transport
+    for the days worked (marked "আনুমানিক"); khata deposit and due = the person's `da_rider_lines`. Net = unpaid salary − khata due.
+  - New requests of these four kinds now link approvers to `/app/zonal/requests?id=…`; every decision notifies the sender and the hub's managers (priority high → phone push through the existing trigger).
+  - Role page lists: a role that had `/app/hub/team` and may send requests also gets `/app/manager/staff`; one that had `/app/zonal/files` or `/app/hr/requests` and may approve gets the two zonal pages.
+- **Decisions worth knowing:**
+  1. Two-person rule kept: whoever sent a new-staff request can never approve it (Super Admin excepted, as before). A zonal manager's own new-staff request waits for HR / admin.
+  2. The short form cannot fill an "ID-ready" profile, so `hr_staff_join_request` sends the application without that check; the approver sees what is missing and may still approve.
+  3. `hr.request.approve` now carries resignation and dismissal for requests in scope (before: `hr.employee.edit` / `hr.employee.approve` only). Taking a leaver back still needs `hr.employee.approve`.
+  4. The older pages (`/app/hr/requests`, `/app/zonal/files`) are untouched and still work.
+- **Tests:** `99…_staff_lifecycle.sql` (37 assertions); `99…_role_demo_audit.sql` follows the new inbox link. Whole SQL suite 2241 pass; smoke passes;
+  the full flow (ask → inbox → approve → download, both roles, PC and phone) was run in a browser against the local database with the role-demo gateway: 0 failed database calls.
+- **Live:** migration applied on Supabase 22 Nov as `20261122151145 staff_lifecycle` (owner said yes first; file text without the header comment). Checked after:
+  all 13 functions equal the tested file by hash, nobody signed out can call the five public ones, `hr_record_files` has RLS, its policy and both triggers,
+  the hub manager role's page list gained `/app/manager/staff`, staff counts unchanged (144 active). The pages themselves go live when the pull request is merged;
+  until then a new request's notification to approvers points at `/app/zonal/requests`, which the published site does not have yet.
