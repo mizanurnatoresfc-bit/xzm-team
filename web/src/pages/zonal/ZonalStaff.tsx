@@ -111,7 +111,7 @@ function HubStaff({ hub, onToast, onClose, onOpen }: {
 
     {picked.size > 0 && <div className="notice" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
       <strong>{n(picked.size)} {L('জন বাছাই করা', 'selected')}</strong>
-      {can('hr.employee.edit') && <button className="sm" onClick={() => setAct('status')}>{L('সক্রিয় / নিষ্ক্রিয় করুন', 'Active / inactive')}</button>}
+      {(can('hr.employee.edit') || can('hr.status.edit')) && <button className="sm" onClick={() => setAct('status')}>{L('সক্রিয় / নিষ্ক্রিয় করুন', 'Active / inactive')}</button>}
       {canMove && <button className="sm" onClick={() => setAct('transfer')}>{L('অন্য হাবে বদলি', 'Transfer to another hub')}</button>}
       {can('hr.application.approve') && <button className="sm" onClick={() => setAct('ids')}>{L('এমপ্লয়ি আইডি দিন', 'Give Employee IDs')}</button>}
       {can('hr.employee.archive') && <button className="sm danger" onClick={() => setAct('archive')}>{L('তালিকা থেকে সরান', 'Remove from the list')}</button>}
@@ -149,11 +149,15 @@ export function Names({ list }: { list: Employee[] }) {
 
 export function StatusAction({ list, onClose, onDone }: { list: Employee[]; onClose: () => void; onDone: (m: string) => void }) {
   const { L, n } = usePrefs()
+  const { can } = useAuth()
+  const full = can('hr.employee.edit'); const approve = can('hr.employee.approve')
   const [to, setTo] = useState<EmployeeStatus>('inactive')
   const [date, setDate] = useState(today())
   const [reason, setReason] = useState('')
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
-  const targets = list.filter(e => e.status !== to && (e.status === 'active' || e.status === 'inactive'))
+  // Leavers can only be taken back (to active), and only by someone who may approve.
+  const targets = list.filter(e => e.status !== to && (e.status === 'active' || e.status === 'inactive'
+    || (to === 'active' && approve && (e.status === 'resigned' || e.status === 'terminated'))))
   const needsActive = to === 'resigned' || to === 'terminated'
   async function go() {
     setErr('')
@@ -176,8 +180,8 @@ export function StatusAction({ list, onClose, onDone }: { list: Employee[]; onCl
       <Field label={L('নতুন অবস্থা', 'New status')}><select value={to} onChange={e => setTo(e.target.value as EmployeeStatus)}>
         <option value="inactive">{L('নিষ্ক্রিয় করুন', 'Make inactive')}</option>
         <option value="active">{L('আবার সক্রিয় করুন', 'Make active again')}</option>
-        <option value="resigned">{L('চাকরি ছেড়েছেন', 'Resigned')}</option>
-        <option value="terminated">{L('অব্যাহতি দেওয়া হয়েছে', 'Terminated')}</option></select></Field>
+        {full && <option value="resigned">{L('চাকরি ছেড়েছেন', 'Resigned')}</option>}
+        {approve && <option value="terminated">{L('অব্যাহতি দেওয়া হয়েছে', 'Terminated')}</option>}</select></Field>
       <Field label={L('যেদিন থেকে', 'From')}><input type="date" value={date} onChange={e => setDate(e.target.value)} /></Field>
       <Field wide label={L('কারণ', 'Reason')}><input value={reason} onChange={e => setReason(e.target.value)} placeholder={L('যেমন: ছুটিতে আছেন / কাজে ফিরেছেন', 'e.g. on long leave / back at work')} /></Field>
     </div>
@@ -251,7 +255,7 @@ export function TransferAction({ list, hubs, onClose, onDone }: { list: Employee
     const done: Employee[] = []; const bad: string[] = []
     for (const e of targets) {
       try {
-        await hr.transfer(e.id, { hub, department: e.department_id, position: e.position_id, manager: null, effective: date, reason: reason.trim(), type: 'transfer' })
+        await hr.transfer(e.id, { hub, department: e.department_id, position: e.position_id, manager: e.reporting_manager_id, effective: date, reason: reason.trim(), type: 'transfer' })
         done.push(e)
       } catch (x) { bad.push(`${e.full_name}: ${hrFriendly(x)}`) }
     }
