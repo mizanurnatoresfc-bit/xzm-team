@@ -820,4 +820,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Tests:** `99…_route_day_plan.sql` (61 assertions; whole SQL suite 2302 pass), typecheck, build, smoke test pass. The flow was driven in a real browser against
   the local database with the role-demo gateway: hub manager types and sends, zonal manager sets up a helper and a fixed number and approves, the rider sees the
   own parcels on a phone; 0 failed database calls, no sideways scroll on a phone.
-- **Live:** NOT applied to Supabase yet — the owner has to say yes first. Until then the new tab and page answer "function not found".
+- **Live:** migration applied on Supabase 22 Nov as `20261122162358 route_day_plan` (owner said yes first; file text without the header comment). Checked after:
+  all 13 functions equal the tested file by hash, nobody signed out can call the public ones, the three tables have RLS, one policy and three triggers each,
+  7 permissions (admin 7, zonal manager 7, hub manager 4, rider 1), one role page list gained `/app/routes/plan`, staff counts unchanged (144 active).
+  The tab and page go live when the pull request is merged.
