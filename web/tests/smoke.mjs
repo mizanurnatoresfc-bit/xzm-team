@@ -1258,11 +1258,44 @@ try {
     await mobile.fill('0171'); await mobile.blur()
     check(await page.locator('.da-modal .field-err').count() === 1, `${size}: a wrong mobile number is flagged as soon as the box is left`)
     await mobile.fill('+৮৮ ০১৭১১-০০০০০০'); await mobile.blur()
-    check(await mobile.inputValue() === '01711000000', `${size}: Bangla digits, +88 and dashes are tidied into 01XXXXXXXXX`)
+    check(await mobile.inputValue() === '01711-000000', `${size}: Bangla digits, +88 and dashes are tidied and shown as 01711-000000 (input mask)`)
     await page.waitForSelector('.da-modal .dup-note', { timeout: 5000 }).catch(() => {})
     check((await page.locator('.da-modal .dup-note').innerText().catch(() => '')).includes('Staff 01'), `${size}: a mobile number that is already used is flagged with the person's name`)
     await fits('new staff form')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff.png` })
+
+    // the same form: two steps, inline errors, auto focus, auto saved draft, and a check before it is sent
+    { const modal = page.locator('.da-modal').first()
+      const name = modal.locator('input[autocomplete=name]')
+      check(await modal.locator('.stepper li').count() === 2 && await modal.locator('.da-field.fl').count() === 2, `${size}: new staff form has a step bar and floating labels`)
+      await name.fill(''); await mobile.fill('01800000000')
+      await modal.getByRole('button', { name: /পরের ধাপ/ }).click(); await page.waitForTimeout(120)
+      check(await modal.locator('.stepper li.now').innerText().then(t => t.includes('ব্যক্তি')) && (await modal.locator('.field-err').allInnerTexts()).some(t => t.includes('পূর্ণ নাম দিন')),
+        `${size}: an empty required name stops the next step and is explained under the box`)
+      check(await name.evaluate(el => el === document.activeElement), `${size}: the cursor goes to the box that needs fixing`)
+      await name.fill('Test Person')
+      await page.waitForFunction(() => document.querySelector('.da-modal .draft-bar')?.textContent?.includes('খসড়া') && !document.querySelector('.da-modal .draft-bar.back'), null, { timeout: 4000 }).catch(() => {})
+      check((await modal.locator('.draft-bar').innerText().catch(() => '')).includes('খসড়া'), `${size}: typing is auto saved as a draft`)
+      await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 4000 }).catch(() => {})
+      await page.getByRole('button', { name: /নতুন কর্মী|New staff/ }).first().click(); await page.waitForSelector('.da-modal input[autocomplete=name]')
+      check(await name.inputValue() === 'Test Person' && await mobile.inputValue() === '01800-000000' && await modal.locator('.draft-bar.back').count() === 1,
+        `${size}: an unfinished form comes back after it was closed (draft)`)
+      await modal.getByRole('button', { name: /পরের ধাপ/ }).click(); await page.waitForSelector('.da-modal .cb input')
+      check(await page.evaluate(() => document.activeElement?.matches('.da-modal .cb input') ?? false), `${size}: the next step puts the cursor in its first box`)
+      await modal.getByRole('button', { name: /আবেদন খুলুন/ }).click(); await page.waitForTimeout(120)
+      check((await modal.locator('.field-err').allInnerTexts()).some(t => t.includes('হাব বেছে নিন')), `${size}: a missing hub is shown under the hub box`)
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-step2.png` })
+      await modal.locator('.cb input').click(); await page.locator('.da-modal .cb-list li[role=option]').first().click()
+      await modal.locator('select').last().selectOption('p1')
+      await modal.getByRole('button', { name: /আবেদন খুলুন/ }).click(); await page.waitForSelector('.confirm-rows', { timeout: 4000 }).catch(() => {})
+      check((await page.locator('.confirm-rows').innerText().catch(() => '')).includes('Test Person'), `${size}: before sending, a summary asks to confirm`)
+      if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-confirm.png` }) }
+      await page.getByRole('button', { name: /ফিরে গিয়ে বদলান/ }).click(); await page.waitForTimeout(100)
+      check(await page.locator('.confirm-rows').count() === 0 && await page.locator('.da-modal .stepper').count() === 1, `${size}: "go back and change" keeps the form open`)
+      await page.locator('.da-modal .draft-bar button').click(); await page.waitForTimeout(100)
+      check(await page.locator('.da-modal input[autocomplete=name]').inputValue() === '', `${size}: "start over" throws the draft away`)
+      await page.keyboard.press('Escape')
+    }
 
     // ---- Advanced role & permission management (website only for now) ----
     { const box = (sub, i) => page.locator(`.ax-row[data-sub="${sub}"] .ax-c`).nth(i).locator('button')

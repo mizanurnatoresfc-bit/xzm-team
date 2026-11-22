@@ -38,16 +38,24 @@ export function Modal({ title, children, onClose, actions, wide }: { title: stri
   </div>, document.body)
 }
 
-/** Form field: label above, input, helper text below. `required` adds a red *, `note` a small grey tag such as "(Restricted)". */
-export function Field({ label, children, hint, wide, required, note }: { label: string; children: ReactNode; hint?: ReactNode; wide?: boolean; required?: boolean; note?: string }) {
-  // Screen readers hear "required" and the helper text together with the box itself, not only the red * and grey line.
-  const hintId = useId()
+/** Form field: label above, input, helper text below. `required` adds a red *, `note` a small grey tag such as "(Restricted)".
+ *  `error` shows the problem right under the box (inline error); `float` puts the label inside the box and lifts it when you type (floating label). */
+export function Field({ label, children, hint, wide, required, note, error, float }: { label: string; children: ReactNode; hint?: ReactNode; wide?: boolean; required?: boolean; note?: string
+  error?: string | null; float?: boolean }) {
+  // Screen readers hear "required", the helper text and the error together with the box itself, not only the red * and grey line.
+  const hintId = useId(); const errId = useId()
   const plain = isValidElement(children) && typeof children.type === 'string' && /^(input|select|textarea)$/.test(children.type)
+  const props = plain ? (children as ReactElement<Record<string, unknown>>).props : {}
+  const described = [props['aria-describedby'], hint ? hintId : null, error ? errId : null].filter(Boolean).join(' ')
   const box = plain ? cloneElement(children as ReactElement<Record<string, unknown>>, {
     ...(required ? { 'aria-required': true } : {}),
-    ...(hint ? { 'aria-describedby': [(children.props as Record<string, unknown>)['aria-describedby'], hintId].filter(Boolean).join(' ') } : {}),
+    ...(described ? { 'aria-describedby': described } : {}),
+    ...(error ? { 'aria-invalid': true } : {}),
+    // a floating label needs a placeholder so the box knows when it is empty
+    ...(float && children.type !== 'select' && !props.placeholder ? { placeholder: ' ' } : {}),
   }) : children
-  return <label className={`da-field${wide ? ' wide' : ''}`}><span>{label}{required && <b className="req" aria-hidden="true"> *</b>}{required && <span className="sr-only"> (আবশ্যক)</span>}{note && <em className="fnote"> {note}</em>}</span>{box}{hint && <small className="muted" id={hintId}>{hint}</small>}</label>
+  return <label className={`da-field${wide ? ' wide' : ''}${float ? ' fl' : ''}${error ? ' has-err' : ''}`}><span>{label}{required && <b className="req" aria-hidden="true"> *</b>}{required && <span className="sr-only"> (আবশ্যক)</span>}{note && <em className="fnote"> {note}</em>}</span>{box}
+    {error && <small className="field-err" id={errId} role="alert">{error}</small>}{hint && <small className="muted" id={hintId}>{hint}</small>}</label>
 }
 
 export function ErrorNote({ error }: { error: unknown }) {
