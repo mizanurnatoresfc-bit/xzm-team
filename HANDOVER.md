@@ -987,7 +987,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   in a browser as the rider, the hub manager and the zonal manager (attendance, the four numbers twice, an expense bill, the final register with late / absent /
   "no", the reply to the explanation, the khata with a rider line and the bill posted), plus two independent reviews (newest migrations; the work pages against the
   database: 379 rpc calls, 201 table reads, all match). The Bangla report with every finding is `docs/MASTER_AUDIT_2026-11-22_BN.pdf`.
-- **Migration `20261122001300_master_audit_fixes.sql` (NOT on live yet — needs the owner's yes):** each function is the live body with one marked change.
+- **Migration `20261122001300_master_audit_fixes.sql` (applied on live 22 Nov as `master_audit_fixes`, owner said yes; bodies equal to the file by hash):** each function is the live body with one marked change.
   - `att_sheet_submit`: a register with someone who has since left could never be submitted (the register refuses a new row for a leaver and that failed the whole
     hub's day). Existing rows are updated; a new row is written only for an active person; the leaver keeps the line on the sheet.
   - `hr_request_decide`: an "আইডি সাময়িক বন্ধ" request approved in the zonal inbox made the person **resigned** with an exit file. It now makes them `inactive`
@@ -1003,7 +1003,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   - `ZonalRequests.tsx`: the approval dialog has "সাময়িক বন্ধ (আবার চালু করা যাবে)". `ZoneWindows.tsx`: the last date no longer runs into the next month.
   - `HubManagement.tsx`: "বাকি সবাই উপস্থিত" counts only what was saved and cannot be pressed twice.
 - **The three open points — owner said "৩ টাই … ঠিক করেন: রোল, জোনাল আপ্রুভাল" (done the same day):**
-  migration `20261122001400_att_self_line_and_manager_roles.sql` (**NOT on live yet**).
+  migration `20261122001400_att_self_line_and_manager_roles.sql` (**applied on live 22 Nov** as `att_self_line_and_manager_roles`, owner said yes; bodies equal to the file by hash).
   - The submitter's own line on the final register is kept as what they say (`att_day_lines.self_pending`) and is **not** written to the register; the zonal
     manager makes it final with `att_sheet_confirm_self(line, status, late_time, note)` and may correct it first. `att_sheet_get` returns `line_id`,
     `self_pending`, `confirmed_at` per person and `can.confirm_self`. Page: `FinalSheet.tsx` shows "চূড়ান্ত করুন" to the zonal manager on that line.
@@ -1013,3 +1013,4 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   - `AttendanceDays.tsx`: some people can be saved now and the rest later (an untouched pre-filled "online" box no longer blocks the save).
 - **Tests:** `99…_master_audit.sql` (19 assertions), `99…_att_self_line.sql` (19); SQL suite 2480 pass on local PostgreSQL 16; typecheck, build, 688 smoke checks pass.
   `scripts/role-demo/try.mjs` drives one role by hand (click, fill, read the page) against the demo database.
+- **Seen on live, not from this branch:** a migration `password_reset_no_force` was applied between the two above (another session); its file is not in this branch.
