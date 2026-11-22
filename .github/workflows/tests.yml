@@ -1,13 +1,21 @@
-# Checks every push and pull request, so a broken change is caught before it reaches main:
-#   1. Database: every migration in order on a throwaway PostgreSQL 16, then all SQL tests (scripts/test-db.sh).
-#   2. Website: TypeScript check of the React app.
-# The site itself is still built, smoke-tested and published by "Android APK and site build" (pushes to main only).
-# Nothing here touches the live Supabase project; no secrets are used.
+# Database check: every migration in order on a throwaway PostgreSQL 16, then all SQL tests (scripts/test-db.sh).
+# Runs once per change (pull request, or a push to main) and only when database files changed, to save Actions minutes:
+# a branch push is not tested twice, and a change to documents or to the website alone does not start it.
+# The website has its own check in website.yml. Nothing here touches the live Supabase project; no secrets are used.
 name: Tests
 
 on:
-  push:
   pull_request:
+    paths:
+      - 'supabase/**'
+      - 'scripts/test-db.sh'
+      - '.github/workflows/tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/**'
+      - 'scripts/test-db.sh'
+      - '.github/workflows/tests.yml'
   workflow_dispatch:
 
 permissions:
@@ -44,25 +52,3 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
       - name: Migrations and SQL tests
         run: bash scripts/test-db.sh
-
-  website:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Install packages
-        run: npm ci --no-audit --no-fund
-      - name: TypeScript check
-        run: npm run typecheck
-      - name: Build app
-        run: npm run build
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-      - name: Browser smoke tests
-        run: npm run test:smoke

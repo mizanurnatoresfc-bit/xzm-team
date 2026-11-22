@@ -2,6 +2,7 @@
 // The database checks every rule again (route_plan_save, route_plan_decide …). The suggestion below only fills the form.
 import { supabase } from './supabase'
 import { hasGps, meters, RouteError, type LatLng, type ZoneRoute } from './routes'
+import type { ParsedPdf, PdfKind } from './planPdf'
 
 export type PlanRules = { avg_days: number; min_days: number; over_pct: number; near_km: number; helper_max: number; show_rider: boolean }
 export type PickupMode = 'same' | 'separate' | 'mixed'
@@ -48,7 +49,16 @@ export type PlanSave = { arrived?: number | null; carried?: number | null; sent?
   people?: Array<{ employee_id: string; kind: 'rider' | 'helper'; present: boolean | null; capacity: number | null; parcels: number; pickups: number; detail: PlanPart[]; note?: string | null }> }
 export type StaffSetup = { employee_id: string; day_parcels: number | null; helper: boolean; helper_max: number | null; pickup: boolean }
 
+export type PlanFile = { id: string; kind: PdfKind; doc_no: string; doc_date: string | null; hub_text: string | null; from_text: string | null
+  rider_code: string | null; rider_name: string | null; employee_id: string | null; on_report: boolean; counts: Record<string, number>; parcels: number
+  warnings: string[]; file_name: string | null; uploads: number; uploaded_by_name: string | null; updated_at: string }
+export type PlanFiles = { date: string; can_upload: boolean; files: PlanFile[]; unlisted: number }
+
 export const planApi = {
+  files: async (hub: string, date: string) => { const f = await rpc<PlanFiles>('route_plan_files', { p_hub: hub, p_date: date }); return { ...f, files: f.files ?? [], unlisted: Number(f.unlisted) || 0 } },
+  saveFile: (hub: string, date: string, p: ParsedPdf & { file_name: string }) => rpc<string>('route_plan_file_save', { p_hub: hub, p_date: date, p }),
+  removeFile: (file: string, reason: string) => rpc<void>('route_plan_file_remove', { p_file: file, p_reason: reason }),
+  mapRider: (hub: string, code: string, employee: string) => rpc<void>('route_plan_map_rider', { p_hub: hub, p_code: code, p_employee: employee }),
   hubs: (date: string) => rpc<PlanHub[]>('route_plan_hubs', { p_date: date }),
   get: async (hub: string, date: string): Promise<PlanData> => {
     const d = await rpc<PlanData>('route_plan_get', { p_hub: hub, p_date: date })
@@ -84,6 +94,12 @@ const BN: Array<[RegExp, string]> = [
   [/outside its allowed range|wrong kind of value|Unknown plan rule/i, 'নিয়মের মান ঠিক নেই'],
   [/too long/i, 'নোট অনেক বড়'],
   [/on the plan twice/i, 'একজন দুইবার আছেন'],
+  [/already uploaded for another hub/i, 'এই পিডিএফ আগেই অন্য হাবের জন্য আপলোড হয়েছে'],
+  [/Not an Update list or a Dispatch/i, 'এটা Update list বা Dispatch শিটের পিডিএফ নয়'],
+  [/No parcel rows found|number not found|has no parcels/i, 'পিডিএফ থেকে পার্সেলের লাইন পড়া যায়নি — প্যানেল থেকে আবার প্রিন্ট করে দিন'],
+  [/too many (pages|parcels)/i, 'পিডিএফটা অনেক বড়'],
+  [/No uploaded list of this hub/i, 'এই রাইডার আইডির কোনো লিস্ট এই হাবে আপলোড হয়নি'],
+  [/Invalid PDF|password|PDF header/i, 'ফাইলটা পিডিএফ হিসেবে খোলা যায়নি'],
   [/42501|Not authorised|permission denied/i, 'এই কাজের অনুমতি আপনার নেই'],
 ]
 export const planFriendly = (e: unknown) => {

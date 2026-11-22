@@ -850,3 +850,48 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `da_close_my_part`, `da_configure` using it.
 - Checked: whole SQL suite 2241 pass on local PostgreSQL with the file in place; the 5 functions of a database built from the repository equal live by hash.
 - Every live migration now has a file in the repository. **Not done:** there is no SQL test for the voucher number setting itself (monthly / daily / per hub).
+
+## 2026-11-22 — রুট: পরিকল্পনার পিডিএফ আপলোড (Update list & Dispatch PDFs fill the day's plan)
+- Owner: "এখন পিডিএফ আপলোড অংশটা বানাও" (after the day's parcel plan was merged). Two PDFs printed from the Steadfast panel were given as samples:
+  an **Update list** (one rider's list) and a **Dispatch** sheet (sorting centre → hub).
+- **Reading (`web/src/lib/planPdf.ts`):** `pdfjs-dist` (new dependency, loaded only when a file is picked) gives the words with their place on the page;
+  `parsePlanPdf` finds the table by its headings and reads each row by column. Update list: number, date, hub, rider panel id and name, per parcel the id,
+  COD and outcome. Dispatch: number, date, from / to, per piece the parcel id, status, received or not, "Bound for …", "Point:". Counts are checked against the
+  totals printed on the PDF (`warnings`: `rows`, `total`, `cut` = the Received column is cut off in portrait print, `rider`).
+  On the two samples: update list 25 rows = 25, COD 31,568 = 31,568; dispatch 399 pieces = 399, received 319 = 319, not scanned 80 = 80, 348 parcels.
+- **Privacy:** the file never leaves the device. Saved: document number and date, hub text, rider panel id and name, counts, parcel ids. Not saved: customer
+  name, phone, address, merchant, and the file itself.
+- **Migration `20261122000700_route_plan_files.sql`** (additive): `route_day_files` (one live row per kind + document number; the same PDF again replaces the
+  numbers; a document belongs to one hub and can move to another date), `route_plan_file_save`, `route_plan_file_remove` (reason), `route_plan_files`
+  (files of a hub and date, the rider matched to an employee, whether the list is on an Update Report, parcels on a dispatch but on no list),
+  `route_plan_map_rider`. The rider's panel id is matched through the daily accounts' own `da_import_rider_map` (then the Employee ID) — no second table.
+  Rights: `ops.route_plan.create` or `edit` uploads, removes and matches; `view` reads.
+- **Web (`pages/zonal/RoutePlan.tsx` → `FilesPanel`):** "পিডিএফ থেকে সংখ্যা" between the numbers and the routes: upload several PDFs, totals, the list of
+  documents (date differs from the page / other hub on the PDF are flagged), "কোন কর্মী?" for an unmatched rider id, and two buttons — "হাবের সংখ্যা বসান"
+  (arrived = parcels on the dispatch sheets, sent on = for another hub, cancelled) and "রাইডারদের পার্সেল বসান" (each rider's parcels = the rider's lists).
+  Numbers taken this way are saved with source `pdf`; typing over one makes it `manual` again. "দিন শেষে" shows delivered / given from the lists.
+- **Limits:** only these two layouts are known; a changed panel layout shows "পিডিএফ থেকে পার্সেলের লাইন পড়া যায়নি". Arrived counts parcels, not pieces
+  (the sample has 348 parcels in 399 pieces). A dispatch's cancelled / delivered status is what the panel showed when it was printed. "On dispatch, on no list"
+  compares only the documents uploaded for the same hub and date. No sample PDF is in the repository (they hold customer data), so the reader has no automated
+  test of its own; it was checked by hand against the two samples.
+- **Tests:** `99…_route_plan_files.sql` (31 assertions; whole SQL suite 2333 pass), typecheck, build, smoke test pass. In a real browser against the local
+  database both sample PDFs were uploaded, the rider matched, the numbers taken into the plan and saved (source `pdf`); a file that is no PDF is refused with
+  a clear message; no sideways scroll on a phone; 0 failed database calls.
+- **Live:** migration applied on Supabase 22 Nov as `20261122165840 route_plan_files` (owner said yes first; file text without the header comment). Checked after:
+  the 5 functions equal the tested file by hash, nobody signed out can call them, `route_day_files` has RLS, its policy and three triggers, staff counts
+  unchanged (144 active). The PDF box goes live when the pull request is merged.
+
+## 2026-11-22 — GitHub Actions মিনিট বাঁচানো (fewer Actions minutes)
+- Why: on 22 Nov the account's free Actions allowance for the month ran out (GitHub Free; from about 11:13 UTC every job ended in a second with no runner).
+  Owner: "খরচ কমানো যাবে কিভাবে সেইটা করো".
+- **Before:** `tests.yml` ran on every push and every pull request, so a pushed commit of a pull request was checked twice (about 2 × 8 minutes), also when
+  only a document changed; after a merge the website was built and smoke-tested twice (Tests and "Android APK and site build").
+- **Now:**
+  - `tests.yml` (name "Tests", job `database`): pull requests and pushes to `main` only, and only when `supabase/**`, `scripts/test-db.sh` or the file itself changed.
+  - `website.yml` (new, job `website`): pull requests only, and only when `web/**` changed. After a merge the same build and smoke test run in
+    "Android APK and site build" before the site is published, so `main` is not checked a second time.
+  - Both, and the site build, keep the npm download between runs; `website.yml` also keeps the Chromium download (cache key = Playwright version).
+  - Both can still be started by hand (Actions → the workflow → Run workflow).
+- **Worth knowing:** a branch pushed without a pull request is no longer tested; a change to documents alone starts nothing; in a pull request the path rule
+  looks at the whole pull request, so a later documents-only commit still re-runs the checks of what the pull request touches.
+- **Not verified on GitHub:** the allowance was used up when this was written, so the new files have only been checked as valid YAML. Watch the first runs.

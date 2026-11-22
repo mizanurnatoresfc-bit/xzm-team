@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
@@ -6,14 +6,14 @@ import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import {
   capacityOf, capacityToday, doesPickup, isHere, planApi, planFriendly, spreadRoutes, suggestPlan,
-  type CapSource, type MyParcels, type PickupMode, type PlanData, type PlanHub, type PlanPart, type PlanPerson, type PlanRules, type PlanSave, type PlanStatus, type PlanTip, type StaffSetup,
+  type CapSource, type MyParcels, type PlanFile, type PlanFiles, type PickupMode, type PlanData, type PlanHub, type PlanPart, type PlanPerson, type PlanRules, type PlanSave, type PlanStatus, type PlanTip, type StaffSetup,
 } from '../../lib/routePlan'
 
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 const int = (v: string) => (v.trim() === '' || !isFinite(Number(v)) ? null : Math.max(0, Math.round(Number(v))))
 const txt = (v: number | null | undefined) => (v === null || v === undefined ? '' : String(v))
 type Row = { kind: 'rider' | 'helper'; present: boolean | null; pickups: string; parcels: string; detail: PlanPart[]; capacity: number | null }
-type Form = { arrived: string; carried: string; sent: string; cancelled: string; pickups: string; note: string; routes: Record<string, string>; rows: Record<string, Row>; unassigned: number }
+type Form = { arrived: string; carried: string; sent: string; cancelled: string; pickups: string; note: string; routes: Record<string, string>; rows: Record<string, Row>; unassigned: number; src: Record<string, string> }
 const NUMS = ['arrived', 'carried', 'sent', 'cancelled', 'pickups'] as const
 
 const STATUS: Record<PlanStatus, { bn: string; en: string; tone: 'ok' | 'warn' | 'info' }> = {
@@ -30,7 +30,7 @@ function startForm(d: PlanData): Form {
     else if (x.active && (x.rider || x.helper || x.routes.length)) rows[x.id] = { kind: x.rider || x.routes.length ? 'rider' : 'helper', present: null, pickups: '', parcels: '', detail: [], capacity: null }
   }
   return { arrived: txt(p?.arrived), carried: txt(p?.carried), sent: txt(p?.sent), cancelled: txt(p?.cancelled), pickups: txt(p?.pickups), note: p?.note ?? '',
-    routes: Object.fromEntries(d.routes.map(r => [r.id, txt(p?.route_parcels?.[r.id])])), rows, unassigned: p?.unassigned ?? 0 }
+    routes: Object.fromEntries(d.routes.map(r => [r.id, txt(p?.route_parcels?.[r.id])])), rows, unassigned: p?.unassigned ?? 0, src: { ...(p?.source ?? {}) } }
 }
 
 /** রুট → আজকের পার্সেল পরিকল্পনা: the hub's numbers of the day, who is here, and who takes how many parcels on which route. */
@@ -93,6 +93,7 @@ function HubList({ list, date, loading, onOpen }: { list: PlanHub[]; date: strin
 function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; toast: (m: string) => void; onChanged: () => void }) {
   const { L, n } = usePrefs()
   const d = useLoad(() => planApi.get(hub, date), [hub, date])
+  const files = useLoad(() => planApi.files(hub, date), [hub, date])
   const [f, setF] = useState<Form | null>(null)
   const [tips, setTips] = useState<PlanTip[]>([])
   const [dirty, setDirty] = useState(false)
@@ -107,6 +108,13 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
   const locked = plan?.status === 'approved'
   const canWrite = !locked && (plan ? data.can.edit : data.can.create)
   const change = (x: Partial<Form>) => { setF({ ...f, ...x }); setDirty(true) }
+  /** A hub number typed by hand (or taken from another page): its source is "manual" again. */
+  const typed = (k: typeof NUMS[number], v: string) => change({ [k]: v, src: { ...f.src, [k]: 'manual' } })
+  const listed = new Map<string, { parcels: number; delivered: number }>()
+  for (const x of files.data?.files ?? []) if (x.kind === 'update_list' && x.employee_id) {
+    const t = listed.get(x.employee_id) ?? { parcels: 0, delivered: 0 }
+    listed.set(x.employee_id, { parcels: t.parcels + (x.counts.parcels ?? 0), delivered: t.delivered + (x.counts.delivered ?? 0) })
+  }
   const row = (id: string, x: Partial<Row>) => change({ rows: { ...f.rows, [id]: { ...f.rows[id], ...x } } })
   const todo = int(f.arrived) === null && int(f.carried) === null ? null : (int(f.arrived) ?? 0) + (int(f.carried) ?? 0) - (int(f.sent) ?? 0) - (int(f.cancelled) ?? 0)
   const onRoutes = data.routes.reduce((t, r) => t + (int(f.routes[r.id] ?? '') ?? 0), 0)
@@ -136,7 +144,7 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
 
   const body = (): PlanSave => ({
     arrived: int(f.arrived), carried: int(f.carried), sent: int(f.sent), cancelled: int(f.cancelled), pickups: int(f.pickups), note: f.note.trim() || null,
-    source: Object.fromEntries(NUMS.filter(k => int(f[k]) !== null).map(k => [k, plan?.source?.[k] && String(plan[k]) === f[k] ? plan.source[k] : 'manual'])),
+    source: Object.fromEntries(NUMS.filter(k => int(f[k]) !== null).map(k => [k, f.src[k] ?? 'manual'])),
     route_parcels: Object.fromEntries(data.routes.filter(r => int(f.routes[r.id] ?? '') !== null).map(r => [r.id, int(f.routes[r.id])!])),
     unassigned: left ?? 0,
     people: people.map(p => { const r = f.rows[p.id]; const parcels = int(r.parcels) ?? 0
@@ -168,14 +176,14 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
       {plan?.decide_note && plan.status !== 'approved' && <p className="da-error">{L('জোনাল ম্যানেজারের নোট', 'Note from the approver')}: {plan.decide_note}{plan.decided_by_name ? ` — ${plan.decided_by_name}` : ''}</p>}
       {plan?.status === 'approved' && <p className="rt-hint">{L(`অনুমোদন করেছেন ${plan.decided_by_name ?? ''}। বদলাতে হলে আগে "আবার খুলুন"।`, `Approved by ${plan.decided_by_name ?? ''}. Reopen it to change.`)}</p>}
       <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
-        <Field label={L('আজ হাবে এসেছে', 'Arrived at the hub today')} hint={data.hints.ops_parcels !== null && f.arrived === '' ? <Hint v={data.hints.ops_parcels} label={L('হাব অপারেশন রিপোর্টে', 'Hub operation report')} on={canWrite ? v => change({ arrived: String(v) }) : undefined} /> : undefined}>
-          <input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.arrived} onChange={e => change({ arrived: e.target.value })} /></Field>
-        <Field label={L('আগের বাকি', 'Left from before')} hint={f.carried === '' && (data.hints.unassigned_before ?? data.hints.left_before) !== null ? <Hint v={(data.hints.unassigned_before ?? data.hints.left_before)!} label={L('আগের দিনের বাকি', 'Left the day before')} on={canWrite ? v => change({ carried: String(v) }) : undefined} /> : undefined}>
-          <input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.carried} onChange={e => change({ carried: e.target.value })} /></Field>
-        <Field label={L('অন্য হাবে / ফেরত পাঠানো', 'Sent on / back')}><input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.sent} onChange={e => change({ sent: e.target.value })} /></Field>
-        <Field label={L('ক্যান্সেল', 'Cancelled')}><input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.cancelled} onChange={e => change({ cancelled: e.target.value })} /></Field>
-        <Field label={L('আজ পিকআপ', 'Pickups today')} hint={data.hints.ops_pickups !== null && f.pickups === '' ? <Hint v={data.hints.ops_pickups} label={L('হাব অপারেশন রিপোর্টে', 'Hub operation report')} on={canWrite ? v => change({ pickups: String(v) }) : undefined} /> : undefined}>
-          <input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.pickups} onChange={e => change({ pickups: e.target.value })} /></Field>
+        <Field label={L('আজ হাবে এসেছে', 'Arrived at the hub today')} hint={data.hints.ops_parcels !== null && f.arrived === '' ? <Hint v={data.hints.ops_parcels} label={L('হাব অপারেশন রিপোর্টে', 'Hub operation report')} on={canWrite ? v => typed('arrived', String(v)) : undefined} /> : undefined}>
+          <input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.arrived} onChange={e => typed('arrived', e.target.value)} /></Field>
+        <Field label={L('আগের বাকি', 'Left from before')} hint={f.carried === '' && (data.hints.unassigned_before ?? data.hints.left_before) !== null ? <Hint v={(data.hints.unassigned_before ?? data.hints.left_before)!} label={L('আগের দিনের বাকি', 'Left the day before')} on={canWrite ? v => typed('carried', String(v)) : undefined} /> : undefined}>
+          <input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.carried} onChange={e => typed('carried', e.target.value)} /></Field>
+        <Field label={L('অন্য হাবে / ফেরত পাঠানো', 'Sent on / back')}><input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.sent} onChange={e => typed('sent', e.target.value)} /></Field>
+        <Field label={L('ক্যান্সেল', 'Cancelled')}><input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.cancelled} onChange={e => typed('cancelled', e.target.value)} /></Field>
+        <Field label={L('আজ পিকআপ', 'Pickups today')} hint={data.hints.ops_pickups !== null && f.pickups === '' ? <Hint v={data.hints.ops_pickups} label={L('হাব অপারেশন রিপোর্টে', 'Hub operation report')} on={canWrite ? v => typed('pickups', String(v)) : undefined} /> : undefined}>
+          <input type="number" inputMode="numeric" min={0} disabled={!canWrite} value={f.pickups} onChange={e => typed('pickups', e.target.value)} /></Field>
       </div>
       <div className="da-stats" style={{ marginTop: 12 }}>
         <Stat icon="box" label={L('আজ ডেলিভারি দিতে হবে', 'To deliver today')} value={todo === null ? '—' : n(Math.max(0, todo))} sub={L('এসেছে + আগের বাকি − পাঠানো − ক্যান্সেল', 'arrived + left − sent − cancelled')} />
@@ -184,6 +192,13 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
         <Stat icon="alert" label={L('কেউ নেয়নি (বাকি)', 'Nobody took (left)')} value={left === null ? '—' : n(left)} tone={left ? 'bad' : left === 0 ? 'ok' : undefined} />
       </div>
     </section>
+
+    <FilesPanel hub={hub} date={date} data={data} files={files.data} error={files.error} canWrite={canWrite} reload={() => void files.reload()} toast={toast}
+      onNumbers={x => change({ ...x, src: { ...f.src, ...Object.fromEntries(Object.keys(x).map(k => [k, 'pdf'])) } })}
+      onRiders={() => { const rows = { ...f.rows }
+        for (const [id, t] of listed) { const p = data.people.find(y => y.id === id); if (!p) continue
+          rows[id] = { ...(rows[id] ?? { kind: p.rider || p.routes.length ? 'rider' : 'helper', present: null, pickups: '', capacity: null }), parcels: String(t.parcels), detail: [] } }
+        change({ rows }) }} />
 
     {data.routes.length > 0 && <section className="panel">
       <div className="da-bar"><h2>{L('রুট অনুযায়ী আজকের পার্সেল', "Today's parcels by route")}</h2>
@@ -214,7 +229,7 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
       <div className="da-table-wrap"><table className="da-table">
         <thead><tr><th>{L('নাম', 'Name')}</th><th>{L('রুট', 'Routes')}</th><th>{L('আজ', 'Today')}</th><th>{L('দিনে পারেন', 'Can take a day')}</th><th>{L('পিকআপ', 'Pickups')}</th>
           <th>{L('পার্সেল', 'Parcels')}</th><th>{L('ভাগ', 'Parts')}</th><th>{L('দিন শেষে', 'Done')}</th></tr></thead>
-        <tbody>{people.map(p => <PersonRow key={p.id} p={p} r={f.rows[p.id]} data={data} canWrite={canWrite} routeName={routeName} who={who}
+        <tbody>{people.map(p => <PersonRow key={p.id} p={p} r={f.rows[p.id]} data={data} listed={listed.get(p.id)} canWrite={canWrite} routeName={routeName} who={who}
           onRow={x => row(p.id, x)} onDrop={!plan?.lines.some(l => l.employee_id === p.id) && !p.rider && !p.routes.length ? () => { const rows = { ...f.rows }; delete rows[p.id]; change({ rows }) } : undefined} />)}</tbody>
         <tfoot><tr><td colSpan={5}>{L('মোট', 'Total')}</td><td><b>{n(given)}</b>{todo !== null ? ` / ${n(Math.max(0, todo))}` : ''}</td><td colSpan={2} /></tr></tfoot>
       </table></div>
@@ -241,6 +256,92 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
   </>
 }
 
+const WARN: Record<string, { bn: string; en: string }> = {
+  rows: { bn: 'লাইনের সংখ্যা পিডিএফের উপরের মোটের সাথে মেলেনি', en: 'rows differ from the total on the PDF' }, total: { bn: 'COD-এর যোগফল লিস্টের মোটের সাথে মেলেনি', en: 'COD sum differs from the list total' },
+  cut: { bn: 'Received কলাম কাটা — Landscape-এ প্রিন্ট করলে পুরোটা আসবে', en: 'Received column is cut off: print in landscape' }, rider: { bn: 'রাইডারের আইডি পড়া যায়নি', en: 'rider id not found' },
+}
+
+/** পিডিএফ থেকে সংখ্যা: the courier panel's Update list and Dispatch PDFs, read in the browser. Only numbers and parcel ids are kept. */
+function FilesPanel({ hub, date, data, files, error, canWrite, reload, toast, onNumbers, onRiders }: {
+  hub: string; date: string; data: PlanData; files: PlanFiles | null; error: unknown; canWrite: boolean; reload: () => void; toast: (m: string) => void
+  onNumbers: (x: { arrived: string; sent: string; cancelled: string }) => void; onRiders: () => void
+}) {
+  const { L, n } = usePrefs()
+  const [busy, setBusy] = useState(false); const [notes, setNotes] = useState<string[]>([]); const [pick, setPick] = useState<Record<string, string>>({})
+  const list = files?.files ?? []
+  const disp = list.filter(x => x.kind === 'dispatch'), lists = list.filter(x => x.kind === 'update_list')
+  const sum = (xs: PlanFile[], k: string) => xs.reduce((t, x) => t + (x.counts[k] ?? 0), 0)
+  const unmatched = [...new Set(lists.filter(x => !x.employee_id && x.rider_code).map(x => x.rider_code!))]
+  const canUp = !!files?.can_upload
+  const otherHub = (x: PlanFile) => !!x.hub_text && !x.hub_text.toLowerCase().includes(data.hub.name.toLowerCase().split(/[\s(]/)[0])
+  const input = useRef<HTMLInputElement>(null)
+  async function upload(picked: File[]) {
+    if (!picked.length) return
+    setBusy(true); const out: string[] = []; let ok = 0
+    const { readPlanPdf } = await import('../../lib/planPdf')
+    for (const file of picked.slice(0, 40)) {
+      try { const doc = await readPlanPdf(file); await planApi.saveFile(hub, date, { ...doc, file_name: file.name }); ok++ }
+      catch (e) { out.push(`${file.name}: ${planFriendly(e)}`) }
+    }
+    setNotes(out); setBusy(false); if (ok) toast(L(`${n(ok)}টা পিডিএফ পড়া হয়েছে`, `${ok} PDF(s) read`)); reload()
+  }
+  async function act(what: () => Promise<unknown>, done: string) {
+    setBusy(true); setNotes([])
+    try { await what(); toast(done); reload() } catch (e) { setNotes([planFriendly(e)]) } finally { setBusy(false) }
+  }
+  if (!canUp && !list.length) return null
+  return <section className="panel">
+    <div className="da-bar"><h2>{L('পিডিএফ থেকে সংখ্যা', 'Numbers from PDFs')}</h2>
+      {canUp && <><button disabled={busy} onClick={() => input.current?.click()}><Icon name="upload" size={15} />{busy ? L('পড়া হচ্ছে…', 'Reading…') : L('পিডিএফ আপলোড', 'Upload PDFs')}</button>
+        <input ref={input} type="file" accept="application/pdf,.pdf" multiple hidden onChange={e => { const picked = Array.from(e.target.files ?? []); e.target.value = ''; void upload(picked) }} /></>}</div>
+    <p className="rt-hint">{L('Steadfast প্যানেলের "Update list" (রাইডারের লিস্ট) আর "Dispatch" শিটের পিডিএফ দিন — একসাথে অনেকগুলো দেওয়া যায়। ফাইল এই ফোন/কম্পিউটারেই পড়া হয়; শুধু সংখ্যা, পার্সেল আইডি আর রাইডারের আইডি সেভ হয় — গ্রাহকের নাম, মোবাইল বা ঠিকানা নয়, ফাইলটাও নয়। একই পিডিএফ আবার দিলে আগেরটা আপডেট হয়।',
+      'Give the panel\'s "Update list" and "Dispatch" PDFs, several at once. The file is read on this device; only numbers, parcel ids and the rider id are saved — no customer name, phone or address, and not the file. The same PDF again updates the earlier one.')}</p>
+    {error ? <p className="da-error">{planFriendly(error)}</p> : null}
+    {notes.map((x, i) => <p key={i} className="da-error" role="alert">{x}</p>)}
+    {list.length > 0 && <>
+      <div className="da-stats">
+        {disp.length > 0 && <><Stat icon="box" label={L('ডিসপ্যাচে পার্সেল', 'Parcels on dispatch')} value={n(sum(disp, 'parcels'))} sub={L(`${n(disp.length)}টা শিট · প্যাকেট ${n(sum(disp, 'pieces'))}`, `${disp.length} sheet(s) · ${sum(disp, 'pieces')} pieces`)} />
+          <Stat icon="truck" label={L('অন্য হাবের', 'For another hub')} value={n(sum(disp, 'other_hub'))} tone={sum(disp, 'other_hub') ? 'warn' : undefined} />
+          <Stat icon="alert" label={L('ক্যান্সেল', 'Cancelled')} value={n(sum(disp, 'cancelled'))} />
+          <Stat icon="alert" label={L('স্ক্যান হয়নি', 'Not scanned in')} value={n(sum(disp, 'not_scanned'))} tone={sum(disp, 'not_scanned') ? 'warn' : 'ok'}
+            sub={sum(disp, 'unscanned_delivered') ? L(`এর ${n(sum(disp, 'unscanned_delivered'))}টা স্ক্যান ছাড়াই ডেলিভারি`, `${sum(disp, 'unscanned_delivered')} delivered without a scan`) : undefined} /></>}
+        {lists.length > 0 && <Stat icon="users" label={L('রাইডারের লিস্টে পার্সেল', 'Parcels on rider lists')} value={n(sum(lists, 'parcels'))} sub={L(`${n(lists.length)}টা লিস্ট · ডেলিভারি ${n(sum(lists, 'delivered'))}`, `${lists.length} list(s) · ${sum(lists, 'delivered')} delivered`)} />}
+        {disp.length > 0 && lists.length > 0 && <Stat icon="alert" label={L('ডিসপ্যাচে আছে, কোনো লিস্টে নেই', 'On dispatch, on no list')} value={n(files!.unlisted)} tone={files!.unlisted ? 'warn' : 'ok'} />}
+      </div>
+      {canWrite && <div className="rt-bar" style={{ justifyContent: 'flex-start' }}>
+        {disp.length > 0 && <button className="secondary" onClick={() => onNumbers({ arrived: String(sum(disp, 'parcels')), sent: String(sum(disp, 'other_hub')), cancelled: String(sum(disp, 'cancelled')) })}>
+          <Icon name="check" size={14} />{L('হাবের সংখ্যা বসান (এসেছে, পাঠানো, ক্যান্সেল)', 'Use the hub numbers (arrived, sent on, cancelled)')}</button>}
+        {lists.some(x => x.employee_id) && <button className="secondary" onClick={onRiders}><Icon name="check" size={14} />{L('রাইডারদের পার্সেল বসান', "Use the riders' parcels")}</button>}
+      </div>}
+      {unmatched.length > 0 && <ul className="rt-warn" style={{ padding: 0, margin: '10px 0' }}>{unmatched.map(code => { const f = lists.find(x => x.rider_code === code)!
+        return <li key={code} className="warn">{L(`রাইডার #${code}${f.rider_name ? ` (${f.rider_name})` : ''} — কোন কর্মী?`, `Rider #${code}${f.rider_name ? ` (${f.rider_name})` : ''} — which employee?`)}{' '}
+          {canUp && <><select value={pick[code] ?? ''} onChange={e => setPick({ ...pick, [code]: e.target.value })} aria-label={L(`রাইডার #${code}: কর্মী`, `Rider #${code}: employee`)} style={{ width: 'auto', display: 'inline-block' }}>
+            <option value="">{L('কর্মী বাছুন…', 'Pick the employee…')}</option>{data.people.filter(p => p.active).map(p => <option key={p.id} value={p.id}>{p.name}{p.code ? ` (${p.code})` : ''}</option>)}</select>{' '}
+            <button className="secondary sm" disabled={busy || !pick[code]} onClick={() => void act(() => planApi.mapRider(hub, code, pick[code]), L('মিলানো হয়েছে', 'Matched'))}>{L('মিলান', 'Match')}</button></>}</li> })}</ul>}
+      <div className="da-table-wrap"><table className="da-table">
+        <thead><tr><th>{L('ধরন', 'Kind')}</th><th>{L('নম্বর', 'No.')}</th><th>{L('পিডিএফের তারিখ', 'Date on the PDF')}</th><th>{L('রাইডার / কোথা থেকে', 'Rider / from')}</th><th>{L('পার্সেল', 'Parcels')}</th>
+          <th>{L('বিস্তারিত', 'Details')}</th><th>{L('আপলোড', 'Uploaded')}</th><th /></tr></thead>
+        <tbody>{list.map(x => <tr key={x.id}>
+          <td data-label={L('ধরন', 'Kind')}>{x.kind === 'dispatch' ? <Badge tone="info">Dispatch</Badge> : <Badge tone="ok">Update list</Badge>}</td>
+          <td data-label={L('নম্বর', 'No.')}><b>#{x.doc_no}</b>{otherHub(x) && <div className="small" style={{ color: '#dc2626' }}>{L(`পিডিএফে হাব: ${x.hub_text}`, `Hub on the PDF: ${x.hub_text}`)}</div>}</td>
+          <td data-label={L('পিডিএফের তারিখ', 'Date on the PDF')}>{x.doc_date ?? '—'}{x.doc_date && x.doc_date !== date && <div className="small" style={{ color: '#ca8a04' }}>{L('এই পাতার তারিখ থেকে আলাদা', 'differs from this page')}</div>}</td>
+          <td data-label={L('রাইডার / কোথা থেকে', 'Rider / from')}>{x.kind === 'dispatch' ? x.from_text ?? '—' : <>{data.people.find(p => p.id === x.employee_id)?.name ?? x.rider_name ?? '—'}
+            <div className="muted small">#{x.rider_code ?? '?'}{x.employee_id ? '' : ` · ${L('মিলানো হয়নি', 'not matched')}`}</div></>}</td>
+          <td data-label={L('পার্সেল', 'Parcels')}><b>{n(x.counts.parcels ?? x.parcels)}</b></td>
+          <td className="small" data-label={L('বিস্তারিত', 'Details')}>{x.kind === 'dispatch'
+            ? L(`এই হাবের ${n(x.counts.for_hub ?? 0)} · অন্য হাবের ${n(x.counts.other_hub ?? 0)} · ক্যান্সেল ${n(x.counts.cancelled ?? 0)} · পয়েন্ট ${n(x.counts.point ?? 0)} · স্ক্যান হয়নি ${n(x.counts.not_scanned ?? 0)}`,
+                `this hub ${x.counts.for_hub ?? 0} · other hub ${x.counts.other_hub ?? 0} · cancelled ${x.counts.cancelled ?? 0} · point ${x.counts.point ?? 0} · not scanned ${x.counts.not_scanned ?? 0}`)
+            : <>{L(`ডেলিভারি ${n(x.counts.delivered ?? 0)} · COD ৳${n(x.counts.cod_total ?? 0)}`, `delivered ${x.counts.delivered ?? 0} · COD ৳${x.counts.cod_total ?? 0}`)}
+                {' · '}{x.on_report ? L('রিপোর্টে উঠেছে', 'on a report') : L('রিপোর্টে ওঠেনি', 'not on a report')}</>}
+            {x.warnings.map(w => <div key={w} style={{ color: '#ca8a04' }}>{WARN[w] ? L(WARN[w].bn, WARN[w].en) : w}</div>)}</td>
+          <td className="small" data-label={L('আপলোড', 'Uploaded')}>{x.uploaded_by_name ?? ''}{x.uploads > 1 ? ` · ${n(x.uploads)}${L(' বার', '×')}` : ''}</td>
+          <td>{canUp && <button className="secondary sm" disabled={busy} onClick={() => { const why = (window.prompt(L('পিডিএফ সরানোর কারণ', 'Why remove this PDF?')) ?? '').trim(); if (why) void act(() => planApi.removeFile(x.id, why), L('সরানো হয়েছে', 'Removed')) }}>{L('সরান', 'Remove')}</button>}</td>
+        </tr>)}</tbody>
+      </table></div>
+    </>}
+  </section>
+}
+
 const HOW: Record<'same' | 'free' | 'near' | 'helper' | 'stretch', { bn: string; en: string }> = {
   same: { bn: 'একই রুট', en: 'same route' }, free: { bn: 'রুট ছাড়া রাইডার', en: 'no route' }, near: { bn: 'পাশের রুট', en: 'near route' },
   helper: { bn: 'অন্য স্টাফ', en: 'other staff' }, stretch: { bn: 'বাড়তি চাপ', en: 'extra load' },
@@ -258,8 +359,8 @@ function Hint({ v, label, on }: { v: number; label: string; on?: (v: number) => 
   return <span>{label}: <b>{n(v)}</b>{on && <> · <button type="button" className="linkish" onClick={() => on(v)}>{L('বসান', 'Use')}</button></>}</span>
 }
 
-function PersonRow({ p, r, data, canWrite, routeName, who, onRow, onDrop }: {
-  p: PlanPerson; r: Row; data: PlanData; canWrite: boolean; routeName: (id?: string | null) => string; who: (id?: string | null) => string; onRow: (x: Partial<Row>) => void; onDrop?: () => void
+function PersonRow({ p, r, data, listed, canWrite, routeName, who, onRow, onDrop }: {
+  p: PlanPerson; r: Row; data: PlanData; listed?: { parcels: number; delivered: number }; canWrite: boolean; routeName: (id?: string | null) => string; who: (id?: string | null) => string; onRow: (x: Partial<Row>) => void; onDrop?: () => void
 }) {
   const { L, n } = usePrefs()
   const c = capacityOf(p, data)
@@ -288,7 +389,7 @@ function PersonRow({ p, r, data, canWrite, routeName, who, onRow, onDrop }: {
       {!here && parcels > 0 && <div className="small" style={{ color: '#dc2626' }}>{L('নেই, তবু পার্সেল আছে', 'Away but has parcels')}</div>}
       {here && pct !== null && pct > 100 && <div className="small" style={{ color: tone }}>{n(pct)}%</div>}</td>
     <td className="small" data-label={L('ভাগ', 'Parts')}>{r.detail.length ? r.detail.map((x, i) => <div key={i}>{routeName(x.route_id)}: {n(x.parcels)}{x.for ? ` (${who(x.for)}-${L('এর', "'s")})` : ''}</div>) : '—'}</td>
-    <td className="small" data-label={L('দিন শেষে', 'Done')}>{done ? <>{L('ডেলিভারি', 'Delivered')} <b>{n(done.delivery)}</b>{parcels > 0 ? ` / ${n(parcels)}` : ''}{p.done.self && p.done.self.returned > 0 ? <div>{L('ফেরত', 'Returned')} {n(p.done.self.returned)}</div> : null}</> : '—'}</td>
+    <td className="small" data-label={L('দিন শেষে', 'Done')}>{listed ? <>{L('লিস্টে ডেলিভারি', 'Delivered on the lists')} <b>{n(listed.delivered)}</b> / {n(listed.parcels)}</> : done ? <>{L('ডেলিভারি', 'Delivered')} <b>{n(done.delivery)}</b>{parcels > 0 ? ` / ${n(parcels)}` : ''}{p.done.self && p.done.self.returned > 0 ? <div>{L('ফেরত', 'Returned')} {n(p.done.self.returned)}</div> : null}</> : '—'}</td>
   </tr>
 }
 
