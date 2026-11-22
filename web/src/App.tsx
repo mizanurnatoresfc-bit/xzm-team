@@ -48,6 +48,7 @@ const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m 
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
 const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
 const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
+const MenuEditor = lazy(() => import('./pages/users/MenuEditor').then(m => ({ default: m.MenuEditor })))
 const MyProfileComplete = lazy(() => import('./pages/MyProfileComplete').then(m => ({ default: m.MyProfileComplete })))
 const MyProfile = lazy(() => import('./pages/MyProfile').then(m => ({ default: m.MyProfile })))
 const HubManagement = lazy(() => import('./pages/hub/HubManagement').then(m => ({ default: m.HubManagement })))
@@ -233,6 +234,7 @@ export default function App() {
     </Route>
     <Route element={<ProtectedRoute permission="system.settings.configure" />}>
       <Route path="/app/branding" element={<BrandingSettings />} />
+      <Route path="/app/menu" element={<MenuEditor />} />
     </Route>
     <Route element={<ProtectedRoute permission="da.report.view" />}>
       <Route path="/app/accounts/reports" element={<AccountsReports />} />

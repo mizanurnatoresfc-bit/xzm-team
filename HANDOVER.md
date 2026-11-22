@@ -833,6 +833,15 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   7 permissions (admin 7, zonal manager 7, hub manager 4, rider 1), one role page list gained `/app/routes/plan`, staff counts unchanged (144 active).
   The tab and page go live when the pull request is merged.
 
+## 2026-11-22 — মেনু এডিটর ও মেনুর নাম ঠিক করা
+- নাম বদল (কোডের ডিফল্ট): ম্যানেজার প্যানেলের ভাগ "আজকের কাজ" → "প্রতিদিনের কাজ"; "রাইডার রুট" → "রাইডার রুট (হাব)"; "রুট সেটিং (রাইডার রুট ম্যাপ)" → "রুট ম্যাপ (জোন)";
+  "গাড়ি: দায়িত্ব…" → "গাড়ি ব্যবস্থাপনা"; "সক্রিয় স্টাফ (…)" → "সক্রিয় স্টাফ"; "অনুরোধ (HR Requests)" → "এইচআর অনুরোধ"; "HR রেকর্ড (…)" → "এইচআর রেকর্ড";
+  "জোনাল ফাইল (…)" → "জোনাল ফাইল"; "জোনাল অ্যাসিস্ট্যান্ট (…)" → "হাজিরার ফাঁকা দিন"; "সোর্টিং প্যানেল" → "সোর্টিং সেন্টার" (ভেতরের "সোর্টিং সেন্টার" → "সেন্টার তালিকা")।
+  লম্বা বিবরণ মেনুতে মাউস রাখলে দেখায় (`hint`)।
+- Migration `20261122000600_menu_layout.sql`: `system_settings` key `menu.layout`, `menu_layout()` / `menu_layout_save(jsonb)` (system.settings.configure)।
+- `/app/menu` (সেটিং ও অনুমতি → মেনু এডিটর): প্যানেল, ভাগ ও মেনুর নাম (বাংলা/ইংরেজি), ক্রম, লুকানো, "নতুন" ব্যাজের তারিখ। শুধু বদলটুকু সেভ হয়; অনুমতি এতে বদলায় না।
+- **To go live:** apply the migration on Supabase, then merge to `main`. Migration ছাড়া মেনু কোডের নামেই চলে।
+
 ## 2026-11-22 — রুট: পরিকল্পনার পিডিএফ আপলোড (Update list & Dispatch PDFs fill the day's plan)
 - Owner: "এখন পিডিএফ আপলোড অংশটা বানাও" (after the day's parcel plan was merged). Two PDFs printed from the Steadfast panel were given as samples:
   an **Update list** (one rider's list) and a **Dispatch** sheet (sorting centre → hub).
@@ -843,7 +852,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   On the two samples: update list 25 rows = 25, COD 31,568 = 31,568; dispatch 399 pieces = 399, received 319 = 319, not scanned 80 = 80, 348 parcels.
 - **Privacy:** the file never leaves the device. Saved: document number and date, hub text, rider panel id and name, counts, parcel ids. Not saved: customer
   name, phone, address, merchant, and the file itself.
-- **Migration `20261122000600_route_plan_files.sql`** (additive): `route_day_files` (one live row per kind + document number; the same PDF again replaces the
+- **Migration `20261122000700_route_plan_files.sql`** (additive): `route_day_files` (one live row per kind + document number; the same PDF again replaces the
   numbers; a document belongs to one hub and can move to another date), `route_plan_file_save`, `route_plan_file_remove` (reason), `route_plan_files`
   (files of a hub and date, the rider matched to an employee, whether the list is on an Update Report, parcels on a dispatch but on no list),
   `route_plan_map_rider`. The rider's panel id is matched through the daily accounts' own `da_import_rider_map` (then the Employee ID) — no second table.
