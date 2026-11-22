@@ -944,3 +944,9 @@ make-android.bat       Android অ্যাপ (APK) বানায়
     both change roles or live data; advanced permissions came after PR 52.
   - `claude/blissful-maxwell-7kkfd6` approval rules: an older design; live already has `da_approval_rules` + `da_approval_rule_save` from the cash payments migration.
   - PR 55 documents of 17 Nov (out of date), `ccr-a19499a2` demo seed data, `codex/ui-ux-audit` test edits.
+- **Live (22 Nov):** `20261122000800` applied as `workforce_ops_add`; `20261122000900` applied in four parts as `workforce_manager_book_a … _d`
+  (owner: "চেক করে লাইভ করো"). Checked before: live had 25 public `wf_*` functions, only `manual` rows in the register, no `wf_book_*` table but
+  `wf_book_windows`. Checked after: all 24 new function bodies equal the tested file by hash, anon can run none, RLS on the 5 new tables, 7 policies,
+  bucket `wf-leave`, 40 public `wf_*` functions. The other three features needed no database change.
+- **Tests:** SQL suite 2501 assertions pass on local PostgreSQL 16; typecheck, build, 11 parser tests and the smoke test (688 checks) pass
+  (`CHROME=/opt/pw-browsers/chromium`; one run takes about 4 minutes here). The manager's book screens have no smoke check of their own.
