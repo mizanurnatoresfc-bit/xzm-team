@@ -50,7 +50,7 @@ export function ZonalRequests() {
     setAct(null); setFile(rec ?? null); toast(m); if (focus) setSp({}); void box.reload()
   }
 
-  return <AppShell title={L('অনুরোধ (HR Requests)', 'HR requests')}
+  return <AppShell title={L('এইচআর অনুরোধ', 'HR requests')}
     subtitle={L('হাব থেকে আসা অনুরোধ। অনুমোদন করলে আইডি চালু / বন্ধ / বদলি সাথে সাথে হয়ে যায় আর কোম্পানির ফরম্যাটে ফাইল তৈরি হয়।',
       'Requests from the hubs. Approving does the change at once and writes the file in the company format.')}
     actions={<><Link to="/app/manager/staff" className="btn-ghost">{L('সক্রিয় স্টাফ', 'Active staff')}</Link>
