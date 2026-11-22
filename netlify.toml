@@ -10,6 +10,11 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# No preview site for pull requests (owner, 22 Nov 2026): it used Netlify's build minutes.
+# "exit 0" tells Netlify to skip the build. The live site (main) is not affected.
+[context.deploy-preview]
+  ignore = "exit 0"
+
 # Single-page app: every route (/staff/login, /app/...) is served by index.html.
 [[redirects]]
   from   = "/*"
