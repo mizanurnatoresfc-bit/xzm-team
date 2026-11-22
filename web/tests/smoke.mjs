@@ -125,6 +125,7 @@ try {
         riders: [{ employee_id: 'e01', code: '1001', name: 'Staff 01', mobile: null, from: '2026-11-01' }] }],
       visits_today: { rt1: 2 } }
     const answered = [], checked = []
+    const imported = []
     let sheetsOn = false
     const sc = (head, src, more = {}) => ({ head, src, ...more })
     const sheetRows = [
@@ -318,6 +319,23 @@ try {
       if (u.includes('/functions/v1/nodi-ai')) { const b = r.request().postDataJSON(); flowCalls.push({ fn: 'nodi-ai', ...b })
         return j(b?.action === 'teach' ? { text: 'নদী AI অভ্যন্তরীণ নির্দেশনা: স্লিপের টাকা আর লেখা টাকা মেলেনি। আগে স্লিপ নিজে দেখুন, তারপর মন্তব্য লিখে "ব্যাংকে নিশ্চিত করুন" দিন।' } : { configured: true }) }
       if (u.includes('rpc/da_settings')) return j(daSettings)
+      if (u.includes('rpc/zm_dashboard')) return j({ period: { from: '2026-11-01', to: '2026-11-16' },
+        workforce: { total: 30, active: 28, inactive: 2, new_joining: 1, resigned: 0, transferred: 0, employee_id_issued: 1, pending_applications: 0 },
+        hubs: { hub_count: 2, pickups: 0, deliveries: 0, merchants: 0, rider_capacity: 0, cash_collected: 0, expenses: 0, pending_parcels: 0, unverified_days: 0 },
+        data_completion: { employees: 30, incomplete: 0, average_pct: 100 }, tasks: { open: 0, overdue: 0, pending_submissions: 0, awaiting_confirmation: 0, completed: 0 },
+        travel: { visits: 0, total_km: 0, fuel: 0, meal: 0, transport: 0, other: 0, total: 0, unclaimed: 0 }, claims_pending: 0 })
+      if (u.includes('rpc/da_import_status')) return j([
+        { hub_id: 'h5', hub_name: 'Gurudaspur (Natore)', zone_id: 'z1', zone_name: 'Natore', can_upload: true, reports: imported.length ? 1 : 0, managers: imported.length ? 1 : 0, lists: imported.length ? 8 : 0, parcels: imported.length ? 190 : 0,
+          amount: imported.length ? 332438 : 0, delivery_charge: imported.length ? 230 : 0, unknown_riders: imported.length ? 1 : 0, last_at: imported.length ? '2026-11-16T14:40:00Z' : null },
+        { hub_id: 'h2', hub_name: 'Lalpur', zone_id: 'z1', zone_name: 'Natore', can_upload: true, reports: 0, managers: 0, lists: 0, parcels: 0, amount: 0, delivery_charge: 0, unknown_riders: 0, last_at: null }])
+      if (u.includes('rpc/da_import_save')) { imported.push(r.request().postDataJSON()); return j({ report_id: 'ir1', report_no: 744847, created: imported.length === 1, lists: 8, in_other_reports: 0 }) }
+      if (u.includes('rpc/da_import_map_rider')) { flowCalls.push({ fn: 'da_import_map_rider', ...r.request().postDataJSON() }); return j(null) }
+      if (u.includes('rpc/da_import_day')) return j(!imported.length ? [] : [{ hub_id: 'h5', hub_name: 'Gurudaspur (Natore)', manager_code: '6865', manager_name: 'Md. Rashed Miah', manager_known: true, delivery_charge: 230,
+        last_at: '2026-11-16T14:40:00Z', lists: 8, parcels: 190, lists_amount: 332438, total: 332668,
+        reports: [{ id: 'ir1', report_no: 744847, reported_at: '2026-11-16T20:37:00', collected: 332668, delivery_charge: 230, declared_lists: 8, declared_parcels: 190, upload_count: 1, uploaded_by_name: 'Owner', uploaded_at: '2026-11-16T14:40:00Z', counted_lists: 8 }],
+        point: { parcels: 8, amount: 43490, lists: [{ list_no: 11440804, report_no: 744847, parcels: 8, amount: 43490 }] },
+        riders: [{ rider_code: '27147', report_name: 'ASHIK UJJAMAN', employee_id: 'e1', name: 'Ashik Ujjaman', known: true, parcels: 31, amount: 77127, lists: [{ list_no: 11451749, report_no: 744847, parcels: 31, amount: 77127 }] },
+          { rider_code: '44174', report_name: 'Md Sazib Ali', employee_id: null, name: 'Md Sazib Ali', known: false, parcels: 27, amount: 20789, lists: [{ list_no: 11450821, report_no: 744847, parcels: 27, amount: 20789 }] }] }])
       if (u.includes('rpc/da_flow_list')) return j([{ session_id: 's1', hub_id: 'h1', needed: 2, people: 2, submitted: 2, accepted: 2, checked_at: '2026-11-15T13:00:00Z', report_ok_at: null, report_diff: null, bank_done_at: null },
         { session_id: 's2', hub_id: 'h2', needed: 1, people: 2, submitted: 2, accepted: 1, checked_at: null, report_ok_at: null, report_diff: null, bank_done_at: null }])
       if (/rpc\/(da_close_part_for|da_close_my_part|da_parts_accept|da_check|da_report_ok|da_hub_collectors_set)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j({}) }
@@ -392,6 +410,7 @@ try {
       if (u.includes('/rest/v1/leave_types')) return j([{ id: 'lt1', code: 'CL', name: 'Casual leave', name_bn: 'নৈমিত্তিক ছুটি', is_paid: true, annual_quota: 10, status: 'active' }])
       if (u.includes('/rest/v1/leave_requests') && u.includes('status=eq.approved')) return j([{ employee_id: 'e03' }])
       // two of them sit in another hub, so the list has a column a remembered filter could narrow
+      if (u.includes('/rest/v1/employees') && u.includes('limit=60')) return j(staffRows.slice(0, 3))
       if (u.includes('/rest/v1/employees') && u.includes('limit=2000') && r.request().method() === 'GET' && !u.includes('profile_id=is.null')) return j(staffRows.map((e, i) => ({ ...e, zone_id: 'z1', hub_id: i >= 10 ? 'h1' : e.hub_id,
         full_name_bn: null, email: null, department_id: 'd1', joining_date: '2026-01-01', status_since: '2026-01-01', archived_at: null, profile_id: null, reporting_manager_id: null,
         emergency_contact_name: null, emergency_contact_phone: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' })))
@@ -826,9 +845,9 @@ try {
         }
         check(!bad.length, `${size}: all ${pages.length} office and residential pages open cleanly and fit the screen${bad.length ? ' — ' + bad.join(', ') : ''}`) }
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
-      { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
+      { const want = ['ডেইলি রিপোর্ট ইম্পোর্ট', 'দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
-        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
+        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 20 && got.every(c => c === 1),
           `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
       if (size === 'phone') await page.locator('.bottom-nav button.bn-item').last().click()
       const accountsToggle = page.locator('.side .ngrp[data-panel=accounts] button.ngh')
@@ -1549,6 +1568,39 @@ try {
       if (process.env.SHOTS) await cs.screenshot({ path: `${process.env.SHOTS}/${size}-company-sheet.png`, fullPage: true })
       check(csErrors.length === 0, `${size}: company sheets run with no script errors${csErrors.length ? ' — ' + csErrors[0] : ''}`)
       await cs.close(); sheetsOn = false }
+
+    // daily report import: paste the courier panel's Update Report; three checks or no save; the khata by rider
+    const reportText = readFileSync(new URL('./fixtures/update_report.txt', import.meta.url), 'utf8')
+    await page.goto(`${BASE}/app/accounts/report-import`); await page.waitForSelector('.ri-text')
+    await page.locator('.ri-text').fill(reportText.replace('৳20,789.00', '৳20,788.00')); await page.waitForSelector('.ri-checks li')
+    check(await page.locator('.ri-checks li.bad').count() === 1 && await page.locator('.ri-save button').isDisabled(), `${size}: one digit changed -> a check fails and the save button is off`)
+    await fits('report import, a check failed')
+    await page.locator('.ri-text').fill(reportText.replace(/\n/g, ' ')); await page.waitForSelector('.ri-checks li')
+    check(await page.locator('.ri-checks li.ok').count() === 3 && (await page.locator('.ri-head').innerText()).includes('744847'), `${size}: the pasted report (as one line) is read and all three checks pass`)
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-import-checks.png`, fullPage: true })
+    await page.locator('.ri-save button').click(); await page.waitForSelector('.ri-khata')
+    const sent = imported.at(-1)
+    check(sent?.p_hub === 'h5' && sent?.p_report?.manager_code === '6865' && sent?.p_report?.lists?.length === 8 && sent?.p_raw?.includes('Update Report #744847'), `${size}: saving sends the report's hub, manager, lists and the pasted text`)
+    check((await page.locator('.ri-khata').innerText()).includes('Point delivery') && await page.locator('.ri-khata .b-bad').count() === 1, `${size}: the khata shows riders, Point delivery and an unknown ID`)
+    await page.locator('.ri-khata tr.click').first().click()
+    check(await page.locator('.ri-khata tr.ri-sub').count() === 1, `${size}: tapping a rider shows the lists`)
+    await fits('report import khata')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-import-khata.png`, fullPage: true })
+    await page.locator('.ri-map').click(); await page.waitForSelector('.ri-people button')
+    await page.locator('.ri-people button').first().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_import_map_rider' && c.p_code === '44174'), `${size}: an unknown ID is mapped with one tap on a person`)
+    // zonal dashboard: every hub's report status for the day; a hub opens its upload page
+    await page.goto(`${BASE}/app/zonal`); await page.getByRole('tab', { name: 'আজকের রিপোর্ট' }).click(); await page.waitForSelector('.ri-hub')
+    const hubCards = await page.locator('.ri-hub').allInnerTexts()
+    check(hubCards.length === 2 && hubCards.some(t => t.includes('Gurudaspur') && t.includes('১টি রিপোর্ট') && t.includes('অচেনা')) && hubCards.some(t => t.includes('Lalpur') && t.includes('রিপোর্ট আসেনি')),
+      `${size}: the zonal tab shows each hub's report status, with unknown IDs and hubs that sent none`)
+    await fits('zonal report status')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-zonal-reports.png`, fullPage: true })
+    await page.locator('.ri-hub', { hasText: 'Lalpur' }).click(); await page.waitForURL(/report-import\?hub=h2/)
+    check(/hub=h2/.test(page.url()), `${size}: a hub on the zonal tab opens that hub's upload page`)
+    await page.goto(`${BASE}/app`); await page.waitForSelector('.ri-home')
+    check((await page.locator('.ri-home').innerText()).includes('রিপোর্ট আপলোড') && (await page.locator('.ri-home-n b').innerText()).trim() === '১', `${size}: the home card shows how many reports came today`)
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
 
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
     await ctx.close()

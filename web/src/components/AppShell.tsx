@@ -181,6 +181,7 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
   { bn: 'প্রতিদিনের হিসাব', en: 'Every day', items: [
     { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা (আমার)', en: 'My sheet today', perms: ['da.sheet.create'] },
     { to: '/app/accounts/daily', icon: 'ledger', bn: 'হাবের দৈনিক হিসাব খাতা', en: 'Hub daily sheets', perms: DA, count: 'sheets' },
+    { to: '/app/accounts/report-import', icon: 'upload', bn: 'ডেইলি রিপোর্ট ইম্পোর্ট', en: 'Daily report import', perms: ['da.import.create', 'da.sheet.view'] },
     { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (সব হাবের চিত্র)', en: 'Accounts centre', perms: DA },
   ] },
   { bn: 'হিসাবের অংশ', en: 'Accounts parts', items: [
