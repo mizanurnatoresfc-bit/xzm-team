@@ -970,3 +970,13 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   bucket `wf-leave`, 40 public `wf_*` functions. The other three features needed no database change.
 - **Tests:** SQL suite 2524 assertions pass (with main's `att_final_sheet`) on local PostgreSQL 16; typecheck, build, 11 parser tests and the smoke test pass
   (`CHROME=/opt/pw-browsers/chromium`; one run takes about 4 minutes here).
+
+## 2026-11-22 — পুরনো হাজিরা খাতা মুছে ফেলা (the older manager's book removed)
+- Owner: "পুরনো হাজিরা খাতার টেবিল গুলা মুছে ফেলো". Migration `20261122001200_drop_workforce_manager_book.sql` removes everything
+  `20261122001100_workforce_manager_book.sql` added: 5 tables (`wf_book_rules / entries / days / submissions / entry_log`), 22 functions (`wf_mb_*`,
+  `wf_absence_photo(s)`, helpers), 2 storage policies, the column `wf_absence_applications.photo_path`; `attendance_records_source_check` is back to
+  five values. It refuses to run if any of those tables holds data. Both files stay in the repository so it builds the same database as live.
+- **Not touched:** the staff's own হাজিরা বই (`wf_book_windows`, `wf_book_fill`, `wf_book_mode`, `wf_book_full_month_set`) and the daily final register (`att_*`).
+- **Left behind:** the empty private bucket `wf-leave` — Supabase does not let SQL delete a bucket; remove it from the dashboard (Storage) if wanted.
+- **Live:** applied 22 Nov as `drop_workforce_manager_book`; checked before (all empty) and after (see `docs/MIGRATIONS_LIVE_MAP.md`).
+- **Tests:** the book's own test file is removed, the workforce test counts 27 public `wf_*` functions again; SQL suite 2442 assertions pass locally.
