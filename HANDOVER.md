@@ -832,6 +832,15 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   7 permissions (admin 7, zonal manager 7, hub manager 4, rider 1), one role page list gained `/app/routes/plan`, staff counts unchanged (144 active).
   The tab and page go live when the pull request is merged.
 
+## 2026-11-22 — মেনু এডিটর ও মেনুর নাম ঠিক করা
+- নাম বদল (কোডের ডিফল্ট): ম্যানেজার প্যানেলের ভাগ "আজকের কাজ" → "প্রতিদিনের কাজ"; "রাইডার রুট" → "রাইডার রুট (হাব)"; "রুট সেটিং (রাইডার রুট ম্যাপ)" → "রুট ম্যাপ (জোন)";
+  "গাড়ি: দায়িত্ব…" → "গাড়ি ব্যবস্থাপনা"; "সক্রিয় স্টাফ (…)" → "সক্রিয় স্টাফ"; "অনুরোধ (HR Requests)" → "এইচআর অনুরোধ"; "HR রেকর্ড (…)" → "এইচআর রেকর্ড";
+  "জোনাল ফাইল (…)" → "জোনাল ফাইল"; "জোনাল অ্যাসিস্ট্যান্ট (…)" → "হাজিরার ফাঁকা দিন"; "সোর্টিং প্যানেল" → "সোর্টিং সেন্টার" (ভেতরের "সোর্টিং সেন্টার" → "সেন্টার তালিকা")।
+  লম্বা বিবরণ মেনুতে মাউস রাখলে দেখায় (`hint`)।
+- Migration `20261122000600_menu_layout.sql`: `system_settings` key `menu.layout`, `menu_layout()` / `menu_layout_save(jsonb)` (system.settings.configure)।
+- `/app/menu` (সেটিং ও অনুমতি → মেনু এডিটর): প্যানেল, ভাগ ও মেনুর নাম (বাংলা/ইংরেজি), ক্রম, লুকানো, "নতুন" ব্যাজের তারিখ। শুধু বদলটুকু সেভ হয়; অনুমতি এতে বদলায় না।
+- **To go live:** apply the migration on Supabase, then merge to `main`. Migration ছাড়া মেনু কোডের নামেই চলে।
+
 ## 2026-11-22 — `dynamic_voucher` migration brought into the repository
 - Live had `20261121202903 dynamic_voucher` with no file here. New file `supabase/migrations/20261121000550_dynamic_voucher.sql`: a header comment, then
   the statement stored on live character for character (md5 equal). It sits between `company_sheets` and `route_map_audit_fixes`, the order it ran on live.
