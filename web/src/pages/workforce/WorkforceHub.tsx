@@ -10,6 +10,7 @@ import { ACTION_META, APP_META, CELL_META, LIVE, monthOf, useLiveLoad, wf, wfFri
   type AbsenceApp, type AppStatus, type BookCell, type CellCode, type Can, type Decided, type History, type HubBook, type HubBookPerson, type HubOverview, type HubPerson,
   type IsoDate, type Mark, type MarkStatus, type OpsReport, type OpsTotals } from '../../lib/workforce'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { ManagerBookTab } from './ManagerBook'
 import { AS_OPTIONS, ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, NoteDialog, Notice, RangeBar, Section, Who, WmTable, decideMarks, exportRows,
   fmtDay, fmtLong, fmtStamp, fmtTime, fmtTsDay, fmtWeekday, lastMonths, monthName, prevMonth, recordLabel, rememberHub, siteDetail, siteText, storedHub, toneOfRecord, useHubList, useRange,
   type WCol } from './shared'
@@ -87,7 +88,7 @@ export function WorkforceHub() {
 
         <div key={`${hubId}-${tab}`}>
           {tab === 'today' && <TodayTab ov={ov} hubId={hubId} go={go} reload={reload} />}
-          {tab === 'book' && <BookTab hubId={hubId} can={can} today={today} go={go} />}
+          {tab === 'book' && <ManagerBookTab hubId={hubId} today={today} legacy={<BookTab hubId={hubId} can={can} today={today} go={go} />} />}
           {tab === 'approve' && <ApproveTab hubId={hubId} can={can} go={go} onChanged={reload} />}
           {tab === 'apps' && <AppsTab hubId={hubId} can={can} onChanged={reload} />}
           {tab === 'ops' && <OpsTab hubId={hubId} />}
