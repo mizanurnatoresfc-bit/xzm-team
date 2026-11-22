@@ -698,4 +698,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   an inactive person must be made active before a transfer; `supabase/apply-all-dev.sql` is older than the last several migrations and was not regenerated.
 - **Tests:** `99…_zonal_status.sql` (11 assertions; whole SQL suite 2180 pass on local PostgreSQL 16), typecheck, build, smoke test pass
   (run with `CHROME=/opt/pw-browsers/chromium`). The new buttons were not driven in a browser with a zonal login.
-- **Live:** migration NOT applied yet — waiting for the owner's yes. Live also has a migration `20261121202903 dynamic_voucher` that is not in this repository.
+- **Live:** migration applied on Supabase 22 Nov as `20261122122644 zonal_status_and_transfer_fixes` (owner said yes first). Checked after: both function
+  bodies equal the tested file by md5, anon can run neither, the four roles hold `hr.status.edit`, staff counts unchanged (144 active). The site gets the
+  buttons when the pull request is merged to `main`. Live also has a migration `20261121202903 dynamic_voucher` that is not in this repository.
