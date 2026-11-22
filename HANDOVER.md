@@ -792,8 +792,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `20261121000200_office_export_permissions.sql`. Both are additive. Applied on 22 Nov as `office_bill_water_gas` and `office_export_permissions`
   (see docs/MIGRATIONS_LIVE_MAP.md). No website change was needed — the pages were already on the site.
 - `20261120000100_notice_workflow.sql` is live too (as 20261119202045 `notice_workflow`); the "not yet applied" note in the 20 Nov entry is out of date.
-- **Open:** live has one migration with no file in this repository: `dynamic_voucher` (20261121202903). Its file must be brought into
-  `supabase/migrations/`.
+- (Closed the same day: the `dynamic_voucher` file is now in the repository — see the next entry.)
 
 ## 2026-11-22 — রুট: আজকের পার্সেল পরিকল্পনা (the day's parcel plan)
 - Owner: hub numbers of the day (arrived, sent, pickup, cancelled) and what each rider got, typed by hand or later from a PDF; a fixed number per rider; one or many
@@ -841,3 +840,13 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Migration `20261122000600_menu_layout.sql`: `system_settings` key `menu.layout`, `menu_layout()` / `menu_layout_save(jsonb)` (system.settings.configure)।
 - `/app/menu` (সেটিং ও অনুমতি → মেনু এডিটর): প্যানেল, ভাগ ও মেনুর নাম (বাংলা/ইংরেজি), ক্রম, লুকানো, "নতুন" ব্যাজের তারিখ। শুধু বদলটুকু সেভ হয়; অনুমতি এতে বদলায় না।
 - **To go live:** apply the migration on Supabase, then merge to `main`. Migration ছাড়া মেনু কোডের নামেই চলে।
+
+## 2026-11-22 — `dynamic_voucher` migration brought into the repository
+- Live had `20261121202903 dynamic_voucher` with no file here. New file `supabase/migrations/20261121000550_dynamic_voucher.sql`: a header comment, then
+  the statement stored on live character for character (md5 equal). It sits between `company_sheets` and `route_map_audit_fixes`, the order it ran on live.
+  **It is already live — do not apply it again.**
+- What it holds: setting `da.voucher` (prefix, date part, digits, reset never / monthly / daily, a count per hub, hub code in the number, automatic voucher
+  on submit), table `da_voucher_counters` (RLS on, no direct access), `private.da_next_voucher_no(hub)`, and `da_make_voucher`, `da_submit`,
+  `da_close_my_part`, `da_configure` using it.
+- Checked: whole SQL suite 2241 pass on local PostgreSQL with the file in place; the 5 functions of a database built from the repository equal live by hash.
+- Every live migration now has a file in the repository. **Not done:** there is no SQL test for the voucher number setting itself (monthly / daily / per hub).
