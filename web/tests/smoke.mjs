@@ -925,10 +925,13 @@ try {
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
     await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')
     await page.locator('.da-modal .da-seg button').last().click()
+    // "হাজিরার দিন মেলানো" is off the menu (HIDDEN_PAGES), so it is not offered here either
+    check(await page.locator('.pg-pick label', { hasText: 'আমার হাব টিম' }).count() === 1 && await page.locator('.pg-pick label', { hasText: 'হাজিরার দিন মেলানো' }).count() === 0, `${size}: a page taken off the menu is not offered when picking a role's pages`)
     await page.locator('.pg-pick label', { hasText: 'আমার হাব টিম' }).locator('input').check(); await page.locator('.pg-pick label', { hasText: 'আজকের দেরিতে হাজিরা' }).locator('input').check()
     await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
     check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_menu?.join() === '/app/hub/team,/app/hub/late', `${size}: the Super Admin picks the pages of a role`)
-    menuNow = ['/app/hub/team', '/app/hub/late', '/app/accounts/khata']
+    // a list saved before the days page was hidden still names it: it stays off the strip but opens by its address
+    menuNow = ['/app/hub/team', '/app/hub/late', '/app/hub/days', '/app/accounts/khata']
     await page.goto(`${BASE}/app/hub/team`); await page.waitForSelector('.hub-tabs a', { timeout: 10000 }).catch(() => {}); await page.waitForSelector('.post-chip i svg', { timeout: 10000 }).catch(() => {})
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
@@ -936,6 +939,10 @@ try {
     const hubTabs = await page.locator('.hub-tabs a').count(), ownPages = ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].filter(x => sideLinks.includes(x))
     const limitedMenuOk = hubTabs === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
     check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
+    { const stripOnTeam = await page.locator('.hub-tabs a').evaluateAll(a => a.map(x => x.getAttribute('href')).join())
+      await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
+      check(!stripOnTeam.includes('/app/hub/days') && await page.locator('.ad-rows .nv-row:not(.ad-head)').count() === 2 && await page.locator('.center-screen .notice').count() === 0,
+        `${size}: the attendance days page is off the hub strip but still opens by its address (${stripOnTeam})`) }
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
