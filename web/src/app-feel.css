@@ -1,0 +1,44 @@
+/* App feel (owner, 22 Nov 2026): pages slide in instead of popping, a tap answers at once, and a page that is still
+   loading shows its outline instead of a line of text. Everything here is switched off for "reduce motion". */
+
+/* No grey flash on tap anywhere (the Android app already had this). */
+html{-webkit-tap-highlight-color:transparent}
+
+/* A new page fades in and its title rises into place, like an app screen. Each page mounts its own shell, so this plays on
+   every change. The page body only fades: a transform on it would carry the fixed bars (Submit, actions) along with it. */
+@keyframes page-fade{from{opacity:0}to{opacity:1}}
+@keyframes page-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.app-main .da-main{animation:page-fade .2s ease-out}
+.app-main .da-main>.da-head{animation:page-rise .26s cubic-bezier(.2,.7,.3,1)}
+
+/* Taps press in: menu rows, bottom tabs, home tiles, cards and buttons. The separate `scale` property is used, so it adds to
+   any transform an element already has (a centred icon button keeps its place). */
+.side a.nl,.bn-item,.quick-tile,.wf-pm-tile,.sp-tile,.emp-card,.hub-link{transition:scale .12s ease,background .15s,color .15s}
+.side a.nl:active,.bn-item:active,.quick-tile:active,.wf-pm-tile:active,.sp-tile:active,.hub-link:active{scale:.96}
+button{transition-property:background,border-color,box-shadow,transform,color,scale}
+button:not(:disabled):active{scale:.97}
+/* Menus and tabs are for tapping: a long press does not start selecting their text. */
+.side,.bottom-nav,.quick-tile,.home-tiles{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+/* The active bottom tab grows a little, so it is clear where you are. */
+@media (max-width:960px){
+  .bn-item .ic{transition:scale .18s cubic-bezier(.2,.7,.3,1),translate .18s cubic-bezier(.2,.7,.3,1)}
+  .bn-item.on .ic{translate:0 -1px;scale:1.12}
+}
+
+/* Page outline while its code loads. */
+.page-skel{max-width:960px;margin:0 auto;padding:16px 16px 40px;display:flex;flex-direction:column;gap:14px;min-height:100vh;box-sizing:border-box;background:var(--canvas)}
+.page-skel>div,.page-skel .ps-card{border-radius:18px;background:linear-gradient(90deg,var(--surface) 0,color-mix(in srgb,var(--canvas) 60%,var(--surface)) 50%,var(--surface) 100%);
+  background-size:200% 100%;animation:sk 1.2s linear infinite}
+.page-skel .ps-bar{height:52px;border-radius:14px}
+.page-skel .ps-title{height:26px;width:55%;border-radius:10px}
+.page-skel .ps-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:none!important;animation:none!important}
+.page-skel .ps-card{height:96px}
+.page-skel .ps-card.tall{height:180px}
+
+@media (prefers-reduced-motion:reduce){
+  .app-main .da-main,.app-main .da-main>.da-head{animation:none}
+  .side a.nl,.bn-item,.quick-tile,.wf-pm-tile,.sp-tile,.emp-card,.hub-link,.bn-item .ic{transition:none}
+  .side a.nl:active,.bn-item:active,.quick-tile:active,.wf-pm-tile:active,.sp-tile:active,.hub-link:active,button:not(:disabled):active,.bn-item.on .ic{scale:none;translate:none}
+  .page-skel>div,.page-skel .ps-card{animation:none}
+}

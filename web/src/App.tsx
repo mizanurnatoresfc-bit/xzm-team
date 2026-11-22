@@ -10,6 +10,7 @@ import './accounts.css'
 import './theme.css'
 import './fields.css'
 import './a11y.css'
+import './app-feel.css'
 import { PrefsProvider } from './lib/prefs'
 import { Home } from './pages/Home'
 import { Terms } from './pages/Terms'
@@ -85,14 +86,80 @@ const MyWorkforce = lazy(() => import('./pages/workforce/MyWorkforce').then(m =>
 const WorkforceHub = lazy(() => import('./pages/workforce/WorkforceHub').then(m => ({ default: m.WorkforceHub })))
 const WorkforceZone = lazy(() => import('./pages/workforce/WorkforceZone').then(m => ({ default: m.WorkforceZone })))
 
-// After the first screen is shown, quietly fetch the most-used pages so later taps open at once.
-const WARM: Array<() => Promise<unknown>> = [
-  () => import('./pages/hub/HubManagement'), () => import('./pages/org/Hubs'), () => import('./pages/hr/Employees'),
-  () => import('./pages/hr/Attendance'), () => import('./pages/hr/Requests'), () => import('./pages/accounts/DailyDashboard'), () => import('./pages/accounts/DailySheet'),
-  () => import('./pages/MyProfile'), () => import('./pages/zonal/ZonalStaff'), () => import('./pages/hr/EmployeeProfile'),
-  () => import('./pages/org/OrgSetup'), () => import('./pages/sorting/Sorting'), () => import('./pages/office/Office'),
-  () => import('./pages/workforce/MyWorkforce'),
+// After the first screen is shown, quietly fetch the pages so later taps open at once (an app does not wait on each tap).
+// The most-used ones come first; on a phone with "data saver" on, nothing is fetched ahead.
+const FIRST = ['./pages/hub/HubManagement', './pages/hr/Attendance', './pages/hr/Requests', './pages/workforce/MyWorkforce', './pages/workforce/WorkforceHub',
+  './pages/hr/Employees', './pages/accounts/DailyDashboard', './pages/accounts/DailySheet', './pages/MyProfile']
+const ALL: Array<[string, () => Promise<unknown>]> = [
+  ['./pages/accounts/DailyDashboard', () => import('./pages/accounts/DailyDashboard')],
+  ['./pages/accounts/sheetFlow', () => import('./pages/accounts/sheetFlow')],
+  ['./pages/accounts/AccountsCenter', () => import('./pages/accounts/AccountsCenter')],
+  ['./pages/accounts/LearnCenter', () => import('./pages/accounts/LearnCenter')],
+  ['./pages/accounts/MyKhata', () => import('./pages/accounts/MyKhata')],
+  ['./pages/accounts/DailySheet', () => import('./pages/accounts/DailySheet')],
+  ['./pages/accounts/MyAccounts', () => import('./pages/accounts/MyAccounts')],
+  ['./pages/accounts/ReportImport', () => import('./pages/accounts/ReportImport')],
+  ['./pages/accounts/AccountsReports', () => import('./pages/accounts/AccountsReports')],
+  ['./pages/accounts/AccountsSettings', () => import('./pages/accounts/AccountsSettings')],
+  ['./pages/org/OrgSetup', () => import('./pages/org/OrgSetup')],
+  ['./pages/org/Hubs', () => import('./pages/org/Hubs')],
+  ['./pages/hr/HrDashboard', () => import('./pages/hr/HrDashboard')],
+  ['./pages/hr/Employees', () => import('./pages/hr/Employees')],
+  ['./pages/hr/EmployeeProfile', () => import('./pages/hr/EmployeeProfile')],
+  ['./pages/hr/Applications', () => import('./pages/hr/Applications')],
+  ['./pages/hr/Leave', () => import('./pages/hr/Leave')],
+  ['./pages/hr/Attendance', () => import('./pages/hr/Attendance')],
+  ['./pages/hr/ImportEmployees', () => import('./pages/hr/ImportEmployees')],
+  ['./pages/hr/FieldSettings', () => import('./pages/hr/FieldSettings')],
+  ['./pages/hr/Referrals', () => import('./pages/hr/Referrals')],
+  ['./pages/zonal/ZonalDashboard', () => import('./pages/zonal/ZonalDashboard')],
+  ['./pages/zonal/ZonalFiles', () => import('./pages/zonal/ZonalFiles')],
+  ['./pages/Manpower', () => import('./pages/Manpower')],
+  ['./pages/zonal/HubOps', () => import('./pages/zonal/HubOps')],
+  ['./pages/zonal/HubOpsPanel', () => import('./pages/zonal/HubOpsPanel')],
+  ['./pages/manager/ManagerStaff', () => import('./pages/manager/ManagerStaff')],
+  ['./pages/zonal/ZonalRequests', () => import('./pages/zonal/ZonalRequests')],
+  ['./pages/zonal/HrRecords', () => import('./pages/zonal/HrRecords')],
+  ['./pages/zonal/ZonalStaff', () => import('./pages/zonal/ZonalStaff')],
+  ['./pages/users/RoleDashboards', () => import('./pages/users/RoleDashboards')],
+  ['./pages/nodi/NodiChat', () => import('./pages/nodi/NodiChat')],
+  ['./pages/users/NodiSettings', () => import('./pages/users/NodiSettings')],
+  ['./pages/users/BrandingSettings', () => import('./pages/users/BrandingSettings')],
+  ['./pages/users/MenuEditor', () => import('./pages/users/MenuEditor')],
+  ['./pages/MyProfileComplete', () => import('./pages/MyProfileComplete')],
+  ['./pages/MyProfile', () => import('./pages/MyProfile')],
+  ['./pages/hub/HubManagement', () => import('./pages/hub/HubManagement')],
+  ['./pages/MyPermissions', () => import('./pages/MyPermissions')],
+  ['./pages/Settings', () => import('./pages/Settings')],
+  ['./pages/sorting/Sorting', () => import('./pages/sorting/Sorting')],
+  ['./pages/hr/Requests', () => import('./pages/hr/Requests')],
+  ['./pages/hr/Duties', () => import('./pages/hr/Duties')],
+  ['./pages/hr/ProfileGaps', () => import('./pages/hr/ProfileGaps')],
+  ['./pages/office/Office', () => import('./pages/office/Office')],
+  ['./pages/issues/Issues', () => import('./pages/issues/Issues')],
+  ['./pages/users/Users', () => import('./pages/users/Users')],
+  ['./pages/zonal/RouteSettings', () => import('./pages/zonal/RouteSettings')],
+  ['./pages/zonal/RoutePlan', () => import('./pages/zonal/RoutePlan')],
+  ['./pages/zonal/ZonalAssistant', () => import('./pages/zonal/ZonalAssistant')],
+  ['./pages/Training', () => import('./pages/Training')],
+  ['./pages/users/Rollout', () => import('./pages/users/Rollout')],
+  ['./pages/users/UserDetail', () => import('./pages/users/UserDetail')],
+  ['./pages/users/Roles', () => import('./pages/users/Roles')],
+  ['./pages/access/AccessCenter', () => import('./pages/access/AccessCenter')],
+  ['./pages/access/RoleBuilder', () => import('./pages/access/RoleBuilder')],
+  ['./pages/access/UserAccess', () => import('./pages/access/UserAccess')],
+  ['./pages/fleet/Fleet', () => import('./pages/fleet/Fleet')],
+  ['./pages/fleet/FleetMine', () => import('./pages/fleet/FleetMine')],
+  ['./pages/staff/StaffPanel', () => import('./pages/staff/StaffPanel')],
+  ['./pages/NoticeBoard', () => import('./pages/NoticeBoard')],
+  ['./pages/References', () => import('./pages/References')],
+  ['./pages/Notifications', () => import('./pages/Notifications')],
+  ['./pages/ChangePassword', () => import('./pages/ChangePassword')],
+  ['./pages/workforce/MyWorkforce', () => import('./pages/workforce/MyWorkforce')],
+  ['./pages/workforce/WorkforceHub', () => import('./pages/workforce/WorkforceHub')],
+  ['./pages/workforce/WorkforceZone', () => import('./pages/workforce/WorkforceZone')],
 ]
+const WARM = [...ALL.filter(([m]) => FIRST.includes(m)), ...ALL.filter(([m]) => !FIRST.includes(m))].map(([, f]) => f)
 if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
   && !(navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) {
   const go = () => { WARM.reduce<Promise<unknown>>((p, f) => p.then(() => f().catch(() => null)), Promise.resolve()) }
@@ -101,7 +168,10 @@ if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
   if (document.readyState === 'complete') start(); else window.addEventListener('load', start, { once: true })
 }
 
-const Loading = () => <div className="page-loading" role="status"><span className="spin" />লোড হচ্ছে…</div>
+/** While a page's code arrives: the outline of a page (bar, title, cards), like an app, not a line of text. */
+const Loading = () => <div className="page-skel" role="status" aria-label="লোড হচ্ছে…">
+  <div className="ps-bar" /><div className="ps-title" /><div className="ps-row"><div className="ps-card" /><div className="ps-card" /></div>
+  <div className="ps-card tall" /><div className="ps-card" /><span className="sr-only">লোড হচ্ছে…</span></div>
 
 /** Advanced role & permission pages: on the website; inside the Android app the older role page stays for now. */
 function AccessPage({ children }: { children: ReactNode }) {
