@@ -859,4 +859,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Tests:** `99…_route_plan_files.sql` (31 assertions; whole SQL suite 2333 pass), typecheck, build, smoke test pass. In a real browser against the local
   database both sample PDFs were uploaded, the rider matched, the numbers taken into the plan and saved (source `pdf`); a file that is no PDF is refused with
   a clear message; no sideways scroll on a phone; 0 failed database calls.
-- **Live:** NOT applied to Supabase yet — the owner has to say yes first. Until then the plan page shows an error in the PDF box; the rest of the page works.
+- **Live:** migration applied on Supabase 22 Nov as `20261122165840 route_plan_files` (owner said yes first; file text without the header comment). Checked after:
+  the 5 functions equal the tested file by hash, nobody signed out can call them, `route_day_files` has RLS, its policy and three triggers, staff counts
+  unchanged (144 active). The PDF box goes live when the pull request is merged.
