@@ -60,7 +60,8 @@ select tests.ok((select count(*) from public.permissions where code in ('ops.sta
 select tests.ok((select count(*) from public.role_permissions rp join public.roles r on r.id = rp.role_id join public.permissions p on p.id = rp.permission_id
                   where p.code = 'ops.staff_daily.view' and r.code in ('admin', 'head_office_manager', 'operations_manager', 'zonal_manager',
                     'hub_manager', 'pickup_manager', 'delivery_manager', 'auditor', 'hr_manager')) = 9
-            and (select count(*) = 8 from public.role_permissions rp join public.roles r on r.id = rp.role_id where r.code = 'zonal_assistant'),
+            and (select count(*) = 8 from public.role_permissions rp join public.roles r on r.id = rp.role_id join public.permissions p on p.id = rp.permission_id
+                  where r.code = 'zonal_assistant' and p.code not in ('system.list_view.configure', 'system.list_mark.edit')),
   'nine roles may view the daily numbers; the existing Zonal Assistant role keeps exactly its eight permissions');
 select tests.ok((select array_agg(r.code::text order by r.code::text) from public.role_permissions rp join public.roles r on r.id = rp.role_id
                   join public.permissions p on p.id = rp.permission_id where p.code = 'ops.staff_daily.edit') = array['admin', 'hub_manager'],

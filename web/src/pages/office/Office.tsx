@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
+import { RowMenu } from '../../components/RowMenu'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
@@ -504,11 +505,13 @@ function Assets({ ctx }: { ctx: Ctx }) {
           ...(edit || canRep ? [{ key: 'act', label: '', noExport: true, render: (r: Asset) => <span className="row-acts">
             {canRep && r.condition !== 'broken' && <button className="secondary sm oo-bad" onClick={() => setRep({ a: r, kind: 'broken' })}>{L('নষ্ট', 'Broken')}</button>}
             {canRep && <button className="secondary sm" onClick={() => setRep({ a: r, kind: 'need' })}>{L('লাগবে', 'Needed')}</button>}
-            {edit && <button className="secondary sm" title={L('অন্য অফিসে দিন', 'Lend to another office')} onClick={() => setLend(r)}><Icon name="hub" size={14} /></button>}
-            {edit && <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, kind: r.kind, name: r.name, room: r.room_id ?? '', desk: r.desk_id ?? '', qty: String(r.quantity), condition: r.condition,
-              brand: r.brand ?? '', serial: r.serial_no ?? '', holder: r.holder_id ? ctx.emp[r.holder_id] ?? null : null, date: r.purchase_date ?? '', price: r.price?.toString() ?? '', note: r.note ?? '',
-              watt: r.watt?.toString() ?? '', hours: r.hours_per_day?.toString() ?? '', spec: r.spec ?? '' }) }}><Icon name="edit" size={14} /></button>}
-            {edit && <button className="secondary sm" onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span> }] : []),
+            {edit && <RowMenu label={`${r.name} — ${L('আরও কাজ', 'more actions')}`} items={[
+              { label: L('এডিট', 'Edit'), icon: 'edit', onClick: () => { setErr(''); setF({ id: r.id, kind: r.kind, name: r.name, room: r.room_id ?? '', desk: r.desk_id ?? '', qty: String(r.quantity), condition: r.condition,
+                brand: r.brand ?? '', serial: r.serial_no ?? '', holder: r.holder_id ? ctx.emp[r.holder_id] ?? null : null, date: r.purchase_date ?? '', price: r.price?.toString() ?? '', note: r.note ?? '',
+                watt: r.watt?.toString() ?? '', hours: r.hours_per_day?.toString() ?? '', spec: r.spec ?? '' }) } },
+              { label: L('অন্য অফিসে দিন', 'Lend to another office'), icon: 'hub', onClick: () => setLend(r) },
+              { label: L('সরান', 'Remove'), icon: 'trash', danger: true, onClick: () => void remove(r) },
+            ]} />}</span> }] : []),
         ]} />
     </section>
     {f && <Modal wide title={f.id ? L('জিনিস এডিট', 'Edit item') : L('জিনিস যোগ', 'Add item')} onClose={() => setF(null)}

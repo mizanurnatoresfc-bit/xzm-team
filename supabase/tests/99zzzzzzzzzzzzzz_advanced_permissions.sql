@@ -138,7 +138,8 @@ select tests.ok((select count(*) from public.access_overrides(tests.id('hub_mgr'
 -- ---------- everything switched off: the person still holds the role ----------
 select public.access_overrides_save(tests.id('noroles'), '[]'::jsonb, 'x');
 select public.user_admin_assign_role(tests.id('noroles'), (select id from public.roles where code = 'staff'), 'hub', null, tests.id('hub_a1'));
-select public.access_overrides_save(tests.id('noroles'), '[{"permission":"org.hub.view","effect":"deny"},{"permission":"org.organization.view","effect":"deny"}]'::jsonb, 'পরীক্ষা');
+select public.access_overrides_save(tests.id('noroles'), '[{"permission":"org.hub.view","effect":"deny"},{"permission":"org.organization.view","effect":"deny"},
+    {"permission":"system.list_view.configure","effect":"deny"},{"permission":"system.list_mark.edit","effect":"deny"}]'::jsonb, 'পরীক্ষা');
 select tests.login(tests.id('noroles'));
 select tests.ok(not exists (select 1 from public.my_permissions() where permission_code is not null), 'every permission of the role is switched off');
 select tests.ok(exists (select 1 from private.my_grants()) and (select count(*) from public.departments) = 3, 'yet the person still counts as staff (company lists stay readable)');

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { download, xlsxBlob } from '../lib/xlsx'
 import { usePrefs } from '../lib/prefs'
+import { useAuth } from '../auth/AuthProvider'
 import { Icon } from './Icon'
 import { MultiCombo } from './inputs'
 
@@ -51,6 +52,9 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   quickFilters?: boolean
 }) {
   const { L, n } = usePrefs()
+  // Per role (রোল ও অনুমতি): who may switch the view, and who may mark rows. Print and the files come from the page (canPrint / canExport).
+  const { can } = useAuth()
+  const canView = can('system.list_view.configure'), canMark = can('system.list_mark.edit')
   const id = prefKey ?? file
   const [marked, setMarked] = useState<Set<string>>(new Set())
   const [saved, setSavedS] = useState<Saved>(() => readSaved(id))
@@ -146,7 +150,7 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   if (rows && !source.length) return <>{empty ?? <p className="muted">{L('কিছু নেই।', 'Nothing here yet.')}</p>}</>
   const all = list.length > 0 && mk.size === list.length
   const viewName: Record<ViewKind, string> = { table: L('টেবিল', 'Table'), card: L('কার্ড', 'Cards'), list: L('তালিকা', 'List') }
-  const mark = (r: T, i: number) => { const k = rowKey(r); return <input type="checkbox" aria-label={L(`সারি ${i + 1} চিহ্নিত`, `Mark row ${i + 1}`)} checked={mk.has(k)}
+  const mark = (r: T, i: number) => { if (!canMark) return null; const k = rowKey(r); return <input type="checkbox" aria-label={L(`সারি ${i + 1} চিহ্নিত`, `Mark row ${i + 1}`)} checked={mk.has(k)}
     onClick={e => e.stopPropagation()} onChange={e => toggleMark(k, e.target.checked)} /> }
   return <>
     <div className="list-tools no-print">
@@ -155,24 +159,24 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
       <span className="grow" />
       {filterable.length > 0 && <button type="button" className={`secondary sm dv-fbtn${showFilters || activeFilters ? ' on' : ''}`} aria-expanded={showFilters} onClick={() => setShowFilters(v => !v)}>
         <Icon name="search" size={14} />{L('ফিল্টার', 'Filter')}{activeFilters ? ` (${n(activeFilters)})` : ''}</button>}
-      {views.length > 1 && <div className={`tool-menu${menu === 'view' ? ' open' : ''}`}>
+      {canView && views.length > 1 && <div className={`tool-menu${menu === 'view' ? ' open' : ''}`}>
         <button type="button" className="secondary sm tool-menu-btn" aria-expanded={menu === 'view'} onClick={() => setMenu(m => m === 'view' ? null : 'view')}>
           <Icon name={VIEW_ICON[view]} size={16} />{L('ভিউ', 'View')}<Icon name="chev" size={14} /></button>
         <div className="tool-group" role="group" aria-label={L('কীভাবে দেখবেন', 'View')}>
         {views.map(v => <button key={v} type="button" className={`tb${view === v ? ' on' : ''}`} aria-pressed={view === v} title={viewName[v]} aria-label={viewName[v]} onClick={() => { save({ view: v }); setMenu(null) }}>
           <Icon name={VIEW_ICON[v]} size={16} /><span className="tl">{viewName[v]}</span></button>)}
       </div></div>}
-      <div className={`tool-menu${menu === 'file' ? ' open' : ''}`}>
+      {(canMark || canPrint || canExport) && <div className={`tool-menu${menu === 'file' ? ' open' : ''}`}>
         <button type="button" className={`secondary sm tool-menu-btn${mk.size ? ' on' : ''}`} aria-expanded={menu === 'file'} onClick={() => setMenu(m => m === 'file' ? null : 'file')}>
           <Icon name={canPrint || canExport ? 'print' : 'checkall'} size={16} />{canPrint || canExport ? L('প্রিন্ট ও ফাইল', 'Print & file') : L('চিহ্নিত', 'Mark')}<Icon name="chev" size={14} /></button>
       <div className="tool-group" role="group" aria-label={L('তালিকার কাজ', 'List tools')} onClick={() => setMenu(null)}>
-        <button type="button" className={`tb${mk.size ? ' on' : ''}`} onClick={() => setMarked(mk.size ? new Set() : new Set(list.map(rowKey)))}
+        {canMark && <button type="button" className={`tb${mk.size ? ' on' : ''}`} onClick={() => setMarked(mk.size ? new Set() : new Set(list.map(rowKey)))}
           title={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')} aria-label={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')}>
-          <Icon name={mk.size ? 'uncheck' : 'checkall'} size={16} /><span className="tl">{mk.size ? L('তুলুন', 'Unmark') : L('সব', 'All')}</span><span className="tl-full">{mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')}</span></button>
+          <Icon name={mk.size ? 'uncheck' : 'checkall'} size={16} /><span className="tl">{mk.size ? L('তুলুন', 'Unmark') : L('সব', 'All')}</span><span className="tl-full">{mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')}</span></button>}
         {canPrint && <button type="button" className="tb" onClick={() => void out('print', () => print(false))} disabled={!list.length} title={L('প্রিন্ট', 'Print')} aria-label={L('প্রিন্ট', 'Print')}><Icon name="print" size={16} /><span className="tl">{L('প্রিন্ট', 'Print')}</span></button>}
         {canExport && <button type="button" className="tb xls" onClick={() => void out('excel', excel)} disabled={!list.length} title="Excel" aria-label="Excel"><Icon name="xls" size={16} /><span className="tl">Excel</span></button>}
         {canExport && <button type="button" className="tb pdf" onClick={() => void out('pdf', () => print(true))} disabled={!list.length} title="PDF" aria-label="PDF"><Icon name="pdf" size={16} /><span className="tl">PDF</span></button>}
-      </div></div>
+      </div></div>}
     </div>
     {bulk && mk.size > 0 && <div className="dv-bulk no-print" role="region" aria-label={L('চিহ্নিত সারির কাজ', 'Actions for marked rows')}>
       <strong>{L(`${n(mk.size)}টি চিহ্নিত`, `${mk.size} marked`)}</strong>{bulk(list.filter(r => mk.has(rowKey(r))), () => setMarked(new Set()))}</div>}
@@ -183,13 +187,13 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
     </div>}
     {source.length > 0 && !list.length && <p className="muted">{L('খোঁজা বা ফিল্টারের সাথে কিছু মিলছে না।', 'Nothing matches the search or filters.')} <button type="button" className="link" onClick={() => { setQ(''); save({ filters: {} }) }}>{L('সব দেখান', 'Show all')}</button></p>}
     {view === 'table' && <div className="da-table-wrap"><table className="da-table"><thead><tr>
-      <th className="ck no-print"><input type="checkbox" aria-label={L('সব চিহ্নিত', 'Mark all')} checked={all} onChange={e => setMarked(e.target.checked ? new Set(list.map(rowKey)) : new Set())} /></th>
+      {canMark && <th className="ck no-print"><input type="checkbox" aria-label={L('সব চিহ্নিত', 'Mark all')} checked={all} onChange={e => setMarked(e.target.checked ? new Set(list.map(rowKey)) : new Set())} /></th>}
       <th>S/L</th>{cols.map(c => canSort(c)
         ? <th key={c.key} className={`${c.className ?? ''} dv-sort`} aria-sort={sort?.key === c.key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
             <button type="button" onClick={() => toggleSort(c)} title={L('সাজান', 'Sort')}>{c.label}<span className="dv-arrow">{sort?.key === c.key ? (sort.dir === 1 ? '▲' : '▼') : ''}</span></button></th>
         : <th key={c.key} className={c.className}>{c.label}</th>)}</tr></thead>
       <tbody>{shown.map((r, j) => { const i = pg * size + j; const k = rowKey(r); const on = mk.has(k); return <tr key={k} className={`${onRowClick ? 'click' : ''}${on ? ' marked' : ''}`} onClick={() => onRowClick?.(r)}>
-        <td className="ck no-print" onClick={e => e.stopPropagation()}>{mark(r, i)}</td>
+        {canMark && <td className="ck no-print" onClick={e => e.stopPropagation()}>{mark(r, i)}</td>}
         <td className="muted sl">{n(i + 1)}</td>{cols.map(c => <td key={c.key} className={c.className} data-label={c.label || undefined}>{show(c, r)}</td>)}</tr> })}</tbody></table></div>}
     {view === 'card' && <div className="dv-cards">{shown.map((r, j) => { const i = pg * size + j; const k = rowKey(r); return <article key={k} className={`dv-card${onRowClick ? ' click' : ''}${mk.has(k) ? ' marked' : ''}`} onClick={() => onRowClick?.(r)}>
       <header><span className="no-print">{mark(r, i)}</span><b>{show(titleCol, r)}</b><span className="muted small">{n(i + 1)}</span></header>
