@@ -29,6 +29,7 @@ type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 /** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
 const NEW_UNTIL: Record<string, string> = {
   '/app/manpower': '2026-11-30', '/app/workforce/attendance': '2026-11-30', '/app/workforce/hub': '2026-11-30',
+  '/app/manager/staff': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
   '/app/zonal/hub-ops': '2026-11-30', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
 }
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
@@ -68,6 +69,7 @@ export const GROUPS: Group[] = [
     ] },
     { bn: 'হাবের টিম', en: 'Hub team', items: [
       { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
+      { to: '/app/manager/staff', icon: 'usercheck', bn: 'সক্রিয় স্টাফ (নতুন যোগ / চাকরি ছাড়া)', en: 'Active staff (join / leave)', perms: ['hr.request.create'] },
       { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
       { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
       { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
@@ -87,6 +89,8 @@ export const GROUPS: Group[] = [
       { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
       { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
       { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
+      { to: '/app/zonal/requests', icon: 'form', bn: 'অনুরোধ (HR Requests)', en: 'HR requests inbox', perms: ['hr.request.approve'], count: 'hrreq' },
+      { to: '/app/zonal/hr-records', icon: 'xls', bn: 'HR রেকর্ড (জয়েনিং / এক্সিট / ট্রান্সফার ফাইল)', en: 'HR records (files)', perms: ['hr.request.approve'] },
       { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল (বদলি/চালু/বন্ধ)', en: 'Zonal files', perms: ['hr.request.create', 'hr.request.approve'] },
       { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
     ] },
