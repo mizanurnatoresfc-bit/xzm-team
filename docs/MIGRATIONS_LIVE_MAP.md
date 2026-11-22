@@ -98,6 +98,7 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261121000600_route_map_audit_fixes.sql` | 20261122113013 route_map_audit_fixes — applied whole in one call; constraint, index, trigger and the 5 functions checked present afterwards |
 | `20261122000100_route_load.sql` | 20261122122659 route_load — applied whole in one call; column, table (RLS, policy, 3 triggers) and the 2 functions checked present afterwards |
 | `20261122000200_zonal_status_and_transfer_fixes.sql` | 20261122122644 zonal_status_and_transfer_fixes — applied whole in one call; the 2 functions equal the tested file by hash, 4 roles hold `hr.status.edit` |
+| `20261122000300_role_demo_audit_fixes.sql` | 20261122142603 role_demo_audit_fixes — applied whole in one call (owner said yes first); checked afterwards: trigger `hr_requests_tell_approvers` enabled, `branding()` the only definer function a visitor can run, the nine notice/reminder functions still callable when signed in, missing-attendance days 1,450 → 155 with none before 18 Nov |
 
 **Check of 18 Nov 2026 (after the three files above were added):** a database built only from this repository and the live database have the same
 613 functions in `public` and `private`, with the same code (compared by hash with comments, spacing and Windows line breaks ignored — 174 live

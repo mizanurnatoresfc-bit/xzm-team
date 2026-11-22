@@ -731,12 +731,31 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Limits:** coverage counts this zone's routes only; a stop typed by hand far from the place's own point (more than 250 m) does not count as covering it;
   places without a location (the 52 unions) are counted apart and not drawn.
 - **Tests:** smoke test: the tab, dots, counts, the gap list, tapping a dot (638 checks pass). Tried by hand with the real 665 places: 561 dots, dragging stays smooth (about 17 ms a step).
+## 2026-11-22 — পুরো সাইটের অডিট, তিন রোলের ডেমো ও লাইভ রোডম্যাপ (full audit, role demo, go-live roadmap)
+
+- **Report and roadmap:** `docs/GO_LIVE_ROADMAP.md` (Bangla) — results, what the three roles did, the five problems found, live numbers, security advisor, steps 0–5 to a
+  company-wide launch, and four questions for the owner. `docs/PRODUCTION_ROADMAP.md` (13 Nov) is marked superseded.
+- **Role demo tool:** `scripts/role-demo/` — `gw.mjs` answers the app's Supabase REST requests from a local throwaway PostgreSQL (all migrations, real RLS) as the signed-in
+  person; `walk.mjs` opens every page a role reaches at PC and phone size and reports crashes, refused or failed database calls and pages wider than the screen;
+  `seed.sql` makes the demo people. Result: staff 28, hub manager 96, zonal manager 103 pages × 2 sizes — 0 crashes, 0 failed calls. Not wired into CI (needs `pg`).
+- **Driven by hand through the same set-up:** staff gives attendance → hub manager approves → register; staff sends a job-leaving request → zonal manager rejects with a reason;
+  hub manager starts the day's accounts sheet. All worked.
+- **Fixes** (`20261122000300_role_demo_audit_fixes.sql`, `ZonalDashboard.tsx`, `theme.css`):
+  1. a new HR request now notifies everyone who may approve it for that hub at once (trigger `hr_requests_tell_approvers`; before, only the hours-later nudge told them);
+  2. `private.attendance_gap_days` counts a day as missing only from the first day anyone in the person's hub has attendance on the register (live asked everyone about
+     every day since 1 Oct although attendance began on 18 Nov); a hub with no attendance at all is asked about nothing;
+  3. nine notice/reminder functions (`notice_*`, `reminder_*`, `my_report_line`) are no longer callable without signing in — `branding()` is the only one left, on purpose;
+  4. the zonal dashboard waits for the zone list, so a one-zone manager no longer sends a refused "all zones" request first;
+  5. the top search box: the placeholder no longer sits under the icon (the form-wide `!important` padding was winning).
+- **Tests:** `99…_role_demo_audit.sql` (10 assertions); `99…_nodi_features.sql` follows the gap rule (its hub now has a first attendance day). Whole SQL suite 2193 pass; smoke 630 pass.
+- **Live:** migration applied on Supabase 22 Nov as `20261122142603 role_demo_audit_fixes` (owner said yes first). Checked after: the trigger is on, only `branding()` is open to visitors,
+  the nine functions still work signed in, and the missing-attendance list went from 1,450 days (144 people) to 155 days (82 people), none before 18 Nov. The two website fixes go live when the pull request is merged.
+- **Not covered by the demo:** real login and lockout, Edge Functions, Storage uploads, push, realtime, the APK — listed as hand checks in step 2 of the roadmap.
 
 ## 2026-11-22 — অফিসের পানি / গ্যাস বিল ও এক্সপোর্ট অনুমতি লাইভে বসানো
 - A check of live against the repository found two files that had never been applied: `20261121000100_office_bill_water_gas.sql` and
   `20261121000200_office_export_permissions.sql`. Both are additive. Applied on 22 Nov as `office_bill_water_gas` and `office_export_permissions`
   (see docs/MIGRATIONS_LIVE_MAP.md). No website change was needed — the pages were already on the site.
 - `20261120000100_notice_workflow.sql` is live too (as 20261119202045 `notice_workflow`); the "not yet applied" note in the 20 Nov entry is out of date.
-- **Open:** live has two migrations with no file on `main`: `dynamic_voucher` (20261121202903) and `role_demo_audit_fixes` (20261122142603).
-  Their files must be brought into `supabase/migrations/`.
-
+- **Open:** live has one migration with no file in this repository: `dynamic_voucher` (20261121202903). Its file must be brought into
+  `supabase/migrations/`.

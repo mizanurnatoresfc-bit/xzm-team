@@ -1,5 +1,7 @@
 # XZM-TEAM ERP — Approved Production Roadmap
 
+> **Superseded (22 Nov 2026):** this is the plan of 13 Nov, kept for history. The current audit and roadmap are in `GO_LIVE_ROADMAP.md`.
+
 **Owner decision (2026-11-13):** React + Supabase; phased release.
 
 ## Architecture decision
