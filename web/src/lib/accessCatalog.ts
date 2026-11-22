@@ -37,8 +37,8 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/accounts/learn' },
   ] },
   { key: 'hr', icon: 'users', bn: 'স্টাফ ও এইচআর', en: 'Staff & HR', db: ['hr'], subs: [
-    { to: '/app/hr/employees', res: ['hr.employee', 'hr.employee_sensitive', 'hr.employee_profile', 'hr.document', 'hr.transfer'] },
-    { to: '/app/zonal/staff', codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.transfer.edit', 'hr.application.create', 'hr.application.approve'] },
+    { to: '/app/hr/employees', res: ['hr.employee', 'hr.employee_sensitive', 'hr.employee_profile', 'hr.document', 'hr.transfer', 'hr.status'] },
+    { to: '/app/zonal/staff', codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.transfer.edit', 'hr.status.edit', 'hr.application.create', 'hr.application.approve'] },
     { to: '/app/hr/applications', res: ['hr.application'] },
     { to: '/app/hr/attendance', res: ['hr.attendance'] },
     { to: '/app/zonal/assistant', res: ['hr.attendance_gap'] },

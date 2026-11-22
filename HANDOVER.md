@@ -700,6 +700,26 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Live:** migration applied on Supabase 22 Nov as `20261122122659 route_load` (owner said yes first). Checked after: column `hub_routes.avg_parcels`, table `route_hub_load`
   with RLS, one policy and three triggers, both functions callable by signed-in people only. The site gets the tab when the pull request is merged to `main`.
 
+## 2026-11-22 — হাব বদলি ও সক্রিয় / নিষ্ক্রিয় অডিট (zonal status right, transfer fixes)
+- Owner: "হাব টু হাব ট্রান্সফার করা যায়, ইনএকটিভ, একটিভ করা যায়? অডিট করে জানাবেন", then yes to the fix. Audited `hr_transfer_employee`, `hr_change_status`,
+  `ZonalStaff.tsx`, `ZonalFiles.tsx`, `Requests.tsx`, `EmployeeProfile.tsx`, and the live role permissions (read only).
+- **Found:** hub transfer works everywhere (14 on live). Active / inactive works in the database but had never been used on live: the two zonal managers hold
+  `hr.transfer.edit` and `hr.request.approve` but not `hr.employee.edit`, so they saw no button and an ID ACTIVE / ID INACTIVE request they marked done with
+  "সিস্টেমে প্রয়োগ" answered "no permission". Live has no HR manager or admin user, so only the Super Admin could do it.
+- **Migration `20261122000200_zonal_status_and_transfer_fixes.sql`:** new permission `hr.status.edit` (admin, head office manager, HR manager, zonal manager):
+  active ↔ inactive only, within scope. Resignation still needs `hr.employee.edit`; dismissal and taking a leaver back still need `hr.employee.approve`.
+  `hr_transfer_employee` refuses a plain transfer to the hub the person is already in (same post, same manager) — it only left an empty history row.
+- **Web:** the zonal staff page and the profile show the status button with `hr.status.edit`; the status choices follow the caller's rights (no "resigned" /
+  "terminated" for a zonal manager); someone who may approve can take leavers back from the bulk dialog; a transfer from the zonal page keeps the reporting
+  manager, like the other three places (it used to clear it). `roles.ts` / `accessCatalog.ts` know the new permission.
+- **Not changed:** an ID INACTIVE request of the kind "চাকরি ছেড়েছেন" / "বাদ" still cannot be applied by a zonal manager (owner agreed those stay with HR / admin);
+  an inactive person must be made active before a transfer; `supabase/apply-all-dev.sql` is older than the last several migrations and was not regenerated.
+- **Tests:** `99…_zonal_status.sql` (11 assertions; whole SQL suite passes on local PostgreSQL 16, also after merging the route load change), typecheck, build, smoke test pass
+  (run with `CHROME=/opt/pw-browsers/chromium`). The new buttons were not driven in a browser with a zonal login.
+- **Live:** migration applied on Supabase 22 Nov as `20261122122644 zonal_status_and_transfer_fixes` (owner said yes first). Checked after: both function
+  bodies equal the tested file by md5, anon can run neither, the four roles hold `hr.status.edit`, staff counts unchanged (144 active). The site gets the
+  buttons when the pull request is merged to `main`. Live also has a migration `20261121202903 dynamic_voucher` that is not in this repository.
+
 ## 2026-11-22 — রুট: জেলার কাভারেজ ম্যাপ (district coverage)
 - Owner: "নাটোর জেলার রুট প্লানিং করবো যেন প্রতিটি এলাকা কাভারেজ দেখা যায়, কোনগুলা আমাদের কাভারেজ নেই সেইটা দেখা যাবে"।
 - Page: রুট সেটিং → new tab **কাভারেজ** (`pages/zonal/RouteCoverage.tsx`). **No database change**: it reads `geo_upazilas` / `route_places` (already loaded for the
