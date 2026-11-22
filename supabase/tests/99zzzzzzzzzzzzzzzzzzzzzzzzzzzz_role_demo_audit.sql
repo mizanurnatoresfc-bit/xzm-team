@@ -14,7 +14,7 @@ insert into tests.ids select 'req1', public.hr_request_submit(
 select tests.logout();
 
 select tests.ok(exists (select 1 from public.notifications where profile_id = tests.id('zonal_a') and title like 'নতুন আবেদন:%'
-  and link = '/app/hr/requests?id=' || tests.id('req1')), 'the zonal manager of that zone is told about the new request at once');
+  and link = '/app/zonal/requests?id=' || tests.id('req1')), 'the zonal manager of that zone is told about the new request at once, with a link to the zonal inbox');
 select tests.ok(exists (select 1 from public.notifications where profile_id = tests.id('hr') and title like 'নতুন আবেদন:%'), 'HR (whole company) is told too');
 select tests.ok(not exists (select 1 from public.notifications where profile_id = tests.id('rider_login') and title like 'নতুন আবেদন:%'), 'the sender is not told about their own request');
 select tests.ok(not exists (select 1 from public.notifications where profile_id = tests.id('hub_b_mgr') and title like 'নতুন আবেদন:%'), 'a manager of another zone is not told');
