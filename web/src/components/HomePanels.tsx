@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { dutiesApi, hubApi } from '../lib/hub'
@@ -84,16 +84,26 @@ export function HubTodayPanel() {
   const v = d.data
   const SHEET: Record<string, [string, string]> = { open: ['খোলা', 'g'], submitted: ['যাচাইয়ের অপেক্ষায়', 'o'], correction: ['সংশোধন লাগবে', 'r'], approved: ['অনুমোদিত', 'b'] }
   const cur = hubs.data?.find(h => h.id === hub)
+  const pct = v && v.staff ? Math.round((v.present + v.late) * 100 / v.staff) : 0
   return <section className="panel hubtoday">
     <div className="da-bar"><h2 style={{ margin: 0 }}>{L('আজ আমার হাব', 'My hub today')}</h2>
       {(hubs.data?.length ?? 0) > 1 ? <select className="ht-pick" value={hub} onChange={e => pick(e.target.value)}>{hubs.data!.map(h => <option key={h.id} value={h.id}>{hubLabel(h)}</option>)}</select>
         : cur && <b className="small">{hubLabel(cur)}</b>}</div>
     {!v ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : <>
-      <div className="net-kpis">
+      {/* attendance at a glance: how much of the team is marked present, and what is still open */}
+      <div className="ht-att">
+        <Link to="/app/hub/attendance" className="ht-ring" style={{ '--p': pct } as CSSProperties} aria-label={L(`উপস্থিত ${n(pct)}%`, `${pct}% present`)}><span>{n(pct)}%</span></Link>
+        <div className="ht-att-t"><small>{L('আজকের হাজিরা', "Today's attendance")}</small>
+          <b>{n(v.present + v.late)} <i>/ {n(v.staff)} {L('জন', 'staff')}</i></b>
+          <div className="ht-tags">
+            <Link to="/app/hub/attendance" className="t-ok">{L('উপস্থিত', 'Present')} {n(v.present)}</Link>
+            <Link to="/app/hub/late" className="t-need">{L('দেরি', 'Late')} {n(v.late)}</Link>
+            {v.absent > 0 && <Link to="/app/hub/attendance" className="t-bad">{L('অনুপস্থিত / ছুটি', 'Absent / leave')} {n(v.absent)}</Link>}
+            {v.notMarked > 0 && <Link to="/app/hub/attendance" className="t-bad">{L('হাজিরা বাকি', 'Not marked')} {n(v.notMarked)}</Link>}
+          </div></div>
+      </div>
+      <div className="net-kpis two">
         <Link to="/app/hub/team" className="nk"><span className="nk-i b"><Icon name="users" size={20} /></span><b>{n(v.staff)}</b><small>{L('কর্মী', 'Staff')}</small></Link>
-        <Link to="/app/hub/attendance" className="nk"><span className="nk-i g"><Icon name="check" size={20} /></span><b>{n(v.present)}</b><small>{L('উপস্থিত', 'Present')}</small></Link>
-        <Link to="/app/hub/late" className="nk"><span className="nk-i o"><Icon name="clock" size={20} /></span><b>{n(v.late)}</b><small>{L('দেরি', 'Late')}</small></Link>
-        <Link to="/app/hub/attendance" className={`nk${v.notMarked ? ' warn' : ''}`}><span className="nk-i r"><Icon name="alert" size={20} /></span><b>{n(v.notMarked)}</b><small>{L('হাজিরা বাকি', 'Not marked')}</small></Link>
         <Link to="/app/hub/pickup" className="nk"><span className="nk-i p"><Icon name="box" size={20} /></span><b>{n(v.pickups)}</b><small>{L('আজ পিকআপ', 'Pickups')}</small></Link>
       </div>
       <Link to="/app/accounts/daily" className={`ht-sheet t-${v.sheet ? SHEET[v.sheet]?.[1] ?? 'g' : 'r'}`}><Icon name="ledger" size={18} />

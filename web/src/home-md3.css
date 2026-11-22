@@ -1,0 +1,100 @@
+/* ============ Home dashboard — Material 3 + modern SaaS mobile look (22 Nov 2026) ============
+   Only the home page (.home-dash). Loaded after theme.css, so it wins over the older home rules there.
+   Brand: dark green #137A46 on a light gray #F4F7F8 page, white cards, Hind Siliguri.
+   Status colours: good = green, broken / problem = red, needed / waiting = orange. */
+.home-dash{--font-body:"Hind Siliguri","Noto Sans Bengali","Inter",system-ui,sans-serif;--font-display:var(--font-body);
+  --md-shadow:0 1px 2px rgba(16,40,28,.05),0 4px 14px rgba(16,40,28,.05);--r-card:20px;--r-tile:16px;
+  --st-ok:var(--ok-fg);--st-ok-bg:var(--ok-bg);--st-bad:var(--bad-fg);--st-bad-bg:var(--bad-bg);--st-need:var(--warn-fg);--st-need-bg:var(--warn-bg);
+  font-family:var(--font-body);display:flex;flex-direction:column;gap:14px}
+.home-dash>*{margin-top:0!important;margin-bottom:0!important}
+.home-dash :is(button,input,select,textarea){font-family:inherit}
+/* light mode: the exact brand values (dark mode keeps the app's own dark tokens) */
+:root[data-theme="light"] .home-dash{--primary:#137A46;--primary-dark:#0E5E36;--primary-50:#DDF2E6;--canvas:#F4F7F8;--border:#E4EAE7;--text:#15211B;--muted:#5C6B64;
+  --st-ok:#11703B;--st-ok-bg:#E3F6EA;--st-bad:#B32626;--st-bad-bg:#FDEAEA;--st-need:#A85C00;--st-need-bg:#FFF1DC}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .home-dash{--primary:#137A46;--primary-dark:#0E5E36;--primary-50:#DDF2E6;--canvas:#F4F7F8;--border:#E4EAE7;--text:#15211B;--muted:#5C6B64;
+  --st-ok:#11703B;--st-ok-bg:#E3F6EA;--st-bad:#B32626;--st-bad-bg:#FDEAEA;--st-need:#A85C00;--st-need-bg:#FFF1DC}
+  :root:not([data-theme="dark"]) body:has(.home-dash){background:#F4F7F8}}
+:root[data-theme="light"] body:has(.home-dash){background:#F4F7F8}
+:root[data-theme="dark"] .home-dash{--md-shadow:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .home-dash{--md-shadow:none}}
+
+/* ---------- hero: greeting on a green field ---------- */
+.home-dash .greet{position:relative;overflow:hidden;align-items:flex-start;padding:20px 20px 22px;border-radius:26px!important;color:#fff;
+  background:linear-gradient(150deg,#178A50 0%,#137A46 45%,#0D5F36 100%)!important;box-shadow:0 10px 24px -12px rgba(19,122,70,.55)!important}
+.home-dash .greet::before,.home-dash .greet::after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+.home-dash .greet::before{width:230px;height:230px;right:-70px;top:-80px;background:rgba(255,255,255,.07)}
+.home-dash .greet::after{width:140px;height:140px;left:-40px;bottom:-70px;background:rgba(255,255,255,.06)}
+.home-dash .greet>*{position:relative;z-index:1}
+.home-dash .greet .g-main{min-width:0;flex:1}
+.home-dash .greet .g-day{font-size:.875rem;opacity:.9;font-weight:500}.home-dash .greet .g-day span{opacity:.8;font-weight:400}
+.home-dash .greet h2{font-size:1.5rem;font-weight:600;line-height:1.3;margin:2px 0 10px;color:#fff}
+.home-dash .greet .g-sub{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 12px 5px 9px;border-radius:999px;background:rgba(255,255,255,.16);font-size:.8438rem;font-weight:500;opacity:1}
+.home-dash .greet .g-sub span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-dash .greet .g-motto{margin-top:12px;font-size:.8125rem;font-weight:500;letter-spacing:0;opacity:.8}
+.home-dash .greet .g-badge{flex:none;border-radius:16px;padding:8px 12px;background:rgba(255,255,255,.16);font-size:.8125rem}
+.home-dash .greet .g-badge b{font-size:1.375rem;line-height:1.2}
+
+/* ---------- cards: white, round, a soft shadow instead of an outline ---------- */
+.home-dash .panel,.home-dash .first-steps,.home-dash .ri-home{border:0!important;border-radius:var(--r-card)!important;box-shadow:var(--md-shadow)!important;padding:16px}
+.home-dash .panel h2,.home-dash .da-bar h2,.home-dash .da-bar strong{font-size:1.0625rem!important;font-weight:600}
+.home-dash .da-bar>a.small,.home-dash .da-bar>button.link.small{font-weight:600;text-decoration:none}
+/* a panel that is only number tiles: the title sits on the page and each tile is its own card */
+.home-dash .panel:has(>.da-stats),.home-dash .panel.hubtoday{background:none!important;box-shadow:none!important;padding:4px 0 0}
+.home-dash .panel:has(>.da-stats)>.da-bar,.home-dash .panel.hubtoday>.da-bar{padding:0 4px}
+
+/* ---------- number tiles ---------- */
+.home-dash .da-stats,.home-dash .net-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;margin-bottom:0}
+@media (min-width:700px){.home-dash .da-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+.home-dash .da-stats .da-stat,.home-dash .net-kpis .nk{display:flex!important;flex-direction:column!important;flex-wrap:nowrap;align-items:flex-start!important;gap:0;padding:14px 16px!important;
+  background:var(--surface)!important;border:0!important;border-radius:var(--r-card)!important;box-shadow:var(--md-shadow)!important}
+.home-dash .da-stats .da-stat .ri,.home-dash .net-kpis .nk .nk-i{display:grid!important;place-items:center;width:36px!important;height:36px!important;border-radius:12px;margin:0 0 8px!important;
+  background:color-mix(in srgb,var(--tone) 13%,var(--surface))!important;color:var(--tone)!important;box-shadow:none!important}
+.home-dash .net-kpis .nk{--tone:var(--tone-b)}.home-dash .net-kpis .nk:nth-child(2){--tone:var(--tone-p)}
+.home-dash .da-stats .da-stat .val,.home-dash .net-kpis .nk b{order:1;font-size:1.4375rem!important;font-weight:700!important;line-height:1.25;color:var(--text)!important}
+.home-dash .da-stats .da-stat.txt .val{font-size:1.0625rem!important}
+.home-dash .da-stats .da-stat.warn .val{color:var(--st-need)!important}.home-dash .da-stats .da-stat.bad .val{color:var(--st-bad)!important}.home-dash .da-stats .da-stat.ok .val{color:var(--st-ok)!important}
+.home-dash .da-stats .da-stat .lbl,.home-dash .net-kpis .nk small{order:2;flex-basis:auto;font-size:.8438rem!important;font-weight:400;color:var(--muted)!important}
+.home-dash .da-stats .da-stat.warn{--tone:var(--tone-o)}.home-dash .da-stats .da-stat.bad{--tone:var(--tone-r)}.home-dash .da-stats .da-stat.ok{--tone:var(--tone-g)}
+.home-dash a.da-stat .lbl{order:2}.home-dash a.da-stat .val{order:1}
+
+/* ---------- hub today: attendance ring ---------- */
+.home-dash .ht-att{display:flex;align-items:center;gap:16px;padding:16px 18px;margin:0 0 12px;border-radius:var(--r-card);background:var(--surface);box-shadow:var(--md-shadow)}
+.home-dash .ht-ring{flex:none;width:68px;height:68px;border-radius:50%;display:grid;place-items:center;text-decoration:none;
+  background:conic-gradient(var(--primary) calc(var(--p,0)*1%),color-mix(in srgb,var(--primary) 14%,var(--surface)) 0)}
+.home-dash .ht-ring span{width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--primary);font-weight:700;font-size:.9375rem}
+.home-dash .ht-att-t{min-width:0;flex:1}
+.home-dash .ht-att-t small{display:block;font-size:.8438rem;color:var(--muted)}
+.home-dash .ht-att-t b{display:block;font-size:1.5rem;font-weight:700;line-height:1.25}
+.home-dash .ht-att-t b i{font-style:normal;font-size:.9375rem;font-weight:500;color:var(--muted)}
+.home-dash .ht-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.home-dash .ht-tags a{display:inline-flex;align-items:center;min-height:28px;padding:2px 10px;border-radius:999px;font-size:.8125rem;font-weight:600;text-decoration:none;white-space:nowrap}
+.home-dash .t-ok{background:var(--st-ok-bg);color:var(--st-ok)}.home-dash .t-need{background:var(--st-need-bg);color:var(--st-need)}.home-dash .t-bad{background:var(--st-bad-bg);color:var(--st-bad)}
+.home-dash .ht-sheet{margin:12px 0;border-radius:var(--r-tile);font-weight:500}
+.home-dash .ht-sheet.t-g{background:var(--st-ok-bg);color:var(--st-ok)}.home-dash .ht-sheet.t-o{background:var(--st-need-bg);color:var(--st-need)}.home-dash .ht-sheet.t-r{background:var(--st-bad-bg);color:var(--st-bad)}
+
+/* ---------- shortcuts: a tonal square with the name under it ---------- */
+.home-dash .myday-acts{gap:6px}
+.home-dash .myday-acts .ma{background:none!important;border:0!important;padding:4px 2px!important;gap:6px;font-weight:500;font-size:.8125rem;line-height:1.3;color:var(--text)!important}
+.home-dash .myday-acts .ma svg{box-sizing:content-box;width:24px;height:24px;padding:16px;border-radius:18px;background:var(--primary-50);color:var(--primary)}
+.home-dash .wf-pm{gap:10px}
+.home-dash .wf-pm-t{border:0;border-radius:var(--r-card);box-shadow:var(--md-shadow)}
+.home-dash .wf-pm-i{width:44px;height:44px;border-radius:14px}
+.home-dash .wf-pm-l{font-weight:500}
+
+/* ---------- my day ---------- */
+.home-dash .myday-att{border-radius:var(--r-tile)!important}
+.home-dash .myday-att.t-g{background:var(--st-ok-bg);color:var(--st-ok)}.home-dash .myday-att.t-o,.home-dash .myday-att.t-warn{background:var(--st-need-bg);color:var(--st-need)}.home-dash .myday-att.t-r{background:var(--st-bad-bg);color:var(--st-bad)}
+.home-dash .myday-box{border-radius:var(--r-tile)!important}
+
+/* ---------- আমি / হাব / জোন: one pill ---------- */
+.home-dash .view-switch{border:0!important;border-radius:999px!important;padding:4px;background:color-mix(in srgb,var(--primary) 9%,var(--surface))}
+.home-dash .view-switch button{border-radius:999px!important;font-weight:600;min-height:44px}
+.home-dash .view-switch button.on{box-shadow:0 2px 8px color-mix(in srgb,var(--primary) 35%,transparent)!important}
+
+/* ---------- things waiting on me: tonal, no outline ---------- */
+.home-dash .alert-card{border:0!important;border-radius:18px!important;padding:12px 14px;font-weight:600}
+.home-dash .alert-card.warn{background:var(--st-need-bg);color:var(--st-need)}.home-dash .alert-card.warn .ai{background:color-mix(in srgb,var(--st-need) 16%,transparent);color:var(--st-need)}
+.home-dash .alert-card.bad{background:var(--st-bad-bg);color:var(--st-bad)}.home-dash .alert-card.bad .ai{background:color-mix(in srgb,var(--st-bad) 14%,transparent);color:var(--st-bad)}
+.home-dash .wf-alert{border:0!important;border-radius:18px!important;box-shadow:var(--md-shadow)!important}
+.home-dash .dash-edit{border-radius:999px!important}
+.home-dash .ri-home .qi{border-radius:14px}

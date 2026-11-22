@@ -58,8 +58,8 @@ export function Dashboard() {
     {home.loading && !d ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : null}
 
     <div className="greet">
-      <div style={{ minWidth: 0 }}><div className="g-day">{day}</div><h2>{hello}, {String(name).split(' ').slice(0, 2).join(' ')}</h2>
-        <div className="g-sub">{where || L('আজকের কাজ এক নজরে', 'Today at a glance')}</div>
+      <div className="g-main"><div className="g-day">{hello} 👋 <span>· {day}</span></div><h2>{String(name).split(' ').slice(0, 2).join(' ')}</h2>
+        <div className="g-sub"><Icon name="hub" size={15} /><span>{where || L('আজকের কাজ এক নজরে', 'Today at a glance')}</span></div>
         <div className="g-motto">{L('কম কাজ · বেশি অটোমেশন · ভালো ব্যবস্থাপনা', 'Less work · More automation · Better management')}</div></div>
       {/* duties only — the waiting attendance and approvals have their own cards below, so no "0 open" next to them */}
       {d?.my_work && d.my_work.tasks_open > 0 && <div className="g-badge"><b>{n(d.my_work.tasks_open)}</b>{L('চলমান দায়িত্ব', 'open duties')}</div>}
