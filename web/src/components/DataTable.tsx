@@ -57,6 +57,15 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   const save = (patch: Saved) => setSavedS(prev => { const next = { ...prev, ...patch }; writeSaved(id, next); return next })
   const [q, setQ] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  // Phone: the three views and the mark / print / file buttons each fold into one button that opens a small menu.
+  const [menu, setMenu] = useState<'view' | 'file' | null>(null)
+  useEffect(() => {
+    if (!menu) return
+    const away = (e: Event) => { if (!(e.target as Element | null)?.closest?.('.tool-menu')) setMenu(null) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(null) }
+    document.addEventListener('pointerdown', away); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('pointerdown', away); document.removeEventListener('keydown', esc) }
+  }, [menu])
   const [page, setPage] = useState(0)
   const source = useMemo(() => rows ?? [], [rows])
   const exp = allCols.filter(c => !c.noExport)
@@ -146,18 +155,24 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
       <span className="grow" />
       {filterable.length > 0 && <button type="button" className={`secondary sm dv-fbtn${showFilters || activeFilters ? ' on' : ''}`} aria-expanded={showFilters} onClick={() => setShowFilters(v => !v)}>
         <Icon name="search" size={14} />{L('ফিল্টার', 'Filter')}{activeFilters ? ` (${n(activeFilters)})` : ''}</button>}
-      {views.length > 1 && <div className="tool-group" role="group" aria-label={L('কীভাবে দেখবেন', 'View')}>
-        {views.map(v => <button key={v} type="button" className={`tb${view === v ? ' on' : ''}`} aria-pressed={view === v} title={viewName[v]} aria-label={viewName[v]} onClick={() => save({ view: v })}>
+      {views.length > 1 && <div className={`tool-menu${menu === 'view' ? ' open' : ''}`}>
+        <button type="button" className="secondary sm tool-menu-btn" aria-expanded={menu === 'view'} onClick={() => setMenu(m => m === 'view' ? null : 'view')}>
+          <Icon name={VIEW_ICON[view]} size={16} />{L('ভিউ', 'View')}<Icon name="chev" size={14} /></button>
+        <div className="tool-group" role="group" aria-label={L('কীভাবে দেখবেন', 'View')}>
+        {views.map(v => <button key={v} type="button" className={`tb${view === v ? ' on' : ''}`} aria-pressed={view === v} title={viewName[v]} aria-label={viewName[v]} onClick={() => { save({ view: v }); setMenu(null) }}>
           <Icon name={VIEW_ICON[v]} size={16} /><span className="tl">{viewName[v]}</span></button>)}
-      </div>}
-      <div className="tool-group" role="group" aria-label={L('তালিকার কাজ', 'List tools')}>
+      </div></div>}
+      <div className={`tool-menu${menu === 'file' ? ' open' : ''}`}>
+        <button type="button" className={`secondary sm tool-menu-btn${mk.size ? ' on' : ''}`} aria-expanded={menu === 'file'} onClick={() => setMenu(m => m === 'file' ? null : 'file')}>
+          <Icon name={canPrint || canExport ? 'print' : 'checkall'} size={16} />{canPrint || canExport ? L('প্রিন্ট ও ফাইল', 'Print & file') : L('চিহ্নিত', 'Mark')}<Icon name="chev" size={14} /></button>
+      <div className="tool-group" role="group" aria-label={L('তালিকার কাজ', 'List tools')} onClick={() => setMenu(null)}>
         <button type="button" className={`tb${mk.size ? ' on' : ''}`} onClick={() => setMarked(mk.size ? new Set() : new Set(list.map(rowKey)))}
           title={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')} aria-label={mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')}>
-          <Icon name={mk.size ? 'uncheck' : 'checkall'} size={16} /><span className="tl">{mk.size ? L('তুলুন', 'Unmark') : L('সব', 'All')}</span></button>
+          <Icon name={mk.size ? 'uncheck' : 'checkall'} size={16} /><span className="tl">{mk.size ? L('তুলুন', 'Unmark') : L('সব', 'All')}</span><span className="tl-full">{mk.size ? L('চিহ্ন তুলুন', 'Unmark all') : L('সব চিহ্নিত', 'Mark all')}</span></button>
         {canPrint && <button type="button" className="tb" onClick={() => void out('print', () => print(false))} disabled={!list.length} title={L('প্রিন্ট', 'Print')} aria-label={L('প্রিন্ট', 'Print')}><Icon name="print" size={16} /><span className="tl">{L('প্রিন্ট', 'Print')}</span></button>}
         {canExport && <button type="button" className="tb xls" onClick={() => void out('excel', excel)} disabled={!list.length} title="Excel" aria-label="Excel"><Icon name="xls" size={16} /><span className="tl">Excel</span></button>}
         {canExport && <button type="button" className="tb pdf" onClick={() => void out('pdf', () => print(true))} disabled={!list.length} title="PDF" aria-label="PDF"><Icon name="pdf" size={16} /><span className="tl">PDF</span></button>}
-      </div>
+      </div></div>
     </div>
     {bulk && mk.size > 0 && <div className="dv-bulk no-print" role="region" aria-label={L('চিহ্নিত সারির কাজ', 'Actions for marked rows')}>
       <strong>{L(`${n(mk.size)}টি চিহ্নিত`, `${mk.size} marked`)}</strong>{bulk(list.filter(r => mk.has(rowKey(r))), () => setMarked(new Set()))}</div>}

@@ -593,13 +593,18 @@ try {
     check(two !== one, `${size}: a second value in the same filter widens it (${two})`)
     await page.keyboard.press('Escape')
     await page.locator('.dv-filters button.link').click()
-    await page.locator('.list-tools [aria-pressed]').nth(1).click(); await page.waitForSelector('.dv-card')
+    // on a phone the views and the print / file buttons each sit behind one button
+    const tool = async (i, sel) => { const b = page.locator('.list-tools .tool-menu-btn').nth(i); if (await b.isVisible()) await b.click(); await sel.click() }
+    if (size === 'phone') { check(await page.locator('.list-tools .tool-menu-btn:visible').count() === 2 && await page.locator('.list-tools .tb:visible').count() === 0, `${size}: the list tools fold into two buttons`)
+      await page.locator('.list-tools .tool-menu-btn').nth(1).click()
+      check(await page.locator('.list-tools .tool-menu.open .tb:visible').count() >= 1, `${size}: "print & file" opens mark, print and the files`); await page.keyboard.press('Escape') }
+    await tool(0, page.locator('.list-tools [aria-pressed]').nth(1)); await page.waitForSelector('.dv-card')
     check(await page.locator('.dv-card').count() === 50, `${size}: card view shows the same rows`); await fits('list (card view)')
-    await page.locator('.list-tools [aria-pressed]').nth(2).click(); await page.waitForSelector('.dv-list li')
+    await tool(0, page.locator('.list-tools [aria-pressed]').nth(2)); await page.waitForSelector('.dv-list li')
     check(await page.locator('.dv-list li').count() === 50, `${size}: list view shows the same rows`); await fits('list (list view)')
     await page.reload(); await page.locator('.emp-tabs button').nth(1).click(); await page.waitForSelector('.dv-list li, .da-table tbody tr')
     check(await page.locator('.dv-list li').count() === 50, `${size}: the chosen view is remembered after reload`)
-    await page.locator('.list-tools [aria-pressed]').nth(0).click()
+    await tool(0, page.locator('.list-tools [aria-pressed]').nth(0))
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-list.png` })
 
     // new issue from a label picture: choose the picture, the form keeps working when the ID cannot be read, the issue is created with the picture
@@ -799,6 +804,7 @@ try {
         `${size}: a removed residence is listed and restored`)
       // export / print: logged in the database first, and shown only to roles that may
       officeLogs.length = 0
+      { const b = page.locator('.list-tools .tool-menu-btn').last(); if (await b.isVisible()) await b.click() }
       await page.locator('.list-tools .tb.xls').first().click(); await page.waitForTimeout(400)
       check(officeLogs.length === 1 && officeLogs[0].p_report === 'residential-places' && officeLogs[0].p_format === 'excel' && officeLogs[0].p_rows === 2,
         `${size}: an Excel export of the residential list is written to the audit log first`)
@@ -922,7 +928,7 @@ try {
     // arranging a role's home page: add, remove, put in order — and the home page follows the saved order
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('[data-arrange=hub_manager]')
     await page.locator('[data-arrange=hub_manager]').click(); await page.waitForSelector('.da-modal [data-list=on] .nv-row')
-    check(await page.locator('.da-modal [data-list=on] .nv-row').count() === 2 && await page.locator('.da-modal [data-list=off] .nv-row').count() === 12, `${size}: arranging shows what is on the home page and what can be added`)
+    check(await page.locator('.da-modal [data-list=on] .nv-row').count() === 2 && await page.locator('.da-modal [data-list=off] .nv-row').count() === 13, `${size}: arranging shows what is on the home page and what can be added`)
     await page.locator('.da-modal [aria-label="quick_links up"]').click()
     await page.locator('.da-modal [aria-label="hub_today add"]').click()
     await page.locator('.da-modal [aria-label="my_work remove"]').click()
