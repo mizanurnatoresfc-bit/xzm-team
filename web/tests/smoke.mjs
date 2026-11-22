@@ -92,12 +92,12 @@ try {
       if (r.request().url().includes('/auth/v1/recover')) { recover.push({ url: r.request().url(), body: r.request().postDataJSON() }); return r.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: '{}' }) }
       return r.abort()
     })
-    await lp.getByRole('button', { name: 'পাসওয়ার্ড ভুলে গেছি' }).click()
-    await lp.locator('.login-card input').fill('1001'); await lp.getByRole('button', { name: 'লিংক পাঠান' }).click()
-    check((await lp.locator('.login-card .da-error').innerText().catch(() => '')).includes('ম্যানেজার') && recover.length === 0, `${size}: forgot password with an Employee ID says whom to ask, and sends nothing`)
-    await lp.locator('.login-card input').fill('Owner@Example.com'); await lp.getByRole('button', { name: 'লিংক পাঠান' }).click()
-    await lp.waitForSelector('.login-card .notice', { timeout: 8000 }).catch(() => {})
-    check(recover.at(-1)?.body?.email === 'owner@example.com' && decodeURIComponent(recover.at(-1)?.url ?? '').includes('/staff/login') && await lp.locator('.login-card .notice').count() === 1, `${size}: forgot password sends a link to the email on the account`)
+    await lp.getByRole('button', { name: 'পাসওয়ার্ড ভুলে গেছেন?' }).click()
+    await lp.locator('.lg-card input').fill('1001'); await lp.getByRole('button', { name: 'লিংক পাঠান' }).click()
+    check((await lp.locator('.lg-card .da-error').innerText().catch(() => '')).includes('ম্যানেজার') && recover.length === 0, `${size}: forgot password with an Employee ID says whom to ask, and sends nothing`)
+    await lp.locator('.lg-card input').fill('Owner@Example.com'); await lp.getByRole('button', { name: 'লিংক পাঠান' }).click()
+    await lp.waitForSelector('.lg-card .notice', { timeout: 8000 }).catch(() => {})
+    check(recover.at(-1)?.body?.email === 'owner@example.com' && decodeURIComponent(recover.at(-1)?.url ?? '').includes('/staff/login') && await lp.locator('.lg-card .notice').count() === 1, `${size}: forgot password sends a link to the email on the account`)
     if (process.env.SHOTS) await lp.screenshot({ path: `${process.env.SHOTS}/${size}-forgot.png` })
     await anon.close()
 
