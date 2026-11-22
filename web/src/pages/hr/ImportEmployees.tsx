@@ -118,7 +118,7 @@ export function ImportEmployees() {
     {batchId ? <BatchView id={batchId} onClose={() => { setBatchId(null); void batches.reload() }} toast={toast} /> : <>
       <section className="panel">
         <h2>{L('১. ফাইল বেছে নিন', '1. Choose the file')}</h2>
-        <input type="file" accept=".xlsx,.csv" onChange={e => void onFile(e.target.files?.[0])} />
+        <input type="file" aria-label="Excel বা CSV ফাইল" accept=".xlsx,.csv" onChange={e => void onFile(e.target.files?.[0])} />
         <p className="muted small">{L('.xlsx বা .csv। প্রথম শিট পড়া হবে। শিরোনামের সারি নিজে খুঁজে নেয় — দরকার হলে বদলান।', '.xlsx or .csv. The first sheet is read. The header row is detected — change it if needed.')}</p>
       </section>
 

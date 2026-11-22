@@ -77,7 +77,7 @@ function HubsDay({ zone }: { zone: string }) {
   return <>{node}
     <div className="hop-date no-print">
       <button type="button" className="secondary" onClick={() => setDate(shiftDay(date, -1))} aria-label={L('আগের দিন', 'Previous day')}>‹</button>
-      <input type="date" value={date} max={today} onChange={e => e.target.value && setDate(e.target.value)} />
+      <input type="date" aria-label={L('তারিখ', 'Date')} value={date} max={today} onChange={e => e.target.value && setDate(e.target.value)} />
       <button type="button" className="secondary" disabled={date >= today} onClick={() => setDate(shiftDay(date, 1))} aria-label={L('পরের দিন', 'Next day')}>›</button>
       {date !== today && <button type="button" className="secondary sm" onClick={() => setDate(today)}>{L('আজ', 'Today')}</button>}
       {q.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}

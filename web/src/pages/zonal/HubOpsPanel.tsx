@@ -149,7 +149,7 @@ export function HubOpsPanel() {
     {node}
     <div className="hop-date no-print">
       <button type="button" className="secondary" onClick={() => goDate(shiftDay(date, -1))} aria-label={L('আগের দিন', 'Previous day')}>‹</button>
-      <input type="date" value={date} max={p?.today ?? dhakaToday()} onChange={e => e.target.value && goDate(e.target.value)} />
+      <input type="date" aria-label={L('তারিখ', 'Date')} value={date} max={p?.today ?? dhakaToday()} onChange={e => e.target.value && goDate(e.target.value)} />
       <button type="button" className="secondary" disabled={date >= (p?.today ?? dhakaToday())} onClick={() => goDate(shiftDay(date, 1))} aria-label={L('পরের দিন', 'Next day')}>›</button>
       {date !== (p?.today ?? dhakaToday()) && <button type="button" className="secondary sm" onClick={() => goDate(p?.today ?? dhakaToday())}>{L('আজ', 'Today')}</button>}
       {zoneHubs.length > 1 && <select value={hubId} onChange={e => goHub(e.target.value)} aria-label={L('হাব', 'Hub')}>

@@ -3,7 +3,7 @@
 .hr-emp-stat:after{content:"";position:absolute;right:-20px;bottom:-30px;width:88px;height:88px;border-radius:50%;background:var(--stat-tint,rgba(59,130,246,.10))}
 .hr-emp-stat small{display:block;color:var(--muted,#737373);font-size:12px;font-weight:650}
 .hr-emp-stat strong{display:block;margin-top:8px;font-size:clamp(24px,3vw,31px);line-height:1.2;font-variant-numeric:tabular-nums}
-.hr-emp-stat span{display:block;margin-top:5px;color:var(--muted,#737373);font-size:11px}
+.hr-emp-stat span{display:block;margin-top:5px;color:var(--muted,#737373);font-size:12px}
 .hr-emp-stat.blue{--stat-tint:rgba(59,130,246,.13)}.hr-emp-stat.green{--stat-tint:rgba(34,197,94,.13)}.hr-emp-stat.amber{--stat-tint:rgba(245,158,11,.14)}.hr-emp-stat.gray{--stat-tint:rgba(148,163,184,.16)}
 .hr-emp-board{overflow:hidden;border-radius:18px}
 .hr-emp-board .eb-top{padding:16px 16px 10px}
@@ -19,3 +19,6 @@
 .hr-emp-clear{border:0;background:transparent;color:var(--accent,#2563eb);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:7px 9px;border-radius:8px}
 .hr-emp-clear:hover{background:rgba(59,130,246,.08)}
 @media(max-width:760px){.hr-emp-list-heading{padding:13px 12px 0;align-items:flex-start}}
+/* the search box is the rounded bar itself: the input inside has no second border */
+.hr-emp-board .emp-search input[type=search]{--f-bc:transparent;--f-bg:transparent;--f-fill-hover:transparent;box-shadow:none!important;background-color:transparent!important}
+.hr-emp-board .emp-search:focus-within{border-color:var(--primary);box-shadow:0 0 0 4px var(--f-glow)}

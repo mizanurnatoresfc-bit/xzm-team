@@ -176,8 +176,8 @@ export function Hubs() {
       <section className="panel">
         <div className="hd-filters">
           <input placeholder="খুঁজুন: নাম, #কোড, ফোন…" value={q} onChange={e => setQ(e.target.value)} />
-          <select value={region} onChange={e => { setRegion(e.target.value); setArea('') }}><option value="">সব রিজিওন</option>{d.regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
-          <select value={area} onChange={e => setArea(e.target.value)}><option value="">সব এরিয়া</option>{d.zones.filter(z => !region || z.region_id === region).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select>
+          <select aria-label="রিজিওন" value={region} onChange={e => { setRegion(e.target.value); setArea('') }}><option value="">সব রিজিওন</option>{d.regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>
+          <select aria-label="এরিয়া" value={area} onChange={e => setArea(e.target.value)}><option value="">সব এরিয়া</option>{d.zones.filter(z => !region || z.region_id === region).map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select>
           <label className={`chip-toggle${showArch ? ' on' : ''}`}><input type="checkbox" checked={showArch} onChange={e => setShowArch(e.target.checked)} /> আর্কাইভ</label>
         </div>
         <DataTable title="হাব তালিকা" file="hubs" rows={rows} rowKey={h => h.id} onRowClick={h => { setSel(h.id); setDetail(h) }}
