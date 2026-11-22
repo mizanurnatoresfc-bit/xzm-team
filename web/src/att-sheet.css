@@ -36,3 +36,6 @@ button.wm-chip.on.bad{background:var(--bad-bg);color:var(--bad-fg);border-color:
   .wm-tbl.as-pos tfoot{display:block;border-top:2px solid var(--border)}
   .wm-tbl.as-pos th.pri{display:block;position:static;min-width:0;padding:0 0 6px;border:0;box-shadow:none;text-align:left;background:transparent;font-weight:700}
 }
+.as-self{padding:10px 12px;border-radius:12px;background:var(--warn-bg);color:var(--warn-fg);display:grid;gap:8px}
+.as-self p{margin:0;display:flex;gap:6px;align-items:flex-start}
+.as-self .as-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}

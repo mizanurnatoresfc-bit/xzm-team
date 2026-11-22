@@ -48,7 +48,8 @@ export function AttendanceDays({ hub }: { hub: { id: string; name: string; code:
   const differ = filled.filter(r => num(d[r.employee_id].on) !== num(d[r.employee_id].reg))
   const saved = rows.filter(r => r.online_days !== null).length
   const bad = useMemo(() => rows.find(r => { const x = d[r.employee_id]; if (!x) return false; const a = num(x.on), b = num(x.reg)
-    return (a !== null && (!Number.isInteger(a) || a < 0 || a > days)) || (b !== null && (!Number.isInteger(b) || b < 0 || b > days)) || ((a === null) !== (b === null)) }), [rows, d, days])
+    return (a !== null && (!Number.isInteger(a) || a < 0 || a > days)) || (b !== null && (!Number.isInteger(b) || b < 0 || b > days)) || ((a === null) !== (b === null) && !(b === null && r.online_days === null && x.on === String(r.site_days))) }), [rows, d, days])
+  // (an "online" box that still holds the site's own count, with the register box empty, is a person not done yet — the others can be saved first)
 
   async function save() {
     setErr('')

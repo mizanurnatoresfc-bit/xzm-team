@@ -23,14 +23,16 @@ export type SelfMark = { id: string; kind: 'present' | 'absent'; note: string | 
   applied_on_site: boolean | null; site_applied_on: IsoDate | null; site_ref: string | null; application_no: string | null }
 export type Explanation = { id: string; reason: ExplainReason; asked_at: string; reply: string | null; replied_at: string | null }
 export type SheetPerson = { employee_id: string; code: string | null; name: string; position: string | null; position_code: string | null; has_login: boolean
-  mark: SelfMark | null; saved: boolean; value: LineValue; record_status: string | null; explanations: Explanation[] }
+  mark: SelfMark | null; saved: boolean; value: LineValue; record_status: string | null; explanations: Explanation[]
+  /** the submitter's own line: not on the register until the zonal manager makes it final */
+  line_id?: string | null; self_pending?: boolean; confirmed_at?: string | null }
 export type PositionCount = { position: string; total: number; not_given: number; present: number; late: number; absent: number; unauthorized: number; off: number; blank: number }
 export type SheetCheck = { profile_id: string; name: string | null; sent_at: string; ok_at: string | null }
 export type DaySheet = {
   hub: { id: string; name: string | null }; date: IsoDate; today: IsoDate
   sheet: null | { id: string; status: 'draft' | 'submitted'; submitted_at: string | null; submitted_by_name: string | null
     unlocked_at: string | null; unlock_note: string | null; sent_at: string | null }
-  can: { edit: boolean | null; unlock: boolean | null; send: boolean | null }
+  can: { edit: boolean | null; unlock: boolean | null; send: boolean | null; confirm_self?: boolean | null }
   my_check: null | { sent_at: string; ok_at: string | null }
   people: SheetPerson[]; by_position: PositionCount[]; checks: SheetCheck[]
 }
@@ -65,6 +67,9 @@ export const att = {
   save: (hub: string, date: IsoDate, lines: LineInput[]) => rpc<string>('att_sheet_save', { p_hub: hub, p_date: date, p_lines: lines }),
   submit: (hub: string, date: IsoDate, lines: LineInput[]) => rpc<{ sheet_id: string; lines: number; asked: number }>('att_sheet_submit', { p_hub: hub, p_date: date, p_lines: lines }),
   unlock: (sheet: string, note: string) => rpc<void>('att_sheet_unlock', { p_sheet: sheet, p_note: note }),
+  /** zonal manager: make a manager's own line final (the status may be corrected first) */
+  confirmSelf: (line: string, status: FinalStatus, lateTime?: string | null) =>
+    rpc<{ line_id: string; final_status: FinalStatus }>('att_sheet_confirm_self', { p_line: line, p_status: status, p_late_time: lateTime || null }),
   send: (sheet: string) => rpc<number>('att_sheet_send', { p_sheet: sheet }),
   checkOk: (sheet: string) => rpc<void>('att_sheet_check_ok', { p_sheet: sheet }),
   mine: (days = 62) => rpc<MyExplanation[]>('att_my_explanations', { p_days: days }),

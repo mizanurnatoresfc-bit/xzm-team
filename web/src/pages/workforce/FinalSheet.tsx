@@ -151,7 +151,8 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
         </div>
 
         {!people.length ? <Empty>{L('এই হাবে কোনো সক্রিয় কর্মী নেই।', 'No active staff in this hub.')}</Empty> :
-          <ul className="as-list">{shown.map(p => <PersonLine key={p.employee_id} p={p} v={val(p)} edit={edit} problem={problems[p.employee_id]} onChange={patch => set(p.employee_id, patch)} />)}</ul>}
+          <ul className="as-list">{shown.map(p => <PersonLine key={p.employee_id} p={p} v={val(p)} edit={edit} problem={problems[p.employee_id]} onChange={patch => set(p.employee_id, patch)}
+            confirm={d.can.confirm_self && p.self_pending && p.line_id ? (s, t) => run(() => att.confirmSelf(p.line_id!, s, t), L(`${p.name} — হাজিরা চূড়ান্ত হয়েছে`, `${p.name} — made final`)) : undefined} busy={busy} />)}</ul>}
 
         {err ? <p className="da-error" role="alert">{err}</p> : null}
 
@@ -208,8 +209,11 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
   </>
 }
 
-function PersonLine({ p, v, edit, problem, onChange }: { p: SheetPerson; v: LineValue; edit: boolean; problem: string | null; onChange: (patch: Partial<LineValue>) => void }) {
+function PersonLine({ p, v, edit, problem, onChange, confirm, busy }: { p: SheetPerson; v: LineValue; edit: boolean; problem: string | null; onChange: (patch: Partial<LineValue>) => void
+  confirm?: (status: FinalStatus, lateTime: string | null) => Promise<void>; busy?: boolean }) {
   const { L, lang } = usePrefs()
+  const [cs, setCs] = useState<FinalStatus | null>(null); const [ct, setCt] = useState('')
+  const cStatus = cs ?? v.final_status ?? 'present'; const cTime = ct || v.late_time || ''
   const yesNo = (cur: boolean | null, on: (b: boolean) => void, label: string) => <span className="as-yn" role="group" aria-label={label}>
     <button type="button" className={`wm-chip${cur === true ? ' on ok' : ''}`} aria-pressed={cur === true} disabled={!edit} onClick={() => on(true)}>{L('হ্যাঁ', 'Yes')}</button>
     <button type="button" className={`wm-chip${cur === false ? ' on bad' : ''}`} aria-pressed={cur === false} disabled={!edit} onClick={() => on(false)}>{L('না', 'No')}</button></span>
@@ -251,6 +255,19 @@ function PersonLine({ p, v, edit, problem, onChange }: { p: SheetPerson; v: Line
     {p.explanations.length > 0 && <div className="as-expl">{p.explanations.map(x => <p key={x.id}>
       <Badge tone={x.reply ? 'info' : 'warn'}>{L(REASON_META[x.reason].bn, REASON_META[x.reason].en)}</Badge>{' '}
       {x.reply ? <><b>{L('জবাব:', 'Reply:')}</b> {x.reply} <small className="muted">({fmtStamp(x.replied_at, lang)})</small></> : <span className="muted">{L('ব্যাখ্যা চাওয়া হয়েছে — জবাবের অপেক্ষায়', 'Asked — waiting for the reply')}</span>}</p>)}</div>}
+
+    {p.self_pending && <div className="as-self" role="status">
+      <p><Icon name="shield" size={14} /> {confirm
+        ? L('এটা ম্যানেজারের নিজের হাজিরা — খাতায় ওঠেনি। দেখে, দরকার হলে বদলে, চূড়ান্ত করুন।', 'This is the manager’s own attendance — not on the register yet. Check it, correct it if needed, and make it final.')
+        : L('নিজের হাজিরা নিজে চূড়ান্ত করা যায় না — জোনাল ম্যানেজার চূড়ান্ত করলে খাতায় উঠবে।', 'Your own attendance is made final by the zonal manager; it goes on the register then.')}</p>
+      {confirm && <div className="as-row">
+        <select value={cStatus} aria-label={L('হাজিরা', 'Attendance')} onChange={e => setCs(e.target.value as FinalStatus)}>
+          {FINAL_OPTIONS.map(o => <option key={o.key} value={o.key}>{L(o.bn, o.en)}</option>)}</select>
+        {cStatus === 'late' && <input type="time" value={cTime} aria-label={L('আসার সময়', 'Arrival time')} onChange={e => setCt(e.target.value)} />}
+        <button type="button" disabled={busy || (cStatus === 'late' && !cTime)} onClick={() => void confirm(cStatus, cStatus === 'late' ? cTime : null)}>
+          <Icon name="check" size={16} />{L('চূড়ান্ত করুন', 'Make final')}</button></div>}
+    </div>}
+    {!p.self_pending && p.confirmed_at && <p className="muted small">{L(`জোনাল ম্যানেজার চূড়ান্ত করেছেন · ${fmtStamp(p.confirmed_at, lang)}`, `Made final by the zonal manager · ${fmtStamp(p.confirmed_at, lang)}`)}</p>}
 
     {problem && edit && <p className="as-prob"><Icon name="alert" size={14} /> {problem}</p>}
   </li>

@@ -1002,8 +1002,14 @@ make-android.bat       Android অ্যাপ (APK) বানায়
     before the expense and voucher are made.
   - `ZonalRequests.tsx`: the approval dialog has "সাময়িক বন্ধ (আবার চালু করা যাবে)". `ZoneWindows.tsx`: the last date no longer runs into the next month.
   - `HubManagement.tsx`: "বাকি সবাই উপস্থিত" counts only what was saved and cannot be pressed twice.
-- **Left for the owner to decide (not changed):** the hub manager's own line is on the final register, so submitting it settles their own attendance (the older
-  approval paths refuse that); "হাজিরার দিন মেলানো" refuses a partial save while a pre-filled box has no pair; "send for checking" finds managers by the position
-  codes MANAGER / ASSISTANTMAN.
-- **Tests:** `99…_master_audit.sql` (19 assertions); SQL suite 2461 pass on local PostgreSQL 16; typecheck, build, 688 smoke checks pass.
+- **The three open points — owner said "৩ টাই … ঠিক করেন: রোল, জোনাল আপ্রুভাল" (done the same day):**
+  migration `20261122001400_att_self_line_and_manager_roles.sql` (**NOT on live yet**).
+  - The submitter's own line on the final register is kept as what they say (`att_day_lines.self_pending`) and is **not** written to the register; the zonal
+    manager makes it final with `att_sheet_confirm_self(line, status, late_time, note)` and may correct it first. `att_sheet_get` returns `line_id`,
+    `self_pending`, `confirmed_at` per person and `can.confirm_self`. Page: `FinalSheet.tsx` shows "চূড়ান্ত করুন" to the zonal manager on that line.
+    Driven in a browser on the demo database (unlock → the manager submits again → the zonal manager makes it final as half day).
+  - `private.att_hub_managers(hub)`: "send for checking" and the unlock notice find managers by the `hub_manager` role on the hub as well as by the position
+    codes MANAGER / ASSISTANTMAN.
+  - `AttendanceDays.tsx`: some people can be saved now and the rest later (an untouched pre-filled "online" box no longer blocks the save).
+- **Tests:** `99…_master_audit.sql` (19 assertions), `99…_att_self_line.sql` (19); SQL suite 2480 pass on local PostgreSQL 16; typecheck, build, 688 smoke checks pass.
   `scripts/role-demo/try.mjs` drives one role by hand (click, fill, read the page) against the demo database.
