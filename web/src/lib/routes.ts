@@ -272,3 +272,76 @@ export function suggestRoutes(hub: LatLng, places: Place[], n: number, maxStops:
   }
   return { groups, left }
 }
+
+// ---------------------------------------------------------------- parcel load: rider capacity per hub, average parcels per route, suggestions
+export type HubLoad = { hub_id: string; rider_parcels: number | null; days: number; delivery: number; pickup: number
+  riders: Array<{ employee_id: string; days: number; delivery: number; pickup: number }>; routes: Record<string, number> }
+export type LoadOverview = { days: number; from: string; hubs: HubLoad[] }
+export const loadApi = {
+  overview: async (zone: string, days: number) => {
+    const o = await rpc<LoadOverview>('route_load_overview', { p_zone: zone, p_days: days })
+    return { ...o, hubs: (o.hubs ?? []).map(h => ({ ...h, rider_parcels: numOrNull(h.rider_parcels), days: Number(h.days) || 0, delivery: Number(h.delivery) || 0, pickup: Number(h.pickup) || 0,
+      riders: (h.riders ?? []).map(r => ({ ...r, days: Number(r.days) || 0, delivery: Number(r.delivery) || 0, pickup: Number(r.pickup) || 0 })), routes: h.routes ?? {} })) }
+  },
+  save: (hub: string, p: { rider_parcels?: number | null; routes?: Array<{ id: string; avg_parcels: number | null }> }) => rpc<void>('route_load_save', { p_hub: hub, p }),
+}
+
+/** The daily accounts are trusted once a hub has this many sent sheets in the period; before that the typed averages are used. */
+export const LOAD_MIN_DAYS = 3
+export type RouteTip = { kind: 'type' } | { kind: 'norider'; n: number } | { kind: 'more'; n: number } | { kind: 'move'; to: string } | { kind: 'split' }
+  | { kind: 'merge'; withName: string } | { kind: 'less' }
+export type RoutePlan = { route: ZoneRoute; typed: number | null; actual: number | null; used: number | null; source: 'accounts' | 'typed' | null
+  have: number; need: number | null; perRider: number | null; state: 'unknown' | 'ok' | 'over' | 'under' | 'norider'; tips: RouteTip[] }
+export type HubPlan = { hub: RouteHub; capacity: number | null; days: number; parcels: number | null; source: 'accounts' | 'typed' | null
+  riders: number; freeRiders: number; need: number | null; hire: number; avgPerRider: number | null; routes: RoutePlan[] }
+
+/**
+ * Riders needed and route suggestions for every hub.
+ * A route's parcels: what its riders delivered per day in the accounts (a rider on two routes is shared equally), else the typed average.
+ * Riders needed = parcels ÷ what one rider delivers a day at this hub, rounded up. More than 10% over is "too much", under half is "too little".
+ */
+export function planLoad(o: ZoneOverview, load: LoadOverview): HubPlan[] {
+  return o.hubs.map(hub => {
+    const hl = load.hubs.find(x => x.hub_id === hub.id)
+    const cap = hl?.rider_parcels ?? null
+    const trusted = (hl?.days ?? 0) >= LOAD_MIN_DAYS
+    const perDay = new Map((hl?.riders ?? []).filter(r => r.days > 0).map(r => [r.employee_id, r.delivery / r.days]))
+    const routesOf = new Map(hub.staff.map(s => [s.id, Math.max(1, s.routes)]))
+    const routes: RoutePlan[] = o.routes.filter(r => r.hub_id === hub.id).map(route => {
+      const typed = hl?.routes?.[route.id] ?? null
+      const known = route.riders.filter(x => perDay.has(x.employee_id))
+      const actual = trusted && known.length ? Math.round(known.reduce((t, x) => t + perDay.get(x.employee_id)! / (routesOf.get(x.employee_id) ?? 1), 0)) : null
+      const used = actual ?? typed
+      const have = route.riders.length
+      const need = used !== null && cap ? Math.max(used > 0 ? 1 : 0, Math.ceil(used / cap)) : null
+      const state: RoutePlan['state'] = used === null || !cap ? 'unknown' : !have ? (used > 0 ? 'norider' : 'ok') : used > cap * have * 1.1 ? 'over' : used < cap * have * 0.5 ? 'under' : 'ok'
+      return { route, typed, actual, used, source: actual !== null ? 'accounts' : typed !== null ? 'typed' : null, have, need, perRider: used !== null && have ? Math.round(used / have) : null, state, tips: [] }
+    })
+    const centre = (r: ZoneRoute): LatLng | null => { const g = r.stops.filter(hasGps); return g.length ? { lat: g.reduce((t, s) => t + s.lat!, 0) / g.length, lng: g.reduce((t, s) => t + s.lng!, 0) / g.length } : null }
+    const merged = new Set<string>()
+    for (const p of routes) {
+      if (p.used === null) { p.tips.push({ kind: 'type' }); continue }
+      if (!cap) continue
+      if (p.state === 'norider') p.tips.push({ kind: 'norider', n: p.need ?? 1 })
+      if (p.state === 'over') {
+        if ((p.need ?? 0) > p.have) p.tips.push({ kind: 'more', n: p.need! - p.have })
+        const c = centre(p.route)
+        const light = routes.filter(q => q !== p && q.state === 'under').map(q => { const d = centre(q.route); return { q, d: c && d ? meters(c, d) : Infinity } }).sort((a, b) => a.d - b.d)[0]
+        if (light) p.tips.push({ kind: 'move', to: light.q.route.name }); else if (p.route.stops.length >= 4) p.tips.push({ kind: 'split' })
+      }
+      if (p.state === 'under') {
+        const mate = routes.find(q => q !== p && q.state === 'under' && !merged.has(q.route.id) && (q.used ?? 0) + p.used! <= cap)
+        if (mate && !merged.has(p.route.id)) { p.tips.push({ kind: 'merge', withName: mate.route.name }); merged.add(p.route.id); merged.add(mate.route.id) }
+        else if (p.have > 1 && !merged.has(p.route.id)) p.tips.push({ kind: 'less' })
+      }
+    }
+    const typedSum = routes.some(r => r.typed !== null) ? routes.reduce((t, r) => t + (r.typed ?? 0), 0) : null
+    const parcels = trusted && hl ? Math.round(hl.delivery / hl.days) : typedSum
+    const riders = hub.staff.filter(s => s.rider).length
+    const need = parcels !== null && cap ? Math.ceil(parcels / cap) : null
+    const onRoutes = routes.reduce((t, r) => t + r.have, 0), sum = routes.reduce((t, r) => t + (r.used ?? 0), 0)
+    return { hub, capacity: cap, days: hl?.days ?? 0, parcels, source: trusted ? 'accounts' : typedSum !== null ? 'typed' : null, riders,
+      freeRiders: hub.staff.filter(s => s.rider && s.routes === 0).length, need, hire: need !== null ? Math.max(0, need - riders) : 0,
+      avgPerRider: onRoutes && routes.some(r => r.used !== null) ? Math.round(sum / onRoutes) : null, routes }
+  })
+}

@@ -682,13 +682,31 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   `hub_routes_hub_code_live`, check `hub_routes_road_path_ok` and trigger `hubs_moved_routes` exist, the one live route kept its road line (R01, 7.06 km by road). The site gets
   the map changes when the pull request is merged to `main`.
 
+## 2026-11-22 — রুট: পার্সেলের চাপ, রাইডার ও রুট পরামর্শ (route load & suggestions)
+- Owner: "রাইডার এভারেজ পার্সেল ডেলিভারি সেট করা যাবে, হাব অনুযায়ী জোনাল প্যানেলে ইনপুট দেওয়া হবে, রাইডার সাজেশন, রুট সাজেশন হবে"।
+- Migration `20261122000100_route_load.sql` (additive): table `route_hub_load` (per hub: parcels one rider delivers a day), column `hub_routes.avg_parcels`
+  (typed average of a route), `route_load_save(hub, {rider_parcels?, routes?: [{id, avg_parcels}]})` (needs `ops.route_setting.edit` or `ops.route.edit` for the hub),
+  `route_load_overview(zone, days)` (needs `ops.route_setting.view`): the typed numbers plus, from **submitted / approved daily accounts** of the last N days
+  (1–180, default 30), per hub the sheets counted and parcels delivered, and per rider their days and parcels (removed lines left out).
+- Page: রুট সেটিং → new tab **পার্সেল ও পরামর্শ** (`pages/zonal/RouteLoad.tsx`; the arithmetic is `planLoad` in `lib/routes.ts`). Per hub: the rider average, hub parcels a day,
+  riders here / needed, a table of routes (typed average, figure from the accounts, riders / needed, load per rider with a bar, suggestion).
+  Rules: a hub's accounts are used once it has `LOAD_MIN_DAYS` = 3 sent sheets in the period, before that the typed averages; a route's parcels = what its riders
+  delivered per day (a rider on two routes is shared equally); riders needed = parcels ÷ rider average, rounded up; more than 10% over = too much, under half = light.
+  Suggestions: hire N riders (hub), give the riders without a route first, give a route more riders, move stops to the nearest light route of the hub, split a route,
+  join two light routes that together are one rider's work, free a rider. Nothing is changed by itself.
+- **Limits:** the accounts hold parcels per rider, not per village, so a rider on two routes is split equally; pickups are shown in the data but not counted in the load;
+  the district coverage map (every place, covered or not) the owner also asked about is not built yet.
+- **Tests:** `99…_route_load.sql` (14 assertions; whole SQL suite 2183 pass); smoke test: the tab, saving the rider average, hire / more-riders suggestions (630 checks pass).
+- **Live:** migration applied on Supabase 22 Nov as `20261122122659 route_load` (owner said yes first). Checked after: column `hub_routes.avg_parcels`, table `route_hub_load`
+  with RLS, one policy and three triggers, both functions callable by signed-in people only. The site gets the tab when the pull request is merged to `main`.
+
 ## 2026-11-22 — হাব বদলি ও সক্রিয় / নিষ্ক্রিয় অডিট (zonal status right, transfer fixes)
 - Owner: "হাব টু হাব ট্রান্সফার করা যায়, ইনএকটিভ, একটিভ করা যায়? অডিট করে জানাবেন", then yes to the fix. Audited `hr_transfer_employee`, `hr_change_status`,
   `ZonalStaff.tsx`, `ZonalFiles.tsx`, `Requests.tsx`, `EmployeeProfile.tsx`, and the live role permissions (read only).
 - **Found:** hub transfer works everywhere (14 on live). Active / inactive works in the database but had never been used on live: the two zonal managers hold
   `hr.transfer.edit` and `hr.request.approve` but not `hr.employee.edit`, so they saw no button and an ID ACTIVE / ID INACTIVE request they marked done with
   "সিস্টেমে প্রয়োগ" answered "no permission". Live has no HR manager or admin user, so only the Super Admin could do it.
-- **Migration `20261122000100_zonal_status_and_transfer_fixes.sql`:** new permission `hr.status.edit` (admin, head office manager, HR manager, zonal manager):
+- **Migration `20261122000200_zonal_status_and_transfer_fixes.sql`:** new permission `hr.status.edit` (admin, head office manager, HR manager, zonal manager):
   active ↔ inactive only, within scope. Resignation still needs `hr.employee.edit`; dismissal and taking a leaver back still need `hr.employee.approve`.
   `hr_transfer_employee` refuses a plain transfer to the hub the person is already in (same post, same manager) — it only left an empty history row.
 - **Web:** the zonal staff page and the profile show the status button with `hr.status.edit`; the status choices follow the caller's rights (no "resigned" /
@@ -696,7 +714,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   manager, like the other three places (it used to clear it). `roles.ts` / `accessCatalog.ts` know the new permission.
 - **Not changed:** an ID INACTIVE request of the kind "চাকরি ছেড়েছেন" / "বাদ" still cannot be applied by a zonal manager (owner agreed those stay with HR / admin);
   an inactive person must be made active before a transfer; `supabase/apply-all-dev.sql` is older than the last several migrations and was not regenerated.
-- **Tests:** `99…_zonal_status.sql` (11 assertions; whole SQL suite 2180 pass on local PostgreSQL 16), typecheck, build, smoke test pass
+- **Tests:** `99…_zonal_status.sql` (11 assertions; whole SQL suite passes on local PostgreSQL 16, also after merging the route load change), typecheck, build, smoke test pass
   (run with `CHROME=/opt/pw-browsers/chromium`). The new buttons were not driven in a browser with a zonal login.
 - **Live:** migration applied on Supabase 22 Nov as `20261122122644 zonal_status_and_transfer_fixes` (owner said yes first). Checked after: both function
   bodies equal the tested file by md5, anon can run neither, the four roles hold `hr.status.edit`, staff counts unchanged (144 active). The site gets the

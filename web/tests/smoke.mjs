@@ -112,6 +112,7 @@ try {
     const routePlaces = [['আমহাটি', 'Amhati', 24.4315, 89.0003], ['দিঘাপতিয়া', 'Dighapatia', 24.4400, 88.9800], ['ছাতনী', 'Chhatni', 24.4500, 88.9500], ['হালসা', 'Halsa', 24.3800, 89.0400],
       ['বড়হরিশপুর', 'Barahorishpur', 24.4000, 89.0300], ['তেবাড়িয়া', 'Tebaria', 24.4200, 88.9500], ['কাফুরিয়া', 'Kafuria', 24.3900, 88.9600], ['লক্ষীপুর', 'Laxmipur', 24.4600, 89.0200]]
       .map(([name_bn, name, lat, lng], i) => ({ id: `pl${i}`, upazila_code: 143, kind: i === 7 ? 'market' : 'village', name, name_bn, bn_checked: i % 2 === 0, lat, lng, source: 'geonames', hidden: false, hidden_reason: null, note: null }))
+    let loadSaved = null
     const routeOverview = { zone: { id: 'z1', code: 'NT', name: 'Natore Area' },
       rules: { max_stops: 40, max_riders: 4, max_routes_per_rider: 2, stop_radius_m: 150, speed_kmh: 18, stop_minutes: 4, start_time: '10:00', gps_required: false, checkin_open: true, saved: false, updated_at: null },
       can: { configure: true, visits: true, edit_hubs: ['h1', 'h2'], archive_hubs: ['h1', 'h2'] },
@@ -205,6 +206,9 @@ try {
         { code: 149, district: 'Natore', district_bn: 'নাটোর', name: 'Naldanga', name_bn: 'নলডাঙ্গা', boundary: null }])
       if (u.includes('/rest/v1/route_places')) return j(routePlaces)
       if (u.includes('rpc/route_place_save') || u.includes('rpc/route_place_hide')) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j('pl9') }
+      if (u.includes('rpc/route_load_overview')) return j({ days: 30, from: '2026-10-20', hubs: [{ hub_id: 'h1', rider_parcels: loadSaved?.rider_parcels ?? null, days: 5, delivery: 700, pickup: 20,
+        riders: [{ employee_id: 'e01', days: 5, delivery: 700, pickup: 20 }], routes: {} }, { hub_id: 'h2', rider_parcels: null, days: 0, delivery: 0, pickup: 0, riders: [], routes: {} }] })
+      if (u.includes('rpc/route_load_save')) { loadSaved = r.request().postDataJSON().p; flowCalls.push({ fn: 'route_load_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/route_zones')) return j([{ id: 'z1', code: 'NT', name: 'Natore Area' }])
       if (u.includes('rpc/route_zone_overview')) return j(routeOverview)
       if (u.includes('rpc/route_day')) return j({ date: '2026-11-19', routes: [{ route_id: 'rt1', hub_id: 'h1', hub_name: 'Natore Sadar', code: 'R01', name: 'শহর পূর্ব', color: '#2563EB', stops: 3, stops_gps: 3,
@@ -1362,6 +1366,19 @@ try {
       await page.waitForSelector('main :text("দূরে")')
       check((await page.locator('main').innerText()).includes('৬৪০ মিটার'), `${size}: the day's check-ins show near and far with the distance`)
       await fits('route check-ins')
+      // পার্সেল ও পরামর্শ: type what one rider delivers a day; the accounts say 140 a day on the one route, so riders are asked for
+      loadSaved = null
+      await page.locator('.da-seg button:has-text("পার্সেল ও পরামর্শ")').click(); await page.waitForSelector('section.panel:has(h2:text-is("Natore Sadar"))')
+      { const card = page.locator('section.panel:has(h2:text-is("Natore Sadar"))')
+        check((await card.innerText()).includes('গড়ে কয়টা পার্সেল ডেলিভারি করেন তা লিখুন'), `${size}: parcel load asks for the rider average of a hub first`)
+        await card.locator('input[type=number]').first().fill('60')
+        await card.locator('button:has-text("সেভ")').click()
+        await page.waitForFunction(() => document.querySelector('main')?.innerText.includes('নিয়োগ দিন'))
+        const t = await card.innerText()
+        check(flowCalls.some(x => x.fn === 'route_load_save' && x.p_hub === 'h1' && x.p.rider_parcels === 60), `${size}: the rider average is saved for the hub`)
+        check(t.includes('১৪০') && t.includes('নতুন ১ জন রাইডার নিয়োগ দিন') && t.includes('আরও ২ জন রাইডার দিন'), `${size}: from the accounts (140 a day, 60 per rider) the hub is told to hire and the route to get more riders`) }
+      await fits('parcel load and suggestions')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-load-${size}.png`, fullPage: true })
       await page.locator('.da-seg button:has-text("জোনের নিয়ম")').click(); await page.waitForSelector('button:has-text("নিয়ম সেভ")')
       await page.locator('button:has-text("নিয়ম সেভ")').click(); await page.waitForTimeout(200)
       check(flowCalls.some(x => x.fn === 'route_settings_save' && x.p_zone === 'z1' && x.p.stop_radius_m === 150), `${size}: the zone rules are saved for the zone`)
