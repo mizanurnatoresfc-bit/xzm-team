@@ -20,19 +20,42 @@ import { OFFICE_GROUPS, RESIDENTIAL_BASE, RESIDENTIAL_GROUP } from '../lib/offic
 import { myPhoto, onMyPhotoChange } from '../lib/myPhoto'
 import { MyFace } from './MyAvatar'
 import { menuKeys, useDialog, usePageFocus } from '../lib/a11y'
+import { secKey, useMenuLayout, type MenuLayout } from '../lib/menuLayout'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey
+  /** The longer description, shown when the mouse rests on the menu row (the row itself keeps a short name). */ hint?: { bn: string; en: string }
   /** 'web' = the website only, 'app' = the Android app only (see advancedAccessHere). */ only?: 'web' | 'app' }
 type Sec = { bn: string; en: string; items: Item[] }
 type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; items: Item[] }
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 /** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
-const NEW_UNTIL: Record<string, string> = {
+export const NEW_UNTIL: Record<string, string> = {
   '/app/manpower': '2026-11-30', '/app/workforce/attendance': '2026-11-30', '/app/workforce/hub': '2026-11-30',
   '/app/manager/staff': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
-  '/app/zonal/hub-ops': '2026-11-30', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
+  '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
 }
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
+export type { Group as MenuGroup, Item as MenuItem }
+
+/** The menu as Super Admin set it in the menu editor: names from the database where given, hidden rows out, rows in the saved order. */
+export function layoutItems(items: Item[], l: MenuLayout): Item[] {
+  return items.map((i, at) => ({ i, at, o: l.items[i.to] }))
+    .filter(x => !x.o?.hide)
+    .sort((a, b) => (a.o?.order ?? a.at) - (b.o?.order ?? b.at) || a.at - b.at)
+    .map(({ i, o }) => o?.bn || o?.en ? { ...i, bn: o.bn || i.bn, en: o.en || i.en } : i)
+}
+export function layoutGroup(g: Group, l: MenuLayout): Group {
+  const gn = l.groups[g.key]
+  const secs = g.secs.map((x, n) => { const sn = l.secs[secKey(g.key, n)]
+    return { bn: sn?.bn || x.bn, en: sn?.en || x.en, items: layoutItems(x.items, l) } })
+  return { ...g, bn: gn?.bn || g.bn, en: gn?.en || g.en, secs, items: secs.flatMap(x => x.items) }
+}
+/** The "নতুন" date of a row: the editor's date when one was saved (empty = no badge), otherwise the code's. */
+export const newUntil = (to: string, l: MenuLayout): string | undefined => {
+  const o = l.items[to]
+  if (o && o.new_until !== undefined) return o.new_until ?? undefined
+  return NEW_UNTIL[to.split('?')[0]]
+}
 
 export const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
@@ -56,7 +79,7 @@ export const GROUPS: Group[] = [
     ] },
   ]),
   panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
-    { bn: 'আজকের কাজ', en: 'Today', items: [
+    { bn: 'প্রতিদিনের কাজ', en: 'Every day', items: [
       { to: '/app/hub/attendance', icon: 'cal', bn: 'আজকের হাজিরা খাতা', en: "Today's attendance", perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/workforce/hub', icon: 'table', bn: 'হাজিরা বই ও দৈনিক রিপোর্ট', en: 'Attendance book & daily report', perms: ['hr.attendance.view', 'ops.staff_daily.view'] },
       { to: '/app/hub/late', icon: 'clock', bn: 'আজকের দেরিতে হাজিরা', en: 'Late today', perms: ['hr.attendance.view', 'hr.attendance.create'] },
@@ -65,13 +88,13 @@ export const GROUPS: Group[] = [
       { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
     ] },
     { bn: 'গাড়ি', en: 'Vehicles', items: [
-      { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals', perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view'] },
+      { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি ব্যবস্থাপনা', en: 'Vehicles', hint: { bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals' }, perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view'] },
     ] },
     { bn: 'হাবের টিম', en: 'Hub team', items: [
       { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
-      { to: '/app/manager/staff', icon: 'usercheck', bn: 'সক্রিয় স্টাফ (নতুন যোগ / চাকরি ছাড়া)', en: 'Active staff (join / leave)', perms: ['hr.request.create'] },
+      { to: '/app/manager/staff', icon: 'usercheck', bn: 'সক্রিয় স্টাফ', en: 'Active staff', hint: { bn: 'সক্রিয় স্টাফ (নতুন যোগ / চাকরি ছাড়া)', en: 'Active staff (join / leave)' }, perms: ['hr.request.create'] },
       { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
-      { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
+      { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট (হাব)', en: 'Rider routes (hub)', hint: { bn: 'হাবের রুট বানান ও রাইডারদের রুট দিন', en: 'Make the hub’s routes and give riders their route' }, perms: ['ops.route.view', 'ops.route.edit'] },
       { to: '/app/routes/plan', icon: 'box', bn: 'আজকের পার্সেল পরিকল্পনা', en: "Today's parcel plan", perms: ['ops.route_plan.view'] },
       { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
       { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
@@ -83,21 +106,21 @@ export const GROUPS: Group[] = [
       { to: '/app/workforce/zone', icon: 'chart', bn: 'জোনাল ওয়ার্কফোর্স রিপোর্ট', en: 'Zonal workforce report', perms: ['zonal.dashboard.view'] },
       { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'হাব অপারেশন ড্যাশবোর্ড', en: 'Hub Operations Dashboard', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
-      { to: '/app/zonal/routes', icon: 'map', bn: 'রুট সেটিং (রাইডার রুট ম্যাপ)', en: 'Route settings (rider route map)', perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
+      { to: '/app/zonal/routes', icon: 'map', bn: 'রুট ম্যাপ (জোন)', en: 'Route map (zone)', hint: { bn: 'রুট সেটিং — জোনের সব হাবের রাইডার রুট ম্যাপ', en: 'Route settings — rider route map of every hub in the zone' }, perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
     { bn: 'কর্মী ও আইডি', en: 'Staff & IDs', items: [
       { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
       { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
       { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
-      { to: '/app/zonal/requests', icon: 'form', bn: 'অনুরোধ (HR Requests)', en: 'HR requests inbox', perms: ['hr.request.approve'], count: 'hrreq' },
-      { to: '/app/zonal/hr-records', icon: 'xls', bn: 'HR রেকর্ড (জয়েনিং / এক্সিট / ট্রান্সফার ফাইল)', en: 'HR records (files)', perms: ['hr.request.approve'] },
-      { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল (বদলি/চালু/বন্ধ)', en: 'Zonal files', perms: ['hr.request.create', 'hr.request.approve'] },
+      { to: '/app/zonal/requests', icon: 'form', bn: 'এইচআর অনুরোধ', en: 'HR requests', perms: ['hr.request.approve'], count: 'hrreq' },
+      { to: '/app/zonal/hr-records', icon: 'xls', bn: 'এইচআর রেকর্ড', en: 'HR records', hint: { bn: 'এইচআর রেকর্ড (জয়েনিং / এক্সিট / ট্রান্সফার ফাইল)', en: 'HR records (joining / exit / transfer files)' }, perms: ['hr.request.approve'] },
+      { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল', en: 'Zonal files', hint: { bn: 'জোনাল ফাইল (বদলি / চালু / বন্ধ)', en: 'Zonal files (transfer / on / off)' }, perms: ['hr.request.create', 'hr.request.approve'] },
       { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
     ] },
     { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
       { to: '/app/hr/attendance', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
-      { to: '/app/zonal/assistant', icon: 'cal', bn: 'জোনাল অ্যাসিস্ট্যান্ট (হাজিরার ফাঁকা দিন)', en: 'Zonal assistant (attendance gaps)', perms: ['hr.attendance_gap.view'] },
+      { to: '/app/zonal/assistant', icon: 'cal', bn: 'হাজিরার ফাঁকা দিন', en: 'Attendance gaps', hint: { bn: 'জোনাল অ্যাসিস্ট্যান্ট — যেদিনের হাজিরা ওঠেনি', en: 'Zonal assistant — days with no attendance' }, perms: ['hr.attendance_gap.view'] },
       { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
     ] },
     { bn: 'নোটিশ ও রেফারেন্স', en: 'Notices & references', items: [
@@ -118,6 +141,7 @@ export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অন�
   { bn: 'ড্যাশবোর্ড ও সাইট সেটিং', en: 'Dashboard & site settings', items: [
     { to: '/app/role-dashboards', icon: 'chart', bn: 'রোলভিত্তিক ড্যাশবোর্ড বিল্ডার', en: 'Role-based Dashboard Builder', perms: ['system.role.edit'] },
     { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
+    { to: '/app/menu', icon: 'menu', bn: 'মেনু এডিটর', en: 'Menu editor', perms: ['system.settings.configure'], hint: { bn: 'মেনুর নাম, ক্রম, লুকানো আর “নতুন” ব্যাজ', en: 'Menu names, order, hidden rows and “new” badges' } },
   ] },
   { bn: 'এইচআর সেটআপ', en: 'HR setup', items: [
     { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
@@ -130,7 +154,7 @@ export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অন�
 ])
 
 /** Sorting work is its own department and should not sit under the zonal manager heading. */
-export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং প্যানেল', 'Sorting panel', [
+export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং সেন্টার', 'Sorting centre', [
   { bn: 'সোর্টিং কাজ', en: 'Sorting work', items: [
     { to: '/app/sorting/dashboard', icon: 'dash', bn: 'সোর্টিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
     { to: '/app/sorting/routes', icon: 'map', bn: 'সোর্টিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
@@ -139,7 +163,7 @@ export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং প
   ] },
   { bn: 'সেন্টার সেটআপ', en: 'Center setup', items: [
     { to: '/app/sorting/staff', icon: 'users', bn: 'সোর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
-    { to: '/app/sorting/centers', icon: 'hub', bn: 'সোর্টিং সেন্টার', en: 'Sorting centers', perms: ['sorting.center.view', 'sorting.center.create'] },
+    { to: '/app/sorting/centers', icon: 'hub', bn: 'সেন্টার তালিকা', en: 'Centre list', perms: ['sorting.center.view', 'sorting.center.create'] },
   ] },
   { bn: 'সোর্টিং রিপোর্ট', en: 'Sorting reports', items: [
     { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
@@ -303,6 +327,7 @@ function roleClass(code: string) {
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
   const { can, signOut, session, isSuperAdmin, menu } = useAuth()
+  const layout = useMenuLayout()
   const nodiOn = useNodiFeatures()
   const { L, n, lang, setLang, theme, setTheme } = usePrefs()
   const [asRole, setAsRole] = useState(false)
@@ -413,11 +438,12 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     const rank = new Map(menu.map((to, index) => [to, index]))
     return [...items].sort((a, b) => (rank.get(a.to) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.to) ?? Number.MAX_SAFE_INTEGER))
   }
-  const shown = GROUPS.map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i)
+  const shown = GROUPS.map(g0 => layoutGroup(g0, layout)).map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i)
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
   const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
-  const accSecs = own(ACCOUNTS), officeSecs = own(OFFICE), sortingSecs = own(SORTING), adminSecs = own(ADMIN)
+  const [accG, officeG, sortingG, adminG] = [ACCOUNTS, OFFICE, SORTING, ADMIN].map(g => layoutGroup(g, layout))
+  const accSecs = own(accG), officeSecs = own(officeG), sortingSecs = own(sortingG), adminSecs = own(adminG)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
   const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
@@ -429,10 +455,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     const c = i.count ? cnt[i.count] : 0
     if (c && i.count !== 'team') return <span className="nb urgent" aria-label={L(`জরুরি, ${n(c)}টি অপেক্ষায়`, `Urgent, ${c} waiting`)}><b>{L('জরুরি', 'Urgent')}</b>{n(c)}</span>
     if (c) return <span className="count">{n(c)}</span>
-    const until = NEW_UNTIL[i.to.split('?')[0]]
+    const until = newUntil(i.to, layout)
     return until && today <= until ? <span className="nb new">{L('নতুন', 'New')}</span> : null
   }
-  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
+  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={i.hint ? L(i.hint.bn, i.hint.en) : L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
     {tagOf(i)}</NavLink>
 
   // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
@@ -461,8 +487,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
-      {HOME.filter(i => forMe(i) && hit(i)).map(link)}
-      {[{ g: ACCOUNTS, secs: accSecs }, { g: OFFICE, secs: officeSecs }, { g: SORTING, secs: sortingSecs }, ...shown, { g: ADMIN, secs: adminSecs }].map(({ g, secs }) => {
+      {layoutItems(HOME, layout).filter(i => forMe(i) && hit(i)).map(link)}
+      {[{ g: accG, secs: accSecs }, { g: officeG, secs: officeSecs }, { g: sortingG, secs: sortingSecs }, ...shown, { g: adminG, secs: adminSecs }].map(({ g, secs }) => {
         const vis = secs.flatMap(x => x.items)
         if (!vis.length) return null
         const has = vis.some(i => i.to.split('?')[0] === here)

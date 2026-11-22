@@ -65,7 +65,7 @@ export function RouteSettings() {
       today: rs.reduce((t, r) => t + (o.visits_today[r.id] ?? 0), 0) }
   }, [o, hub])
 
-  return <AppShell title={L('রুট সেটিং', 'Route settings')}
+  return <AppShell title={L('রুট ম্যাপ (জোন)', 'Route map (zone)')}
     subtitle={L('জোনের সব হাবের রাইডার রুট আসল ম্যাপে: স্টপের লোকেশন, রাস্তা ধরে দূরত্ব, রাইডার, জোনের নিয়ম আর আজকের চেক-ইন।',
       "Every hub's rider routes on a real map: stop locations, road distance, riders, zone rules and today's check-ins.")}
     actions={o && (canEdit(hub) || (!hub && o.can.edit_hubs.length > 0)) ? <button onClick={() => { setErr(''); setEdit({ hub_id: hub || o.can.edit_hubs[0] }) }}><Icon name="plus" size={16} />{L('নতুন রুট', 'New route')}</button> : undefined}>
