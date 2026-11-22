@@ -62,6 +62,9 @@ const officeResidents =['e01', 'e02', 'e03'].map((e, i) => ({ id: `or${i}`, prop
 const officeBills = [{ id: 'ob1', property_id: 'rs2', kind: 'rent', bill_month: dhakaToday.slice(0, 8) + '01', amount: 6000, paid_on: dhakaToday, method: 'cash', txn_id: null, payee: null, payee_phone: null,
   units: null, has_memo: true, memo_file: null, memo_no: null, proof_file: null, da_expense_id: null, note: null, created_by_name: 'Owner', created_at: dhakaToday + 'T04:00:00Z', archived_at: null }]
 officeBills.push({ ...officeBills[0], id: 'ob2', kind: 'water', amount: 350, has_memo: false, memo_no: 'OM-2611-00001' })
+const asset = (id, kind, name, quantity, condition) => ({ id, property_id: 'of1', kind, name, room_id: null, desk_id: null, quantity, condition, brand: null, serial_no: null,
+  holder_id: null, purchase_date: null, price: null, note: null, watt: null, hours_per_day: null, spec: null, archived_at: null })
+const officeAssets = [asset('oa1', 'monitor', 'মনিটর', 2, 'good'), asset('oa2', 'pc', 'পিসি', 2, 'good'), asset('oa3', 'fan', 'ফ্যান', 3, 'broken')]
 
 const fails = []
 const check =(ok, what) => { if (!ok) fails.push(what); console.log(`${ok ? 'ok  ' : 'FAIL'} ${what}`) }
@@ -428,6 +431,7 @@ try {
       if (u.includes('/rest/v1/office_properties')) return j(officePlaces)
       if (u.includes('/rest/v1/office_residents')) return j(officeResidents)
       if (u.includes('/rest/v1/office_bills')) return j(officeBills)
+      if (u.includes('/rest/v1/office_assets') && r.request().method() === 'GET') return j(officeAssets.filter(a => !u.includes('property_id=eq.') || u.includes('property_id=eq.' + a.property_id)))
       return j([])
     })
     const page = await ctx.newPage()
@@ -831,6 +835,18 @@ try {
         check(/\/residential\/rent$/.test(page.url()) && await sel.inputValue().catch(() => '') === 'rs1' && await sel.locator('option').count() === 2,
           `${size}: a line of the overview opens that flat's page, and the picker holds residences only`) }
       await fits('a residential flat page')
+      // office resources: kinds are tap-to-filter chips, the help is folded away, and each item has one ⋮ menu
+      await page.goto(`${BASE}/app/office/assets`); await page.waitForSelector('.oo-kind-row', { timeout: 8000 }).catch(() => {})
+      { const chips = await page.locator('.oo-kind').count()
+        await page.locator('.oo-kind', { hasText: 'ফ্যান' }).click(); await page.waitForTimeout(150)
+        const onlyFan = await page.locator('.oo-name', { hasText: 'মনিটর' }).count() === 0 && await page.locator('.oo-name', { hasText: 'ফ্যান' }).count() === 1
+        await page.locator('.oo-kind', { hasText: 'ফ্যান' }).click(); await page.waitForTimeout(150)
+        await page.locator('.row-menu-btn').first().click()
+        const items = await page.locator('.row-menu button').allInnerTexts()
+        await page.keyboard.press('Escape')
+        check(chips === 4 && onlyFan && await page.locator('.oo-name').count() === 3 && await page.locator('.oo-help[open]').count() === 0
+          && items.some(t => t.includes('নষ্ট')) && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
+          `${size}: office resources — kind chips filter the list, help is folded, each item has one ⋮ menu`) }
       // every office and residential page opens, shows its tabs, has no error box and fits the screen
       { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports'].map(k => `/app/office/${k}`),
           ...['overview', 'places', 'rooms', 'people', 'rent', 'bills', 'assets', 'reports', 'power', 'security', 'notices', 'desks'].map(k => `/app/office/residential/${k}`)]
@@ -1599,6 +1615,8 @@ try {
     await page.locator('.ri-hub', { hasText: 'Lalpur' }).click(); await page.waitForURL(/report-import\?hub=h2/)
     check(/hub=h2/.test(page.url()), `${size}: a hub on the zonal tab opens that hub's upload page`)
     await page.goto(`${BASE}/app`); await page.waitForSelector('.ri-home')
+    // the count shows "…" until its answer arrives (later now that other pages load in the background): wait for the number
+    await page.waitForFunction(() => document.querySelector('.ri-home-n b')?.textContent?.trim() !== '…', null, { timeout: 8000 }).catch(() => {})
     check((await page.locator('.ri-home').innerText()).includes('রিপোর্ট আপলোড') && (await page.locator('.ri-home-n b').innerText()).trim() === '১', `${size}: the home card shows how many reports came today`)
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
 
