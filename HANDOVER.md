@@ -895,3 +895,20 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Worth knowing:** a branch pushed without a pull request is no longer tested; a change to documents alone starts nothing; in a pull request the path rule
   looks at the whole pull request, so a later documents-only commit still re-runs the checks of what the pull request touches.
 - **Not verified on GitHub:** the allowance was used up when this was written, so the new files have only been checked as valid YAML. Watch the first runs.
+
+## 2026-11-21 — ভাউচার নম্বর সেটিং থেকে, অটো ভাউচারের সুইচ, রিপোর্ট শীটের ছবি
+- Owner: "report sheet image generate hobe … voucher acha sei gula … upload, ja gula voucher nei sei gula auto voucher create hobe", then
+  "SYSTEM DAYNAMIC AND UPDATE FUTURE" and "BANAO". The photo-or-auto-voucher rule already existed (bill ≥ `da.bill_upload.required_over` must be uploaded;
+  below it a missing bill gets a voucher when one's part is closed and at submit). What was hard-coded is now a setting.
+- Migration `20261121000550_dynamic_voucher.sql` (additive): setting `da.voucher` {prefix, date none/YYMM/YYYYMM/YYMMDD, digits 3–8, reset never/monthly/daily,
+  per_hub, hub_code, auto_on_submit}. Default = the old behaviour exactly (`V-YYMM-00001`, global `da_voucher_seq`, auto on).
+  Table `da_voucher_counters` (no direct access; one-statement upsert, so two people never get the same number) for counts that restart or are per hub.
+  `private.da_next_voucher_no(hub)` builds the number and skips any number that already exists. `da_make_voucher`, `da_submit`, `da_close_my_part`
+  and `da_configure` replaced with the same bodies + these rules (bodies checked equal to live by hash before). With `auto_on_submit` off, closing one's
+  part makes no voucher and submit refuses a sheet that has an expense with neither bill nor voucher. Vouchers made when a staff claim or a fleet cost is
+  posted without a bill are unchanged. `da_configure` refuses unsafe formats (daily restart without the day, monthly without the month, per-hub without the hub code).
+- Web: Accounts settings → card **খরচের ভাউচার** (`pages/accounts/voucherSettings.tsx`) with a live preview of the next number. Accounts centre → each hub card
+  has **রিপোর্টের ছবি** (`lib/reportImage.ts`): one PNG of the day — report IDs, merchant cash payments, expenses with "বিলের ছবি" / "অটো <voucher no>" /
+  "বিল/ভাউচার নেই", bank deposits with slip state, totals from `da_center_overview`, due/fund. Shares through the phone's share sheet (WhatsApp) or downloads.
+- Tests: `99…_dynamic_voucher.sql` (22 assertions); whole suite 2175 pass locally.
+- **Live:** migration applied on Supabase 21 Nov as `20261121202903 dynamic_voucher` (owner said yes first; all 5 function bodies equal the tested file by hash; the setting is at its default, so numbering is unchanged). The site gets the card and the picture button when the pull request is merged to `main`.

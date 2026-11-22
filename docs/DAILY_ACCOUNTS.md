@@ -41,3 +41,10 @@ Tesseract.js in the browser (loaded from cdn.jsdelivr.net on first use). It read
 
 ## Storage
 Private bucket `da-evidence`, path `da/<session_id>/<uuid>-<file>`; read = can see the sheet, upload = can edit the sheet. Created by the migration only on Supabase (storage schema).
+
+## Expense vouchers (setting `da.voucher`)
+An expense with no bill gets the company's own voucher (`da_make_voucher`; automatically when one's part is closed and at submit while `auto_on_submit` is on).
+The number follows `da.voucher`: prefix, date part, digits, restart (never / monthly / daily), one count or per hub (then the hub code is in the number).
+Default `V-YYMM-00001` from `da_voucher_seq`. Restarting or per-hub counts live in `da_voucher_counters`; a number that already exists is skipped.
+Bills at or above `da.bill_upload.required_over` must be uploaded; below it the voucher stands for the bill. The accounts centre's "রিপোর্টের ছবি"
+draws the day as one PNG with each expense marked as bill photo / auto voucher / missing (`web/src/lib/reportImage.ts`).
