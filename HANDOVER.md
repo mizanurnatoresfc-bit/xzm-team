@@ -895,3 +895,20 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Worth knowing:** a branch pushed without a pull request is no longer tested; a change to documents alone starts nothing; in a pull request the path rule
   looks at the whole pull request, so a later documents-only commit still re-runs the checks of what the pull request touches.
 - **Not verified on GitHub:** the allowance was used up when this was written, so the new files have only been checked as valid YAML. Watch the first runs.
+
+## 2026-11-22 — দৈনিক ফাইনাল হাজিরা খাতা (the manager's final daily attendance register)
+- Owner: staff give their attendance once; the hub manager keeps one final register per day with every staff member (what they gave is filled in),
+  answers yes / no, sets the status, "marked online?" (reason when not), the online application date when absent, "absent without telling", late + time,
+  and submits — then it is **locked**; only the zonal manager unlocks. A "no", a late arrival or an absence without telling asks the person to explain in
+  the staff panel. The zonal manager approves nothing: sees the staff inputs, who gave nothing by position, the final registers and the replies, and sends a
+  day's register once to all managers of the hub (positions MANAGER / ASSISTANTMAN with a login), who mark "ঠিক আছে". The submitted days are the monthly
+  register (present — late and half day count as present — and absent; leave / holidays shown as ছুটি, not counted).
+- **Database:** migration `20261122000800_att_final_sheet` — tables `att_day_sheets`, `att_day_lines`, `att_explanations`, `att_sheet_checks` (RLS, read-only to
+  the app, Realtime), functions `att_sheet_get / save / submit / unlock / send / check_ok`, `att_my_explanations`, `att_explain_reply`, `att_zone_day`,
+  `att_month_sheet`. Submitting writes the final status to `attendance_records` (late with the time in `check_in`) and settles the person's waiting
+  `attendance_self_marks` row, so every older report counts it. No new permissions: `hr.attendance.view` / `.create` (manager) / `.configure` (zonal).
+- **Web:** hub page `/app/workforce/hub` → tabs "ফাইনাল খাতা" (`?tab=final&date=`) and "মাসিক খাতা" (`pages/workforce/FinalSheet.tsx`); zonal report
+  `/app/workforce/zone` → first tab "দৈনিক হাজিরার তথ্য" (`ZoneFinal.tsx`); staff panel and "আমার উপস্থিতি" → "হাজিরার ব্যাখ্যা চাওয়া হয়েছে" (`MyExplanations.tsx`).
+- **Tests:** `99…_att_final_sheet.sql` (whole SQL suite passes locally). The web part was type-checked against stub types only (no npm in the session) —
+  the real typecheck / build runs in CI on the pull request.
+- **Live:** migration applied on Supabase 22 Nov as `att_final_sheet` (owner said yes). The pages go live when the pull request is merged.

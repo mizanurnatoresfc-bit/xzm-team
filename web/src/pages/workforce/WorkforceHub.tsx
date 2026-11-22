@@ -10,6 +10,7 @@ import { ACTION_META, APP_META, CELL_META, LIVE, monthOf, useLiveLoad, wf, wfFri
   type AbsenceApp, type AppStatus, type BookCell, type CellCode, type Can, type Decided, type History, type HubBook, type HubBookPerson, type HubOverview, type HubPerson,
   type IsoDate, type Mark, type MarkStatus, type OpsReport, type OpsTotals } from '../../lib/workforce'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { FinalSheetTab, MonthSheetTab } from './FinalSheet'
 import { AS_OPTIONS, ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, NoteDialog, Notice, RangeBar, Section, Who, WmTable, decideMarks, exportRows,
   fmtDay, fmtLong, fmtStamp, fmtTime, fmtTsDay, fmtWeekday, lastMonths, monthName, prevMonth, recordLabel, rememberHub, siteDetail, siteText, storedHub, toneOfRecord, useHubList, useRange,
   type WCol } from './shared'
@@ -19,8 +20,8 @@ import { AS_OPTIONS, ChipTabs, Empty, KindBadge, LiveDot, Loading, MarkBadge, No
  * Everything comes from the shared tables through the wf_* functions (row security + permission scope are decided in the database);
  * this screen only shows what `can` allows. Reloads by itself when anything changes (LIVE.manage).
  */
-type TabKey = 'today' | 'book' | 'approve' | 'apps' | 'ops' | 'history'
-const TAB_KEYS: TabKey[] = ['today', 'book', 'approve', 'apps', 'ops', 'history']
+type TabKey = 'today' | 'final' | 'month' | 'book' | 'approve' | 'apps' | 'ops' | 'history'
+const TAB_KEYS: TabKey[] = ['today', 'final', 'month', 'book', 'approve', 'apps', 'ops', 'history']
 const isTab = (t: string | null): t is TabKey => !!t && (TAB_KEYS as string[]).includes(t)
 
 export function WorkforceHub() {
@@ -38,7 +39,7 @@ export function WorkforceHub() {
   const can = ov?.can
   const today = ov?.date ?? todayDhaka()
 
-  const visible: Record<TabKey, boolean> = { today: true, book: !!can?.attendance, approve: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops, history: !!can?.attendance }
+  const visible: Record<TabKey, boolean> = { today: true, final: !!can?.attendance, month: !!can?.attendance, book: !!can?.attendance, approve: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops, history: !!can?.attendance }
   const asked = sp.get('tab')
   const tab: TabKey = isTab(asked) && (visible[asked] || !ov) ? asked : 'today'
   const blocked = !!ov && isTab(asked) && !visible[asked]
@@ -47,6 +48,8 @@ export function WorkforceHub() {
 
   const tabs: Array<{ key: TabKey; label: string; count?: number; tone?: 'warn' | 'bad' }> = [
     { key: 'today', label: L('আজ', 'Today') },
+    { key: 'final', label: L('ফাইনাল খাতা', 'Final register') },
+    { key: 'month', label: L('মাসিক খাতা', 'Monthly register') },
     { key: 'book', label: L('হাজিরা বই', 'Attendance book') },
     { key: 'approve', label: L('অনুমোদন', 'Approvals'), count: ov?.pending.marks },
     { key: 'apps', label: L('আবেদন', 'Applications'), count: ov?.pending.applications },
@@ -87,6 +90,8 @@ export function WorkforceHub() {
 
         <div key={`${hubId}-${tab}`}>
           {tab === 'today' && <TodayTab ov={ov} hubId={hubId} go={go} reload={reload} />}
+          {tab === 'final' && <FinalSheetTab hubId={hubId} />}
+          {tab === 'month' && <MonthSheetTab hubId={hubId} />}
           {tab === 'book' && <BookTab hubId={hubId} can={can} today={today} go={go} />}
           {tab === 'approve' && <ApproveTab hubId={hubId} can={can} go={go} onChanged={reload} />}
           {tab === 'apps' && <AppsTab hubId={hubId} can={can} onChanged={reload} />}
