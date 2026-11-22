@@ -61,6 +61,7 @@ const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: 
 const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
 const RouteSettings = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RouteSettings })))
+const RoutePlanPage = lazy(() => import('./pages/zonal/RoutePlan').then(m => ({ default: m.RoutePlanPage })))
 const ZonalAssistant = lazy(() => import('./pages/zonal/ZonalAssistant').then(m => ({ default: m.ZonalAssistant })))
 const Training = lazy(() => import('./pages/Training').then(m => ({ default: m.Training })))
 const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default: m.Rollout })))
@@ -152,6 +153,9 @@ export default function App() {
       </Route>
       <Route element={<AnyOf perms={['ops.route_setting.view', 'ops.route_setting.edit']} />}>
         <Route path="/app/zonal/routes" element={<RouteSettings />} />
+      </Route>
+      <Route element={<AnyOf perms={['ops.route_plan.view']} />}>
+        <Route path="/app/routes/plan" element={<RoutePlanPage />} />
       </Route>
       <Route path="/app/manpower" element={<Manpower />} />
       <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />

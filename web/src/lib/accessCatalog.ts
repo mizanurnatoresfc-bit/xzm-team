@@ -67,6 +67,7 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/manager/staff', codes: ['hr.request.create', 'hr.application.create', 'hr.employee.view'] },
     { to: '/app/hub/logins', res: ['system.user_hub'] },
     { to: '/app/hub/routes', res: ['ops.route'] },
+    { to: '/app/routes/plan', res: ['ops.route_plan', 'ops.route_plan_own'] },
   ] },
   { key: 'ops', icon: 'box', bn: 'কুরিয়ার অপারেশন', en: 'Courier operations', db: ['ops'], subs: [] },
   { key: 'zonal', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal management', db: ['zonal'], subs: [

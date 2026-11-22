@@ -72,6 +72,7 @@ export const GROUPS: Group[] = [
       { to: '/app/manager/staff', icon: 'usercheck', bn: 'সক্রিয় স্টাফ (নতুন যোগ / চাকরি ছাড়া)', en: 'Active staff (join / leave)', perms: ['hr.request.create'] },
       { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
       { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
+      { to: '/app/routes/plan', icon: 'box', bn: 'আজকের পার্সেল পরিকল্পনা', en: "Today's parcel plan", perms: ['ops.route_plan.view'] },
       { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
       { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
     ] },
