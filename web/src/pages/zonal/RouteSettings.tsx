@@ -8,13 +8,15 @@ import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { PlacePicker, PlacesTab, placeToStop } from './RoutePlaces'
 import { LoadTab } from './RouteLoad'
 import { CoverageTab } from './RouteCoverage'
+import { PlanTab } from './RoutePlan'
+import { useAuth } from '../../auth/AuthProvider'
 import { usePrefs } from '../../lib/prefs'
 import {
   bestOrder, estimate, fmtDist, fmtKm, fmtMin, hasGps, lineKm, meters, myLocation, parseLocation, roadLine, routeApi, routeColor, routeFriendly,
   ROUTE_COLORS, routeLine, searchPlace, SHIFT, STOP_KIND, type DayRoute, type Place, type RouteHub, type RouteRules, type RouteStop, type Shift, type StopKind, type ZoneOverview, type ZoneRoute,
 } from '../../lib/routes'
 
-type Tab = 'map' | 'cover' | 'places' | 'routes' | 'load' | 'day' | 'warn' | 'rules'
+type Tab = 'map' | 'cover' | 'places' | 'routes' | 'load' | 'plan' | 'day' | 'warn' | 'rules'
 type NewDraft = { hub_id: string; name?: string; color?: string; stops?: RouteStop[] }
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
@@ -35,6 +37,7 @@ export function RouteSettings() {
   const [riders, setRiders] = useState<ZoneRoute | null>(null)
   const [err, setErr] = useState('')
   const o = ov.data
+  const canPlan = useAuth().can('ops.route_plan.view')
 
   useEffect(() => { const q = new URLSearchParams(); if (zone) q.set('zone', zone); if (tab !== 'map') q.set('tab', tab); if (hub) q.set('hub', hub); if (sel) q.set('route', sel); setSp(q, { replace: true }) },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,7 +75,7 @@ export function RouteSettings() {
         {zones.data?.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
       {o && <Field label={L('হাব', 'Hub')}><select value={hub} onChange={e => { setHub(e.target.value); setSel(null) }}>
         <option value="">{L('সব হাব', 'All hubs')}</option>{o.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>}
-      <div className="da-seg">{([['map', 'ম্যাপ', 'Map', 'map'], ['cover', 'কাভারেজ', 'Coverage', 'check'], ['places', 'এলাকা ও সাজেশন', 'Areas & suggestions', 'hub'], ['routes', 'রুট তালিকা', 'Routes', 'table'], ['load', 'পার্সেল ও পরামর্শ', 'Parcels & suggestions', 'chart'], ...(o?.can.visits ? [['day', 'চেক-ইন', 'Check-ins', 'check']] : []),
+      <div className="da-seg">{([['map', 'ম্যাপ', 'Map', 'map'], ['cover', 'কাভারেজ', 'Coverage', 'check'], ['places', 'এলাকা ও সাজেশন', 'Areas & suggestions', 'hub'], ['routes', 'রুট তালিকা', 'Routes', 'table'], ['load', 'পার্সেল ও পরামর্শ', 'Parcels & suggestions', 'chart'], ...(canPlan ? [['plan', 'আজকের পরিকল্পনা', "Today's plan", 'box']] : []), ...(o?.can.visits ? [['day', 'চেক-ইন', 'Check-ins', 'check']] : []),
         ['warn', `সতর্কতা${warns.length ? ` (${n(warns.length)})` : ''}`, `Warnings${warns.length ? ` (${warns.length})` : ''}`, 'alert'], ['rules', 'জোনের নিয়ম', 'Zone rules', 'gear']] as Array<[Tab, string, string, string]>).map(([k, b, e, ic]) =>
         <button key={k} className={tab === k ? '' : 'secondary'} onClick={() => setTab(k)}><Icon name={ic} size={14} />{L(b, e)}</button>)}</div>
       {ov.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
@@ -97,6 +100,7 @@ export function RouteSettings() {
     {o && tab === 'places' && <PlacesTab o={o} hubOf={hubOf} initialHub={hub} onBuild={d => { setErr(''); setEdit(d) }} />}
     {o && tab === 'routes' && <RouteTable routes={routes} hubOf={hubOf} rules={o.rules} onOpen={r => { setSel(r.id); setTab('map') }} />}
     {o && tab === 'load' && <LoadTab zone={zone} o={o} hub={hub} canEdit={canEdit} onSaved={() => toast(L('সেভ হয়েছে', 'Saved'))} onOpen={id => { setSel(id); setTab('map') }} />}
+    {o && tab === 'plan' && canPlan && <PlanTab zone={zone} hub={hub} onHub={h => { setHub(h); setSel(null) }} />}
     {o && tab === 'day' && o.can.visits && <DayView zone={zone} o={o} hub={hub} />}
     {o && tab === 'warn' && <section className="panel"><h2>{L('যা ঠিক করা দরকার', 'What needs fixing')}</h2>
       {warns.length ? <ul className="rt-warn">{warns.map((w, i) => <li key={i} className={w.tone}>{w.text}
