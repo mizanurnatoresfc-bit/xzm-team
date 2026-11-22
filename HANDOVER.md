@@ -787,6 +787,14 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   the hub manager role's page list gained `/app/manager/staff`, staff counts unchanged (144 active). The pages themselves go live when the pull request is merged;
   until then a new request's notification to approvers points at `/app/zonal/requests`, which the published site does not have yet.
 
+## 2026-11-22 — অফিসের পানি / গ্যাস বিল ও এক্সপোর্ট অনুমতি লাইভে বসানো
+- A check of live against the repository found two files that had never been applied: `20261121000100_office_bill_water_gas.sql` and
+  `20261121000200_office_export_permissions.sql`. Both are additive. Applied on 22 Nov as `office_bill_water_gas` and `office_export_permissions`
+  (see docs/MIGRATIONS_LIVE_MAP.md). No website change was needed — the pages were already on the site.
+- `20261120000100_notice_workflow.sql` is live too (as 20261119202045 `notice_workflow`); the "not yet applied" note in the 20 Nov entry is out of date.
+- **Open:** live has one migration with no file in this repository: `dynamic_voucher` (20261121202903). Its file must be brought into
+  `supabase/migrations/`.
+
 ## 2026-11-22 — রুট: আজকের পার্সেল পরিকল্পনা (the day's parcel plan)
 - Owner: hub numbers of the day (arrived, sent, pickup, cancelled) and what each rider got, typed by hand or later from a PDF; a fixed number per rider; one or many
   routes per rider; when a rider is absent the neighbouring rider and other hub staff are suggested, from attendance and what people really deliver. Answers:
