@@ -413,7 +413,7 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
   const [d, setD] = useState<XDraft | null>(null)
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false)
   const [remove, setRemove] = useState<Expense | null>(null)
-  const [kindF, setKindF] = useState<'all' | 'transport' | 'employee'>('all')
+  const [catF, setCatF] = useState<string>('all')
   const up = useOcrUpload(s.session.id, settings)
   const active = templates.filter(t => t.status === 'active')
   const vehicles = useLoad(() => s.can_edit ? da.vehicles(s.hub.id).catch(() => [] as Vehicle[]) : Promise.resolve([] as Vehicle[]), [s.hub.id, s.can_edit])
@@ -464,6 +464,8 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
       if (d.vehicle || d.refName || d.refPhone || d.refPosition) {
         await da.setReference({ line, name: d.refName, phone: d.refPhone, position: d.refPosition, vehicle: d.vehicle || null })
       }
+      // no voucher uploaded and no bill number: the voucher number is made by itself
+      if (!d.path && !d.billNo.trim()) await da.makeVoucher(line).catch(() => undefined)
       setD(null); await reload('খরচ সংরক্ষিত')
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }
@@ -471,63 +473,64 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
     name: x.expense_name, category: x.category, amount: String(x.amount), date: x.bill_date, billNo: x.bill_no ?? '', ref: x.reference_no ?? '', paidBy: '',
     path: x.attachment_path, ocr: x.ocr, verified: x.ocr_verified, remarks: x.remarks ?? '',
     vehicle: x.vehicle_id ?? '', refName: x.reference_name ?? '', refPhone: x.reference_phone ?? '', refPosition: x.reference_position ?? '' })
-  const list = s.expenses.filter(x => kindF === 'all' || x.kind === kindF)
-  const tSum = list.filter(x => x.kind === 'transport').reduce((a, x) => a + x.amount, 0)
-  const eSum = list.filter(x => x.kind === 'employee').reduce((a, x) => a + x.amount, 0)
+  const list = s.expenses.filter(x => catF === 'all' || x.category === catF)
+  const total = list.reduce((a, x) => a + x.amount, 0)
+  // category-wise: only the categories that have a line today, in the handbook's order
+  const byCat = cats.map(c => ({ c, n: s.expenses.filter(x => x.category === c.code).length,
+    sum: s.expenses.filter(x => x.category === c.code).reduce((a, x) => a + x.amount, 0) })).filter(g => g.n > 0)
+  const refText = (x: Expense) => [x.reference_name, x.reference_position, x.reference_phone, x.reference_no].filter(Boolean).join(' · ')
 
-  // ---- Excel-like quick entry: name, amount, whose (Employee ID), category
-  const ecols: GCol[] = [{ key: 'name', label: 'খরচের নাম', width: 170, placeholder: 'যেমন: তেল' }, { key: 'amount', label: 'টাকা', type: 'number', width: 100 },
-    { key: 'employee', label: 'কার খরচ (আইডি)', width: 110, placeholder: 'ফাঁকা = যাতায়াত', list: 'da-staff-x' }, { key: 'empName', label: 'কার', width: 130, ro: true },
-    { key: 'category', label: 'খাত', type: 'select', width: 150, options: cats.map(c => [c.code, c.bn] as [string, string]) }]
-  const eblank = useCallback((): Vals => ({ name: '', amount: '', employee: '', empName: '', category: cats[0]?.code ?? 'other' }), [cats])
-  const esave = useCallback(async (v: Vals) => {
-    await da.saveExpense({ session: s.session.id, kind: v.employee.trim() ? 'employee' : 'transport', employee: v.employee.trim() || null, name: v.name,
-      category: v.category, amount: +v.amount, date: s.session.account_date })
+  // ---- Excel-like quick entry: খরচের ধরন, বিবরণ, টাকা, রেফারেন্স
+  const ecols: GCol[] = [{ key: 'category', label: 'খরচের ধরন', type: 'select', width: 190, options: cats.map(c => [c.code, `${c.en} — ${c.bn}`] as [string, string]) },
+    { key: 'name', label: 'বিবরণ', width: 220, placeholder: 'ম্যানেজার লিখবেন' }, { key: 'amount', label: 'টাকা', type: 'number', width: 100 },
+    { key: 'ref', label: 'রেফারেন্স', width: 160, placeholder: 'কার মাধ্যমে', list: 'da-ref-x' }]
+  const eblank = useCallback((): Vals => ({ category: cats[0]?.code ?? 'other', name: '', amount: '', ref: '' }), [cats])
+  const esave = useCallback(async (v: Vals, id?: string) => {
+    const line = await da.saveExpense({ session: s.session.id, kind: 'transport', name: v.name, category: v.category, amount: +v.amount,
+      date: s.session.account_date, line: id ?? null })
+    if (v.ref.trim()) await da.setReference({ line, name: v.ref.trim() })
+    if (!id) await da.makeVoucher(line).catch(() => undefined)
   }, [s.session.id, s.session.account_date])
-  const elookup = useMemo(() => ({ key: 'employee', run: async (code: string): Promise<Vals> => {
-    const r = (await da.lookupEmployee(s.hub.id, code))[0]
-    return { empName: r ? (r.allowed ? r.full_name : `${r.full_name} — এই হাবের নন`) : 'পাওয়া যায়নি' } } }), [s.hub.id])
-  const staffX = useLoad(() => s.can_edit ? da.hubEmployees(s.hub.id) : Promise.resolve([]), [s.hub.id, s.can_edit])
   return <section className="panel" id="da-expense">
-    <div className="da-bar"><h2>যাতায়াত ও হাব কর্মীর খরচ</h2>
-      <div className="row no-print"><select value={kindF} onChange={e => setKindF(e.target.value as typeof kindF)} aria-label="ধরন">
-        <option value="all">সব</option><option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select>
-        {s.can_edit && <><button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ যাতায়াত খরচ</button><button className="secondary" onClick={() => { setErr(null); setD(blank('employee')) }}>＋ কর্মীর খরচ</button></>}
-        <SectionMenu sec="expense" title="যাতায়াত ও হাব কর্মীর খরচ" s={s} settings={settings} onAdd={() => { setErr(null); setD(blank('transport')) }} addLabel="＋ খরচ যোগ" onLayoutSaved={ls} /></div></div>
+    <div className="da-bar"><h2>Hub Expense</h2>
+      <div className="row no-print"><select value={catF} onChange={e => setCatF(e.target.value)} aria-label="খরচের ধরন">
+        <option value="all">সব ধরন</option>{byCat.map(g => <option key={g.c.code} value={g.c.code}>{g.c.en} ({num(g.n)})</option>)}</select>
+        {s.can_edit && <button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ খরচ যোগ</button>}
+        <SectionMenu sec="expense" title="Hub Expense" s={s} settings={settings} onAdd={() => { setErr(null); setD(blank('transport')) }} addLabel="＋ খরচ যোগ" onLayoutSaved={ls} /></div></div>
     <ErrorNote error={err && !d ? err : null} />
-    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে <b>খরচের নাম, টাকা, কার খরচ (এমপ্লয়ি আইডি), খাত</b> লিখুন — লাইন ছাড়লেই সেভ। বিল ফাইল/ভাউচার/গাড়ির তথ্য লাগলে উপরের বাটন।</p>
-      <datalist id="da-staff-x">{(staffX.data ?? []).map(e => <option key={e.employee_id} value={e.employee_code}>{e.full_name}</option>)}</datalist>
-      <QuickGrid cols={ecols} rows={NO_ROWS} blank={eblank} editable ready={v => (!v.name.trim() ? 'খরচের নাম লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
-        save={esave} onSaved={() => reload()} lookup={elookup} /></div>}
-    <div className="da-table-wrap"><table className="da-table" data-sec="expense"><thead><tr><th>নং</th><th>ধরন</th><th>কর্মী</th><th>খরচের নাম</th><th>খাত</th><th className="r">বিল</th><th>তারিখ</th><th>বিল / রেফ.</th><th>দিয়েছেন</th><th>বিল ফাইল</th><th>ভাউচার</th><th>OCR</th><ExtraHeads settings={settings} sec="expense" /><th className="no-print" /></tr></thead>
-      <tbody>{list.map(x => <tr key={x.id}><td data-l="নং">{num(x.no)}</td><td data-l="ধরন">{x.kind === 'transport' ? 'যাতায়াত' : 'কর্মী'}</td>
-        <td data-l="কর্মী">{x.employee_name ? <>{x.employee_name}<span className="sec">ID {x.employee_code}</span></> : '—'}</td><td data-l="নাম"><b>{x.expense_name}</b></td>
-        <td data-l="খাত">{catL(x.category)}</td><td data-l="বিল" className="r">{taka(x.amount)}</td><td data-l="তারিখ">{dateBn(x.bill_date)}</td>
-        <td data-l="বিল / রেফ.">{x.bill_no ?? '—'}<span className="sec">{[x.reference_no, x.reference_name, x.reference_phone].filter(Boolean).join(' · ')}</span></td>
-        <td data-l="দিয়েছেন">{x.paid_by_name ?? '—'}{x.claim_id ? <span className="sec">কর্মীর জমা দেওয়া</span> : null}</td>
-        <td data-l="ফাইল">{x.attachment_path ? <FileLink path={x.attachment_path} /> : x.claim_file ? <FileLink path={x.claim_file} /> : '—'}</td>
-        <td data-l="ভাউচার">{x.voucher_no ? <span className="row"><b>{x.voucher_no}</b><button className="secondary sm no-print" onClick={() => void print(x)}>প্রিন্ট</button></span>
-          : x.attachment_path || x.bill_no ? <span className="muted">লাগবে না</span>
+    {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে <b>খরচের ধরন, বিবরণ, টাকা, রেফারেন্স</b> লিখুন — লাইন ছাড়লেই সেভ, ভাউচার নম্বর নিজেই তৈরি হবে। ভাউচার/বিল আপলোড করতে “＋ খরচ যোগ”।</p>
+      <datalist id="da-ref-x">{refPeople.map((r, i) => <option key={`${r.name}-${i}`} value={r.name}>{r.position ?? ''}</option>)}</datalist>
+      <QuickGrid cols={ecols} rows={NO_ROWS} blank={eblank} editable ready={v => (!v.category ? 'খরচের ধরন বাছুন' : v.name.trim().length < 2 ? 'বিবরণ লিখুন' : !(+v.amount > 0) ? 'টাকা লিখুন' : null)}
+        save={esave} onSaved={() => reload()} /></div>}
+    <div className="da-table-wrap"><table className="da-table" data-sec="expense"><thead><tr><th>নং</th><th>খরচের ধরন</th><th>বিবরণ</th><th className="r">টাকা</th><th>রেফারেন্স</th><th>ভাউচার</th><ExtraHeads settings={settings} sec="expense" /><th className="no-print" /></tr></thead>
+      <tbody>{list.map(x => <tr key={x.id}><td data-l="নং">{num(x.no)}</td>
+        <td data-l="খরচের ধরন"><b>{cats.find(c => c.code === x.category)?.en ?? x.category}</b><span className="sec">{catL(x.category)}</span></td>
+        <td data-l="বিবরণ">{x.expense_name}{x.employee_name ? <span className="sec">{x.employee_name} · ID {x.employee_code}</span> : null}{x.claim_id ? <span className="sec">কর্মীর জমা দেওয়া</span> : null}</td>
+        <td data-l="টাকা" className="r">{taka(x.amount)}</td>
+        <td data-l="রেফারেন্স">{refText(x) || '—'}</td>
+        <td data-l="ভাউচার">{x.attachment_path ? <span className="row"><Badge tone="ok">আপলোড</Badge><FileLink path={x.attachment_path} /></span>
+          : x.claim_file ? <span className="row"><Badge tone="ok">আপলোড</Badge><FileLink path={x.claim_file} /></span>
+          : x.voucher_no ? <span className="row"><b>{x.voucher_no}</b><span className="muted small">অটো</span><button className="secondary sm no-print" onClick={() => void print(x)}>প্রিন্ট</button></span>
+          : x.bill_no ? <span>বিল নং {x.bill_no}</span>
           : s.can_edit ? <button className="secondary sm no-print" onClick={() => void makeVoucher(x)}>ভাউচার বানান</button> : '—'}</td>
-        <td data-l="OCR">{!x.ocr ? '—' : x.ocr_verified ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="warn">যাচাই বাকি</Badge>}</td>
         <ExtraCells s={s} settings={settings} sec="expense" row={x.id} reload={reload} />
         <td className="no-print">{s.can_edit && <span className="row"><button className="secondary sm" onClick={() => edit(x)}>এডিট</button><button className="danger sm" onClick={() => setRemove(x)}>বাদ</button></span>}</td></tr>)}
-        {list.length === 0 && <tr><td colSpan={13} className="muted">কোনো খরচ নেই।</td></tr>}</tbody>
-      {list.length > 0 && <tfoot><tr><td colSpan={5}>মোট ({num(list.length)} টি) · যাতায়াত {taka(tSum)} · কর্মী {taka(eSum)}</td>
-        <td data-l="মোট খরচ" className="r">{taka(tSum + eSum)}</td><td colSpan={7} className="no-print" /></tr></tfoot>}</table></div>
+        {list.length === 0 && <tr><td colSpan={7} className="muted">কোনো খরচ নেই।</td></tr>}</tbody>
+      {list.length > 0 && <tfoot><tr><td colSpan={3}>মোট ({num(list.length)} টি)</td>
+        <td data-l="মোট খরচ" className="r">{taka(total)}</td><td colSpan={3} className="no-print" /></tr></tfoot>}</table></div>
+    {catF === 'all' && byCat.length > 0 && <div className="da-table-wrap"><table className="da-table"><thead><tr><th>খরচের ধরন অনুযায়ী</th><th className="r">লাইন</th><th className="r">টাকা</th></tr></thead>
+      <tbody>{byCat.map(g => <tr key={g.c.code}><td data-l="ধরন">{g.c.en}<span className="sec">{g.c.bn}</span></td><td data-l="লাইন" className="r">{num(g.n)}</td><td data-l="টাকা" className="r">{taka(g.sum)}</td></tr>)}</tbody></table></div>}
 
-    {d && <Modal title={`${d.line ? 'এডিট' : 'নতুন'} · ${d.kind === 'transport' ? 'যাতায়াত খরচ' : 'কর্মীর খরচ'}`} wide onClose={() => setD(null)}
+    {d && <Modal title={`${d.line ? 'এডিট' : 'নতুন'} · Hub Expense`} wide onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || up.progress !== null || (!!d.ocr && !d.verified)} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'যাচাই করে সেভ'}</button></>}>
-      <Field label="বিল / মেমোর ছবি বা PDF" hint={up.progress !== null ? `পড়া হচ্ছে… ${num(Math.round(up.progress * 100))}%` : d.path ? 'আপলোড হয়েছে' : `ছবি দিলে AI/OCR দিয়ে তথ্য পূরণ হবে · সর্বোচ্চ ${num(billCfg.max_mb)} MB`}>
+      <Field label="ভাউচার আপলোড (ছবি বা PDF)" hint={up.progress !== null ? `পড়া হচ্ছে… ${num(Math.round(up.progress * 100))}%` : d.path ? 'আপলোড হয়েছে' : `আপলোড না করলে ভাউচার নম্বর নিজেই তৈরি হবে · সর্বোচ্চ ${num(billCfg.max_mb)} MB`}>
         <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void onFile(f) }} /></Field>
       <ErrorNote error={up.err} /><OcrNote ocr={d.ocr} min={settings['da.ocr'].min_confidence} />
       <div className="da-grid3">
-        <Field label="খরচের নাম *" hint="যেমন: CNG ভাড়া, ভ্যানের তেল"><input autoFocus={!d.line} value={d.name} onChange={e => setD({ ...d, name: e.target.value })} /></Field>
-        <Field label="বিলের টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
-        <Field label={d.kind === 'employee' ? 'কার খরচ — এমপ্লয়ি আইডি *' : 'কার খরচ — এমপ্লয়ি আইডি'} hint={d.employeeName || 'রাইডার বা স্টাফের আইডি'}>
-          <input inputMode="numeric" value={d.employee} onChange={e => { setD({ ...d, employee: e.target.value, employeeName: '' }); void lookup(e.target.value) }} /></Field>
-        <Field label="খাত *" wide><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.bn} ({c.en})</option>)}</select>
+        <Field label="খরচের ধরন *" wide><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.en} — {c.bn}</option>)}</select>
           <CatHelp cat={cats.find(c => c.code === d.category)} amount={+d.amount || 0} /></Field>
+        <Field label="বিবরণ *" hint="ম্যানেজার লিখবেন — যেমন: CNG ভাড়া, ভ্যানের তেল"><input autoFocus={!d.line} value={d.name} onChange={e => setD({ ...d, name: e.target.value })} /></Field>
+        <Field label="টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
         {refPeople.length > 0 && <Field label="রেফারেন্স (তালিকা থেকে)" hint={<>বাছলে নাম, নম্বর ও পদবি এক ক্লিকে বসবে · <a href="/app/references" target="_self">নতুন নাম যোগ</a></>}>
           <select value="" onChange={e => { const r = refPeople[+e.target.value]; if (r) setD({ ...d, refName: r.name, refPhone: r.phone ?? '', refPosition: r.position ?? '' }) }}>
             <option value="">— বেছে নিন —</option>
@@ -536,7 +539,8 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
         <Field label="রেফারেন্সের নাম" hint="কার মাধ্যমে / কার কথায় খরচ"><input value={d.refName} onChange={e => setD({ ...d, refName: e.target.value })} /></Field>
       </div>
       <details className="da-more no-print"><summary>আরও তথ্য (দরকার হলে)</summary><div className="da-grid3">
-        <Field label="ধরন"><select value={d.kind} onChange={e => setD({ ...d, kind: e.target.value as XDraft['kind'] })}><option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select></Field>
+        <Field label="কার খরচ — এমপ্লয়ি আইডি" hint={d.employeeName || 'নির্দিষ্ট কর্মীর খরচ হলে আইডি দিন'}>
+          <input inputMode="numeric" value={d.employee} onChange={e => { const v = e.target.value; setD({ ...d, employee: v, employeeName: '', kind: v.trim() ? 'employee' : 'transport' }); void lookup(v) }} /></Field>
         <Field label="টেমপ্লেট"><select value={d.template} onChange={e => applyTemplate(e.target.value)}><option value="">— নেই —</option>{active.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
         <Field label="বিলের তারিখ *"><input type="date" max={todayDhaka()} value={d.date} onChange={e => setD({ ...d, date: e.target.value })} /></Field>
         <Field label="বিল নম্বর"><input value={d.billNo} onChange={e => setD({ ...d, billNo: e.target.value })} /></Field>
