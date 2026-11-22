@@ -697,4 +697,5 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Limits:** the accounts hold parcels per rider, not per village, so a rider on two routes is split equally; pickups are shown in the data but not counted in the load;
   the district coverage map (every place, covered or not) the owner also asked about is not built yet.
 - **Tests:** `99…_route_load.sql` (14 assertions; whole SQL suite 2183 pass); smoke test: the tab, saving the rider average, hire / more-riders suggestions (630 checks pass).
-- **Live:** migration NOT applied on Supabase yet (ask the owner first). Until then the new tab shows a database error; every other tab works as before.
+- **Live:** migration applied on Supabase 22 Nov as `20261122122659 route_load` (owner said yes first). Checked after: column `hub_routes.avg_parcels`, table `route_hub_load`
+  with RLS, one policy and three triggers, both functions callable by signed-in people only. The site gets the tab when the pull request is merged to `main`.
