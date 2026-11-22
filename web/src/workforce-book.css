@@ -232,3 +232,36 @@ button.wf-op-send.secondary{background:var(--surface);color:var(--text);border-c
 .wf-fill-app-f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .wf-fill-app-f label{margin:0}
 @media(max-width:520px){.wf-fill-app-f{grid-template-columns:minmax(0,1fr)}}
+
+/* wf-tap — one tap adds: the count, the day's total, each tap */
+.wf-tap-sum{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:16px;background:var(--canvas);border:1px solid var(--border)}
+.wf-tap-count{display:flex;align-items:center;gap:12px;min-width:0}
+.wf-tap-count .ring{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--primary);color:#fff;box-shadow:0 0 0 4px var(--primary-50)}
+.wf-tap-count .ring b{font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+.wf-tap-count .tx{display:flex;flex-direction:column;min-width:0}
+.wf-tap-count .tx b{font-size:17px;line-height:1.35}
+.wf-tap-count .tx small{font-size:13.5px;color:var(--muted)}
+.wf-tap-total{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:640px){.wf-tap-total{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.wf-tap-t{display:grid;grid-template-columns:30px minmax(0,1fr);grid-template-rows:auto auto;column-gap:8px;align-items:center;padding:8px 10px;border-radius:12px;min-width:0}
+.wf-tap-t .i{grid-row:1 / span 2;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--surface)}
+.wf-tap-t b{font-size:20px;line-height:1.2;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wf-tap-t small{font-size:12.5px;color:var(--muted);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wf-tap-t.t-b{background:var(--t-b)}.wf-tap-t.t-b .i,.wf-tap-list .t-b{color:var(--t-b-fg)}
+.wf-tap-t.t-o{background:var(--t-o)}.wf-tap-t.t-o .i,.wf-tap-list .t-o{color:var(--t-o-fg)}
+.wf-tap-t.t-g{background:var(--t-g)}.wf-tap-t.t-g .i,.wf-tap-list .t-g{color:var(--t-g-fg)}
+.wf-tap-t.t-p{background:var(--t-p)}.wf-tap-t.t-p .i,.wf-tap-list .t-p{color:var(--t-p-fg)}
+.wf-tap-sum.pop .ring{animation:wf-tap-pop .6s ease}
+.wf-tap-sum.pop .wf-tap-t b{animation:wf-tap-pop .6s ease}
+@keyframes wf-tap-pop{0%{transform:scale(1)}35%{transform:scale(1.18)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.wf-tap-sum.pop .ring,.wf-tap-sum.pop .wf-tap-t b{animation:none}}
+.wf-tap-lead{margin:0;font-size:14.5px;color:var(--muted)}
+.wf-tap-after{font-size:12.5px;color:var(--ok-fg);text-align:center}
+button.wf-tap-send{display:flex;align-items:center;justify-content:center;gap:10px}
+button.wf-tap-send em{font-style:normal;font-size:13px;font-weight:700;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.22)}
+.wf-tap-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.wf-tap-list li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:10px;align-items:center;padding:9px 2px;border-top:1px solid var(--border)}
+.wf-tap-list li:first-child{border-top:0}
+.wf-tap-list .no{font-weight:700;font-size:14px;padding:2px 9px;border-radius:999px;background:var(--primary-50);color:var(--primary);white-space:nowrap}
+.wf-tap-list .tm{font-size:13.5px;color:var(--muted);white-space:nowrap}
+.wf-tap-list .nums{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 10px;font-weight:700;font-variant-numeric:tabular-nums}
