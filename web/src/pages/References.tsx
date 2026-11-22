@@ -1,4 +1,5 @@
 // রেফারেন্স তালিকা — যে কেউ লোক যোগ, বদল বা সরানোর অনুরোধ দেয়; HR অনুমোদন দিলে তালিকায় দেখায়, তার আগে "অপেক্ষায়"।
+import { askReason } from '../components/ask'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
@@ -59,17 +60,17 @@ export function References() {
     } catch (e) { setErr(refFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(r: RefRow) {
-    const why = (window.prompt(`"${r.name}" কেন সরাতে চান?`) ?? '').trim(); if (!why) return
+    const why = (await askReason(`"${r.name}" কেন সরাতে চান?`, { ok: 'সরানোর অনুরোধ' })) ?? ''; if (!why) return
     try { await refs.remove(r.id, why); await data.reload(); toast('সরানোর অনুরোধ জমা হয়েছে') } catch (e) { toast(refFriendly(e)) }
   }
   async function decideStaff(ids: string[], ok: boolean) {
     let note: string | null = null
-    if (!ok) { note = (window.prompt('কেন হবে না? (যিনি চেয়েছেন তিনি দেখবেন)') ?? '').trim(); if (!note) return }
+    if (!ok) { note = (await askReason('কেন হবে না?', { label: 'কারণ (যিনি চেয়েছেন তিনি দেখবেন)', ok: 'বাতিল করুন', cancel: 'ফিরে যান' })) ?? ''; if (!note) return }
     try { const n = await referrals.decideReference(ids, ok, note ?? undefined); await staffReq.reload(); toast(`${n.toLocaleString('bn-BD')}টা ${ok ? 'অনুমোদিত — প্রোফাইলে বসেছে' : 'বাতিল'}`) } catch (e) { toast(refFriendly(e)) }
   }
   async function decide(ids: string[], ok: boolean) {
     let note: string | null = null
-    if (!ok) { note = (window.prompt('কেন হবে না? (যিনি চেয়েছেন তিনি দেখবেন)') ?? '').trim(); if (!note) return }
+    if (!ok) { note = (await askReason('কেন হবে না?', { label: 'কারণ (যিনি চেয়েছেন তিনি দেখবেন)', ok: 'বাতিল করুন', cancel: 'ফিরে যান' })) ?? ''; if (!note) return }
     try { const n = await refs.decide(ids, ok, note); setPick([]); await data.reload(); toast(`${n.toLocaleString('bn-BD')}টা ${ok ? 'অনুমোদিত' : 'বাতিল'}`) } catch (e) { toast(refFriendly(e)) }
   }
 

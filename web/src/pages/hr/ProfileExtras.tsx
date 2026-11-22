@@ -1,3 +1,4 @@
+import { askReason } from '../../components/ask'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -100,7 +101,7 @@ export function ReferralPanel({ employee, zoneId, self = false, onSaved }: { emp
   // "যাঁদের এনেছেন": add many, change, remove many — HR at once, others wait for HR.
   const canBrought = canSetRef || self || can('hr.employee.view')
   async function removeMany(ids: string[]) {
-    const why = (window.prompt(L(`${n(ids.length)} জনের রেফারেন্স সরাবেন? কারণ লিখুন`, `Remove the reference of ${ids.length}? Reason`)) ?? '').trim(); if (!why) return
+    const why = (await askReason(L(`${n(ids.length)} জনের রেফারেন্স সরাবেন?`, `Remove the reference of ${ids.length}?`), { ok: L('সরান', 'Remove') })) ?? ''; if (!why) return
     try {
       const r = await referrals.referenceMany(ids, 'remove', employee, why)
       setPick([]); void brought.reload(); void bPend.reload()

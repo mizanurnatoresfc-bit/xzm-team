@@ -1,5 +1,6 @@
 // অফিস অপারেশন — the parts of the Office pages that deal with running a place: the lease and the month's bills,
 // what the electricity should cost, vehicles / locks / logins, who lives there, reports to the zonal manager, and the zone picture.
+import { askConfirm, askText } from '../../components/ask'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Contact } from '../../components/Contact'
 import { Link } from 'react-router-dom'
@@ -458,8 +459,8 @@ export function Notices({ ctx }: { ctx: Ctx }) {
   async function act(x: Notice, status: 'seen' | 'done' | 'rejected') {
     let reply: string | null = null; let fixed = false
     if (status === 'rejected') { reply = await askWith(L)(L('কেন হবে না, লিখুন', 'Why not?')); if (!reply) return }
-    if (status === 'done') { reply = (window.prompt(L('কী ব্যবস্থা হলো (ইচ্ছা হলে)', 'What was done (optional)')) ?? '').trim() || null
-      if (x.kind === 'broken' && x.asset_id) fixed = window.confirm(L('জিনিসটা ঠিক হয়ে গেছে? ("OK" দিলে অবস্থা "ভালো" হবে)', 'Is the item working again? (OK marks it good)')) }
+    if (status === 'done') { const done = await askText(L('কী ব্যবস্থা হলো?', 'What was done?'), { optional: true, ok: L('সম্পন্ন', 'Done') }); if (done === null) return; reply = done || null
+      if (x.kind === 'broken' && x.asset_id) fixed = await askConfirm(L('জিনিসটা ঠিক হয়ে গেছে?', 'Is the item working again?'), { detail: L('"হ্যাঁ" দিলে জিনিসটার অবস্থা "ভালো" হবে।', '"Yes" marks the item good.'), ok: L('হ্যাঁ, ঠিক হয়েছে', 'Yes, it works'), cancel: L('না, এখনো না', 'Not yet') }) }
     setErr('')
     try { await ops.noticeUpdate(x.id, status, reply, fixed); await Promise.all([list.reload(), ctx.reload()]) } catch (e) { setErr(opsFriendly(e)) }
   }
@@ -709,7 +710,7 @@ export function Zone({ ctx }: { ctx: Ctx }) {
     if (x.priority === 'urgent' || age >= 3) todo.push([L(`${x.notice_no} (${all.find(q => q.id === x.property_id)?.name ?? ''}): "${x.title}" ${n(age)} দিন ধরে অপেক্ষায়`, `${x.notice_no}: "${x.title}" waiting ${age} days`), x.priority === 'urgent' ? 'bad' : 'warn']) }
   const order = { bad: 0, warn: 1, info: 2 }; todo.sort((a, b) => order[a[1]] - order[b[1]])
   async function back(l: Loan) {
-    if (!window.confirm(L(`${l.asset_name} (${l.to_name}) ফেরত এসেছে?`, `${l.asset_name} returned from ${l.to_name}?`))) return
+    if (!await askConfirm(L(`${l.asset_name} (${l.to_name}) ফেরত এসেছে?`, `${l.asset_name} returned from ${l.to_name}?`), { ok: L('হ্যাঁ, ফেরত এসেছে', 'Yes, returned') })) return
     try { await ops.lendReturn(l.id, null); await loans.reload() } catch (e) { setErr(opsFriendly(e)) }
   }
   const hubs = [...new Set(all.map(x => x.hub_id ?? ''))]

@@ -3394,3 +3394,15 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
 /* ---- UI/UX audit, 23 Nov 2026 ---- */
 /* small heading above a title: follows the theme, so it stays readable in dark mode */
 .eyebrow{color:var(--muted)}
+/* the hero's "give attendance" badge is a button: no underline, finger-sized */
+.sp a.sp-att.go{text-decoration:none;min-height:36px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.12)}
+.sp a.sp-att.go:active{transform:scale(.97)}
+/* a chip that is a <button> took the button's white text on the chip's light background */
+button.chip:not(.on){color:var(--text)}
+/* attendance choices: the words get a darker shade of their colour (4.5:1), the dot keeps the bright one */
+.att-btns .att-present{--t:#15803d}.att-btns .att-late{--t:#c2410c}.att-btns .att-half_day{--t:#a16207}
+.att-btns .att-absent{--t:#b91c1c}.att-btns .att-holiday{--t:#1d4ed8}.att-btns .att-weekly_off{--t:#6d28d9}
+.att-btns button:not(.on){color:var(--t,var(--c))!important}
+.att-btns button.on{background:var(--t,var(--c))!important;border-color:var(--t,var(--c))!important}
+[data-theme="dark"] .att-btns button:not(.on){color:color-mix(in srgb,var(--c) 55%,#fff)!important}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .att-btns button:not(.on){color:color-mix(in srgb,var(--c) 55%,#fff)!important}}

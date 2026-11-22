@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/ask'
 import { useMemo, useRef, useState } from 'react'
 import { Combo } from '../../components/inputs'
 import { Icon } from '../../components/Icon'
@@ -49,7 +50,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
     setErr('')
     if (!ready.length) return setErr('লগইন তৈরির মতো কোনো কর্মী নেই')
     if (mode === 'common' && !strongEnough(password)) return setErr('প্রথম পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে')
-    if (!window.confirm(`${ready.length} জন কর্মীর লগইন তৈরি হবে। শুরু করবেন?`)) return
+    if (!await askConfirm(`${ready.length} জন কর্মীর লগইন তৈরি হবে। শুরু করবেন?`, { ok: 'শুরু করুন' })) return
     stop.current = false
     const made: Made[] = [], bad: string[] = []
     setRun({ at: 0, total: ready.length, made, bad, done: false })

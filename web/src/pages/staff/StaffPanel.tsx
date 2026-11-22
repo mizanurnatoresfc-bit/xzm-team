@@ -118,6 +118,15 @@ export function StaffPanel() {
     : waiting ? (waiting.kind === 'present' ? `${L('দিয়েছেন', 'Given at')} ${clock(waiting.marked_at)} · ${L('হাব ম্যানেজার অনুমোদন দিলে খাতায় উঠবে', 'it counts once the hub manager approves')}` : `${L('কারণ', 'Reason')}: ${waiting.note ?? ''}`)
     : returned ? `${L('কারণ', 'Reason')}: ${returned.decide_note ?? ''} · ${L('আবার দিন', 'give it again')}` : L('হাবে এসে নিচের বোতাম চাপুন', 'Tap the button below when you reach the hub')
   const attTone = a?.[2] ?? (waiting ? 'w' : returned ? 'r' : 'w')
+  // Today's attendance still has to be given (nothing on the register, nothing waiting): it is the first job of the day,
+  // so its section moves to the top and the hero's "not marked" badge takes you straight to the buttons.
+  const attPending = !!v?.me && !rec && !waiting
+  const shown: StaffSection[] = attPending && order.includes('attendance') ? ['attendance', ...order.filter(k => k !== 'attendance')] : order
+  const toAtt = (e: MouseEvent) => {
+    const el = document.getElementById('sp-att'); if (!el) return
+    e.preventDefault(); el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
+    const first = el.parentElement?.querySelector<HTMLElement>('#sp-att ~ .nv-rows .nv-row:not([disabled])'); first?.focus({ preventScroll: true })
+  }
   const { toast, node } = useToast()
   const [busy, setBusy] = useState(false)
   const [absent, setAbsent] = useState<string | null>(null)
@@ -274,7 +283,11 @@ export function StaffPanel() {
       <div className="sp-hero">
         <MyAvatarUpload className="sp-av" onDone={m => { toast(m); void d.reload() }} />
         <Link to="/app/me" className="tx"><small>{day}</small><b>{name}</b>{who && <span>{who}</span>}</Link>
-        <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>
+        {attPending
+          ? wfOpen
+            ? <Link to="/app/workforce/attendance?give=today" className={`sp-att go t-${attTone}`}><Icon name="clock" size={15} />{L('হাজিরা দিন', 'Mark attendance')}<Icon name="chev" size={14} /></Link>
+            : <a href="#sp-att" className={`sp-att go t-${attTone}`} onClick={toAtt}><Icon name="clock" size={15} />{returned ? L('হাজিরা আবার দিন', 'Give it again') : L('হাজিরা দিন', 'Mark attendance')}<Icon name="chev" size={14} /></a>
+          : <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>}
       </div>
       <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
@@ -284,7 +297,7 @@ export function StaffPanel() {
           <span>{L('ছবি, এনআইডি, জরুরি যোগাযোগ — নিজেই দিন, সাথে সাথে সেভ হবে', 'Photo, NID, emergency contact — add them yourself, they save at once')}</span></div>
         <Icon name="chev" size={18} /></Link>}
 
-      {order.map(k => <Fragment key={k}>{SECTION[k]()}</Fragment>)}
+      {shown.map(k => <Fragment key={k}>{SECTION[k]()}</Fragment>)}
       {zmOpen && zm && <ZonalManagerSheet zm={zm} onClose={() => setZmOpen(false)} onSent={k => { setZmOpen(false); toast(L(`জোনাল ম্যানেজারকে জানানো হয়েছে${k > 1 ? ` (${n(k)} জন)` : ''}`, `Sent to the zonal manager${k > 1 ? ` (${k})` : ''}`)); void d.reload() }} />}
       {absent !== null && <Modal title={L('আজ আসব না', 'Not coming today')} onClose={() => setAbsent(null)}
         actions={<><button className="secondary" onClick={() => setAbsent(null)}>{L('বাতিল', 'Cancel')}</button>

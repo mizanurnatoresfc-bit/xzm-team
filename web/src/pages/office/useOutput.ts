@@ -1,6 +1,7 @@
 // Export / print of the office lists: shown only to roles with office.report.export / office.report.print,
 // and logged in the database (office_log_export) before the file or print window is made.
 // The database checks the same permission again, so hiding the buttons is not the only guard.
+import { tell } from '../../components/ask'
 import { useAuth } from '../../auth/AuthProvider'
 import { ops, opsFriendly } from '../../lib/officeOps'
 
@@ -12,7 +13,7 @@ export function useOfficeOutput(list: string) {
     canExport: can('office.report.export'), canPrint: can('office.report.print'),
     beforeOutput: async (format: 'excel' | 'pdf' | 'print', rows: number) => {
       try { await ops.logExport(list, format, rows); return true }
-      catch (e) { if (notInstalled(e)) return true; window.alert(opsFriendly(e)); return false }
+      catch (e) { if (notInstalled(e)) return true; void tell(opsFriendly(e)); return false }
     },
   }
 }

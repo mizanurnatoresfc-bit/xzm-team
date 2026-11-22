@@ -1,3 +1,4 @@
+import { askReason } from '../../components/ask'
 import { useMemo, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { Combo } from '../../components/inputs'
@@ -57,7 +58,7 @@ export function BroughtPicker({ me }: { me: EmpRow }) {
     } catch (e) { setErr(e instanceof Error && /[ঀ-৿]/.test(e.message) ? e.message : extraFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(id: string, name: string) {
-    const why = (window.prompt(L(`${name} — আপনার নাম থেকে সরাবেন? কারণ লিখুন`, `Remove ${name}? Reason`)) ?? '').trim(); if (!why) return
+    const why = (await askReason(L(`${name} — আপনার নাম থেকে সরাবেন?`, `Remove ${name}?`), { ok: L('সরান', 'Remove') })) ?? ''; if (!why) return
     try {
       const r = await referrals.referenceMany([id], 'remove', me.id, why)
       void brought.reload(); void pend.reload()

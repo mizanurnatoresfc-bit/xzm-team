@@ -1,3 +1,4 @@
+import { askReason } from '../../components/ask'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
@@ -155,7 +156,7 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
     setBusy(true); setErr('')
     try { await what(); toast(done); await d.reload(); onChanged() } catch (e) { setErr(planFriendly(e)) } finally { setBusy(false) }
   }
-  const ask = (q: string) => (window.prompt(q) ?? '').trim()
+  const ask = async (q: string) => (await askReason(q)) ?? ''
   const rest = (t: Extract<PlanTip, { kind: 'cover' }>) => t.parcels - t.to.reduce((a, x) => a + x.parcels, 0)
   const tipText = (t: PlanTip) => t.kind === 'cover'
       ? L(`${t.absent} নেই — তাঁর ${n(t.parcels)}টা পার্সেল: ${t.to.length ? t.to.map(x => `${x.name} ${n(x.parcels)}টা (${HOW[x.how].bn})`).join(', ') : 'কেউ নিতে পারছেন না'}${t.to.length && rest(t) > 0 ? `; বাকি ${n(rest(t))}টা কেউ নিতে পারছেন না` : ''}`,
@@ -246,9 +247,9 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
           <Icon name="send" size={15} />{L('অনুমোদনের জন্য পাঠান', 'Send for approval')}</button>}
         {data.can.approve && !locked && <button disabled={busy || given <= 0} onClick={() => void run(async () => { const id = canWrite && (dirty || !plan) ? await planApi.save(hub, date, body()) : plan!.id; await planApi.decide(id, true) }, L('পরিকল্পনা অনুমোদিত', 'Plan approved'))}>
           <Icon name="checkall" size={15} />{L('অনুমোদন', 'Approve')}</button>}
-        {data.can.approve && plan?.status === 'sent' && <button className="secondary" disabled={busy} onClick={() => { const why = ask(L('কেন ফেরত দিচ্ছেন?', 'Why send it back?')); if (why) void run(() => planApi.decide(plan.id, false, why), L('ফেরত দেওয়া হয়েছে', 'Sent back')) }}>{L('ফেরত দিন', 'Send back')}</button>}
-        {data.can.approve && locked && <button className="secondary" disabled={busy} onClick={() => { const why = ask(L('কেন আবার খুলছেন?', 'Why reopen it?')); if (why) void run(() => planApi.reopen(plan!.id, why), L('আবার খোলা হয়েছে', 'Reopened')) }}>{L('আবার খুলুন', 'Reopen')}</button>}
-        {data.can.archive && plan && <button className="secondary" disabled={busy} onClick={() => { const why = ask(L('পরিকল্পনা সরানোর কারণ', 'Why remove this plan?')); if (why) void run(() => planApi.remove(plan.id, why), L('পরিকল্পনা সরানো হয়েছে', 'Plan removed')) }}>
+        {data.can.approve && plan?.status === 'sent' && <button className="secondary" disabled={busy} onClick={async () => { const why = await ask(L('কেন ফেরত দিচ্ছেন?', 'Why send it back?')); if (why) void run(() => planApi.decide(plan.id, false, why), L('ফেরত দেওয়া হয়েছে', 'Sent back')) }}>{L('ফেরত দিন', 'Send back')}</button>}
+        {data.can.approve && locked && <button className="secondary" disabled={busy} onClick={async () => { const why = await ask(L('কেন আবার খুলছেন?', 'Why reopen it?')); if (why) void run(() => planApi.reopen(plan!.id, why), L('আবার খোলা হয়েছে', 'Reopened')) }}>{L('আবার খুলুন', 'Reopen')}</button>}
+        {data.can.archive && plan && <button className="secondary" disabled={busy} onClick={async () => { const why = await ask(L('পরিকল্পনা সরানোর কারণ', 'Why remove this plan?')); if (why) void run(() => planApi.remove(plan.id, why), L('পরিকল্পনা সরানো হয়েছে', 'Plan removed')) }}>
           <Icon name="trash" size={15} />{L('সরান', 'Remove')}</button>}
       </div>
     </section>
@@ -335,7 +336,7 @@ function FilesPanel({ hub, date, data, files, error, canWrite, reload, toast, on
                 {' · '}{x.on_report ? L('রিপোর্টে উঠেছে', 'on a report') : L('রিপোর্টে ওঠেনি', 'not on a report')}</>}
             {x.warnings.map(w => <div key={w} style={{ color: '#ca8a04' }}>{WARN[w] ? L(WARN[w].bn, WARN[w].en) : w}</div>)}</td>
           <td className="small" data-label={L('আপলোড', 'Uploaded')}>{x.uploaded_by_name ?? ''}{x.uploads > 1 ? ` · ${n(x.uploads)}${L(' বার', '×')}` : ''}</td>
-          <td>{canUp && <button className="secondary sm" disabled={busy} onClick={() => { const why = (window.prompt(L('পিডিএফ সরানোর কারণ', 'Why remove this PDF?')) ?? '').trim(); if (why) void act(() => planApi.removeFile(x.id, why), L('সরানো হয়েছে', 'Removed')) }}>{L('সরান', 'Remove')}</button>}</td>
+          <td>{canUp && <button className="secondary sm" disabled={busy} onClick={async () => { const why = (await askReason(L('পিডিএফ সরানোর কারণ', 'Why remove this PDF?'))) ?? ''; if (why) void act(() => planApi.removeFile(x.id, why), L('সরানো হয়েছে', 'Removed')) }}>{L('সরান', 'Remove')}</button>}</td>
         </tr>)}</tbody>
       </table></div>
     </>}

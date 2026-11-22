@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/ask'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
@@ -44,7 +45,7 @@ export function Duties() {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(d: Duty) {
-    if (!window.confirm(L(`"${d.title}" মুছবেন?`, `Remove "${d.title}"?`))) return
+    if (!await askConfirm(L(`"${d.title}" মুছবেন?`, `Remove "${d.title}"?`), { ok: L('মুছুন', 'Remove'), danger: true })) return
     try { await dutiesApi.remove(d.id); await list.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   const card = (d: Duty, own: boolean) => <li key={d.id} className="duty">

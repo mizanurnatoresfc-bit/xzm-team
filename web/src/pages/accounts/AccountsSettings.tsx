@@ -1,3 +1,4 @@
+import { askReason } from '../../components/ask'
 import { Fragment, useEffect, useState } from 'react'
 import { da, type DaSettings, type Category, type Template, type RefPerson, type Vehicle, type FixedExpense } from '../../lib/dailyAccounts'
 import { autoCode, org } from '../../lib/hr'
@@ -316,7 +317,7 @@ function AccessCard() {
   const hubName = (id: string) => (hubs.data ?? []).find(h => h.hub_id === id)?.name ?? id
   const userName = (id: string) => (people.data ?? []).find(p => p.user_id === id)?.full_name ?? id
   async function assign() { setErr(null); try { await da.assignAccountant(hub, form.user, form.reason); setForm({ user: '', reason: '' }); await assigned.reload() } catch (e) { setErr(e) } }
-  async function revoke(id: string) { const r = window.prompt('বাতিলের কারণ লিখুন'); if (!r) return; try { await da.revokeAccountant(id, r); await assigned.reload() } catch (e) { setErr(e) } }
+  async function revoke(id: string) { const r = await askReason('কেন বাতিল করছেন?', { ok: 'বাতিল করুন', cancel: 'ফিরে যান' }); if (!r) return; try { await da.revokeAccountant(id, r); await assigned.reload() } catch (e) { setErr(e) } }
 
   return <section className="panel"><h2>হিসাব ম্যানেজার নির্ধারণ ও হাব-ভিত্তিক অনুমতি</h2>
     <div className="da-filters"><Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{(hubs.data ?? []).map(h => <option key={h.hub_id} value={h.hub_id}>{h.name} · {h.zone_name}</option>)}</select></Field>

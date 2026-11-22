@@ -1,3 +1,4 @@
+import { askConfirm, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
@@ -66,7 +67,7 @@ function HubsDay({ zone }: { zone: string }) {
   const s = q.data
   const waiting = (s?.hubs ?? []).filter(h => h.status === 'submitted' && h.report_id)
   async function reviewAll() {
-    if (!window.confirm(L(`জমা হওয়া ${n(waiting.length)}টি রিপোর্ট "দেখা হয়েছে" করবেন?`, `Mark ${waiting.length} submitted reports reviewed?`))) return
+    if (!await askConfirm(L(`জমা হওয়া ${n(waiting.length)}টি রিপোর্ট "দেখা হয়েছে" করবেন?`, `Mark ${waiting.length} submitted reports reviewed?`), { ok: L('দেখা হয়েছে', 'Mark reviewed') })) return
     setBusy(true)
     try { const k = await hubOps.review(waiting.map(h => h.report_id!), null); toast(L(`${n(k)}টি রিপোর্ট দেখা হয়েছে`, `${k} reviewed`)); await q.reload() }
     catch (e) { toast(hubOpsFriendly(e)) } finally { setBusy(false) }
@@ -315,8 +316,8 @@ function ZoneSettings({ zone }: { zone: string }) {
         <small className="muted">{L('এখন এই গ্রুপে', 'In this group now')}: {f.positions.filter(p => p.group_key === g.key).map(posName).join(', ') || '—'}
           {g.pattern ? ` · ${L('মিলের শব্দ', 'match words')}: ${g.pattern}` : ''}</small>
       </div>)}
-      {can && <button type="button" className="secondary sm" onClick={() => {
-        const name = window.prompt(L('নতুন গ্রুপের নাম (যেমন: হিসাব):', 'New group name (e.g. Accounts):'))?.trim(); if (!name) return
+      {can && <button type="button" className="secondary sm" onClick={async () => {
+        const name = await askText(L('নতুন গ্রুপের নাম', 'New group name'), { short: true, label: L('নাম (যেমন: হিসাব)', 'Name (e.g. Accounts)'), ok: L('যোগ করুন', 'Add') }); if (!name) return
         let key = 'g_' + Math.random().toString(36).slice(2, 8)
         while (f.groups.some(x => x.key === key)) key = 'g_' + Math.random().toString(36).slice(2, 8)
         setF({ ...f, groups: [...f.groups, { key, bn: name, en: name, core: false, position_ids: [], pattern: null }] })
