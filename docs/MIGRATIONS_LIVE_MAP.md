@@ -93,6 +93,7 @@ same text to live. Never change live with SQL that is not in a file here.
 | `20261121000300_staff_panel_audit_fixes.sql` | 20261121112345 staff_panel_audit_fixes — the 5 replaced functions were checked equal to the repository by hash before, and all 6 after |
 | `20261121000400_book_full_month.sql` | 20261121133728 book_full_month (file text without the header comment; the two replaced functions were checked equal to the repository before applying; switch tried on and off, left off) |
 | `20261121000500_company_sheets.sql` | 20261121165015 company_sheets (file text without the header comment; after applying: 3 sheets (25 / 11 / 17 columns), the ID TRANSFER form has its 3 new-salary boxes, RLS on with 3 policies, nothing for `anon`; the 3 new function bodies equal to the tested file by hash) |
+| `20261121000600_route_map_audit_fixes.sql` | 20261122113013 route_map_audit_fixes — applied whole in one call; constraint, index, trigger and the 5 functions checked present afterwards |
 
 **Check of 18 Nov 2026 (after the three files above were added):** a database built only from this repository and the live database have the same
 613 functions in `public` and `private`, with the same code (compared by hash with comments, spacing and Windows line breaks ignored — 174 live
