@@ -65,9 +65,15 @@ select tests.login(tests.id('admin'));
 select public.user_admin_unlock(tests.id('hub_mgr'));
 select tests.ok((select locked_until is null and failed_login_count = 0 from public.profiles where id = tests.id('hub_mgr')), 'admin unlocks a locked account');
 
--- ---------- password reset: no permissions until the password is changed ----------
+-- ---------- password reset: the new password is used as it is (owner, 22 Nov 2026) ----------
 select public.user_admin_note_reset(tests.id('hub_mgr'));
-select tests.ok((select must_change_password from public.profiles where id = tests.id('hub_mgr')), 'reset marks the account for a password change');
+select tests.ok((select not must_change_password from public.profiles where id = tests.id('hub_mgr')), 'reset does not force a password change');
+select tests.login(tests.id('hub_mgr'));
+select tests.ok((select count(*) from public.my_permissions()) > 0, 'after a reset the account works straight away');
+select tests.logout();
+
+-- ---------- an account waiting for its own password (a new login) holds no permissions ----------
+update public.profiles set must_change_password = true where id = tests.id('hub_mgr');  -- what a new login starts with
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select count(*) from public.my_permissions()) = 0, 'account waiting for a new password holds no permissions');
 select tests.ok(tests.row_count('select 1 from public.user_roles where user_id = auth.uid()') = 1, 'it can still read its own role (for the menu)');

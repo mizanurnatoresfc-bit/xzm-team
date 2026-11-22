@@ -36,7 +36,7 @@ export function HubLogins({ hub }: { hub: { id: string; name: string } }) {
 
   async function create() {
     if (!make) return
-    if (!strongEnough(pw)) return setErr('প্রথম পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন, অক্ষর ও সংখ্যা দুটোই থাকবে।')
+    if (!strongEnough(pw)) return setErr('প্রথম পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন।')
     setBusy(true); setErr('')
     const bad: string[] = []
     let done = 0
@@ -55,12 +55,12 @@ export function HubLogins({ hub }: { hub: { id: string; name: string } }) {
   }
   async function doReset() {
     if (!reset?.user_id) return
-    if (!strongEnough(pw)) return setErr('নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন, অক্ষর ও সংখ্যা দুটোই থাকবে।')
+    if (!strongEnough(pw)) return setErr('নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন।')
     setBusy(true); setErr('')
-    try { await users.resetPassword(reset.user_id, pw); setReset(null); toast('নতুন পাসওয়ার্ড বসানো হয়েছে — প্রথমবার ঢুকে তিনি নিজের পাসওয়ার্ড দেবেন'); await list.reload() }
+    try { await users.resetPassword(reset.user_id, pw); setReset(null); toast('নতুন পাসওয়ার্ড বসানো হয়েছে — তিনি এটা দিয়েই সরাসরি ঢুকবেন'); await list.reload() }
     catch (e) { setErr(userFriendly(e)) } finally { setBusy(false) }
   }
-  const pwBox = <Field label="পাসওয়ার্ড" hint="কমপক্ষে ৮ অক্ষর, অক্ষর ও সংখ্যা দুটোই। এটা কর্মীকে মুখে বা কাগজে জানান; প্রথমবার ঢুকেই তাঁকে নিজের পাসওয়ার্ড বসাতে হবে।">
+  const pwBox = <Field label="পাসওয়ার্ড" hint="কমপক্ষে ৬ অক্ষর। এটা কর্মীকে মুখে বা কাগজে জানান। নতুন লগইনে প্রথমবার ঢুকে নিজের পাসওয়ার্ড বসাতে হবে; রিসেট করা পাসওয়ার্ড দিয়ে সরাসরি ঢোকা যায়।">
     <span className="pw" style={{ display: 'block' }}><input type={show ? 'text' : 'password'} autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} style={{ paddingRight: 84 }} />
       <button type="button" className="secondary sm" onClick={() => setShow(s => !s)}>{show ? 'লুকান' : 'দেখুন'}</button></span></Field>
 

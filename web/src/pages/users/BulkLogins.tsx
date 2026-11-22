@@ -48,7 +48,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
   async function start() {
     setErr('')
     if (!ready.length) return setErr('লগইন তৈরির মতো কোনো কর্মী নেই')
-    if (mode === 'common' && !strongEnough(password)) return setErr('প্রথম পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে, তাতে অক্ষর ও সংখ্যা দুটোই থাকবে')
+    if (mode === 'common' && !strongEnough(password)) return setErr('প্রথম পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে')
     if (!window.confirm(`${ready.length} জন কর্মীর লগইন তৈরি হবে। শুরু করবেন?`)) return
     stop.current = false
     const made: Made[] = [], bad: string[] = []
@@ -121,7 +121,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
     <div className="da-seg" role="group" aria-label="প্রথম পাসওয়ার্ড">
       <button type="button" className={mode === 'common' ? '' : 'secondary'} aria-pressed={mode === 'common'} onClick={() => setMode('common')}>সবার জন্য একটাই</button>
       <button type="button" className={mode === 'each' ? '' : 'secondary'} aria-pressed={mode === 'each'} onClick={() => setMode('each')}>প্রত্যেকের আলাদা</button></div>
-    {mode === 'common' ? <Field label="সবার প্রথম পাসওয়ার্ড" required hint="কমপক্ষে ৮ অক্ষর, অক্ষর ও সংখ্যা দুটোই। এটা কোথাও জমা থাকে না — আপনি নিজে সবাইকে জানাবেন।">
+    {mode === 'common' ? <Field label="সবার প্রথম পাসওয়ার্ড" required hint="কমপক্ষে ৬ অক্ষর। এটা কোথাও জমা থাকে না — আপনি নিজে সবাইকে জানাবেন।">
         <input autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} placeholder="যেমন: Natore2026" /></Field>
       : <p className="muted small">প্রত্যেকের জন্য আলাদা পাসওয়ার্ড তৈরি হবে; শেষে এক্সেল তালিকায় পাবেন। সেই তালিকা আর দেখানো হবে না।</p>}
     {mode === 'common' && <p className="notice">একই পাসওয়ার্ড সবার জানা থাকে, তাই কেউ অন্যের আইডি দিয়ে আগে ঢুকে পাসওয়ার্ড বদলে ফেলতে পারে। ঝুঁকি কমাতে হাব ধরে ধরে তৈরি করুন, আর সেদিনই সবাইকে একবার লগইন করিয়ে নিন।</p>}

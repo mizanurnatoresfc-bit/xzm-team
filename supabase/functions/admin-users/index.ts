@@ -1,7 +1,7 @@
 // admin-users: the only steps of account management that need the service key.
 //
 //   create          admin creates a staff login (email + temporary password + first role)
-//   reset_password  admin sets a new temporary password for an account they may manage
+//   reset_password  admin sets a new password for an account they may manage (used as it is, no forced change)
 //   change_password the signed-in user replaces their (temporary) password
 //
 // Every permission decision is made by the database while acting AS THE CALLER
@@ -29,9 +29,9 @@ function cors(origin: string | null): Record<string, string> {
   }
 }
 
-/** At least 8 characters with a letter and a digit. */
+/** At least 6 characters (owner, 22 Nov 2026: no letter/digit rule). */
 function weak(pw: string): boolean {
-  return pw.length < 8 || pw.length > 72 || !/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)
+  return pw.length < 6 || pw.length > 72
 }
 const uuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v) ? v : null
 

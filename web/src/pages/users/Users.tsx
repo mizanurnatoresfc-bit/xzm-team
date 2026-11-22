@@ -94,7 +94,7 @@ function NewAccount({ onClose, onDone }: { onClose: () => void; onDone: () => vo
     setErr('')
     if (f.name.trim().length < 2) return setErr(L('পূর্ণ নাম দিন', 'Enter the full name'))
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) return setErr(L('সঠিক ইমেইল দিন', 'Enter a valid email'))
-    if (!strongEnough(f.password)) return setErr(L('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের, অক্ষর ও সংখ্যা দুটোই লাগবে', 'Password: at least 8 characters with letters and digits'))
+    if (!strongEnough(f.password)) return setErr(L('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে', 'Password: at least 6 characters'))
     if (!pick.role) return setErr(L('জায়গা ও রোল বেছে নিন', 'Choose the place and role'))
     setBusy(true)
     try {

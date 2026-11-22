@@ -17,7 +17,7 @@ export function ChangePassword() {
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); setErr('')
-    if (!strongEnough(pw)) return setErr(L('কমপক্ষে ৮ অক্ষর দিন, এতে অক্ষর ও সংখ্যা দুটোই থাকবে।', 'Use at least 8 characters with both letters and digits.'))
+    if (!strongEnough(pw)) return setErr(L('কমপক্ষে ৬ অক্ষর দিন।', 'Use at least 6 characters.'))
     if (pw !== pw2) return setErr(L('দুটি পাসওয়ার্ড মিলছে না।', 'The two passwords do not match.'))
     setBusy(true)
     try { await users.changeMyPassword(pw); endRecovery(); await refreshGrants(); setOk(true); setPw(''); setPw2(''); if (mustChangePassword) nav('/app', { replace: true }) }
@@ -32,7 +32,7 @@ export function ChangePassword() {
     <label>{L('নতুন পাসওয়ার্ড', 'New password')}<input type={show ? 'text' : 'password'} autoComplete="new-password" required value={pw} onChange={e => setPw(e.target.value)} /></label>
     <label>{L('আবার লিখুন', 'Repeat it')}<input type={show ? 'text' : 'password'} autoComplete="new-password" required value={pw2} onChange={e => setPw2(e.target.value)} /></label>
     <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontWeight: 400 }}><input type="checkbox" checked={show} onChange={e => setShow(e.target.checked)} style={{ width: 'auto' }} />{L('পাসওয়ার্ড দেখান', 'Show password')}</label>
-    <p className="muted small">{L('কমপক্ষে ৮ অক্ষর, অক্ষর ও সংখ্যা দুটোই। নাম বা মোবাইল নম্বর দেবেন না।', 'At least 8 characters, letters and digits. Do not use your name or mobile number.')}</p>
+    <p className="muted small">{L('কমপক্ষে ৬ অক্ষর। নাম বা মোবাইল নম্বর দেবেন না।', 'At least 6 characters. Do not use your name or mobile number.')}</p>
     {err && <p className="da-error" role="alert">{err}</p>}
     {ok && !mustChangePassword && <p className="notice">{L('পাসওয়ার্ড বদলানো হয়েছে।', 'Password changed.')}</p>}
     <button disabled={busy} style={{ width: '100%' }}><Icon name="key" size={16} />{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('পাসওয়ার্ড সেভ করুন', 'Save password')}</button>
