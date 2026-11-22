@@ -681,3 +681,21 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Live:** migration applied on Supabase 22 Nov as `20261122113013 route_map_audit_fixes` (owner said yes first). Checked after: the old unique constraint is gone, index
   `hub_routes_hub_code_live`, check `hub_routes_road_path_ok` and trigger `hubs_moved_routes` exist, the one live route kept its road line (R01, 7.06 km by road). The site gets
   the map changes when the pull request is merged to `main`.
+
+## 2026-11-22 — রুট: পার্সেলের চাপ, রাইডার ও রুট পরামর্শ (route load & suggestions)
+- Owner: "রাইডার এভারেজ পার্সেল ডেলিভারি সেট করা যাবে, হাব অনুযায়ী জোনাল প্যানেলে ইনপুট দেওয়া হবে, রাইডার সাজেশন, রুট সাজেশন হবে"।
+- Migration `20261122000100_route_load.sql` (additive): table `route_hub_load` (per hub: parcels one rider delivers a day), column `hub_routes.avg_parcels`
+  (typed average of a route), `route_load_save(hub, {rider_parcels?, routes?: [{id, avg_parcels}]})` (needs `ops.route_setting.edit` or `ops.route.edit` for the hub),
+  `route_load_overview(zone, days)` (needs `ops.route_setting.view`): the typed numbers plus, from **submitted / approved daily accounts** of the last N days
+  (1–180, default 30), per hub the sheets counted and parcels delivered, and per rider their days and parcels (removed lines left out).
+- Page: রুট সেটিং → new tab **পার্সেল ও পরামর্শ** (`pages/zonal/RouteLoad.tsx`; the arithmetic is `planLoad` in `lib/routes.ts`). Per hub: the rider average, hub parcels a day,
+  riders here / needed, a table of routes (typed average, figure from the accounts, riders / needed, load per rider with a bar, suggestion).
+  Rules: a hub's accounts are used once it has `LOAD_MIN_DAYS` = 3 sent sheets in the period, before that the typed averages; a route's parcels = what its riders
+  delivered per day (a rider on two routes is shared equally); riders needed = parcels ÷ rider average, rounded up; more than 10% over = too much, under half = light.
+  Suggestions: hire N riders (hub), give the riders without a route first, give a route more riders, move stops to the nearest light route of the hub, split a route,
+  join two light routes that together are one rider's work, free a rider. Nothing is changed by itself.
+- **Limits:** the accounts hold parcels per rider, not per village, so a rider on two routes is split equally; pickups are shown in the data but not counted in the load;
+  the district coverage map (every place, covered or not) the owner also asked about is not built yet.
+- **Tests:** `99…_route_load.sql` (14 assertions; whole SQL suite 2183 pass); smoke test: the tab, saving the rider average, hire / more-riders suggestions (630 checks pass).
+- **Live:** migration applied on Supabase 22 Nov as `20261122122659 route_load` (owner said yes first). Checked after: column `hub_routes.avg_parcels`, table `route_hub_load`
+  with RLS, one policy and three triggers, both functions callable by signed-in people only. The site gets the tab when the pull request is merged to `main`.
