@@ -678,4 +678,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   steady business use — the owner is weighing a paid map; on a phone the zone map sits below the six number cards; `route_save` answers a too-large number with the raw database text.
 - **Tests:** `99…_route_map_audit.sql` (16 assertions; whole SQL suite 2169 pass); smoke test: the editor map keeps its zoom after a stop is added, the wheel zooms (all 622 checks pass).
   The "আবার চেষ্টা" button was type-checked only, not driven in a browser.
-- **Live:** the migration is NOT applied on Supabase yet (ask the owner first). The site changes work with the database as it is now; the five database fixes arrive with the migration.
+- **Live:** migration applied on Supabase 22 Nov as `20261122113013 route_map_audit_fixes` (owner said yes first). Checked after: the old unique constraint is gone, index
+  `hub_routes_hub_code_live`, check `hub_routes_road_path_ok` and trigger `hubs_moved_routes` exist, the one live route kept its road line (R01, 7.06 km by road). The site gets
+  the map changes when the pull request is merged to `main`.
