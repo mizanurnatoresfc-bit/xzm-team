@@ -3372,3 +3372,21 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
   .da-filters .da-filter-actions{grid-column:1/-1;width:100%;padding-top:4px}
   .da-filters .da-filter-actions button{min-height:38px}
 }
+
+/* ---- Office resources: kinds as tap-to-filter chips, help folded away, name with its icon (owner, 22 Nov 2026) ---- */
+.oo-kind-row{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin:4px -2px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.oo-kind-row::-webkit-scrollbar{display:none}
+.oo-kind{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 12px!important;border-radius:999px!important;
+  border:1px solid var(--border)!important;background:var(--surface)!important;color:var(--text)!important;font-weight:600;font-size:.875rem;box-shadow:none!important}
+.oo-kind b{min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;background:var(--primary-50);color:var(--primary);font-size:.8125rem}
+.oo-kind.on{background:var(--primary)!important;border-color:var(--primary)!important;color:var(--on-primary)!important}
+.oo-kind.on b{background:rgba(255,255,255,.22);color:inherit}
+.oo-help{margin:6px 0 0}
+.oo-help summary{cursor:pointer;color:var(--primary);font-weight:600;font-size:.875rem;list-style:none;display:inline-flex;align-items:center;gap:6px}
+.oo-help summary::before{content:'?';display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--primary-50);font-size:.75rem}
+.oo-help summary::-webkit-details-marker{display:none}
+.oo-help p{margin:6px 0 0}
+.oo-name{display:inline-flex;align-items:center;gap:6px}
+.oo-name .ic{color:var(--primary);flex:none}
+/* A list line whose only action is the ⋮ menu keeps it on the same line, at the right (no extra empty row). */
+@media (max-width:700px){.dv-list li .dv-acts:has(.row-menu-btn):not(:has(button:not(.row-menu-btn))){flex:none;margin-left:auto}}
