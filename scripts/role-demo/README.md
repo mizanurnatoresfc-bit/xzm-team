@@ -27,3 +27,11 @@ node ../scripts/role-demo/walk.mjs          # ROLES=hub_mgr SIZES=phone to narro
 
 Screenshots and `walk-report.json` land in `web/role-demo-out/`.
 Result of 22 Nov 2026: 227 pages × 2 sizes, 0 crashes, 0 failed database calls (see `docs/GO_LIVE_ROADMAP.md`).
+
+To try one thing by hand as one role (click, fill, read what the page says), after steps 1 and 2:
+
+```bash
+node ../scripts/role-demo/try.mjs rider_login phone /app '[["btn","হাবে এসেছি"],["text"]]'   # steps can also be a file: @steps.json
+```
+
+Second pass of 22 Nov 2026 (work entered as all three roles): see `docs/MASTER_AUDIT_2026-11-22_BN.pdf`.

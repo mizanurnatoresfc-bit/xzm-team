@@ -980,3 +980,30 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Left behind:** the empty private bucket `wf-leave` — Supabase does not let SQL delete a bucket; remove it from the dashboard (Storage) if wanted.
 - **Live:** applied 22 Nov as `drop_workforce_manager_book`; checked before (all empty) and after (see `docs/MIGRATIONS_LIVE_MAP.md`).
 - **Tests:** the book's own test file is removed, the workforce test counts 27 public `wf_*` functions again; SQL suite 2442 assertions pass locally.
+
+## 2026-11-22 — মাস্টার অডিট, দ্বিতীয় দফা: তিন রোলে কাজ ইনপুট দিয়ে (master audit, second pass)
+- Owner: "FULL SITE MASTER AUDIT, CREATE DEMO ACCOUNT AND STAFF/MANAGER/ZONAL MANAGER WORK INPUT AND FIX … BANGLA WITH PDF". Done on a throwaway local
+  database with demo people (`scripts/role-demo/seed.sql`) — **no demo account was made on the live Supabase project**. Work was entered through the real pages
+  in a browser as the rider, the hub manager and the zonal manager (attendance, the four numbers twice, an expense bill, the final register with late / absent /
+  "no", the reply to the explanation, the khata with a rider line and the bill posted), plus two independent reviews (newest migrations; the work pages against the
+  database: 379 rpc calls, 201 table reads, all match). The Bangla report with every finding is `docs/MASTER_AUDIT_2026-11-22_BN.pdf`.
+- **Migration `20261122001300_master_audit_fixes.sql` (NOT on live yet — needs the owner's yes):** each function is the live body with one marked change.
+  - `att_sheet_submit`: a register with someone who has since left could never be submitted (the register refuses a new row for a leaver and that failed the whole
+    hub's day). Existing rows are updated; a new row is written only for an active person; the leaver keeps the line on the sheet.
+  - `hr_request_decide`: an "আইডি সাময়িক বন্ধ" request approved in the zonal inbox made the person **resigned** with an exit file. It now makes them `inactive`
+    (no exit row, no exit file); `exit_type: 'inactive'` is accepted and is the default for that reason.
+  - `hr_request_inbox` / `hr_request_decide`: one request whose date is not `YYYY-MM-DD` broke the inbox of every approver. New `private.safe_date`.
+  - `private.wf_ops_after`: a tap without a note was listed with an earlier tap's note.
+- **Web:**
+  - `FinalSheet.tsx`, `att-sheet.css`: on a phone the "পদবী অনুযায়ী" table showed bare numbers with no labels and no total.
+  - `StaffPanel.tsx`: the pickup / delivery tiles stayed 0 after the person gave their own numbers; they now show the own numbers until the khata has the line.
+  - `DailySheet.tsx`: an expense whose reference (mobile / vehicle) was refused stayed saved but hidden, and saving again added it twice. The mobile is checked
+    first and a second save changes the same line. `sheetTools.tsx`: the same for a report ID whose file was refused. `AccountsCenter.tsx`: the file is uploaded
+    before the expense and voucher are made.
+  - `ZonalRequests.tsx`: the approval dialog has "সাময়িক বন্ধ (আবার চালু করা যাবে)". `ZoneWindows.tsx`: the last date no longer runs into the next month.
+  - `HubManagement.tsx`: "বাকি সবাই উপস্থিত" counts only what was saved and cannot be pressed twice.
+- **Left for the owner to decide (not changed):** the hub manager's own line is on the final register, so submitting it settles their own attendance (the older
+  approval paths refuse that); "হাজিরার দিন মেলানো" refuses a partial save while a pre-filled box has no pair; "send for checking" finds managers by the position
+  codes MANAGER / ASSISTANTMAN.
+- **Tests:** `99…_master_audit.sql` (19 assertions); SQL suite 2461 pass on local PostgreSQL 16; typecheck, build, 688 smoke checks pass.
+  `scripts/role-demo/try.mjs` drives one role by hand (click, fill, read the page) against the demo database.

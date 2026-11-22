@@ -93,7 +93,9 @@ export function ZoneWindows({ zone }: { zone: string }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const firstDay = (m: IsoDate) => d ? addDays(m, d.window.from_day - 1) : m
-  const lastDay = (m: IsoDate) => d ? minIso(addDays(m, d.window.to_day - 1), d.today) : m
+  // never past the month's own last day (a book that runs to day 31, in a month of 30 or 28 days)
+  const monthEnd = (m: IsoDate) => { const [y, mo] = m.split('-').map(Number); return `${m.slice(0, 8)}${String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0')}` as IsoDate }
+  const lastDay = (m: IsoDate) => d ? minIso(minIso(addDays(m, d.window.to_day - 1), monthEnd(m)), d.today) : m
   const choose = (m: IsoDate) => { setMonth(m); setFrom(firstDay(m)); setTo(lastDay(m)) }
   useEffect(() => {
     if (!d || month) return

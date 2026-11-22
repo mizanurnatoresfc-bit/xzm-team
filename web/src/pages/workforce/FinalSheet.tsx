@@ -128,13 +128,16 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
               <th scope="col" className="num">{L('নিজে দেননি', 'Gave nothing')}</th><th scope="col" className="num">{L('উপস্থিত', 'Present')}</th>
               <th scope="col" className="num">{L('দেরি', 'Late')}</th><th scope="col" className="num">{L('অনুপস্থিত', 'Absent')}</th>
               <th scope="col" className="num">{L('না জানিয়ে', 'Without telling')}</th><th scope="col" className="num">{L('ছুটি', 'Off')}</th><th scope="col" className="num">{L('বাকি', 'Blank')}</th></tr></thead>
-            <tbody>{byPos.map(r => <tr key={r.position}><th scope="row" className="pri">{r.position}</th><td className="num">{n(r.total)}</td>
-              <td className={`num${r.not_given ? ' warn' : ''}`}>{n(r.not_given)}</td><td className="num">{n(r.present)}</td><td className="num">{n(r.late)}</td>
-              <td className={`num${r.absent ? ' bad' : ''}`}>{n(r.absent)}</td><td className={`num${r.unauthorized ? ' bad' : ''}`}>{n(r.unauthorized)}</td>
-              <td className="num">{n(r.off)}</td><td className={`num${r.blank ? ' warn' : ''}`}>{n(r.blank)}</td></tr>)}</tbody>
-            <tfoot><tr><th scope="row" className="pri">{L('মোট', 'Total')}</th><td className="num">{n(tot.total)}</td><td className="num">{n(tot.not_given)}</td>
-              <td className="num">{n(tot.present)}</td><td className="num">{n(tot.late)}</td><td className="num">{n(tot.absent)}</td><td className="num">{n(tot.unauthorized)}</td>
-              <td className="num">{n(tot.off)}</td><td className="num">{n(tot.blank)}</td></tr></tfoot>
+            <tbody>{byPos.map(r => <tr key={r.position}><th scope="row" className="pri">{r.position}</th><td className="num" data-label={L('মোট', 'Total')}>{n(r.total)}</td>
+              <td className={`num${r.not_given ? ' warn' : ''}`} data-label={L('নিজে দেননি', 'Gave nothing')}>{n(r.not_given)}</td><td className="num" data-label={L('উপস্থিত', 'Present')}>{n(r.present)}</td>
+              <td className="num" data-label={L('দেরি', 'Late')}>{n(r.late)}</td>
+              <td className={`num${r.absent ? ' bad' : ''}`} data-label={L('অনুপস্থিত', 'Absent')}>{n(r.absent)}</td>
+              <td className={`num${r.unauthorized ? ' bad' : ''}`} data-label={L('না জানিয়ে', 'Without telling')}>{n(r.unauthorized)}</td>
+              <td className="num" data-label={L('ছুটি', 'Off')}>{n(r.off)}</td><td className={`num${r.blank ? ' warn' : ''}`} data-label={L('বাকি', 'Blank')}>{n(r.blank)}</td></tr>)}</tbody>
+            <tfoot><tr><th scope="row" className="pri">{L('মোট', 'Total')}</th><td className="num" data-label={L('মোট', 'Total')}>{n(tot.total)}</td><td className="num" data-label={L('নিজে দেননি', 'Gave nothing')}>{n(tot.not_given)}</td>
+              <td className="num" data-label={L('উপস্থিত', 'Present')}>{n(tot.present)}</td><td className="num" data-label={L('দেরি', 'Late')}>{n(tot.late)}</td><td className="num" data-label={L('অনুপস্থিত', 'Absent')}>{n(tot.absent)}</td>
+              <td className="num" data-label={L('না জানিয়ে', 'Without telling')}>{n(tot.unauthorized)}</td>
+              <td className="num" data-label={L('ছুটি', 'Off')}>{n(tot.off)}</td><td className="num" data-label={L('বাকি', 'Blank')}>{n(tot.blank)}</td></tr></tfoot>
           </table>
         </div>
 

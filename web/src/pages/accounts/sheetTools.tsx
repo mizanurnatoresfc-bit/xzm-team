@@ -287,9 +287,10 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
   async function saveR() {
     if (!r) return
     setBusy(true); setErr(null)
+    let rid = r.id
     try {
       const id = await da.saveReport({ session: s.session.id, reportNo: r.no, amount: +r.amount || 0, remarks: r.remarks || null, id: r.id })
-      const rid = id || r.id
+      rid = id || r.id
       // the report's screenshot / PDF / text stays with its ID (saved under this hub and date, as this sheet is)
       if (rid && (r.file || r.text?.trim())) {
         const path = r.file ? await da.upload(s.session.id, r.file, settings['da.bill_upload']) : null
@@ -297,7 +298,11 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
       }
       setR(null); await reload('রিপোর্ট আইডি সংরক্ষিত')
     }
-    catch (e) { setErr(e) } finally { setBusy(false) }
+    catch (e) {
+      setErr(e)
+      // the ID itself was saved and only its file was refused: keep editing that same row (a second save must not add it again)
+      if (rid && rid !== r.id) { const id = rid; setR(x => x && ({ ...x, id })); void reload() }
+    } finally { setBusy(false) }
   }
   /** Proposes the report ID and amount from the pasted text or a screenshot; the person checks them. */
   async function readReport() {

@@ -79,6 +79,7 @@ export function StaffPanel() {
   const reloadOps = ops.reload
   useEffect(() => { const f = () => void reloadOps(); window.addEventListener('wf:changed', f); return () => window.removeEventListener('wf:changed', f) }, [reloadOps])
   const todayOps = ops.data?.entry ?? null
+  // pickup and delivery tiles: the hub's khata once it has the person's line; until then the numbers the person gave themself
   const returnsToday = todayOps ? todayOps.pickup_return + todayOps.delivery_return : null
   const wfCounts = useWfCounts().data
   const wfOpen = wfCounts?.open === true   // the attendance book is open today (days 1-17): "not coming" is given there
@@ -161,8 +162,8 @@ export function StaffPanel() {
     accounts: () => <>
       <h2 className="sd-h">{L('আমার হিসাব', 'My accounts')}</h2>
       <div className="sp-tiles">
-        <Link to="/app/accounts/mine" className="sp-tile t-b"><span className="i"><Icon name="box" size={20} /></span><b>{n(sum(l => l.line.pickup_qty))}</b><small>{L('আজকের পিকআপ', 'Pickups today')}</small></Link>
-        <Link to="/app/accounts/mine" className="sp-tile t-g"><span className="i"><Icon name="truck" size={20} /></span><b>{n(sum(l => l.line.delivery_qty))}</b><small>{L('আজকের ডেলিভারি', 'Deliveries today')}</small></Link>
+        <Link to="/app/accounts/mine" className="sp-tile t-b"><span className="i"><Icon name="box" size={20} /></span><b>{n(sum(l => l.line.pickup_qty) || todayOps?.pickup || 0)}</b><small>{L('আজকের পিকআপ', 'Pickups today')}</small></Link>
+        <Link to="/app/accounts/mine" className="sp-tile t-g"><span className="i"><Icon name="truck" size={20} /></span><b>{n(sum(l => l.line.delivery_qty) || todayOps?.delivery || 0)}</b><small>{L('আজকের ডেলিভারি', 'Deliveries today')}</small></Link>
         {workShown
           ? <a href="#wf-ops" className="sp-tile t-o" onClick={toOps}><span className="i"><Icon name="back" size={20} /></span><b>{returnsToday === null ? '—' : n(returnsToday)}</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></a>
           : <div className="sp-tile t-o off"><span className="i"><Icon name="back" size={20} /></span><b>—</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></div>}

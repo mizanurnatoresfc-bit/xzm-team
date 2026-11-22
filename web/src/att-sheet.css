@@ -31,3 +31,8 @@ button.wm-chip.on.bad{background:var(--bad-bg);color:var(--bad-fg);border-color:
 .as-mine li.open{border-color:var(--warn-fg)}
 .as-mine textarea{width:100%}
 .as-zone-people{margin:4px 0 0;padding-left:18px;font-size:.875rem;color:var(--muted)}
+/* phone: the by-position table becomes "label … value" lines like the other tables; the position is the heading, the total stays */
+@media (max-width:720px){
+  .wm-tbl.as-pos tfoot{display:block;border-top:2px solid var(--border)}
+  .wm-tbl.as-pos th.pri{display:block;position:static;min-width:0;padding:0 0 6px;border:0;box-shadow:none;text-align:left;background:transparent;font-weight:700}
+}

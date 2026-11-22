@@ -264,10 +264,11 @@ function NewVoucher({ cats, done }: { cats: Category[]; done: (msg: string) => v
       const session = (data as { id: string } | null)?.id ?? await da.start(hub, today)
       const kind = d.staff.trim() ? 'employee' as const : 'transport' as const
       const base = { session, kind, employee: d.staff.trim() || null, name: d.name.trim(), category: d.cat, amount, date: today, remarks: d.desc.trim() || null }
-      const line = await da.saveExpense(base)
+      // the file goes first: a refused file (too big, wrong type) must not leave an expense and a voucher behind
+      const path = file ? await da.upload(session, file) : undefined
+      const line = await da.saveExpense(path ? { ...base, path } : base)
       const no = await da.makeVoucher(line)
       if (d.ref.trim()) await da.setReference({ line, name: d.ref.trim() })
-      if (file) { const path = await da.upload(session, file); await da.saveExpense({ ...base, path, line }) }
       setMade({ id: line, no, cat }); setD({ ...blank, hub: d.hub }); setFile(null); done(`ভাউচার ${no} তৈরি হয়েছে`)
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }

@@ -118,12 +118,14 @@ function AccountsBox({ a }: { a: Accounts }) {
 
 type Done = (m: string, rec?: { id: string; name: string } | null) => void
 
+type ExitType = 'inactive' | 'resigned' | 'terminated'
+
 function ApproveModal({ row: r, nextCode, hubs, onClose, onDone }: { row: InboxRow; nextCode: string
   hubs: Array<{ value: string; label: string; sub?: string }>; onClose: () => void; onDone: Done }) {
   const { L } = usePrefs()
   const today = todayDhaka()
   const [code, setCode] = useState(nextCode)
-  const [type, setType] = useState<'resigned' | 'terminated'>(/বাদ|অব্যাহতি/.test(r.reason ?? '') ? 'terminated' : 'resigned')
+  const [type, setType] = useState<ExitType>(/সাময়িক/.test(r.reason ?? '') ? 'inactive' : /বাদ|অব্যাহতি/.test(r.reason ?? '') ? 'terminated' : 'resigned')
   const [date, setDate] = useState(((r.kind === 'id_inactive' ? r.last_date : r.effective_date) ?? today).slice(0, 10))
   const [to, setTo] = useState(r.to_hub_id ?? '')
   const [note, setNote] = useState('')
@@ -139,7 +141,7 @@ function ApproveModal({ row: r, nextCode, hubs, onClose, onDone }: { row: InboxR
         : r.kind === 'id_transfer' ? { to_hub: to, effective_date: date } : { effective_date: date }
       const d = await lifecycle.decide(r.id, true, note.trim(), opts)
       const what = r.kind === 'id_create' ? L(`আইডি ${d.result ?? ''} চালু হয়েছে`, `ID ${d.result ?? ''} is active`)
-        : r.kind === 'id_inactive' ? L('আইডি বন্ধ হয়েছে', 'ID closed') : r.kind === 'id_transfer' ? L('বদলি হয়েছে', 'Transferred') : L('আইডি আবার চালু হয়েছে', 'ID active again')
+        : r.kind === 'id_inactive' ? (type === 'inactive' ? L('আইডি সাময়িক বন্ধ হয়েছে', 'ID switched off for now') : L('আইডি বন্ধ হয়েছে', 'ID closed')) : r.kind === 'id_transfer' ? L('বদলি হয়েছে', 'Transferred') : L('আইডি আবার চালু হয়েছে', 'ID active again')
       onDone(`${r.employee_name ?? ''} — ${what}`, d.record_id ? { id: d.record_id, name: `${r.employee_name ?? ''} · ${L(LIFE[r.kind].bn, LIFE[r.kind].en)}` } : null)
     } catch (e) { setErr(lifeFriendly(e)) } finally { setBusy(false) }
   }
@@ -149,14 +151,14 @@ function ApproveModal({ row: r, nextCode, hubs, onClose, onDone }: { row: InboxR
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
       {r.kind === 'id_create' && <Field required label={L('এমপ্লয়ি আইডি', 'Employee ID')} hint={L('পরের ফাঁকা নম্বর বসানো আছে; দরকার হলে বদলান।', 'The next free number is filled in; change it if needed.')}>
         <input value={code} onChange={e => setCode(e.target.value)} inputMode="numeric" /></Field>}
-      {r.kind === 'id_inactive' && <Field label={L('ধরন', 'Type')}><select value={type} onChange={e => setType(e.target.value as 'resigned' | 'terminated')}>
-        <option value="resigned">{L('চাকরি ছেড়েছেন', 'Resigned')}</option><option value="terminated">{L('অব্যাহতি (অফিস থেকে বাদ)', 'Terminated')}</option></select></Field>}
+      {r.kind === 'id_inactive' && <Field label={L('ধরন', 'Type')}><select value={type} onChange={e => setType(e.target.value as ExitType)}>
+        <option value="inactive">{L('সাময়িক বন্ধ (আবার চালু করা যাবে)', 'Off for now (can be switched on again)')}</option><option value="resigned">{L('চাকরি ছেড়েছেন', 'Resigned')}</option><option value="terminated">{L('অব্যাহতি (অফিস থেকে বাদ)', 'Terminated')}</option></select></Field>}
       {r.kind === 'id_transfer' && <Field required label={L('নতুন হাব', 'New hub')}><Combo value={to} onChange={setTo} options={hubs.filter(h => h.value !== r.hub_id)} /></Field>}
-      {r.kind !== 'id_create' && <Field label={r.kind === 'id_inactive' ? L('শেষ কর্মদিবস', 'Last working day') : L('কবে থেকে', 'From')}>
+      {r.kind !== 'id_create' && <Field label={r.kind === 'id_inactive' ? (type === 'inactive' ? L('কবে থেকে বন্ধ', 'Off from') : L('শেষ কর্মদিবস', 'Last working day')) : L('কবে থেকে', 'From')}>
         <input type="date" value={date} max={r.kind === 'id_transfer' ? undefined : today} onChange={e => setDate(e.target.value)} /></Field>}
       <Field wide label={L('নোট (ঐচ্ছিক)', 'Note (optional)')}><input value={note} onChange={e => setNote(e.target.value)} /></Field>
     </div>
-    {r.kind === 'id_inactive' && r.accounts && <AccountsBox a={r.accounts} />}
+    {r.kind === 'id_inactive' && type !== 'inactive' && r.accounts && <AccountsBox a={r.accounts} />}
     {r.kind === 'id_create' && !!r.missing?.length && <p className="lc-missing"><Icon name="alert" size={14} /> {L('প্রোফাইলে এখনো বাকি:', 'Still missing:')} {r.missing.map(missLabel).join(', ')}</p>}
     <p className="muted small">{r.kind === 'id_create' ? L('অনুমোদন করলে স্টাফ সক্রিয় হবেন, যোগদানের রেকর্ড আর জয়েনিং ফাইল তৈরি হবে।', 'The person becomes active; the joining record and joining file are made.')
       : r.kind === 'id_inactive' ? L('অনুমোদন করলে আইডি ও লগইন বন্ধ হবে, চূড়ান্ত হিসাবসহ এক্সিট ফাইল তৈরি হবে।', 'The ID and login are closed; the exit file with final accounts is made.')

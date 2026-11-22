@@ -456,16 +456,24 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
   }
   async function save() {
     if (!d) return
+    // checked here first: the expense line is saved before its reference, so a refused mobile number would leave a saved line behind
+    if (d.refPhone.trim() && !/^01[3-9][0-9]{8}$/.test(d.refPhone.trim())) { setErr(new Error('রেফারেন্সের মোবাইল নম্বর 01XXXXXXXXX এভাবে লিখুন (১১ সংখ্যা)')); return }
     setBusy(true); setErr(null)
+    let saved: string | undefined = d.line
     try {
       const line = await da.saveExpense({ session: s.session.id, kind: d.kind, employee: d.employee || null, name: d.name, category: d.category, amount: +d.amount,
         date: d.date, billNo: d.billNo || null, ref: d.ref && !/-$/.test(d.ref) ? d.ref : null, path: d.path, paidBy: d.paidBy || null,
         ocr: d.ocr, verified: d.ocr ? d.verified : false, template: d.template || null, remarks: d.remarks, line: d.line })
+      saved = line
       if (d.vehicle || d.refName || d.refPhone || d.refPosition) {
         await da.setReference({ line, name: d.refName, phone: d.refPhone, position: d.refPosition, vehicle: d.vehicle || null })
       }
       setD(null); await reload('খরচ সংরক্ষিত')
-    } catch (e) { setErr(e) } finally { setBusy(false) }
+    } catch (e) {
+      setErr(e)
+      // the line itself was saved and only its reference was refused: the next save changes that same line instead of adding a second one
+      if (saved && saved !== d.line) { const id = saved; setD(x => x && ({ ...x, line: id })); void reload() }
+    } finally { setBusy(false) }
   }
   const edit = (x: Expense) => setD({ line: x.id, kind: x.kind, employee: x.employee_code ?? '', employeeName: x.employee_name ?? undefined, template: x.template_id ?? '',
     name: x.expense_name, category: x.category, amount: String(x.amount), date: x.bill_date, billNo: x.bill_no ?? '', ref: x.reference_no ?? '', paidBy: '',
