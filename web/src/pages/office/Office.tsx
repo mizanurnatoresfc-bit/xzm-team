@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
-import { RowMenu } from '../../components/RowMenu'
+import { RowMenu, type RowMenuItem } from '../../components/RowMenu'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
@@ -443,6 +443,8 @@ function Assets({ ctx }: { ctx: Ctx }) {
   const { L, n } = usePrefs()
   const { toast, node } = useToast()
   const [cond, setCond] = useState('')
+  /** Tapping a kind in the summary shows only that kind; tapping it again shows all. */
+  const [kindF, setKindF] = useState('')
   type F = { id?: string; kind: string; name: string; room: string; desk: string; qty: string; condition: Asset['condition']; brand: string; serial: string
     holder: EmpLite | null; date: string; price: string; note: string; watt: string; hours: string; spec: string }
   const [f, setF] = useState<F | null>(null)
@@ -455,7 +457,7 @@ function Assets({ ctx }: { ctx: Ctx }) {
   const canRep = can('office.notice.create')
   const roomName = Object.fromEntries(ctx.rooms.map(r => [r.id, r.name])) as Record<string, string>
   const deskName = Object.fromEntries(ctx.desks.map(d => [d.id, d.name])) as Record<string, string>
-  const rows = ctx.assets.filter(a => !cond || a.condition === cond)
+  const rows = ctx.assets.filter(a => (!cond || a.condition === cond) && (!kindF || a.kind === kindF))
   const edit = can('office.asset.edit')
   async function save() {
     if (!f) return
@@ -474,6 +476,17 @@ function Assets({ ctx }: { ctx: Ctx }) {
     const why = await askWith(L)(L(`"${a.name}" সরানোর কারণ`, `Why remove "${a.name}"?`)); if (!why) return
     try { await office.archiveAsset(a.id, why); await ctx.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
+  const openEdit = (r: Asset) => { setErr(''); setF({ id: r.id, kind: r.kind, name: r.name, room: r.room_id ?? '', desk: r.desk_id ?? '', qty: String(r.quantity), condition: r.condition,
+    brand: r.brand ?? '', serial: r.serial_no ?? '', holder: r.holder_id ? ctx.emp[r.holder_id] ?? null : null, date: r.purchase_date ?? '', price: r.price?.toString() ?? '', note: r.note ?? '',
+    watt: r.watt?.toString() ?? '', hours: r.hours_per_day?.toString() ?? '', spec: r.spec ?? '' }) }
+  /** One ⋮ menu per item instead of a row of five buttons. */
+  const actions = (r: Asset): RowMenuItem[] => [
+    ...(canRep && r.condition !== 'broken' ? [{ label: L('নষ্ট — রিপোর্ট করুন', 'Broken — report it'), icon: 'alert', danger: true, onClick: () => setRep({ a: r, kind: 'broken' }) }] : []),
+    ...(canRep ? [{ label: L('আরও লাগবে', 'Need more'), icon: 'bell', onClick: () => setRep({ a: r, kind: 'need' }) }] : []),
+    ...(edit ? [{ label: L('অন্য অফিসে দিন', 'Lend to another office'), icon: 'hub', onClick: () => setLend(r) },
+      { label: L('এডিট', 'Edit'), icon: 'edit', onClick: () => openEdit(r) },
+      { label: L('সরান', 'Remove'), icon: 'trash', danger: true, onClick: () => void remove(r) }] : []),
+  ]
   const byKind = Object.entries(ctx.assets.reduce((m, a) => { m[a.kind] = (m[a.kind] ?? 0) + a.quantity; return m }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1])
   return <>{node}
     <section className="panel">
@@ -483,35 +496,29 @@ function Assets({ ctx }: { ctx: Ctx }) {
         {edit && <button onClick={() => { setErr(''); setF({ kind: 'monitor', name: ASSET_KIND.monitor[0], room: '', desk: '', qty: '1', condition: 'good', brand: '', serial: '', holder: null, date: '', price: '', note: '', watt: '', hours: '', spec: '' }) }}>
           <Icon name="plus" size={15} />{L('জিনিস যোগ', 'Add item')}</button>}
         {canRep && <button className="secondary" onClick={() => setRep({ a: null, kind: 'need' })}><Icon name="bell" size={15} />{L('কিছু লাগবে', 'Need something')}</button>}</span></div>
-      <p className="muted small">{L('প্রতিটা জিনিসের পাশে "নষ্ট" চাপলে জোনাল ম্যানেজারের কাছে রিপোর্ট যায়; "লাগবে" দিয়ে আরও চাওয়া যায়। তালিকায় যা নেই তা "অন্যান্য" ধরনে নিজের নাম দিয়ে যোগ করুন।', 'Tap "Broken" beside an item to report it to the zonal manager; "Needed" asks for more. Anything not in the list goes under "Other" with its own name.')}</p>
-      <div className="team-cards oo-kinds">{byKind.map(([k, c]) => <div key={k} className="team-card static"><span className="ti"><Icon name={ASSET_KIND[k]?.[2] ?? 'form'} size={20} /></span>
-        <span className="tn">{L(ASSET_KIND[k]?.[0] ?? k, ASSET_KIND[k]?.[1] ?? k)}</span><span className="tc">{n(c)}</span></div>)}</div>
+      {byKind.length > 0 && <div className="oo-kind-row" role="group" aria-label={L('ধরন অনুযায়ী দেখুন', 'Show by kind')}>
+        {byKind.length > 1 && <button type="button" className={`oo-kind${!kindF ? ' on' : ''}`} aria-pressed={!kindF} onClick={() => setKindF('')}>{L('সব', 'All')}</button>}
+        {byKind.map(([k, c]) => <button type="button" key={k} className={`oo-kind${kindF === k ? ' on' : ''}`} aria-pressed={kindF === k} onClick={() => setKindF(kindF === k ? '' : k)}>
+          <Icon name={ASSET_KIND[k]?.[2] ?? 'form'} size={16} /><span>{L(ASSET_KIND[k]?.[0] ?? k, ASSET_KIND[k]?.[1] ?? k)}</span><b>{n(c)}</b></button>)}</div>}
+      <details className="oo-help"><summary>{L('কীভাবে ব্যবহার করবেন', 'How to use this')}</summary>
+        <p className="muted small">{L('প্রতিটা জিনিসের ⋮ মেনুতে "নষ্ট" চাপলে জোনাল ম্যানেজারের কাছে রিপোর্ট যায়; "আরও লাগবে" দিয়ে আরও চাওয়া যায়। তালিকায় যা নেই তা "অন্যান্য" ধরনে নিজের নাম দিয়ে যোগ করুন।', 'In each item\'s ⋮ menu, "Broken" reports it to the zonal manager; "Need more" asks for more. Anything not in the list goes under "Other" with its own name.')}</p></details>
       {mineOut.length > 0 && <p className="small">{L('অন্য হাব ব্যবহার করছে (গোনা এই অফিসের নামেই)', 'Used by other hubs (still counted here)')}: {mineOut.map(l => `${l.asset_name} ${n(l.quantity)} → ${l.to_name}`).join(' · ')}</p>}
       {mineIn.length > 0 && <p className="small">{L('অন্যের জিনিস এখানে ব্যবহার হচ্ছে', 'Borrowed from others')}: {mineIn.map(l => `${l.asset_name} ${n(l.quantity)} (${l.from_name})`).join(' · ')}</p>}
     </section>
     <section className="panel">
       {err && !f && <p className="da-error">{err}</p>}
-      <DataTable<Asset> {...output} title={`${L('রিসোর্স', 'Resources')} — ${ctx.p.name}`} file={`office-assets-${ctx.p.code}`} rows={rows} rowKey={r => r.id}
+      <DataTable<Asset> {...output} title={`${L('রিসোর্স', 'Resources')} — ${ctx.p.name}`} file={`office-assets-${ctx.p.code}`} phoneView="list" rows={rows} rowKey={r => r.id}
         empty={<p className="muted">{L('কিছু নেই।', 'Nothing here.')}</p>}
         cols={[
-          { key: 'kind', label: L('ধরন', 'Kind'), value: r => L(ASSET_KIND[r.kind]?.[0] ?? r.kind, ASSET_KIND[r.kind]?.[1] ?? r.kind) },
-          { key: 'name', label: L('নাম', 'Name'), value: r => r.name, render: r => <><strong>{r.name}</strong>{(r.brand || r.serial_no || r.spec || r.watt) && <span className="sec">{[r.spec, r.brand, r.serial_no, r.watt ? `${n(r.watt)}W` : null].filter(Boolean).join(' · ')}</span>}
+          { key: 'name', label: L('নাম', 'Name'), primary: true, value: r => r.name, render: r => <><span className="oo-name"><Icon name={ASSET_KIND[r.kind]?.[2] ?? 'form'} size={16} /><strong>{r.name}</strong></span>{(r.brand || r.serial_no || r.spec || r.watt) && <span className="sec">{[r.spec, r.brand, r.serial_no, r.watt ? `${n(r.watt)}W` : null].filter(Boolean).join(' · ')}</span>}
             {loans.out[r.id] ? <span className="sec">{mineOut.filter(l => l.asset_id === r.id).map(l => L(`${l.to_name} ${n(l.quantity)}টি ব্যবহার করছে`, `${l.to_name} uses ${l.quantity}`)).join(', ')}</span> : null}</> },
+          { key: 'kind', label: L('ধরন', 'Kind'), hidden: true, value: r => L(ASSET_KIND[r.kind]?.[0] ?? r.kind, ASSET_KIND[r.kind]?.[1] ?? r.kind) },
           { key: 'where', label: L('কোথায়', 'Where'), value: r => [r.desk_id && deskName[r.desk_id], r.room_id && roomName[r.room_id]].filter(Boolean).join(' · ') },
           { key: 'qty', label: L('সংখ্যা', 'Qty'), className: 'r', value: r => n(r.quantity) },
           { key: 'holder', label: L('কার কাছে', 'Held by'), value: r => empLabel(ctx.emp[r.holder_id ?? '']) },
           { key: 'cond', label: L('অবস্থা', 'Condition'), value: r => L(CONDITION[r.condition][0], CONDITION[r.condition][1]),
             render: r => <Badge tone={CONDITION[r.condition][2]}>{L(CONDITION[r.condition][0], CONDITION[r.condition][1])}</Badge> },
-          ...(edit || canRep ? [{ key: 'act', label: '', noExport: true, render: (r: Asset) => <span className="row-acts">
-            {canRep && r.condition !== 'broken' && <button className="secondary sm oo-bad" onClick={() => setRep({ a: r, kind: 'broken' })}>{L('নষ্ট', 'Broken')}</button>}
-            {canRep && <button className="secondary sm" onClick={() => setRep({ a: r, kind: 'need' })}>{L('লাগবে', 'Needed')}</button>}
-            {edit && <RowMenu label={`${r.name} — ${L('আরও কাজ', 'more actions')}`} items={[
-              { label: L('এডিট', 'Edit'), icon: 'edit', onClick: () => { setErr(''); setF({ id: r.id, kind: r.kind, name: r.name, room: r.room_id ?? '', desk: r.desk_id ?? '', qty: String(r.quantity), condition: r.condition,
-                brand: r.brand ?? '', serial: r.serial_no ?? '', holder: r.holder_id ? ctx.emp[r.holder_id] ?? null : null, date: r.purchase_date ?? '', price: r.price?.toString() ?? '', note: r.note ?? '',
-                watt: r.watt?.toString() ?? '', hours: r.hours_per_day?.toString() ?? '', spec: r.spec ?? '' }) } },
-              { label: L('অন্য অফিসে দিন', 'Lend to another office'), icon: 'hub', onClick: () => setLend(r) },
-              { label: L('সরান', 'Remove'), icon: 'trash', danger: true, onClick: () => void remove(r) },
-            ]} />}</span> }] : []),
+          ...(edit || canRep ? [{ key: 'act', label: '', noExport: true, render: (r: Asset) => <RowMenu label={`${r.name} — ${L('কাজ', 'actions')}`} items={actions(r)} /> }] : []),
         ]} />
     </section>
     {f && <Modal wide title={f.id ? L('জিনিস এডিট', 'Edit item') : L('জিনিস যোগ', 'Add item')} onClose={() => setF(null)}
