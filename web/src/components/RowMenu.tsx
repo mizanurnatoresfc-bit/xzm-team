@@ -12,11 +12,12 @@ export function RowMenu({ items, label }: { items: RowMenuItem[]; label: string 
   const list = useRef<HTMLDivElement>(null)
 
   // Placed under the button (above it near the bottom of the screen) and kept there while the page scrolls.
+  // A button near the left edge: the list is moved right so it never runs off the screen.
   const place = useCallback(() => {
     const r = btn.current?.getBoundingClientRect()
     if (!r || r.bottom < 0 || r.top > window.innerHeight) { setOpen(false); return }
     const h = 48 * items.length + 16
-    setAt({ top: window.innerHeight - r.bottom > h ? r.bottom + 4 : Math.max(8, r.top - h), right: Math.max(8, window.innerWidth - r.right) })
+    setAt({ top: window.innerHeight - r.bottom > h ? r.bottom + 4 : Math.max(8, r.top - h), right: Math.max(8, Math.min(window.innerWidth - r.right, window.innerWidth - 8 - (list.current?.offsetWidth ?? 248))) })
   }, [items.length])
   useLayoutEffect(() => { if (open) place() }, [open, place])
   useEffect(() => {

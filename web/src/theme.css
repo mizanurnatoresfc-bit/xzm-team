@@ -3373,6 +3373,25 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
   .da-filters .da-filter-actions button{min-height:38px}
 }
 
+/* ============ Lists on a phone: two buttons instead of seven (22 Nov 2026) ============
+   "ভিউ" opens the three views (table / cards / list); "প্রিন্ট ও ফাইল" opens mark all, print, Excel and PDF —
+   print and the files only where the role may use them. On wide screens the buttons stay in a row as before. */
+.tool-menu{position:relative;display:inline-flex;flex:none}
+.tool-menu-btn,.tool-group .tl-full{display:none!important}
+@media (max-width:700px){
+  .tool-menu-btn{display:inline-flex!important;align-items:center;gap:6px;min-height:40px!important;padding:0 12px!important;border-radius:999px!important;font-size:.875rem!important;white-space:nowrap}
+  .tool-menu-btn>svg:last-child{transform:rotate(90deg);opacity:.6}
+  .tool-menu-btn[aria-expanded="true"],.tool-menu-btn.on{border-color:var(--primary)!important;color:var(--primary)!important}
+  .tool-menu>.tool-group{display:none}
+  .tool-menu.open>.tool-group{display:flex;flex-direction:column;position:absolute;right:0;top:calc(100% + 6px);z-index:40;min-width:200px;padding:6px;gap:2px;overflow:visible;
+    border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:0 12px 32px rgba(0,0,0,.18)}
+  .tool-menu.open .tb{justify-content:flex-start;gap:12px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:10px;font-size:.9375rem;color:var(--text)}
+  .tool-menu.open .tb svg{color:var(--primary)}
+  .tool-menu.open .tb .tl{display:inline}
+  .tool-menu.open .tb .tl-full{display:inline!important}.tool-menu.open .tb .tl:has(+.tl-full){display:none}
+  .tool-menu.open .tb.on{background:var(--primary-50);color:var(--primary)}
+}
+
 /* ---- Office resources: kinds as tap-to-filter chips, help folded away, name with its icon (owner, 22 Nov 2026) ---- */
 .oo-kind-row{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin:4px -2px 2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .oo-kind-row::-webkit-scrollbar{display:none}

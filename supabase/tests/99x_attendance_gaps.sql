@@ -20,7 +20,8 @@ insert into public.attendance_records (employee_id, work_date, status) values (t
 insert into t select 'lt', id::text from public.leave_types where status = 'active' order by name limit 1;
 
 -- ---------- the role ----------
-select tests.ok((select count(*) = 8 from public.role_permissions rp join public.roles r on r.id = rp.role_id where r.code = 'zonal_assistant'), 'the Zonal Assistant role carries its eight permissions');
+select tests.ok((select count(*) = 8 from public.role_permissions rp join public.roles r on r.id = rp.role_id join public.permissions p on p.id = rp.permission_id
+                  where r.code = 'zonal_assistant' and p.code not in ('system.list_view.configure', 'system.list_mark.edit')), 'the Zonal Assistant role carries its eight permissions');
 
 -- ---------- my own gaps ----------
 select tests.login(tests.id('rider_login'));

@@ -10,7 +10,7 @@ update public.employees set profile_id = tests.id('rider_login') where id = test
 select tests.grant_role(tests.id('rider_login'), 'rider', 'hub', null, tests.id('hub_a1'));
 
 -- ---------- the catalogue and the seeded layouts ----------
-select tests.ok((select count(*) from private.dashboard_catalogue()) = 14, 'fourteen panels exist');
+select tests.ok((select count(*) from private.dashboard_catalogue()) = 15, 'fifteen panels exist');
 select tests.ok((select count(*) from public.role_dashboards) = 15, 'every shipped role starts with a layout');
 select tests.ok((select panels from public.role_dashboards d join public.roles r on r.id = d.role_id where r.code = 'rider')
                 = '["my_day","my_requests","my_work","quick_links"]'::jsonb, 'a rider starts with their own day, requests and work');
@@ -20,6 +20,7 @@ select tests.login(tests.id('super'));
 select tests.ok('hr_overview' = any (public.dashboard_panels()), 'super admin sees the staff panel');
 select tests.ok('zonal_overview' = any (public.dashboard_panels()), 'super admin sees the zonal panel');
 select tests.ok('accounts_today' = any (public.dashboard_panels()), 'super admin sees the accounts panel');
+select tests.ok('office_items' = any (public.dashboard_panels()), 'super admin sees the office items panel');
 
 select tests.login(tests.id('hr'));
 select tests.ok('hr_overview' = any (public.dashboard_panels()), 'HR sees the staff panel');

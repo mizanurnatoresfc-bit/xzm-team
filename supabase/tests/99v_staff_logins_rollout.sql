@@ -11,7 +11,8 @@ insert into tests.ids values
 
 -- ---------- the plain staff role ----------
 select tests.ok((select is_system and not is_super from public.roles where code = 'staff'), 'the staff role exists and is not a super role');
-select tests.ok((select count(*) = 2 from public.role_permissions rp join public.roles r on r.id = rp.role_id where r.code = 'staff'), 'it carries only the two read permissions');
+select tests.ok((select count(*) = 2 from public.role_permissions rp join public.roles r on r.id = rp.role_id join public.permissions p on p.id = rp.permission_id
+                  where r.code = 'staff' and p.code not in ('system.list_view.configure', 'system.list_mark.edit')), 'it carries only the two read permissions (besides the two list tools every role has)');
 select tests.ok((select count(*) = 1 from public.role_dashboards d join public.roles r on r.id = d.role_id where r.code = 'staff'), 'it has a home dashboard');
 
 -- ---------- a role per post ----------

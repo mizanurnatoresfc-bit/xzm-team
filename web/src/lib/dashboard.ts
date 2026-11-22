@@ -4,7 +4,7 @@ import { HrError } from './hr'
 
 export type PanelCode = 'my_work' | 'hr_overview' | 'hr_pending' | 'hub_staff' | 'ops_today'
   | 'cash_today' | 'accounts_today' | 'zonal_overview' | 'quick_links'
-  | 'my_day' | 'my_requests' | 'hub_today' | 'approvals' | 'network'
+  | 'my_day' | 'my_requests' | 'hub_today' | 'approvals' | 'network' | 'office_items'
 export type DashView = 'self' | 'hub' | 'zone'
 
 export type HubStaffRow = { hub_id: string; hub: string; zone: string; total: number; active: number; inactive: number; applicant: number }
@@ -66,7 +66,7 @@ export const VIEWS: Array<[DashView, bn: string, en: string, icon: string]> = [
 export const VIEW_OF: Record<PanelCode, DashView[]> = {
   my_day: ['self'], my_requests: ['self'], my_work: ['self'], quick_links: ['self'],
   hub_today: ['hub'], ops_today: ['hub'], cash_today: ['hub'], accounts_today: ['hub', 'zone'], approvals: ['hub', 'zone'],
-  network: ['zone'], zonal_overview: ['zone'], hr_overview: ['zone'], hr_pending: ['zone'], hub_staff: ['zone'],
+  office_items: ['hub', 'zone'], network: ['zone'], zonal_overview: ['zone'], hr_overview: ['zone'], hr_pending: ['zone'], hub_staff: ['zone'],
 }
 const VIEW_KEY = 'xzm_view'
 const okView = (v: string | null): DashView | null => (v === 'self' || v === 'hub' || v === 'zone' ? v : null)
@@ -93,6 +93,7 @@ export const PANELS: Array<[PanelCode, bn: string, en: string, note_bn: string, 
   ['my_requests', 'এইচআর রিকুয়েস্ট ও আমার দেওয়া লোক', 'HR requests & referrals', 'যা পাঠিয়েছি, যাদের রেফারেন্স, অবস্থা', 'What I sent, who I referred, status'],
   ['hub_today', 'আজ আমার হাব', 'My hub today', 'হাজিরা, দেরি, পিকআপ, হিসাব খাতা, টিম', 'Attendance, late, pickups, daily sheet, team'],
   ['approvals', 'আমার অনুমোদন বাকি', 'Waiting for my approval', 'আইডি আবেদন, ছুটি, হিসাব খাতা, এইচআর রিকুয়েস্ট', 'ID applications, leave, sheets, HR requests'],
+  ['office_items', 'অফিসের জিনিসপত্র', 'Office items', 'কতটা ভালো, নষ্ট, আর কী লাগবে — আপডেট, প্রিন্ট ও PDF অনুমতি অনুযায়ী', 'How many are good, broken or needed — update, print and PDF by permission'],
   ['network', 'আমার নেটওয়ার্ক (ম্যাপ)', 'My network (map)', 'রিজিওন, এরিয়া, হাবের ম্যাপ ও আজকের হাজিরা', 'Regions, areas, hub map and today’s attendance'],
 ]
 
