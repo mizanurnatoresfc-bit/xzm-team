@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { cleanMobile, firstError, matches, toLatinDigits, type Rule } from '../lib/validate'
 import { scrollBehavior } from '../lib/a11y'
+import { applyMask, caretAfter, unmask } from '../lib/mask'
 
 export type Option = { value: string; label: string; /** Small second line, e.g. "#10086 · Rider". */ sub?: string; /** Extra words to search by (mobile, code…). */ keywords?: string }
 
@@ -49,7 +50,7 @@ export function Combo({ value, onChange, options, placeholder = 'বেছে �
     <input role="combobox" aria-expanded={open} aria-controls={id} aria-autocomplete="list" aria-label={label} autoComplete="off" disabled={disabled}
       aria-activedescendant={open && shown[hi] ? `${id}-o${hi}` : undefined}
       value={open ? q : current?.label ?? ''} placeholder={open && current ? current.label : placeholder}
-      onFocus={show} onClick={show} onBlur={close} onKeyDown={key} onChange={e => { setQ(e.target.value); setHi(0); if (!open) setOpen(true) }} />
+      onFocus={e => { if (!e.currentTarget.dataset.noOpen) show() }} onClick={show} onBlur={close} onKeyDown={key} onChange={e => { setQ(e.target.value); setHi(0); if (!open) setOpen(true) }} />
     {clearable && value && !disabled && <button type="button" className="cb-x" aria-label="মুছুন" tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={e => { e.preventDefault(); onChange(''); close() }}>✕</button>}
     {open && <ul id={id} role="listbox" className="cb-list" ref={listRef} onMouseDown={e => e.preventDefault()}>
       {shown.map((o, i) => <li key={o.value} id={`${id}-o${i}`} role="option" aria-selected={o.value === value} className={`${i === hi ? 'hi' : ''}${o.value === value ? ' sel' : ''}`}
@@ -88,7 +89,7 @@ export function MultiCombo({ values, onChange, options, placeholder = 'বেছ
         {!disabled && <button type="button" aria-label={`${o?.label ?? v} সরান`} tabIndex={-1} onMouseDown={e => e.preventDefault()} onClick={e => { e.preventDefault(); toggle(v) }}>✕</button>}</span> })}
       <input role="combobox" aria-expanded={open} aria-controls={id} aria-autocomplete="list" aria-label={label} autoComplete="off" disabled={disabled}
         aria-activedescendant={open && shown[hi] ? `${id}-o${hi}` : undefined}
-        value={q} placeholder={values.length ? '' : placeholder} onFocus={show} onClick={show}
+        value={q} placeholder={values.length ? '' : placeholder} onFocus={e => { if (!e.currentTarget.dataset.noOpen) show() }} onClick={show}
         onBlur={close} onKeyDown={key} onChange={e => { setQ(e.target.value); setHi(0); setOpen(true) }} />
     </div>
     {open && <ul id={id} role="listbox" aria-multiselectable="true" className="cb-list" ref={listRef} onMouseDown={e => e.preventDefault()}>
@@ -100,22 +101,34 @@ export function MultiCombo({ values, onChange, options, placeholder = 'বেছ
 }
 
 /** A text box that checks itself as soon as the person leaves it (or at once with `showError`).
- *  `kind="phone"` tidies the number (Bangla digits, +88, spaces); `kind="number"` turns Bangla digits into 0-9. */
-export function TextInput({ value, onChange, rules = [], kind = 'text', showError, placeholder, disabled, label, after, required, autoComplete }: {
+ *  `kind="phone"` tidies the number (Bangla digits, +88, spaces); `kind="number"` turns Bangla digits into 0-9.
+ *  `mask` shows a fixed format while typing (see lib/mask: `masks.mobile` → 01711-000000) but hands back only the plain characters. */
+export function TextInput({ value, onChange, rules = [], kind = 'text', showError, placeholder, disabled, label, after, required, autoComplete, mask, autoFocus }: {
   value: string; onChange: (v: string) => void; rules?: Rule[]; kind?: 'text' | 'phone' | 'number'; /** Show the message even before the box was touched (after a failed save). */ showError?: boolean
   placeholder?: string; disabled?: boolean; label?: string; /** Extra note under the box (e.g. a duplicate warning). */ after?: ReactNode
   /** Tells screen readers the box must be filled. */ required?: boolean; /** Lets the phone offer saved answers, e.g. "tel", "name". */ autoComplete?: string
+  /** Fixed format such as masks.mobile. */ mask?: string; /** Put the cursor here when the form opens. */ autoFocus?: boolean
 }) {
   const [touched, setTouched] = useState(false)
   const errId = useId()
+  const ref = useRef<HTMLInputElement>(null)
   const error = (touched || showError) ? firstError(value, rules) : null
+  const shown = mask ? applyMask(unmask(value, mask), mask) : value
+  function change(raw: string, caret: number | null) {
+    if (!mask) return onChange(kind === 'text' ? raw : toLatinDigits(raw))
+    // a pasted "+880 1711-000000" becomes 01711000000 before it is laid into the format
+    const plain = unmask(kind === 'phone' ? cleanMobile(raw) : raw, mask)
+    const before = caret == null ? plain.length : unmask(raw.slice(0, caret), mask).length
+    onChange(plain)
+    requestAnimationFrame(() => { const el = ref.current; if (el && document.activeElement === el) { const at = caretAfter(applyMask(plain, mask), Math.min(before, plain.length), mask); el.setSelectionRange(at, at) } })
+  }
   return <>
-    <input value={value} disabled={disabled} placeholder={placeholder} aria-label={label} aria-invalid={error ? true : undefined} aria-describedby={error ? errId : undefined}
-      aria-required={required || undefined} className={error ? 'bad-input' : undefined}
+    <input ref={ref} value={shown} disabled={disabled} placeholder={placeholder} aria-label={label} aria-invalid={error ? true : undefined} aria-describedby={error ? errId : undefined}
+      aria-required={required || undefined} className={error ? 'bad-input' : undefined} autoFocus={autoFocus} data-autofocus={autoFocus || undefined}
       autoComplete={autoComplete} type={kind === 'phone' ? 'tel' : 'text'}
-      inputMode={kind === 'phone' ? 'tel' : kind === 'number' ? 'decimal' : undefined}
-      onChange={e => onChange(kind === 'text' ? e.target.value : toLatinDigits(e.target.value))}
-      onBlur={() => { setTouched(true); if (kind === 'phone' && value) { const c = cleanMobile(value); if (c !== value) onChange(c) } }} />
+      inputMode={kind === 'phone' ? 'tel' : kind === 'number' ? 'decimal' : mask && !/[A*]/.test(mask) ? 'numeric' : undefined}
+      onChange={e => change(e.target.value, e.target.selectionStart)}
+      onBlur={() => { setTouched(true); if (kind === 'phone' && value && !mask) { const c = cleanMobile(value); if (c !== value) onChange(c) } }} />
     {error && <small className="field-err" id={errId} role="alert">{error}</small>}
     {after}
   </>

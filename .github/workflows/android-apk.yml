@@ -64,6 +64,10 @@ jobs:
       - name: Build the app pages
         run: npm run build
 
+      # The reader of the courier panel's "Update Report" text (pure functions, no browser).
+      - name: Report parser tests
+        run: npm run test:parser
+
       # Opens the built pages in a real browser (PC and phone size, database answers faked).
       # If a screen is broken the run stops here and the live website is left as it was.
       - name: Smoke test

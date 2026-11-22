@@ -15,6 +15,10 @@ const WITH: Record<string, string[]> = {
   '/app/hr/employees': ['/app/hr/applications'],
   '/app/roles': ['/app/access'],
   '/app/access': ['/app/roles'],
+  // the report upload page comes with the accounts and zonal pages it is opened from
+  '/app/accounts/daily': ['/app/accounts/report-import'],
+  '/app/accounts/khata': ['/app/accounts/report-import'],
+  '/app/zonal': ['/app/accounts/report-import'],
 }
 /** "রোল ও অনুমতি" (inside the Android app) and "অ্যাডভান্সড রোল ও পারমিশন" (website) are one sub-menu: a list that has either has both. */
 const TWIN: Record<string, string> = { '/app/roles': '/app/access', '/app/access': '/app/roles' }

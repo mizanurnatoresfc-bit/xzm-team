@@ -125,6 +125,7 @@ try {
         riders: [{ employee_id: 'e01', code: '1001', name: 'Staff 01', mobile: null, from: '2026-11-01' }] }],
       visits_today: { rt1: 2 } }
     const answered = [], checked = []
+    const imported = []
     let sheetsOn = false
     const sc = (head, src, more = {}) => ({ head, src, ...more })
     const sheetRows = [
@@ -318,6 +319,23 @@ try {
       if (u.includes('/functions/v1/nodi-ai')) { const b = r.request().postDataJSON(); flowCalls.push({ fn: 'nodi-ai', ...b })
         return j(b?.action === 'teach' ? { text: 'নদী AI অভ্যন্তরীণ নির্দেশনা: স্লিপের টাকা আর লেখা টাকা মেলেনি। আগে স্লিপ নিজে দেখুন, তারপর মন্তব্য লিখে "ব্যাংকে নিশ্চিত করুন" দিন।' } : { configured: true }) }
       if (u.includes('rpc/da_settings')) return j(daSettings)
+      if (u.includes('rpc/zm_dashboard')) return j({ period: { from: '2026-11-01', to: '2026-11-16' },
+        workforce: { total: 30, active: 28, inactive: 2, new_joining: 1, resigned: 0, transferred: 0, employee_id_issued: 1, pending_applications: 0 },
+        hubs: { hub_count: 2, pickups: 0, deliveries: 0, merchants: 0, rider_capacity: 0, cash_collected: 0, expenses: 0, pending_parcels: 0, unverified_days: 0 },
+        data_completion: { employees: 30, incomplete: 0, average_pct: 100 }, tasks: { open: 0, overdue: 0, pending_submissions: 0, awaiting_confirmation: 0, completed: 0 },
+        travel: { visits: 0, total_km: 0, fuel: 0, meal: 0, transport: 0, other: 0, total: 0, unclaimed: 0 }, claims_pending: 0 })
+      if (u.includes('rpc/da_import_status')) return j([
+        { hub_id: 'h5', hub_name: 'Gurudaspur (Natore)', zone_id: 'z1', zone_name: 'Natore', can_upload: true, reports: imported.length ? 1 : 0, managers: imported.length ? 1 : 0, lists: imported.length ? 8 : 0, parcels: imported.length ? 190 : 0,
+          amount: imported.length ? 332438 : 0, delivery_charge: imported.length ? 230 : 0, unknown_riders: imported.length ? 1 : 0, last_at: imported.length ? '2026-11-16T14:40:00Z' : null },
+        { hub_id: 'h2', hub_name: 'Lalpur', zone_id: 'z1', zone_name: 'Natore', can_upload: true, reports: 0, managers: 0, lists: 0, parcels: 0, amount: 0, delivery_charge: 0, unknown_riders: 0, last_at: null }])
+      if (u.includes('rpc/da_import_save')) { imported.push(r.request().postDataJSON()); return j({ report_id: 'ir1', report_no: 744847, created: imported.length === 1, lists: 8, in_other_reports: 0 }) }
+      if (u.includes('rpc/da_import_map_rider')) { flowCalls.push({ fn: 'da_import_map_rider', ...r.request().postDataJSON() }); return j(null) }
+      if (u.includes('rpc/da_import_day')) return j(!imported.length ? [] : [{ hub_id: 'h5', hub_name: 'Gurudaspur (Natore)', manager_code: '6865', manager_name: 'Md. Rashed Miah', manager_known: true, delivery_charge: 230,
+        last_at: '2026-11-16T14:40:00Z', lists: 8, parcels: 190, lists_amount: 332438, total: 332668,
+        reports: [{ id: 'ir1', report_no: 744847, reported_at: '2026-11-16T20:37:00', collected: 332668, delivery_charge: 230, declared_lists: 8, declared_parcels: 190, upload_count: 1, uploaded_by_name: 'Owner', uploaded_at: '2026-11-16T14:40:00Z', counted_lists: 8 }],
+        point: { parcels: 8, amount: 43490, lists: [{ list_no: 11440804, report_no: 744847, parcels: 8, amount: 43490 }] },
+        riders: [{ rider_code: '27147', report_name: 'ASHIK UJJAMAN', employee_id: 'e1', name: 'Ashik Ujjaman', known: true, parcels: 31, amount: 77127, lists: [{ list_no: 11451749, report_no: 744847, parcels: 31, amount: 77127 }] },
+          { rider_code: '44174', report_name: 'Md Sazib Ali', employee_id: null, name: 'Md Sazib Ali', known: false, parcels: 27, amount: 20789, lists: [{ list_no: 11450821, report_no: 744847, parcels: 27, amount: 20789 }] }] }])
       if (u.includes('rpc/da_flow_list')) return j([{ session_id: 's1', hub_id: 'h1', needed: 2, people: 2, submitted: 2, accepted: 2, checked_at: '2026-11-15T13:00:00Z', report_ok_at: null, report_diff: null, bank_done_at: null },
         { session_id: 's2', hub_id: 'h2', needed: 1, people: 2, submitted: 2, accepted: 1, checked_at: null, report_ok_at: null, report_diff: null, bank_done_at: null }])
       if (/rpc\/(da_close_part_for|da_close_my_part|da_parts_accept|da_check|da_report_ok|da_hub_collectors_set)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j({}) }
@@ -392,6 +410,7 @@ try {
       if (u.includes('/rest/v1/leave_types')) return j([{ id: 'lt1', code: 'CL', name: 'Casual leave', name_bn: 'নৈমিত্তিক ছুটি', is_paid: true, annual_quota: 10, status: 'active' }])
       if (u.includes('/rest/v1/leave_requests') && u.includes('status=eq.approved')) return j([{ employee_id: 'e03' }])
       // two of them sit in another hub, so the list has a column a remembered filter could narrow
+      if (u.includes('/rest/v1/employees') && u.includes('limit=60')) return j(staffRows.slice(0, 3))
       if (u.includes('/rest/v1/employees') && u.includes('limit=2000') && r.request().method() === 'GET' && !u.includes('profile_id=is.null')) return j(staffRows.map((e, i) => ({ ...e, zone_id: 'z1', hub_id: i >= 10 ? 'h1' : e.hub_id,
         full_name_bn: null, email: null, department_id: 'd1', joining_date: '2026-01-01', status_since: '2026-01-01', archived_at: null, profile_id: null, reporting_manager_id: null,
         emergency_contact_name: null, emergency_contact_phone: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' })))
@@ -826,9 +845,9 @@ try {
         }
         check(!bad.length, `${size}: all ${pages.length} office and residential pages open cleanly and fit the screen${bad.length ? ' — ' + bad.join(', ') : ''}`) }
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
-      { const want = ['দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
+      { const want = ['ডেইলি রিপোর্ট ইম্পোর্ট', 'দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
-        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 19 && got.every(c => c === 1),
+        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 20 && got.every(c => c === 1),
           `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
       if (size === 'phone') await page.locator('.bottom-nav button.bn-item').last().click()
       const accountsToggle = page.locator('.side .ngrp[data-panel=accounts] button.ngh')
@@ -855,6 +874,18 @@ try {
       asEmployee = true
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.first-steps', { timeout: 5000 }).catch(() => {})
       check(await extras() === '1,1,1' && await page.locator('.first-steps').count() === 1, `${size}: the zonal level keeps the training centre, the AI helper and the first-steps box`)
+      // the floating নদী button: off from the chat screen, back on from Setting (remembered on this device)
+      await page.goto(`${BASE}/app/nodi/chat`); await page.waitForSelector('.nodi-top-btns button')
+      if (process.env.SHOTS) await page.locator('.nodi-top').screenshot({ path: `${process.env.SHOTS}/${size}-nodi-top.png` })
+      await page.locator('.nodi-top-btns button', { hasText: 'স্ক্রিনে বোতাম' }).click()
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      const fabOff = await page.locator('.nodi-fab').count()
+      await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.nodi-fab-seg button')
+      if (process.env.SHOTS) await page.locator('.nodi-fab-seg').screenshot({ path: `${process.env.SHOTS}/${size}-nodi-fab-setting.png` })
+      await page.locator('.nodi-fab-seg button', { hasText: 'চালু' }).click()
+      await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      check(fabOff === 0 && await page.locator('.nodi-fab').count() === 1 && await page.locator('.side a.nl[href="/app/nodi/chat"]').count() === 1,
+        `${size}: the floating Nodi button turns off on the chat screen and back on in Setting; the menu entry stays`)
       permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.da-main .greet h2')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
@@ -925,10 +956,13 @@ try {
     await page.goto(`${BASE}/app/role-dashboards`); await page.waitForSelector('#role-pages .nv-row', { timeout: 10000 }).catch(() => {})
     await page.locator('#role-pages button', { hasText: 'পাতা বাছুন' }).click(); await page.waitForSelector('.da-modal')
     await page.locator('.da-modal .da-seg button').last().click()
+    // "হাজিরার দিন মেলানো" is off the menu (HIDDEN_PAGES), so it is not offered here either
+    check(await page.locator('.pg-pick label', { hasText: 'আমার হাব টিম' }).count() === 1 && await page.locator('.pg-pick label', { hasText: 'হাজিরার দিন মেলানো' }).count() === 0, `${size}: a page taken off the menu is not offered when picking a role's pages`)
     await page.locator('.pg-pick label', { hasText: 'আমার হাব টিম' }).locator('input').check(); await page.locator('.pg-pick label', { hasText: 'আজকের দেরিতে হাজিরা' }).locator('input').check()
     await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
     check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_menu?.join() === '/app/hub/team,/app/hub/late', `${size}: the Super Admin picks the pages of a role`)
-    menuNow = ['/app/hub/team', '/app/hub/late', '/app/accounts/khata']
+    // a list saved before the days page was hidden still names it: it stays off the strip but opens by its address
+    menuNow = ['/app/hub/team', '/app/hub/late', '/app/hub/days', '/app/accounts/khata']
     await page.goto(`${BASE}/app/hub/team`); await page.waitForSelector('.hub-tabs a', { timeout: 10000 }).catch(() => {}); await page.waitForSelector('.post-chip i svg', { timeout: 10000 }).catch(() => {})
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
@@ -936,6 +970,10 @@ try {
     const hubTabs = await page.locator('.hub-tabs a').count(), ownPages = ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].filter(x => sideLinks.includes(x))
     const limitedMenuOk = hubTabs === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
     check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
+    { const stripOnTeam = await page.locator('.hub-tabs a').evaluateAll(a => a.map(x => x.getAttribute('href')).join())
+      await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
+      check(!stripOnTeam.includes('/app/hub/days') && await page.locator('.ad-rows .nv-row:not(.ad-head)').count() === 2 && await page.locator('.center-screen .notice').count() === 0,
+        `${size}: the attendance days page is off the hub strip but still opens by its address (${stripOnTeam})`) }
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
@@ -1251,11 +1289,44 @@ try {
     await mobile.fill('0171'); await mobile.blur()
     check(await page.locator('.da-modal .field-err').count() === 1, `${size}: a wrong mobile number is flagged as soon as the box is left`)
     await mobile.fill('+৮৮ ০১৭১১-০০০০০০'); await mobile.blur()
-    check(await mobile.inputValue() === '01711000000', `${size}: Bangla digits, +88 and dashes are tidied into 01XXXXXXXXX`)
+    check(await mobile.inputValue() === '01711-000000', `${size}: Bangla digits, +88 and dashes are tidied and shown as 01711-000000 (input mask)`)
     await page.waitForSelector('.da-modal .dup-note', { timeout: 5000 }).catch(() => {})
     check((await page.locator('.da-modal .dup-note').innerText().catch(() => '')).includes('Staff 01'), `${size}: a mobile number that is already used is flagged with the person's name`)
     await fits('new staff form')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff.png` })
+
+    // the same form: two steps, inline errors, auto focus, auto saved draft, and a check before it is sent
+    { const modal = page.locator('.da-modal').first()
+      const name = modal.locator('input[autocomplete=name]')
+      check(await modal.locator('.stepper li').count() === 2 && await modal.locator('.da-field.fl').count() === 2, `${size}: new staff form has a step bar and floating labels`)
+      await name.fill(''); await mobile.fill('01800000000')
+      await modal.getByRole('button', { name: /পরের ধাপ/ }).click(); await page.waitForTimeout(120)
+      check(await modal.locator('.stepper li.now').innerText().then(t => t.includes('ব্যক্তি')) && (await modal.locator('.field-err').allInnerTexts()).some(t => t.includes('পূর্ণ নাম দিন')),
+        `${size}: an empty required name stops the next step and is explained under the box`)
+      check(await name.evaluate(el => el === document.activeElement), `${size}: the cursor goes to the box that needs fixing`)
+      await name.fill('Test Person')
+      await page.waitForFunction(() => document.querySelector('.da-modal .draft-bar')?.textContent?.includes('খসড়া') && !document.querySelector('.da-modal .draft-bar.back'), null, { timeout: 4000 }).catch(() => {})
+      check((await modal.locator('.draft-bar').innerText().catch(() => '')).includes('খসড়া'), `${size}: typing is auto saved as a draft`)
+      await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 4000 }).catch(() => {})
+      await page.getByRole('button', { name: /নতুন কর্মী|New staff/ }).first().click(); await page.waitForSelector('.da-modal input[autocomplete=name]')
+      check(await name.inputValue() === 'Test Person' && await mobile.inputValue() === '01800-000000' && await modal.locator('.draft-bar.back').count() === 1,
+        `${size}: an unfinished form comes back after it was closed (draft)`)
+      await modal.getByRole('button', { name: /পরের ধাপ/ }).click(); await page.waitForSelector('.da-modal .cb input')
+      check(await page.evaluate(() => document.activeElement?.matches('.da-modal .cb input') ?? false), `${size}: the next step puts the cursor in its first box`)
+      await modal.getByRole('button', { name: /আবেদন খুলুন/ }).click(); await page.waitForTimeout(120)
+      check((await modal.locator('.field-err').allInnerTexts()).some(t => t.includes('হাব বেছে নিন')), `${size}: a missing hub is shown under the hub box`)
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-step2.png` })
+      await modal.locator('.cb input').click(); await page.locator('.da-modal .cb-list li[role=option]').first().click()
+      await modal.locator('select').last().selectOption('p1')
+      await modal.getByRole('button', { name: /আবেদন খুলুন/ }).click(); await page.waitForSelector('.confirm-rows', { timeout: 4000 }).catch(() => {})
+      check((await page.locator('.confirm-rows').innerText().catch(() => '')).includes('Test Person'), `${size}: before sending, a summary asks to confirm`)
+      if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-confirm.png` }) }
+      await page.getByRole('button', { name: /ফিরে গিয়ে বদলান/ }).click(); await page.waitForTimeout(100)
+      check(await page.locator('.confirm-rows').count() === 0 && await page.locator('.da-modal .stepper').count() === 1, `${size}: "go back and change" keeps the form open`)
+      await page.locator('.da-modal .draft-bar button').click(); await page.waitForTimeout(100)
+      check(await page.locator('.da-modal input[autocomplete=name]').inputValue() === '', `${size}: "start over" throws the draft away`)
+      await page.keyboard.press('Escape')
+    }
 
     // ---- Advanced role & permission management (website only for now) ----
     { const box = (sub, i) => page.locator(`.ax-row[data-sub="${sub}"] .ax-c`).nth(i).locator('button')
@@ -1497,6 +1568,39 @@ try {
       if (process.env.SHOTS) await cs.screenshot({ path: `${process.env.SHOTS}/${size}-company-sheet.png`, fullPage: true })
       check(csErrors.length === 0, `${size}: company sheets run with no script errors${csErrors.length ? ' — ' + csErrors[0] : ''}`)
       await cs.close(); sheetsOn = false }
+
+    // daily report import: paste the courier panel's Update Report; three checks or no save; the khata by rider
+    const reportText = readFileSync(new URL('./fixtures/update_report.txt', import.meta.url), 'utf8')
+    await page.goto(`${BASE}/app/accounts/report-import`); await page.waitForSelector('.ri-text')
+    await page.locator('.ri-text').fill(reportText.replace('৳20,789.00', '৳20,788.00')); await page.waitForSelector('.ri-checks li')
+    check(await page.locator('.ri-checks li.bad').count() === 1 && await page.locator('.ri-save button').isDisabled(), `${size}: one digit changed -> a check fails and the save button is off`)
+    await fits('report import, a check failed')
+    await page.locator('.ri-text').fill(reportText.replace(/\n/g, ' ')); await page.waitForSelector('.ri-checks li')
+    check(await page.locator('.ri-checks li.ok').count() === 3 && (await page.locator('.ri-head').innerText()).includes('744847'), `${size}: the pasted report (as one line) is read and all three checks pass`)
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-import-checks.png`, fullPage: true })
+    await page.locator('.ri-save button').click(); await page.waitForSelector('.ri-khata')
+    const sent = imported.at(-1)
+    check(sent?.p_hub === 'h5' && sent?.p_report?.manager_code === '6865' && sent?.p_report?.lists?.length === 8 && sent?.p_raw?.includes('Update Report #744847'), `${size}: saving sends the report's hub, manager, lists and the pasted text`)
+    check((await page.locator('.ri-khata').innerText()).includes('Point delivery') && await page.locator('.ri-khata .b-bad').count() === 1, `${size}: the khata shows riders, Point delivery and an unknown ID`)
+    await page.locator('.ri-khata tr.click').first().click()
+    check(await page.locator('.ri-khata tr.ri-sub').count() === 1, `${size}: tapping a rider shows the lists`)
+    await fits('report import khata')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-import-khata.png`, fullPage: true })
+    await page.locator('.ri-map').click(); await page.waitForSelector('.ri-people button')
+    await page.locator('.ri-people button').first().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 5000 }).catch(() => {})
+    check(flowCalls.some(c => c.fn === 'da_import_map_rider' && c.p_code === '44174'), `${size}: an unknown ID is mapped with one tap on a person`)
+    // zonal dashboard: every hub's report status for the day; a hub opens its upload page
+    await page.goto(`${BASE}/app/zonal`); await page.getByRole('tab', { name: 'আজকের রিপোর্ট' }).click(); await page.waitForSelector('.ri-hub')
+    const hubCards = await page.locator('.ri-hub').allInnerTexts()
+    check(hubCards.length === 2 && hubCards.some(t => t.includes('Gurudaspur') && t.includes('১টি রিপোর্ট') && t.includes('অচেনা')) && hubCards.some(t => t.includes('Lalpur') && t.includes('রিপোর্ট আসেনি')),
+      `${size}: the zonal tab shows each hub's report status, with unknown IDs and hubs that sent none`)
+    await fits('zonal report status')
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-zonal-reports.png`, fullPage: true })
+    await page.locator('.ri-hub', { hasText: 'Lalpur' }).click(); await page.waitForURL(/report-import\?hub=h2/)
+    check(/hub=h2/.test(page.url()), `${size}: a hub on the zonal tab opens that hub's upload page`)
+    await page.goto(`${BASE}/app`); await page.waitForSelector('.ri-home')
+    check((await page.locator('.ri-home').innerText()).includes('রিপোর্ট আপলোড') && (await page.locator('.ri-home-n b').innerText()).trim() === '১', `${size}: the home card shows how many reports came today`)
+    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
 
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
     await ctx.close()

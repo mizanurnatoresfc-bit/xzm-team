@@ -32,6 +32,8 @@ export function Users() {
     return true
   }), [list.data, q, st])
   const all = list.data ?? []
+  const hasFilters = Boolean(q.trim() || st)
+  const resetFilters = () => { setQ(''); setSt('') }
   return <AppShell title={L('ইউজার ও রোল', 'Users & roles')}
     subtitle={L('কে লগইন করতে পারবে, আর কোন এরিয়া/হাবে কী কাজ করতে পারবে — এখান থেকে ঠিক করুন।', 'Decide who can sign in, and what they may do in which zone or hub.')}
     actions={can('system.user.create') ? <><button className="secondary" onClick={() => setBulk(true)}>{L('সব কর্মীর লগইন তৈরি', 'Logins for all staff')}</button>
@@ -42,16 +44,25 @@ export function Users() {
       <Stat icon="key" tone="warn" label={L('লক / পাসওয়ার্ড বাকি', 'Locked / password pending')} value={n(all.filter(u => u.locked || u.must_change_password).length)} />
       <Stat icon="shield" label={L('রোল ছাড়া', 'Without a role')} value={n(all.filter(u => !u.roles.length).length)} />
     </div>
-    <section className="da-filters panel no-print">
-      <Field label={L('খুঁজুন', 'Search')}><input placeholder={L('নাম, ইমেইল, মোবাইল, রোল বা হাব', 'Name, email, mobile, role or hub')} value={q} onChange={e => setQ(e.target.value)} /></Field>
-      <Field label={L('অবস্থা', 'Status')}><select value={st} onChange={e => setSt(e.target.value)}>
-        <option value="">{L('সব', 'All')}</option><option value="active">{L('সক্রিয়', 'Active')}</option><option value="off">{L('বন্ধ', 'Disabled')}</option>
-        <option value="locked">{L('লক', 'Locked')}</option><option value="norole">{L('রোল ছাড়া', 'Without a role')}</option></select></Field>
+    <section className="da-filters panel no-print" aria-label={L('ইউজার খোঁজা ও ফিল্টার', 'User search and filters')}>
+      <Field label={L('খুঁজুন', 'Search')}>
+        <input type="search" placeholder={L('নাম, ইমেইল, মোবাইল, কর্মী আইডি, রোল বা হাব', 'Name, email, mobile, employee ID, role or hub')} value={q} onChange={e => setQ(e.target.value)} />
+      </Field>
+      <Field label={L('অ্যাকাউন্টের অবস্থা', 'Account status')}>
+        <select value={st} onChange={e => setSt(e.target.value)}>
+          <option value="">{L('সব অবস্থা', 'All statuses')}</option><option value="active">{L('সক্রিয়', 'Active')}</option><option value="off">{L('বন্ধ / আর্কাইভ', 'Disabled / archived')}</option>
+          <option value="locked">{L('লক', 'Locked')}</option><option value="norole">{L('রোল ছাড়া', 'Without a role')}</option>
+        </select>
+      </Field>
+      <div className="da-filter-actions">
+        <span className="muted small">{L(n(rows.length) + ' / ' + n(all.length) + 'টি অ্যাকাউন্ট', rows.length + ' of ' + all.length + ' accounts')}</span>
+        <button type="button" className="secondary sm" onClick={resetFilters} disabled={!hasFilters}>{L('ফিল্টার রিসেট', 'Reset filters')}</button>
+      </div>
     </section>
     {list.error ? <p className="da-error">{userFriendly(list.error)}</p> : null}
     <section className="panel">
       <div className="da-bar"><strong>{n(rows.length)} {L('টি অ্যাকাউন্ট', 'accounts')}</strong>{list.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}</div>
-      <DataTable<UserRow> title={L('ইউজার তালিকা', 'User list')} file="users" rows={rows} rowKey={u => u.id} onRowClick={u => nav(`/app/users/${u.id}`)}
+      <DataTable<UserRow> title={L('ইউজার তালিকা', 'User list')} file="users" rows={rows} search={false} rowKey={u => u.id} onRowClick={u => nav(`/app/users/${u.id}`)}
         empty={<p className="muted">{L('কোনো অ্যাকাউন্ট পাওয়া যায়নি।', 'No accounts found.')}</p>} cols={[
           { key: 'name', label: L('নাম', 'Name'), value: u => u.full_name, render: u => <><strong>{u.full_name || '—'}</strong><span className="sec">{u.email}</span></> },
           { key: 'phone', label: L('মোবাইল', 'Mobile'), value: u => u.phone ?? '' },

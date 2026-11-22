@@ -8,6 +8,7 @@ import { Dashboard } from './pages/Dashboard'
 import './styles.css'
 import './accounts.css'
 import './theme.css'
+import './fields.css'
 import './a11y.css'
 import { PrefsProvider } from './lib/prefs'
 import { Home } from './pages/Home'
@@ -22,6 +23,7 @@ const LearnCenter = lazy(() => import('./pages/accounts/LearnCenter').then(m => 
 const MyKhata = lazy(() => import('./pages/accounts/MyKhata').then(m => ({ default: m.MyKhata })))
 const DailySheet = lazy(() => import('./pages/accounts/DailySheet').then(m => ({ default: m.DailySheet })))
 const MyAccounts = lazy(() => import('./pages/accounts/MyAccounts').then(m => ({ default: m.MyAccounts })))
+const ReportImport = lazy(() => import('./pages/accounts/ReportImport').then(m => ({ default: m.ReportImport })))
 const AccountsReports = lazy(() => import('./pages/accounts/AccountsReports').then(m => ({ default: m.AccountsReports })))
 const AccountsSettings = lazy(() => import('./pages/accounts/AccountsSettings').then(m => ({ default: m.AccountsSettings })))
 const OrgSetup = lazy(() => import('./pages/org/OrgSetup').then(m => ({ default: m.OrgSetup })))
@@ -137,6 +139,7 @@ export default function App() {
       <Route path="/app/accounts/daily/:id" element={<DailySheet />} />
       <Route path="/app/accounts/daily/:id/main" element={<MainSheet />} />
       <Route path="/app/accounts/mine" element={<MyAccounts />} />
+      <Route path="/app/accounts/report-import" element={<ReportImport />} />
       <Route path="/app/org" element={<OrgSetup />} />
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />

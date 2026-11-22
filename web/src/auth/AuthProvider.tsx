@@ -1,3 +1,4 @@
+import { clearAllDrafts } from '../lib/draft'
 import { removePushDevice, stopNotices } from '../lib/notices'
 import { pushToken } from '../lib/native'
 import {
@@ -143,6 +144,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signOut = useCallback(async () => {
     stopNotices()
+    clearAllDrafts()
     await removePushDevice(pushToken()).catch(() => undefined)
     setViewAs(null)
     const { error } = await supabase.auth.signOut()

@@ -1052,7 +1052,8 @@ button.sm{min-height:32px;border-radius:8px}
 .nodi-fab{position:fixed;right:14px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:30;border-radius:50%;box-shadow:0 6px 20px rgba(0,0,0,.28);background:var(--surface);display:grid;place-items:center}
 @media (min-width:900px){.nodi-fab{bottom:22px}}
 .nodi-chat{display:flex;flex-direction:column;gap:10px;max-width:760px;margin:0 auto}
-.nodi-top{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:10px 12px}
+.nodi-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:10px 12px}
+.nodi-top-btns{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .nodi-log{display:flex;flex-direction:column;gap:10px;min-height:42vh}
 .nodi-msg{display:flex;gap:8px;align-items:flex-end}.nodi-msg.user{justify-content:flex-end}
 .nodi-msg .bub{max-width:84%;white-space:pre-wrap;line-height:1.5;padding:10px 12px;border-radius:16px;background:var(--surface);border:1px solid var(--border)}
@@ -3363,3 +3364,11 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
 .lc-accounts .warn b{color:var(--bad-fg)}.lc-accounts .net{background:var(--primary-50);border-color:transparent}
 .lc-file{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .lc-file button{display:inline-flex;align-items:center;gap:6px}
+
+/* Users page: compact, responsive filter action row */
+.da-filters .da-filter-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;align-self:end;padding-bottom:2px}
+.da-filters .da-filter-actions .muted{font-size:.8125rem}
+@media(max-width:700px){
+  .da-filters .da-filter-actions{grid-column:1/-1;width:100%;padding-top:4px}
+  .da-filters .da-filter-actions button{min-height:38px}
+}

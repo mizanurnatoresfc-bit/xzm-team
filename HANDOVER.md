@@ -912,3 +912,61 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Tests:** `99…_att_final_sheet.sql` (whole SQL suite passes locally). The web part was type-checked against stub types only (no npm in the session) —
   the real typecheck / build runs in CI on the pull request.
 - **Live:** migration applied on Supabase 22 Nov as `att_final_sheet` (owner said yes). The pages go live when the pull request is merged.
+
+## 2026-11-21 — ভাউচার নম্বর সেটিং থেকে, অটো ভাউচারের সুইচ, রিপোর্ট শীটের ছবি
+- Owner: "report sheet image generate hobe … voucher acha sei gula … upload, ja gula voucher nei sei gula auto voucher create hobe", then
+  "SYSTEM DAYNAMIC AND UPDATE FUTURE" and "BANAO". The photo-or-auto-voucher rule already existed (bill ≥ `da.bill_upload.required_over` must be uploaded;
+  below it a missing bill gets a voucher when one's part is closed and at submit). What was hard-coded is now a setting.
+- Migration `20261121000550_dynamic_voucher.sql` (additive): setting `da.voucher` {prefix, date none/YYMM/YYYYMM/YYMMDD, digits 3–8, reset never/monthly/daily,
+  per_hub, hub_code, auto_on_submit}. Default = the old behaviour exactly (`V-YYMM-00001`, global `da_voucher_seq`, auto on).
+  Table `da_voucher_counters` (no direct access; one-statement upsert, so two people never get the same number) for counts that restart or are per hub.
+  `private.da_next_voucher_no(hub)` builds the number and skips any number that already exists. `da_make_voucher`, `da_submit`, `da_close_my_part`
+  and `da_configure` replaced with the same bodies + these rules (bodies checked equal to live by hash before). With `auto_on_submit` off, closing one's
+  part makes no voucher and submit refuses a sheet that has an expense with neither bill nor voucher. Vouchers made when a staff claim or a fleet cost is
+  posted without a bill are unchanged. `da_configure` refuses unsafe formats (daily restart without the day, monthly without the month, per-hub without the hub code).
+- Web: Accounts settings → card **খরচের ভাউচার** (`pages/accounts/voucherSettings.tsx`) with a live preview of the next number. Accounts centre → each hub card
+  has **রিপোর্টের ছবি** (`lib/reportImage.ts`): one PNG of the day — report IDs, merchant cash payments, expenses with "বিলের ছবি" / "অটো <voucher no>" /
+  "বিল/ভাউচার নেই", bank deposits with slip state, totals from `da_center_overview`, due/fund. Shares through the phone's share sheet (WhatsApp) or downloads.
+- Tests: `99…_dynamic_voucher.sql` (22 assertions); whole suite 2175 pass locally.
+- **Live:** migration applied on Supabase 21 Nov as `20261121202903 dynamic_voucher` (owner said yes first; all 5 function bodies equal the tested file by hash; the setting is at its default, so numbering is unchanged). The site gets the card and the picture button when the pull request is merged to `main`.
+
+## 2026-11-22 — তৈরি হয়ে পড়ে থাকা কাজ লাইভে আনা (finished work on old branches brought into main)
+- Owner: "কোড বা ফাংশান এর কাজ হয়েছে কিন্তু লাইভ হয় নি এমন কত গুলা আছে", then "যেগুলা কাজ করা হয়েছে সেই গুলা চেক করে লাইভ করো".
+  Every remote branch was trial-merged onto `main` and compared with the live database (migrations list + function names).
+- **Brought in (each fitted to today's code, not merged blind):**
+  - `menu-editor-phone` (PR 108): menu editor rows as wrapping cards on a phone.
+  - `feat/dynamic-voucher-report-image` (PR 95): Accounts settings → **খরচের ভাউচার** card, Accounts centre → **রিপোর্টের ছবি**. Its database part was already
+    live (`20261121202903 dynamic_voucher`); the branch's second copy of the migration file is left out.
+  - `claude/daily-report-import-page-pzdt4o` (PR 31): page `/app/accounts/report-import` (paste the courier panel's Update Report), the home card, the zonal
+    dashboard tab **আজকের রিপোর্ট**, menu entry under হিসাব. Database part already live (`20261116213632 report_import`); `da.import.create` is held on live by
+    accountant, accounts_manager, admin, driver, hub_manager, zonal_manager. New `npm run test:parser` (11 tests) runs in the site build.
+  - `ccr-332dd98a-t0fmgj` (PR 67): **এক ক্লিকে সাবমিট** — `wf_ops_add`, `wf_ops_taps`; migration renumbered `20261122001000_workforce_ops_add.sql`.
+  - `claude/epic-feynman-xx9jw5` (ম্যানেজারের হাজিরা খাতা, 19 Nov): **database only, no pages.** Its migration (5 tables `wf_book_rules / entries / days /
+    submissions / entry_log`, 11 `wf_mb_*` functions, leave photo `wf_absence_photo(s)`, bucket `wf-leave`) was applied on live before it was seen that
+    main had gained the owner's newer **দৈনিক ফাইনাল হাজিরা খাতা** the same day (PR 109, `att_*`). Both write the day's status to `attendance_records`, so two
+    books side by side would fight. The pages (`ManagerBook.tsx`, `ZoneBook.tsx`, `lib/workforceBook.ts`) were therefore **not** taken; the migration file stays
+    as `20261122001100_workforce_manager_book.sql` only so the repository still builds the same database as live. Nothing calls `wf_mb_*`; the tables are
+    empty apart from the one default rule row. Owner to decide: drop these objects, or keep them for a later use.
+  - `claude/zen-hopper-kdizcm`: form toolkit (floating labels, input mask, steps, auto-saved drafts, confirm before submit) on the HR forms.
+  - `feat/users-management-polish` (PR 81): Users page search / status filter, count and reset. The public `/preview/users` demo route was **not** taken.
+  - `claude/intelligent-maxwell-9mj93u`: each person can hide the floating নদী button (Settings and the নদী page; remembered on the device).
+  - `claude/amazing-einstein-8sdykp` (PR 91): smoke test fix.
+- **Checked and found already in main / replaced by later work (nothing to do):** office বাস্তব মোড (`ccr-ff707119`), company sheets (`epic-edison`),
+  menu editor (`menu-editor-and-names`), three `codex/*` one-commit branches, PR 57 (main already has `body{overflow-wrap:break-word}`),
+  `ccr-29e50a53` and `codex/clean-menu-labels` (the menu editor replaced them), `ccr-be5721eb` Nodi roles (advanced permissions + `nodi.features` replaced it).
+- **Left out on purpose — each needs the owner's decision or more work first:**
+  - PR 87 fleet role scoping: its migration **takes away** `vehicle.vehicle.create / edit / archive` and `vehicle.holder.edit` from zonal and hub managers on live.
+  - PR 94 dues ledger: database part only, marked work in progress, no page.
+  - `claude/route-panel-location-rider-lnznbs` (sorting crew, hub presence by GPS / Wi-Fi, hourly staff location, absent list) and
+    `claude/loving-euler-6lfg54` (route dispatch, assign page, hub wallet): written 17–18 Nov, before route settings / route day plan / staff panel sections;
+    11 and 20 conflicts with today's code, and hourly staff location is a privacy decision.
+  - PR 52 role groups / AERV and `claude/blissful-cerf-on2duy` (a role per post, duplicate hub / people cleanup — its own notes say "files only, not applied"):
+    both change roles or live data; advanced permissions came after PR 52.
+  - `claude/blissful-maxwell-7kkfd6` approval rules: an older design; live already has `da_approval_rules` + `da_approval_rule_save` from the cash payments migration.
+  - PR 55 documents of 17 Nov (out of date), `ccr-a19499a2` demo seed data, `codex/ui-ux-audit` test edits.
+- **Live (22 Nov):** `20261122001000` applied as `workforce_ops_add`; `20261122001100` applied in four parts as `workforce_manager_book_a … _d`
+  (owner: "চেক করে লাইভ করো"). Checked before: live had 25 public `wf_*` functions, only `manual` rows in the register, no `wf_book_*` table but
+  `wf_book_windows`. Checked after: all 24 new function bodies equal the tested file by hash, anon can run none, RLS on the 5 new tables, 7 policies,
+  bucket `wf-leave`, 40 public `wf_*` functions. The other three features needed no database change.
+- **Tests:** SQL suite 2524 assertions pass (with main's `att_final_sheet`) on local PostgreSQL 16; typecheck, build, 11 parser tests and the smoke test pass
+  (`CHROME=/opt/pw-browsers/chromium`; one run takes about 4 minutes here).

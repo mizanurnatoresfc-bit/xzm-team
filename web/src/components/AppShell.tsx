@@ -181,6 +181,7 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
   { bn: 'প্রতিদিনের হিসাব', en: 'Every day', items: [
     { to: '/app/accounts/khata', icon: 'form', bn: 'আজকের হিসাব খাতা (আমার)', en: 'My sheet today', perms: ['da.sheet.create'] },
     { to: '/app/accounts/daily', icon: 'ledger', bn: 'হাবের দৈনিক হিসাব খাতা', en: 'Hub daily sheets', perms: DA, count: 'sheets' },
+    { to: '/app/accounts/report-import', icon: 'upload', bn: 'ডেইলি রিপোর্ট ইম্পোর্ট', en: 'Daily report import', perms: ['da.import.create', 'da.sheet.view'] },
     { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (সব হাবের চিত্র)', en: 'Accounts centre', perms: DA },
   ] },
   { bn: 'হিসাবের অংশ', en: 'Accounts parts', items: [
@@ -329,7 +330,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const { can, signOut, session, isSuperAdmin, menu } = useAuth()
   const layout = useMenuLayout()
   const nodiOn = useNodiFeatures()
-  const { L, n, lang, setLang, theme, setTheme } = usePrefs()
+  const { L, n, lang, setLang, theme, setTheme, nodiFab } = usePrefs()
   const [asRole, setAsRole] = useState(false)
   const nav = useNavigate()
   const user = session?.user.id ?? ''
@@ -566,7 +567,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
         <span className="nt-x-space" aria-hidden="true" /></button>
       <button type="button" className="nt-x" aria-label={L('নোটিফিকেশন বন্ধ করুন', 'Dismiss notification')} onClick={() => clearFresh()}><Icon name="x" size={14} /></button></div>}
-    {can('nodi.assistant.view') && nodiOn?.chat && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
+    {nodiFab && can('nodi.assistant.view') && nodiOn?.chat && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
       {navTabs.flatMap((t, i) => [...(i === plusAt && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}
