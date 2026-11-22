@@ -1,17 +1,22 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactElement } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { LoginError, useAuth } from '../auth/AuthProvider'
 import { Icon } from '../components/Icon'
 import { BrandMark, useBrandText } from '../components/Brand'
-import { PublicTop } from '../components/PublicTop'
 import { supabase, supabaseConfigured } from '../lib/supabase'
-import { usePrefs } from '../lib/prefs'
+import { isDark, usePrefs } from '../lib/prefs'
+import '../login.css'
+
+/** "মনে রাখুন": the login ID is kept on this device and filled in next time (never the password). */
+const REMEMBER_KEY = 'xzm_login_id'
+const readRemembered = () => { try { return localStorage.getItem(REMEMBER_KEY) ?? '' } catch { return '' } }
 
 export function Login() {
   const { session, signIn } = useAuth()
-  const { L, lang } = usePrefs()
+  const { L, lang, setLang, theme, setTheme } = usePrefs()
   const { name, tagline } = useBrandText()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(readRemembered)
+  const [remember, setRemember] = useState(() => readRemembered() !== '')
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [error, setError] = useState('')
@@ -25,7 +30,10 @@ export function Login() {
     event.preventDefault()
     setError('')
     setBusy(true)
-    try { await signIn(email.trim(), password) }
+    try {
+      await signIn(email.trim(), password)
+      try { if (remember) localStorage.setItem(REMEMBER_KEY, email.trim()); else localStorage.removeItem(REMEMBER_KEY) } catch { /* private window */ }
+    }
     catch (e) {
       const code = e instanceof LoginError ? e.code : 'network'
       if (code === 'locked') {
@@ -61,49 +69,52 @@ export function Login() {
     finally { setBusy(false) }
   }
 
-  if (forgot) return <div style={{ minHeight: '100vh', background: 'var(--canvas)' }}>
-    <PublicTop showLogin={false} />
-    <main className="login-wrap">
-      <form className="login-card" onSubmit={sendLink}>
-        <BrandMark size="large" />
-        <h1>{L('পাসওয়ার্ড ভুলে গেছেন?', 'Forgot your password?')}</h1>
-        <p className="muted">{L('অ্যাকাউন্টের ইমেইল ঠিকানা লিখুন। সেই ইমেইলে একটি লিংক যাবে — লিংকে চাপলে নতুন পাসওয়ার্ড বসাতে পারবেন।',
-          'Type the email address of the account. A link goes to that email — it lets you set a new password.')}</p>
-        <label>{L('ইমেইল', 'Email')}<input type="text" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="name@example.com" /></label>
-        {error && <p className="da-error" role="alert">{error}</p>}
-        {sent && <p className="notice" role="status">{sent}</p>}
-        <button disabled={busy || !supabaseConfigured} style={{ width: '100%', marginTop: 6 }}><Icon name="key" size={16} />{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('লিংক পাঠান', 'Send the link')}</button>
-        <button type="button" className="secondary" style={{ width: '100%', marginTop: 8 }} onClick={() => { setForgot(false); setError(''); setSent('') }}>{L('লগইনে ফিরে যান', 'Back to sign in')}</button>
-        <p className="muted small" style={{ marginTop: 12 }}>{L('এমপ্লয়ি আইডি বা মোবাইল দিয়ে লগইন করলে ইমেইলে লিংক যায় না — ম্যানেজার বা সিস্টেম অ্যাডমিনকে পাসওয়ার্ড নতুন করে দিতে বলুন।',
-          'If you sign in with an Employee ID or mobile, no email can be sent — ask your manager or system administrator to reset the password.')}</p>
-      </form>
-    </main>
+  const shell = (card: ReactElement) => <div className="lg-page">
+    <div className="lg-bar">
+      <button type="button" onClick={() => setLang(lang === 'bn' ? 'en' : 'bn')}><Icon name="globe" size={15} />{lang === 'bn' ? 'English' : 'বাংলা'}</button>
+      <button type="button" aria-label={L('ডার্ক / লাইট মোড', 'Dark / light mode')} onClick={() => setTheme(isDark(theme) ? 'light' : 'dark')}><Icon name="sun" size={16} /></button>
+    </div>
+    <main className="lg-main">{card}</main>
   </div>
+  const brand = <>
+    <div className="lg-brand"><BrandMark size="large" /><strong>{name}</strong></div>
+    <p className="lg-sub">{tagline || L('স্টাফ পোর্টাল', 'Staff Portal')}</p>
+  </>
+  const configNote = !supabaseConfigured && <p className="notice">{L('Supabase সেটআপ বাকি: web/.env.local ফাইলে URL ও anon key দিন।', 'Supabase is not set up: add the URL and anon key in web/.env.local.')}</p>
 
-  return <div style={{ minHeight: '100vh', background: 'var(--canvas)' }}>
-    <PublicTop showLogin={false} />
-    <main className="login-wrap">
-      <form className="login-card" onSubmit={submit}>
-        <BrandMark size="large" />
-        <p className="eyebrow">{name}{tagline ? ` · ${tagline}` : ''}</p>
-        <h1>{L('স্টাফ ও অ্যাডমিন লগইন', 'Staff and admin login')}</h1>
-        <p className="muted">{L('প্রতিষ্ঠানের দেওয়া অ্যাকাউন্ট দিয়ে প্রবেশ করুন। যে রোল আপনাকে দেওয়া হয়েছে, পাতাগুলো সেই অনুযায়ীই আসবে।',
-          'Sign in with the account the company gave you. The pages you get follow the role you were given.')}</p>
-        {!supabaseConfigured && <p className="notice">{L('Supabase সেটআপ বাকি: web/.env.local ফাইলে URL ও anon key দিন।', 'Supabase is not set up: add the URL and anon key in web/.env.local.')}</p>}
-        <label>{L('এমপ্লয়ি আইডি, মোবাইল বা ইমেইল', 'Employee ID, mobile or email')}<input type="text" inputMode="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)} placeholder={L('যেমন 10086 বা 01711000000', 'e.g. 10086 or 01711000000')} /></label>
-        <label>{L('পাসওয়ার্ড', 'Password')}<span className="pw" style={{ display: 'block' }}>
-          <input type={show ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 84 }} />
-          <button type="button" className="secondary sm" onClick={() => setShow(s => !s)} aria-label={show ? L('পাসওয়ার্ড লুকান', 'Hide password') : L('পাসওয়ার্ড দেখুন', 'Show password')}>
-            <Icon name="eye" size={14} />{show ? L('লুকান', 'Hide') : L('দেখুন', 'Show')}</button></span></label>
-        {error && <p className="da-error" role="alert">{error}</p>}
-        <button disabled={busy || !supabaseConfigured} style={{ width: '100%', marginTop: 6 }}><Icon name="key" size={16} />{busy ? L('প্রবেশ করা হচ্ছে…', 'Signing in…') : L('লগইন করুন', 'Sign in')}</button>
-        <button type="button" className="link" style={{ display: 'block', margin: '10px auto 0' }} onClick={() => { setForgot(true); setError(''); setSent(''); if (!email.includes('@')) setEmail('') }}>{L('পাসওয়ার্ড ভুলে গেছি', 'Forgot password')}</button>
-        <p className="muted small" style={{ marginTop: 12 }}>{L('অ্যাকাউন্ট বা অনুমতি প্রয়োজন হলে সিস্টেম অ্যাডমিনের সঙ্গে যোগাযোগ করুন। ৫ বার ভুল পাসওয়ার্ড দিলে অ্যাকাউন্ট ৩০ মিনিট লক থাকে।',
-          'Need an account or access? Contact your system administrator. 5 wrong passwords lock the account for 30 minutes.')}</p>
-        <p className="muted small" style={{ marginTop: 4 }}>{L('লগইন করলে আপনি ', 'By signing in you accept the ')}
-          <Link to="/terms">{L('ব্যবহারের শর্তাবলি', 'terms and conditions')}</Link>
-          {L(' মেনে নিচ্ছেন। এখানকার প্রতিটি কাজের রেকর্ড রাখা হয়।', '. Everything done here is recorded.')}</p>
-      </form>
-    </main>
-  </div>
+  if (forgot) return shell(<form className="lg-card" onSubmit={sendLink}>
+    {brand}
+    <p className="lg-lead">{L('অ্যাকাউন্টের ইমেইল লিখুন — নতুন পাসওয়ার্ড বসানোর লিংক যাবে', 'Type the account’s email — a link to set a new password goes there')}</p>
+    <label className="lg-field"><span className="lg-ic"><Icon name="sms" size={20} /></span>
+      <input className="lg-in" type="text" inputMode="email" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)}
+        placeholder={L('ইমেইল', 'Email')} aria-label={L('ইমেইল', 'Email')} /></label>
+    {error && <p className="da-error" role="alert">{error}</p>}
+    {sent && <p className="notice" role="status">{sent}</p>}
+    <button className="lg-go" disabled={busy || !supabaseConfigured}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('লিংক পাঠান', 'Send the link')}</button>
+    <button type="button" className="secondary lg-back" onClick={() => { setForgot(false); setError(''); setSent('') }}>{L('লগইনে ফিরে যান', 'Back to sign in')}</button>
+    <p className="lg-note">{L('এমপ্লয়ি আইডি বা মোবাইল দিয়ে লগইন করলে ইমেইলে লিংক যায় না — ম্যানেজার বা সিস্টেম অ্যাডমিনকে পাসওয়ার্ড নতুন করে দিতে বলুন।',
+      'If you sign in with an Employee ID or mobile, no email can be sent — ask your manager or system administrator to reset the password.')}</p>
+  </form>)
+
+  return shell(<form className="lg-card" onSubmit={submit}>
+    {brand}
+    <p className="lg-lead">{L('আপনার অ্যাকাউন্টে সাইন ইন করুন', 'Sign in to your account')}</p>
+    {configNote}
+    <label className="lg-field"><span className="lg-ic"><Icon name="phone" size={20} /></span>
+      <input className="lg-in" type="text" inputMode="text" autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" required value={email} onChange={e => setEmail(e.target.value)}
+        placeholder={L('মোবাইল নম্বর বা আইডি', 'Mobile number or ID')} aria-label={L('এমপ্লয়ি আইডি, মোবাইল বা ইমেইল', 'Employee ID, mobile or email')} /></label>
+    <label className="lg-field"><span className="lg-ic"><Icon name="a_lock" size={20} /></span>
+      <input className="lg-in has-eye" type={show ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)}
+        placeholder={L('পাসওয়ার্ড', 'Password')} aria-label={L('পাসওয়ার্ড', 'Password')} />
+      <button type="button" className="lg-eye" onClick={() => setShow(s => !s)} aria-pressed={show} aria-label={show ? L('পাসওয়ার্ড লুকান', 'Hide password') : L('পাসওয়ার্ড দেখুন', 'Show password')}>
+        <Icon name="eye" size={22} /></button></label>
+    <div className="lg-row">
+      <label className="lg-rem"><input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} />{L('মনে রাখুন', 'Remember me')}</label>
+      <button type="button" className="lg-link" onClick={() => { setForgot(true); setError(''); setSent(''); if (!email.includes('@')) setEmail('') }}>{L('পাসওয়ার্ড ভুলে গেছেন?', 'Forgot password?')}</button>
+    </div>
+    {error && <p className="da-error" role="alert">{error}</p>}
+    <button className="lg-go" disabled={busy || !supabaseConfigured}>{busy ? L('প্রবেশ করা হচ্ছে…', 'Signing in…') : L('সাইন ইন', 'Sign in')}</button>
+    <p className="lg-note">{L('লগইন করলে আপনি ', 'By signing in you accept the ')}<Link to="/terms">{L('ব্যবহারের শর্তাবলি', 'terms and conditions')}</Link>
+      {L(' মেনে নিচ্ছেন। ৫ বার ভুল পাসওয়ার্ড দিলে অ্যাকাউন্ট ৩০ মিনিট লক থাকে।', '. 5 wrong passwords lock the account for 30 minutes.')}</p>
+  </form>)
 }
