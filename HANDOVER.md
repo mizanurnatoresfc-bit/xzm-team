@@ -786,3 +786,38 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   all 13 functions equal the tested file by hash, nobody signed out can call the five public ones, `hr_record_files` has RLS, its policy and both triggers,
   the hub manager role's page list gained `/app/manager/staff`, staff counts unchanged (144 active). The pages themselves go live when the pull request is merged;
   until then a new request's notification to approvers points at `/app/zonal/requests`, which the published site does not have yet.
+
+## 2026-11-22 — রুট: আজকের পার্সেল পরিকল্পনা (the day's parcel plan)
+- Owner: hub numbers of the day (arrived, sent, pickup, cancelled) and what each rider got, typed by hand or later from a PDF; a fixed number per rider; one or many
+  routes per rider; when a rider is absent the neighbouring rider and other hub staff are suggested, from attendance and what people really deliver. Answers:
+  pickups are done by the same riders at some hubs and by others elsewhere (the zonal manager sets it per hub), the unit is the parcel, the zonal manager approves,
+  and the Super Admin decides who may view / add / edit / remove. "Keep it in one module, no duplicates."
+- **Migration `20261122000500_route_day_plan.sql`** (additive, nothing replaced). New: `route_day_plans` (one live plan per hub per date: arrived, carried, sent,
+  cancelled, pickups, parcels per route, unassigned, draft → sent → approved, removed with a reason), `route_day_riders` (one line per person: here or not, capacity
+  counted on, parcels, pickups, parts by route and "for whom"), `route_staff_load` (fixed parcels a day, helper + helper limit, does pickups). Columns:
+  `route_hub_load.pickup_mode` (same / separate / mixed) and `pickup_weight`; `route_zone_settings.plan_*` (days of history, days needed, overload %, near km,
+  helper limit, riders see their own). Functions: `route_plan_hubs`, `route_plan_get`, `route_plan_save`, `route_plan_decide`, `route_plan_reopen`,
+  `route_plan_remove`, `route_plan_setup`, `route_plan_rules_save`, `route_plan_mine`.
+- **Reused, not copied:** routes / stops / a rider's routes (`hub_routes`, `hub_route_stops`, `rider_routes`); the hub's rider average (`route_hub_load.rider_parcels`,
+  still typed on "পার্সেল ও পরামর্শ") and `hub_routes.avg_parcels`; who is here from `attendance_records` → `attendance_self_marks` → `hub_ops_staff` →
+  `wf_absence_applications` (first that has a row); what a person delivers from `da_rider_lines` of sent / approved sheets, else the person's own `wf_daily_ops`;
+  `hub_ops_reports` and `hub_daily_metrics` only as "use this number" hints.
+- **Permissions:** `ops.route_plan.view / create / edit / archive / approve / configure` and `ops.route_plan_own.view`. Admin and zonal manager: all. Hub manager:
+  view, create, edit (+ own). Rider: own. A role with its own page list and the view right gets `/app/routes/plan`.
+- **Web:** `lib/routePlan.ts` (API, `capacityOf`, `suggestPlan`, `spreadRoutes`) and `pages/zonal/RoutePlan.tsx`. The same component is the tab **আজকের পরিকল্পনা**
+  in রুট সেটিং and the page `/app/routes/plan` (menu: হাবের টিম → আজকের পার্সেল পরিকল্পনা). Several hubs: a status table first. One hub: the five numbers,
+  parcels per route, the people table, "পরামর্শ বসান", save / send / approve / send back / reopen / remove, and "সেটআপ" (pickups, fixed numbers, helpers, zone rules).
+  Staff panel → আমার রুট shows "আজ আমার পার্সেল" once the plan is approved.
+- **The suggestion** (on the page, never saved by itself): a person's day = the fixed number, else the average of the period (accounts first, own reports second),
+  else the hub's rider average; a helper takes the helper limit; pickups above the person's usual ones cost `pickup_weight` deliveries each. A route's parcels go
+  to its riders by that; a rider on several routes splits the day by the routes' parcels. An absent rider's part goes to: same route → riders without a route →
+  nearest routes within `near_km` → helpers → up to `over_pct` of capacity → "left", with how many riders were short. Attendance not marked counts as here and is flagged.
+- **Decisions worth knowing:** whoever may approve can approve a plan they typed themselves (a morning plan cannot wait for a second person); an approved plan
+  changes only after "আবার খুলুন" with a reason; the day's pickups are spread only over people the set-up says do pickups; "দিন শেষে" shows what the accounts or
+  the person's own report say for that date.
+- **Not built yet:** reading the Steadfast "Update list" and "Dispatch" PDFs into these numbers (`route_day_plans.source` is ready for `pdf` / `api`), parcels per
+  stop from addresses, a notification to the approver when a plan is sent. `supabase/apply-all-dev.sql` was not regenerated.
+- **Tests:** `99…_route_day_plan.sql` (61 assertions; whole SQL suite 2302 pass), typecheck, build, smoke test pass. The flow was driven in a real browser against
+  the local database with the role-demo gateway: hub manager types and sends, zonal manager sets up a helper and a fixed number and approves, the rider sees the
+  own parcels on a phone; 0 failed database calls, no sideways scroll on a phone.
+- **Live:** NOT applied to Supabase yet — the owner has to say yes first. Until then the new tab and page answer "function not found".

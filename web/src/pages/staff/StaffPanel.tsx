@@ -12,6 +12,7 @@ import { WorkforceAlerts } from '../../components/WorkforceAlerts'
 import { RiderSendCard } from '../../components/RiderQuick'
 import { MyAvatarUpload } from '../../components/MyAvatar'
 import { MyRouteCard } from '../../components/MyRoute'
+import { MyParcelsCard } from '../zonal/RoutePlan'
 import { da, addDays, todayDhaka, type Claim } from '../../lib/dailyAccounts'
 import { dashboard } from '../../lib/dashboard'
 import { staffPanel, STAFF_DEFAULT, type StaffSection } from '../../lib/staffPanel'
@@ -224,6 +225,7 @@ export function StaffPanel() {
           {duties.length ? <ul>{duties.slice(0, 6).map(x => <li key={x.id}>{x.title}</li>)}</ul>
             : <p className="muted small">{L('কোনো দায়িত্ব লেখা নেই', 'No duties written')}</p>}</div>
       </div>
+      <MyParcelsCard />
       {routes.length > 0 && <MyRouteCard />}
 
       {(v?.car?.vehicles.length ?? 0) > 0 && <div className="nv-rows">{row('/app/fleet/mine', 'o', 'truck', `${L('আমার গাড়ি', 'My vehicle')} — ${v!.car!.vehicles[0].name}`,

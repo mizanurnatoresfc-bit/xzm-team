@@ -68,7 +68,7 @@ export const RESOURCE_LABEL: Record<string, string> = {
   'sorting.center': 'শটিং সেন্টার ও রুট', 'sorting.staff': 'শটিং স্টাফ', 'sorting.fuel': 'তেলের স্লিপ ও খরচ',
   'sorting.hub_charge': 'গাড়ি খরচ হাবের খাতায়', 'sorting.parcel': 'পার্সেল আদান-প্রদান', 'sorting.driver': 'ড্রাইভার রিপোর্ট', 'sorting.report': 'শটিং রিপোর্ট',
   'office.property': 'অফিস, রুম ও ডেস্ক', 'office.asset': 'অফিসের রিসোর্স',
-  'hr.duty': 'কাজের দায়িত্ব', 'ops.route': 'রাইডার রুট', 'ops.route_setting': 'রুট সেটিং (জোনের রুট ম্যাপ ও নিয়ম)', 'ops.route_visit': 'রুটে চেক-ইন (রাইডারের স্টপে পৌঁছানো)',
+  'hr.duty': 'কাজের দায়িত্ব', 'ops.route': 'রাইডার রুট', 'ops.route_setting': 'রুট সেটিং (জোনের রুট ম্যাপ ও নিয়ম)', 'ops.route_plan': 'আজকের পার্সেল পরিকল্পনা (কে কয়টা নেবেন)', 'ops.route_plan_own': 'পরিকল্পনায় নিজের পার্সেল (রাইডার)', 'ops.route_visit': 'রুটে চেক-ইন (রাইডারের স্টপে পৌঁছানো)',
   'ops.staff_daily': 'স্টাফের দৈনিক কাজের হিসাব (পিকআপ, রিটার্ন, ডেলিভারি)',
   'zonal.report': 'জোনাল রিপোর্ট', 'zonal.task': 'কাজ (টাস্ক)', 'zonal.visit': 'হাব ভিজিট',
   'da.import': 'আপডেট রিপোর্ট আপলোড', 'hr.attendance_gap': 'হাজিরার ফাঁকা দিন', 'hr.employee_profile': 'কর্মীর প্রোফাইল পূরণ',
