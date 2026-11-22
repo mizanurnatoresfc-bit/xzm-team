@@ -40,8 +40,10 @@ export function ZonalDashboard() {
   const { from, to } = rangeOf(preset, custom)
   useEffect(() => { if (!zone && o.data?.zones.length === 1) setZone(o.data.zones[0].id) }, [o.data, zone])
   const z = zone || null
-  const dash = useLoad(() => zonal.dashboard(z, from, to), [z, from, to])
-  const hubs = useLoad(() => zonal.hubs(z, from, to).catch(() => [] as HubPerf[]), [z, from, to])
+  // A manager of one zone may not ask for "all zones": wait until the zone list has loaded and their zone is picked.
+  const ready = !!o.data && (zone !== '' || o.data.zones.length !== 1)
+  const dash = useLoad(() => ready ? zonal.dashboard(z, from, to) : Promise.resolve(null), [z, from, to, ready])
+  const hubs = useLoad(() => ready ? zonal.hubs(z, from, to).catch(() => [] as HubPerf[]) : Promise.resolve([] as HubPerf[]), [z, from, to, ready])
   const [detail, setDetail] = useState<{ stat: WorkStat; title: string } | null>(null)
   const [tab, setTab] = useState<'hubs' | 'tasks' | 'plan' | 'visits'>('hubs')
   const d = dash.data
