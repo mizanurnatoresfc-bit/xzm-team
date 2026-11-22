@@ -93,7 +93,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
       <b>এরপর যা করবেন</b>
       <ol style={{ margin: '6px 0 0', paddingLeft: 20 }}>
         <li>তালিকা নামিয়ে হাব ম্যানেজারদের দিন — লগইন আইডি হলো এমপ্লয়ি আইডি।</li>
-        <li>{mode === 'common' ? 'প্রথম পাসওয়ার্ডটা সবাইকে জানিয়ে দিন। যত তাড়াতাড়ি সবাই একবার ঢুকে নিজের পাসওয়ার্ড বসাবেন, তত নিরাপদ।' : 'প্রত্যেককে তাঁর নিজের প্রথম পাসওয়ার্ড আলাদা করে দিন।'}</li>
+        <li>{mode === 'common' ? 'প্রথম পাসওয়ার্ডটা সবাইকে জানিয়ে দিন। সবাই একই পাসওয়ার্ডে ঢুকবেন, তাই যত তাড়াতাড়ি প্রত্যেকে সেটিং থেকে নিজের পাসওয়ার্ড বদলে নেন, তত নিরাপদ।' : 'প্রত্যেককে তাঁর নিজের প্রথম পাসওয়ার্ড আলাদা করে দিন।'}</li>
         <li>“চালু করার অগ্রগতি” পাতায় দেখুন কোন হাবে কে এখনো ঢোকেননি।</li></ol></div>}
     {run.done && !run.made.length && <p className="da-error">একটাও তৈরি হয়নি — উপরের কারণ দেখুন। কিছুই বদলায়নি; ঠিক করে আবার চালানো যাবে।</p>}
   </Modal>
@@ -101,7 +101,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
   return <Modal wide title="সব কর্মীর লগইন তৈরি" onClose={onClose}
     actions={<><button type="button" className="secondary" onClick={onClose}>বাতিল</button>
       <button type="button" disabled={!ready.length} onClick={() => void start()}>{n(ready.length)} জনের লগইন তৈরি করুন</button></>}>
-    <p className="muted small">যাঁদের এখনো লগইন নেই শুধু তাঁদের জন্য তৈরি হবে। লগইন আইডি = এমপ্লয়ি আইডি; মোবাইল নম্বর থাকলে সেটা দিয়েও ঢোকা যাবে। প্রথমবার ঢুকে প্রত্যেককে নিজের পাসওয়ার্ড বসাতে হবে — তার আগে কিছুই খোলে না।</p>
+    <p className="muted small">যাঁদের এখনো লগইন নেই শুধু তাঁদের জন্য তৈরি হবে। লগইন আইডি = এমপ্লয়ি আইডি; মোবাইল নম্বর থাকলে সেটা দিয়েও ঢোকা যাবে। প্রত্যেকে এই পাসওয়ার্ড দিয়েই সরাসরি অ্যাপে ঢুকবেন।</p>
     {cands.error ? <p className="da-error">{hrFriendly(cands.error)}</p> : null}
     {roleList.error ? <p className="da-error">{userFriendly(roleList.error)}</p> : null}
 

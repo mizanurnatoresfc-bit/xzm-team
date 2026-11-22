@@ -215,7 +215,7 @@ function FirstSteps({ photo }: { photo: string | null | undefined }) {
   const e = me.data
   if (!e || photo === undefined || (e.mobile && photo)) return null
   const steps: Array<[boolean, string, string | null]> = [
-    [true, L('নিজের পাসওয়ার্ড বসানো হয়েছে', 'Your own password is set'), null],
+    [true, L('লগইন চালু হয়েছে', 'You are signed in'), null],
     [!!e.mobile, e.mobile ? L('মোবাইল নম্বর দেওয়া আছে', 'Mobile number given') : L('মোবাইল নম্বর দিন — তারপর নম্বর দিয়েও লগইন হবে', 'Give your mobile number — then you can sign in with it too'), '/app/me'],
     [!!photo, photo ? L('প্রোফাইলের ছবি আছে', 'Profile photo added') : L('প্রোফাইলের ছবি নেই — নিজেই ছবি দিন', 'No profile photo — add it yourself'), '/app/me'],
   ]

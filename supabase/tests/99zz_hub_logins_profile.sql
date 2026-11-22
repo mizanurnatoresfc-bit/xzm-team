@@ -55,9 +55,9 @@ select tests.throws(format($$select public.hr_link_login(%L, %L)$$, tests.id('rd
 select public.hr_link_login(tests.id('rd1'), tests.id('u1'));
 reset role;
 select tests.ok((select e.profile_id = tests.id('u1') from public.employees e where e.id = tests.id('rd1'))
-  and (select must_change_password from public.profiles where id = tests.id('u1'))
+  and (select not must_change_password from public.profiles where id = tests.id('u1'))
   and (select count(*) = 1 from public.user_roles where user_id = tests.id('u1') and scope_type = 'hub' and hub_id = tests.id('hub_a1')),
-  'the rider has a login at their hub, to be changed at first sign-in');
+  'the rider has a login at their hub, usable straight away');
 select tests.login(tests.id('hub_mgr'));
 
 -- once linked the account is no longer "new": nothing more can be given to it by the hub

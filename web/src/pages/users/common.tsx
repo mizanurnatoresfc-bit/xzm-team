@@ -61,7 +61,7 @@ export function AccountBadge({ u }: { u: Pick<UserRow, 'status' | 'locked' | 'mu
   return <Badge tone="ok">{L('সক্রিয়', 'Active')}</Badge>
 }
 
-/** One-time display of a temporary password, with copy. */
+/** One-time display of a new password, with copy. */
 export function PasswordNote({ email, password }: { email: string; password: string }) {
   const { L } = usePrefs()
   const [copied, setCopied] = useState(false)
@@ -70,7 +70,7 @@ export function PasswordNote({ email, password }: { email: string; password: str
     <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 15 }}>{text}</pre>
     <button className="secondary sm" style={{ marginTop: 8 }} onClick={() => { void navigator.clipboard?.writeText(text).then(() => setCopied(true)) }}>
       {copied ? L('কপি হয়েছে', 'Copied') : L('কপি করুন', 'Copy')}</button>
-    <p className="muted small" style={{ marginBottom: 0 }}>{L('এই পাসওয়ার্ড আর দেখানো হবে না। স্টাফকে নিজে হাতে দিন — প্রথম লগইনে তাঁকে নতুন পাসওয়ার্ড দিতে হবে।',
-      'This password is not shown again. Give it to the staff member in person — they must set a new one at first login.')}</p>
+    <p className="muted small" style={{ marginBottom: 0 }}>{L('এই পাসওয়ার্ড আর দেখানো হবে না। স্টাফকে নিজে হাতে দিন — এটা দিয়েই তিনি সরাসরি ঢুকবেন।',
+      'This password is not shown again. Give it to the staff member in person — they sign in with it straight away.')}</p>
   </div>
 }

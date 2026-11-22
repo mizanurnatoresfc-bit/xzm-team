@@ -60,7 +60,7 @@ export function HubLogins({ hub }: { hub: { id: string; name: string } }) {
     try { await users.resetPassword(reset.user_id, pw); setReset(null); toast('নতুন পাসওয়ার্ড বসানো হয়েছে — তিনি এটা দিয়েই সরাসরি ঢুকবেন'); await list.reload() }
     catch (e) { setErr(userFriendly(e)) } finally { setBusy(false) }
   }
-  const pwBox = <Field label="পাসওয়ার্ড" hint="কমপক্ষে ৬ অক্ষর। এটা কর্মীকে মুখে বা কাগজে জানান। নতুন লগইনে প্রথমবার ঢুকে নিজের পাসওয়ার্ড বসাতে হবে; রিসেট করা পাসওয়ার্ড দিয়ে সরাসরি ঢোকা যায়।">
+  const pwBox = <Field label="পাসওয়ার্ড" hint="কমপক্ষে ৬ অক্ষর। এটা কর্মীকে মুখে বা কাগজে জানান। এটা দিয়েই তিনি সরাসরি ঢুকবেন।">
     <span className="pw" style={{ display: 'block' }}><input type={show ? 'text' : 'password'} autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} style={{ paddingRight: 84 }} />
       <button type="button" className="secondary sm" onClick={() => setShow(s => !s)}>{show ? 'লুকান' : 'দেখুন'}</button></span></Field>
 

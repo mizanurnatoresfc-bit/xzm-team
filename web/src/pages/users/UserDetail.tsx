@@ -156,7 +156,7 @@ function ResetModal({ u, onClose }: { u: UserRow; onClose: () => void }) {
   return <Modal title={L('পাসওয়ার্ড রিসেট', 'Reset password')} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void go()}>{L('রিসেট করুন', 'Reset')}</button></>}>
     <p className="muted small">{L('নতুন পাসওয়ার্ড বসবে, লক খুলে যাবে। তিনি এই পাসওয়ার্ড দিয়েই সরাসরি ঢুকবেন।',
-      'A new temporary password is set and any lock is cleared. They must choose their own password at next sign-in.')}</p>
+      'A new password is set and any lock is cleared. They sign in with it straight away.')}</p>
     <Field label={L('নতুন পাসওয়ার্ড', 'New password')}>
       <span style={{ display: 'flex', gap: 6 }}><input value={pw} onChange={e => setPw(e.target.value)} style={{ flex: 1 }} />
         <button type="button" className="secondary sm" onClick={() => setPw(tempPassword())}>{L('নতুন', 'New')}</button></span></Field>

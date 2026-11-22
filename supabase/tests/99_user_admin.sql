@@ -72,8 +72,8 @@ select tests.login(tests.id('hub_mgr'));
 select tests.ok((select count(*) from public.my_permissions()) > 0, 'after a reset the account works straight away');
 select tests.logout();
 
--- ---------- an account waiting for its own password (a new login) holds no permissions ----------
-update public.profiles set must_change_password = true where id = tests.id('hub_mgr');  -- what a new login starts with
+-- ---------- an account still flagged to change its password holds no permissions (the flag is no longer set) ----------
+update public.profiles set must_change_password = true where id = tests.id('hub_mgr');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select count(*) from public.my_permissions()) = 0, 'account waiting for a new password holds no permissions');
 select tests.ok(tests.row_count('select 1 from public.user_roles where user_id = auth.uid()') = 1, 'it can still read its own role (for the menu)');
@@ -119,8 +119,8 @@ insert into tests.ids values ('newbie', tests.make_user('new@test.local', 'New R
 select tests.login(tests.id('admin'));
 select public.user_admin_assign_role(tests.id('newbie'), (select id from public.roles where code = 'rider'), 'hub', null, tests.id('hub_a1'));
 select public.user_admin_finish_create(tests.id('newbie'), 'New Rider', '01711000000');
-select tests.ok((select must_change_password and phone = '01711000000' from public.profiles where id = tests.id('newbie')),
-  'new account must change its password at first login');
+select tests.ok((select not must_change_password and phone = '01711000000' from public.profiles where id = tests.id('newbie')),
+  'a new account signs in with its first password, no forced change (owner, 22 Nov 2026)');
 select tests.logout();
 update public.profiles set last_login_at = now() where id = tests.id('newbie');
 select tests.login(tests.id('admin'));

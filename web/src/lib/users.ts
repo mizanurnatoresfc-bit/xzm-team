@@ -60,7 +60,7 @@ export const users = {
   },
 }
 
-/** Readable temporary password: no look-alike characters, always letters and digits. */
+/** Readable first password: no look-alike characters, letters and digits. */
 export function tempPassword(): string {
   const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', digits = '23456789'
   const pick = (s: string) => { const a = new Uint32Array(1); crypto.getRandomValues(a); return s[a[0] % s.length] }

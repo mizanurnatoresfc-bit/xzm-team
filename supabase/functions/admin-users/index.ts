@@ -1,8 +1,8 @@
 // admin-users: the only steps of account management that need the service key.
 //
-//   create          admin creates a staff login (email + temporary password + first role)
+//   create          admin creates a staff login (email + first password + first role)
 //   reset_password  admin sets a new password for an account they may manage (used as it is, no forced change)
-//   change_password the signed-in user replaces their (temporary) password
+//   change_password the signed-in user changes their own password
 //
 // Every permission decision is made by the database while acting AS THE CALLER
 // (user_admin_precheck, user_admin_assign_role, user_admin_can_manage ...), so this
@@ -112,10 +112,8 @@ Deno.serve(async (req) => {
       await admin.from('profiles').update({ status: 'inactive' }).eq('id', id)
       return dbError(ae)
     }
-    const { error: fe } = await caller.rpc('user_admin_finish_create', { p_user: id, p_full_name: fullName, p_phone: phone })
-    if (fe) {
-      await admin.from('profiles').update({ must_change_password: true }).eq('id', id)
-    }
+    // Name and phone; if this fails the login still works, it just keeps the name from the email step.
+    await caller.rpc('user_admin_finish_create', { p_user: id, p_full_name: fullName, p_phone: phone })
     let warning: string | null = null
     if (employee) {
       const { error: le } = await caller.rpc('hr_link_login', { p_employee: employee, p_profile: id })
