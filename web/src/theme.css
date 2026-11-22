@@ -3363,3 +3363,11 @@ button.avatar-btn .hoodie-av,.me-pop .me-av .hoodie-av{border-radius:50%}
 .lc-accounts .warn b{color:var(--bad-fg)}.lc-accounts .net{background:var(--primary-50);border-color:transparent}
 .lc-file{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .lc-file button{display:inline-flex;align-items:center;gap:6px}
+
+/* Users page: compact, responsive filter action row */
+.da-filters .da-filter-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;align-self:end;padding-bottom:2px}
+.da-filters .da-filter-actions .muted{font-size:.8125rem}
+@media(max-width:700px){
+  .da-filters .da-filter-actions{grid-column:1/-1;width:100%;padding-top:4px}
+  .da-filters .da-filter-actions button{min-height:38px}
+}
