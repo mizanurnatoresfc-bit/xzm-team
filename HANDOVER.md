@@ -912,3 +912,35 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   "বিল/ভাউচার নেই", bank deposits with slip state, totals from `da_center_overview`, due/fund. Shares through the phone's share sheet (WhatsApp) or downloads.
 - Tests: `99…_dynamic_voucher.sql` (22 assertions); whole suite 2175 pass locally.
 - **Live:** migration applied on Supabase 21 Nov as `20261121202903 dynamic_voucher` (owner said yes first; all 5 function bodies equal the tested file by hash; the setting is at its default, so numbering is unchanged). The site gets the card and the picture button when the pull request is merged to `main`.
+
+## 2026-11-22 — তৈরি হয়ে পড়ে থাকা কাজ লাইভে আনা (finished work on old branches brought into main)
+- Owner: "কোড বা ফাংশান এর কাজ হয়েছে কিন্তু লাইভ হয় নি এমন কত গুলা আছে", then "যেগুলা কাজ করা হয়েছে সেই গুলা চেক করে লাইভ করো".
+  Every remote branch was trial-merged onto `main` and compared with the live database (migrations list + function names).
+- **Brought in (each fitted to today's code, not merged blind):**
+  - `menu-editor-phone` (PR 108): menu editor rows as wrapping cards on a phone.
+  - `feat/dynamic-voucher-report-image` (PR 95): Accounts settings → **খরচের ভাউচার** card, Accounts centre → **রিপোর্টের ছবি**. Its database part was already
+    live (`20261121202903 dynamic_voucher`); the branch's second copy of the migration file is left out.
+  - `claude/daily-report-import-page-pzdt4o` (PR 31): page `/app/accounts/report-import` (paste the courier panel's Update Report), the home card, the zonal
+    dashboard tab **আজকের রিপোর্ট**, menu entry under হিসাব. Database part already live (`20261116213632 report_import`); `da.import.create` is held on live by
+    accountant, accounts_manager, admin, driver, hub_manager, zonal_manager. New `npm run test:parser` (11 tests) runs in the site build.
+  - `ccr-332dd98a-t0fmgj` (PR 67): **এক ক্লিকে সাবমিট** — `wf_ops_add`, `wf_ops_taps`; migration renumbered `20261122000800_workforce_ops_add.sql`.
+  - `claude/epic-feynman-xx9jw5`: **ম্যানেজারের হাজিরা খাতা** — 5 tables `wf_book_rules / entries / days / submissions / entry_log`, 11 `wf_mb_*` functions,
+    leave photo (`wf_absence_photo(s)`, bucket `wf-leave`); migration renumbered `20261122000900_workforce_manager_book.sql`. The zonal workforce page now opens
+    on the **হাজিরা খাতা** tab. Both migrations only add (new tables, functions, one column, two wider check rules); no existing function is replaced.
+  - `claude/zen-hopper-kdizcm`: form toolkit (floating labels, input mask, steps, auto-saved drafts, confirm before submit) on the HR forms.
+  - `feat/users-management-polish` (PR 81): Users page search / status filter, count and reset. The public `/preview/users` demo route was **not** taken.
+  - `claude/intelligent-maxwell-9mj93u`: each person can hide the floating নদী button (Settings and the নদী page; remembered on the device).
+  - `claude/amazing-einstein-8sdykp` (PR 91): smoke test fix.
+- **Checked and found already in main / replaced by later work (nothing to do):** office বাস্তব মোড (`ccr-ff707119`), company sheets (`epic-edison`),
+  menu editor (`menu-editor-and-names`), three `codex/*` one-commit branches, PR 57 (main already has `body{overflow-wrap:break-word}`),
+  `ccr-29e50a53` and `codex/clean-menu-labels` (the menu editor replaced them), `ccr-be5721eb` Nodi roles (advanced permissions + `nodi.features` replaced it).
+- **Left out on purpose — each needs the owner's decision or more work first:**
+  - PR 87 fleet role scoping: its migration **takes away** `vehicle.vehicle.create / edit / archive` and `vehicle.holder.edit` from zonal and hub managers on live.
+  - PR 94 dues ledger: database part only, marked work in progress, no page.
+  - `claude/route-panel-location-rider-lnznbs` (sorting crew, hub presence by GPS / Wi-Fi, hourly staff location, absent list) and
+    `claude/loving-euler-6lfg54` (route dispatch, assign page, hub wallet): written 17–18 Nov, before route settings / route day plan / staff panel sections;
+    11 and 20 conflicts with today's code, and hourly staff location is a privacy decision.
+  - PR 52 role groups / AERV and `claude/blissful-cerf-on2duy` (a role per post, duplicate hub / people cleanup — its own notes say "files only, not applied"):
+    both change roles or live data; advanced permissions came after PR 52.
+  - `claude/blissful-maxwell-7kkfd6` approval rules: an older design; live already has `da_approval_rules` + `da_approval_rule_save` from the cash payments migration.
+  - PR 55 documents of 17 Nov (out of date), `ccr-a19499a2` demo seed data, `codex/ui-ux-audit` test edits.
