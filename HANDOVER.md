@@ -717,5 +717,6 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   4. the zonal dashboard waits for the zone list, so a one-zone manager no longer sends a refused "all zones" request first;
   5. the top search box: the placeholder no longer sits under the icon (the form-wide `!important` padding was winning).
 - **Tests:** `99…_role_demo_audit.sql` (10 assertions); `99…_nodi_features.sql` follows the gap rule (its hub now has a first attendance day). Whole SQL suite 2193 pass; smoke 630 pass.
-- **Live:** NOT applied yet — the migration waits for the owner's yes. Nothing on the live database was changed in this session (read-only counts and the security advisor only).
+- **Live:** migration applied on Supabase 22 Nov as `20261122142603 role_demo_audit_fixes` (owner said yes first). Checked after: the trigger is on, only `branding()` is open to visitors,
+  the nine functions still work signed in, and the missing-attendance list went from 1,450 days (144 people) to 155 days (82 people), none before 18 Nov. The two website fixes go live when the pull request is merged.
 - **Not covered by the demo:** real login and lockout, Edge Functions, Storage uploads, push, realtime, the APK — listed as hand checks in step 2 of the roadmap.
