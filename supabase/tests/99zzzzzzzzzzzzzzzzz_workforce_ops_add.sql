@@ -1,5 +1,5 @@
 -- আজকের কাজের হিসাব: এক ক্লিকে যোগ — every tap adds to the day's total and is counted.
--- Migration 20261122000800_workforce_ops_add.sql. The business clock is moved inside this transaction like the other workforce tests.
+-- Migration 20261122001000_workforce_ops_add.sql. The business clock is moved inside this transaction like the other workforce tests.
 begin;
 select tests.fixture();
 select tests.hr_fixture();

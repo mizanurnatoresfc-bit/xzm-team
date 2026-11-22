@@ -1,0 +1,33 @@
+/* দৈনিক ফাইনাল হাজিরা খাতা (pages/workforce/FinalSheet.tsx, ZoneFinal.tsx, MyExplanations.tsx) */
+.as-days{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px}
+.as-state{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;margin:0 0 12px;border:1px solid var(--border);background:var(--canvas);color:var(--text)}
+.as-state.lock{background:var(--ok-bg);color:var(--ok-fg);border-color:transparent}
+.as-state.open{background:var(--warn-bg);color:var(--warn-fg);border-color:transparent}
+.as-check{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;margin:0 0 12px;background:var(--info-bg);color:var(--info-fg)}
+.as-pos td.warn{color:var(--warn-fg);font-weight:700}
+.as-pos td.bad{color:var(--bad-fg);font-weight:700}
+.as-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.as-line{border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--surface);display:grid;gap:8px}
+.as-line.todo{border-color:var(--warn-fg)}
+.as-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:flex-start}
+.as-given{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.as-given small{color:var(--muted)}
+.as-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.as-k{font-size:.875rem;font-weight:600;color:var(--muted);min-width:170px}
+.as-yn{display:inline-flex;gap:6px}
+button.wm-chip.on.ok{background:var(--ok-bg);color:var(--ok-fg);border-color:var(--ok-fg);box-shadow:none!important}
+button.wm-chip.on.bad{background:var(--bad-bg);color:var(--bad-fg);border-color:var(--bad-fg);box-shadow:none!important}
+.as-in{flex:1 1 220px;min-width:180px}
+.as-abs .da-field{margin:0;min-width:180px}
+.as-expl p{margin:2px 0;font-size:.9rem}
+.as-prob{margin:0;color:var(--warn-fg);font-size:.85rem;font-weight:600;display:flex;align-items:center;gap:4px}
+.as-bar{position:sticky;bottom:0;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding:10px 0;margin-top:12px;background:var(--surface);border-top:1px solid var(--border);z-index:2}
+.as-left{margin-right:auto;font-weight:600;color:var(--muted)}
+.as-checks{margin-top:12px}
+.as-checks ul{margin:6px 0 0;padding-left:18px}
+.wm-grid th.as-nosub{opacity:.45}
+.as-mine{display:grid;gap:10px;list-style:none;margin:0;padding:0}
+.as-mine li{border:1px solid var(--border);border-radius:14px;padding:12px;background:var(--surface);display:grid;gap:6px}
+.as-mine li.open{border-color:var(--warn-fg)}
+.as-mine textarea{width:100%}
+.as-zone-people{margin:4px 0 0;padding-left:18px;font-size:.875rem;color:var(--muted)}

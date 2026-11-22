@@ -1,5 +1,5 @@
 -- হাজিরা খাতা (ম্যানেজারের): the hub manager's book, day close, zonal correction and submission, paid / unpaid, setting, photo.
--- Migration 20261122000900_workforce_manager_book.sql. The business clock is moved inside this transaction
+-- Migration 20261122001100_workforce_manager_book.sql. The business clock is moved inside this transaction
 -- (private.wf_today reads a setting) to a month two months back, so every date is in the past for the register.
 begin;
 select tests.fixture();

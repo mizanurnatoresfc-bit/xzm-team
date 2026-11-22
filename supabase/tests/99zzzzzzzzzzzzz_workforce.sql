@@ -884,8 +884,8 @@ select tests.ok(not exists (select 1 from public.notifications where kind = 'wor
 
 -- 19 from this module + 4 from 20261118200000_workforce_earlier_dates (wf_book_fill, wf_window_save, wf_window_end, wf_windows)
 -- + 2 from 20261121000400_book_full_month (wf_book_mode, wf_book_full_month_set)
--- + 2 from 20261122000800_workforce_ops_add (wf_ops_add, wf_ops_taps)
--- + 13 from 20261122000900_workforce_manager_book (11 wf_mb_*, wf_absence_photo, wf_absence_photos)
+-- + 2 from 20261122001000_workforce_ops_add (wf_ops_add, wf_ops_taps)
+-- + 13 from 20261122001100_workforce_manager_book (11 wf_mb_*, wf_absence_photo, wf_absence_photos)
 select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 40 and count(*) = 40
                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'),
   'all forty public functions are security definer with an empty search path');

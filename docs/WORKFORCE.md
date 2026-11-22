@@ -86,23 +86,3 @@ Migration `20261118210000_workforce_site_application.sql` · tests `supabase/tes
 কাজ সরাতে: `select cron.unschedule('wf-remind')`; `alter publication supabase_realtime drop table …` (চারটি টেবিল); `wf_*` ফাংশন (public ও private; `wf_marks_decide` সহ ১৯টি public) মুছুন;
 `attendance_self_marks`-এর `att_self_wf_before/after` ট্রিগার ও চারটি কলাম (`zone_id, applied_on_site, application_id, via`) সরান; টেবিল `wf_ops_history, wf_att_history, wf_daily_ops, wf_absence_applications`
 ও সিকোয়েন্স `wf_absence_no_seq` মুছুন; `ops.staff_daily.*` অনুমতি এবং `workforce.*` সেটিং মুছুন। পুরোনো ডাটা অক্ষত থাকে।
-
-## হাজিরা খাতা (ম্যানেজারের) / The manager's attendance book (20 Nov 2026)
-Migration `20261122000900_workforce_manager_book.sql` · tests `supabase/tests/99zzzzzzzzzzzzzzzzzzzzzz_workforce_manager_book.sql` (82 checks) ·
-typed calls `web/src/lib/workforceBook.ts` · pages `pages/workforce/ManagerBook.tsx` (hub), `pages/workforce/ZoneBook.tsx` (zone).
-মালিক (১৯ নভেম্বর): হাব অনুযায়ী মাসিক খাতা; জোনাল সেটিং থেকে কত দিন খোলা; চার ইনপুট + লেট সময়সহ; ম্যানেজার দিন ক্লোজ করলে আর সংশোধন নয়; স্টাফের ছুটির আবেদনে ছবি;
-জোনাল ম্যানেজার সংশোধন করে সাপ্তাহিক/মাসিক সাবমিট; পেইড/নন-পেইড সব প্যানেলে, সেটিং থেকে; নাম ও তারিখ অনুযায়ী জোনাল প্যানেলে; কোম্পানির নির্ধারিত ফরম্যাটে এক্সপোর্ট।
-
-| বিষয় | কীভাবে |
-|---|---|
-| ইনপুট | প্রতি কর্মী প্রতি তারিখে একটি (`wf_book_entries`): `hub_online` হাবে উপস্থিত + অনলাইন হাজিরা · `hub_no_online` হাবে উপস্থিত, অনলাইন হাজিরা হয়নি · `late` (সময় বাধ্যতামূলক) · `absent_site` ওয়েবসাইটে আবেদন আছে (থেকে–পর্যন্ত বাধ্যতামূলক, নম্বর ঐচ্ছিক) · `absent_no_site` আবেদন নেই — কর্মী নোটিশ পান "ওয়েবসাইটে এখুনি ছুটির আবেদন করুন" · `weekly_off` · `holiday`। |
-| লেখা | `wf_mb_set(হাব, তারিখ, [{employee_id, code, …}], কারণ)` — সব নয়তো কিছুই না; একই ইনপুট আবার = কিছু বদলায় না। রেজিস্টার `attendance_records`-এও লেখে (source `book`: present / late / leave / absent …), আর ওই তারিখে কর্মীর অপেক্ষারত নিজের ইনপুট মিটে যায়। কর্মীর নিজের দেওয়া ইনপুট/রেজিস্টার পরামর্শ হিসেবে দেখায় ("কর্মীদের নিজের দেওয়া থেকে নিন")। |
-| কে কখন | হাব ম্যানেজার (`hr.attendance.create`): এই মাসের খাতার দিন, খাতা খোলা থাকলে, দিন ক্লোজ না হলে। নিজের হাজিরা নিজে নয়। জোনাল ম্যানেজার (`hr.attendance.configure`, জোন): আগের দুই মাস পর্যন্ত যেকোনো দিন; ক্লোজ দিনে কারণ বাধ্যতামূলক (ইতিহাসে "corrected")। |
-| দিন ক্লোজ | `wf_mb_close(হাব, তারিখ, নোট)` — সবার ইনপুট লাগবে (ক্লোজকারীর নিজের সারি বাদে); `wf_book_days`। এরপর হাব ম্যানেজার আর বদলাতে পারেন না। |
-| জোনাল সাবমিট | `wf_mb_submit(জোন, 'week'|'month', প্রথম তারিখ, নোট)` — সপ্তাহ = ৭ দিন, মাস = সেই মাসের খাতার দিন; সময় শেষ হতে হবে, জোনে কোনো ইনপুট বাকি থাকা চলবে না; হাবগুলোর খোলা দিন ক্লোজ হয়; snapshot রাখা থাকে (`wf_book_submissions`)। সাবমিট করা তারিখ কেউ বদলাতে পারে না; কোম্পানি-ব্যাপী admin/HR `wf_mb_reopen(id, কারণ)` দিয়ে খুলে দেন। |
-| পেইড / নন-পেইড | `private.wf_mb_cells`: সেটিংয়ে প্রতিটি ইনপুট `paid` / `unpaid` / `quota`। `quota` ইনপুট মাসে `paid_leave_quota` দিন পর্যন্ত (তারিখের ক্রমে) পেইড, তারপর নন-পেইড। প্রতি মাসে প্রতি `late_per_deduct`-তম লেট নন-পেইড (০ = বন্ধ)। হাব খাতা, জোনাল খাতা, কর্মীর নিজের হাজিরা বই (`wf_mb_mine`) — সব জায়গায় একই হিসাব। ডিফল্ট: উপস্থিত/লেট/ছুটি পেইড, ওয়েবসাইট আবেদন = কোটা (মাসে ২), আবেদন নেই = নন-পেইড, প্রতি ৩ লেটে ১ দিন। |
-| সেটিং | `wf_book_rules`: কোম্পানি ডিফল্ট (zone null, শুধু কোম্পানি-ব্যাপী `hr.attendance.configure`) + জোনের নিজের মান (জোনাল ম্যানেজার)। কী: `from_day`, `to_day`, `open`, `paid`, `paid_leave_quota`, `late_per_deduct`, `late_after`, `week_start`; আর এক্সপোর্ট `format` (কলামের তালিকা ও শিরোনাম)। `wf_mb_rules_get` / `wf_mb_rules_save(জোন, মান, ফরম্যাট, reset)`। পাতা: জোনাল রিপোর্ট → সেটিং। |
-| দেখা | `wf_mb_book(হাব, মাস)` (হাব পাতা → হাজিরা বই), `wf_mb_sheet(জোন, হাব, থেকে, পর্যন্ত)` (জোনাল রিপোর্ট → হাজিরা খাতা, সর্বোচ্চ ৬২ দিন), `wf_mb_history` (পুরোনো → নতুন, কে, কখন, কেন; বদলানো যায় না), `wf_mb_submissions`। |
-| ছবি | কর্মীর অনুপস্থিতির আবেদনে ছবি: bucket `wf-leave`, পথ `<employee_id>/…`, `wf_absence_applications.photo_path`; `wf_absence_photo` (নিজের অপেক্ষারত আবেদন), `wf_absence_photos(ids)` (নিজে বা হাজিরা দেখার অনুমতি যাঁর)। |
-| সীমা | কর্মীর নিজের হাজিরা বইয়ের খোলা দিন এখনো আগের সেটিং `workforce.book_from_day/to_day` মানে — জোনের নতুন দিনগুলো শুধু ম্যানেজারের খাতায়। আগে থেকে থাকা রেজিস্টার সারি খাতায় লিখলে ওভাররাইট হয়। |
-| ফিরিয়ে নিতে | মাইগ্রেশনের মাথায় লেখা। |

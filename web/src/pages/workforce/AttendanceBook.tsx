@@ -5,8 +5,7 @@ import { Icon } from '../../components/Icon'
 import { usePrefs } from '../../lib/prefs'
 import { ACTION_META, APP_META, LIVE, RECORD_META, STATE_META, announceWfChange, dayLabel, monthLabel, monthOf, useLiveLoad, wf, wfFriendly,
   type AbsenceApp, type BookDay, type IsoDate, type Kind, type MyBook } from '../../lib/workforce'
-import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
-import { mb, type MbMine } from '../../lib/workforceBook'
+import { Badge, Field, Modal, useToast } from '../accounts/ui'
 import { AbsenceApply, canGive, longDate, shortDate, stamp, weekdayShort } from './AbsenceApply'
 import { BookFill } from './BookFill'
 import '../../workforce-book.css'
@@ -127,7 +126,6 @@ export function AttendanceBook() {
       <div className="wf-bk-sum" role="list">
         {chips.map(([label, v, tone]) => <div key={label} role="listitem" className={`wf-bk-chip t-${tone}${v === 0 ? ' z' : ''}`}><b>{n(v)}</b><span>{label}</span></div>)}
       </div>
-      <MyBookPay month={book.month} />
       {s.other > 0 && <p className="muted small wf-bk-off">{L(`সাপ্তাহিক ও সরকারি ছুটির দিন: ${n(s.other)}`, `Weekly and public days off: ${s.other}`)}</p>}
       {!book.open && closedN > 0 && <p className="muted small wf-bk-closed">{L(`${n(closedN)} দিনের হাজিরা দেওয়া হয়নি। বই বন্ধ — ম্যানেজারকে জানান, তিনি খাতায় ঠিক করে দেবেন।`,
         `${closedN} day(s) were not given. The book is closed — tell your manager; they correct it on the register.`)}</p>}
@@ -371,22 +369,4 @@ function HistoryList({ book }: { book: MyBook }) {
       </li>
     })}
   </ul>
-}
-
-/** The manager's book for me: what was written for each date and my paid / unpaid count (wf_mb_mine). */
-function MyBookPay({ month }: { month: string }) {
-  const { L, n, lang } = usePrefs()
-  const q = useLoad<MbMine | null>(() => mb.mine(month), [month])
-  const d = q.data
-  if (!d || !d.sum.entered) return null
-  return <div className="wf-bk-pay" aria-label={L('ম্যানেজারের হাজিরা খাতায় আমার হিসাব', 'My count in the manager’s book')}>
-    <b>{L('ম্যানেজারের হাজিরা খাতায়', 'In the manager’s book')}</b>
-    <span className="wf-bk-chip t-ok"><b>{n(d.sum.paid_days)}</b><span>{L('পেইড দিন', 'Paid days')}</span></span>
-    <span className={`wf-bk-chip t-bad${d.sum.unpaid_days ? '' : ' z'}`}><b>{n(d.sum.unpaid_days)}</b><span>{L('নন-পেইড দিন', 'Unpaid days')}</span></span>
-    <span className="wf-bk-chip t-warn"><b>{n(d.sum.late)}</b><span>{L('লেট', 'Late')}</span></span>
-    <span className="wf-bk-chip t-info"><b>{n(d.sum.absent_site)}</b><span>{L('ছুটি (ওয়েবসাইট)', 'Leave (website)')}</span></span>
-    {d.sum.absent_no_site > 0 && <p className="da-error small">{L(`${n(d.sum.absent_no_site)} দিন অনুপস্থিত কিন্তু ওয়েবসাইটে আবেদন নেই — এখুনি আবেদন করুন: `, `${d.sum.absent_no_site} absent days without a website application — apply now: `)}
-      {d.days.filter(x => x.c === 'absent_no_site').map(x => shortDate(x.date, lang)).join(', ')}</p>}
-    <small className="muted">{L(`নিয়ম: মাসে ${n(d.rules.paid_leave_quota)} দিন পেইড ছুটি${d.rules.late_per_deduct ? `, প্রতি ${n(d.rules.late_per_deduct)} লেটে ১ দিন নন-পেইড` : ''}`, `Rule: ${d.rules.paid_leave_quota} paid leave days a month${d.rules.late_per_deduct ? `, every ${d.rules.late_per_deduct} lates = 1 unpaid day` : ''}`)}</small>
-  </div>
 }

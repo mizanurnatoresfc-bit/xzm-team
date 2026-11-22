@@ -6,6 +6,7 @@ import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { NodiGaps } from '../../components/NodiGaps'
+import { MyExplanations } from '../workforce/MyExplanations'
 import { DailyOpsCard } from '../../components/DailyOpsCard'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
@@ -200,6 +201,7 @@ export function StaffPanel() {
       </div>}
       {canLeave && ok('/app/hr/leave') && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
       <NodiGaps />
+      <MyExplanations />
     </>,
     bill: () => <>
       <h2 className="sd-h">{L('আমার বিল', 'My bill')}</h2>

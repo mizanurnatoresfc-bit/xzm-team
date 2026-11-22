@@ -8,6 +8,7 @@ import { useLoad } from '../accounts/ui'
 import { InHand } from '../hr/StaffDesk'
 import { AttendanceBook } from './AttendanceBook'
 import { BroughtPicker } from './BroughtPicker'
+import { MyExplanations } from './MyExplanations'
 import '../../workforce.css'
 
 /**
@@ -49,7 +50,7 @@ export function MyWorkforce() {
       {me.error ? <p className="da-error" role="alert">{L('আপনার তথ্য আনা যায়নি — একটু পরে আবার চেষ্টা করুন।', 'Could not load your details — try again in a moment.')}</p>
         : noProfile ? <div className="notice" role="status"><b>{L('আপনার লগইনের সাথে কর্মী প্রোফাইল যুক্ত নেই।', 'No staff profile is linked to your login.')}</b>
           <p style={{ margin: '4px 0 0' }}>{L('এইচআর বা হাব ম্যানেজারকে বলুন লগইনটি আপনার এমপ্লয়ি আইডির সাথে যুক্ত করে দিতে।', 'Ask HR or your hub manager to link this login to your employee ID.')}</p></div>
-        : tab === 'attendance' ? <AttendanceBook />
+        : tab === 'attendance' ? <><MyExplanations /><AttendanceBook /></>
         : me.loading && !e ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
         : tab === 'given' ? e && <BroughtPicker me={e} />
         : <div className="wf-embed">{e && <InHand me={e} onBack={() => nav('/app/staff')} onChanged={() => undefined} />}</div>}

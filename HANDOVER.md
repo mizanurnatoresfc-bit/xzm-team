@@ -896,6 +896,23 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   looks at the whole pull request, so a later documents-only commit still re-runs the checks of what the pull request touches.
 - **Not verified on GitHub:** the allowance was used up when this was written, so the new files have only been checked as valid YAML. Watch the first runs.
 
+## 2026-11-22 — দৈনিক ফাইনাল হাজিরা খাতা (the manager's final daily attendance register)
+- Owner: staff give their attendance once; the hub manager keeps one final register per day with every staff member (what they gave is filled in),
+  answers yes / no, sets the status, "marked online?" (reason when not), the online application date when absent, "absent without telling", late + time,
+  and submits — then it is **locked**; only the zonal manager unlocks. A "no", a late arrival or an absence without telling asks the person to explain in
+  the staff panel. The zonal manager approves nothing: sees the staff inputs, who gave nothing by position, the final registers and the replies, and sends a
+  day's register once to all managers of the hub (positions MANAGER / ASSISTANTMAN with a login), who mark "ঠিক আছে". The submitted days are the monthly
+  register (present — late and half day count as present — and absent; leave / holidays shown as ছুটি, not counted).
+- **Database:** migration `20261122000800_att_final_sheet` — tables `att_day_sheets`, `att_day_lines`, `att_explanations`, `att_sheet_checks` (RLS, read-only to
+  the app, Realtime), functions `att_sheet_get / save / submit / unlock / send / check_ok`, `att_my_explanations`, `att_explain_reply`, `att_zone_day`,
+  `att_month_sheet`. Submitting writes the final status to `attendance_records` (late with the time in `check_in`) and settles the person's waiting
+  `attendance_self_marks` row, so every older report counts it. No new permissions: `hr.attendance.view` / `.create` (manager) / `.configure` (zonal).
+- **Web:** hub page `/app/workforce/hub` → tabs "ফাইনাল খাতা" (`?tab=final&date=`) and "মাসিক খাতা" (`pages/workforce/FinalSheet.tsx`); zonal report
+  `/app/workforce/zone` → first tab "দৈনিক হাজিরার তথ্য" (`ZoneFinal.tsx`); staff panel and "আমার উপস্থিতি" → "হাজিরার ব্যাখ্যা চাওয়া হয়েছে" (`MyExplanations.tsx`).
+- **Tests:** `99…_att_final_sheet.sql` (whole SQL suite passes locally). The web part was type-checked against stub types only (no npm in the session) —
+  the real typecheck / build runs in CI on the pull request.
+- **Live:** migration applied on Supabase 22 Nov as `att_final_sheet` (owner said yes). The pages go live when the pull request is merged.
+
 ## 2026-11-21 — ভাউচার নম্বর সেটিং থেকে, অটো ভাউচারের সুইচ, রিপোর্ট শীটের ছবি
 - Owner: "report sheet image generate hobe … voucher acha sei gula … upload, ja gula voucher nei sei gula auto voucher create hobe", then
   "SYSTEM DAYNAMIC AND UPDATE FUTURE" and "BANAO". The photo-or-auto-voucher rule already existed (bill ≥ `da.bill_upload.required_over` must be uploaded;
@@ -923,10 +940,13 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   - `claude/daily-report-import-page-pzdt4o` (PR 31): page `/app/accounts/report-import` (paste the courier panel's Update Report), the home card, the zonal
     dashboard tab **আজকের রিপোর্ট**, menu entry under হিসাব. Database part already live (`20261116213632 report_import`); `da.import.create` is held on live by
     accountant, accounts_manager, admin, driver, hub_manager, zonal_manager. New `npm run test:parser` (11 tests) runs in the site build.
-  - `ccr-332dd98a-t0fmgj` (PR 67): **এক ক্লিকে সাবমিট** — `wf_ops_add`, `wf_ops_taps`; migration renumbered `20261122000800_workforce_ops_add.sql`.
-  - `claude/epic-feynman-xx9jw5`: **ম্যানেজারের হাজিরা খাতা** — 5 tables `wf_book_rules / entries / days / submissions / entry_log`, 11 `wf_mb_*` functions,
-    leave photo (`wf_absence_photo(s)`, bucket `wf-leave`); migration renumbered `20261122000900_workforce_manager_book.sql`. The zonal workforce page now opens
-    on the **হাজিরা খাতা** tab. Both migrations only add (new tables, functions, one column, two wider check rules); no existing function is replaced.
+  - `ccr-332dd98a-t0fmgj` (PR 67): **এক ক্লিকে সাবমিট** — `wf_ops_add`, `wf_ops_taps`; migration renumbered `20261122001000_workforce_ops_add.sql`.
+  - `claude/epic-feynman-xx9jw5` (ম্যানেজারের হাজিরা খাতা, 19 Nov): **database only, no pages.** Its migration (5 tables `wf_book_rules / entries / days /
+    submissions / entry_log`, 11 `wf_mb_*` functions, leave photo `wf_absence_photo(s)`, bucket `wf-leave`) was applied on live before it was seen that
+    main had gained the owner's newer **দৈনিক ফাইনাল হাজিরা খাতা** the same day (PR 109, `att_*`). Both write the day's status to `attendance_records`, so two
+    books side by side would fight. The pages (`ManagerBook.tsx`, `ZoneBook.tsx`, `lib/workforceBook.ts`) were therefore **not** taken; the migration file stays
+    as `20261122001100_workforce_manager_book.sql` only so the repository still builds the same database as live. Nothing calls `wf_mb_*`; the tables are
+    empty apart from the one default rule row. Owner to decide: drop these objects, or keep them for a later use.
   - `claude/zen-hopper-kdizcm`: form toolkit (floating labels, input mask, steps, auto-saved drafts, confirm before submit) on the HR forms.
   - `feat/users-management-polish` (PR 81): Users page search / status filter, count and reset. The public `/preview/users` demo route was **not** taken.
   - `claude/intelligent-maxwell-9mj93u`: each person can hide the floating নদী button (Settings and the নদী page; remembered on the device).
@@ -944,9 +964,9 @@ make-android.bat       Android অ্যাপ (APK) বানায়
     both change roles or live data; advanced permissions came after PR 52.
   - `claude/blissful-maxwell-7kkfd6` approval rules: an older design; live already has `da_approval_rules` + `da_approval_rule_save` from the cash payments migration.
   - PR 55 documents of 17 Nov (out of date), `ccr-a19499a2` demo seed data, `codex/ui-ux-audit` test edits.
-- **Live (22 Nov):** `20261122000800` applied as `workforce_ops_add`; `20261122000900` applied in four parts as `workforce_manager_book_a … _d`
+- **Live (22 Nov):** `20261122001000` applied as `workforce_ops_add`; `20261122001100` applied in four parts as `workforce_manager_book_a … _d`
   (owner: "চেক করে লাইভ করো"). Checked before: live had 25 public `wf_*` functions, only `manual` rows in the register, no `wf_book_*` table but
   `wf_book_windows`. Checked after: all 24 new function bodies equal the tested file by hash, anon can run none, RLS on the 5 new tables, 7 policies,
   bucket `wf-leave`, 40 public `wf_*` functions. The other three features needed no database change.
-- **Tests:** SQL suite 2501 assertions pass on local PostgreSQL 16; typecheck, build, 11 parser tests and the smoke test (688 checks) pass
-  (`CHROME=/opt/pw-browsers/chromium`; one run takes about 4 minutes here). The manager's book screens have no smoke check of their own.
+- **Tests:** SQL suite 2524 assertions pass (with main's `att_final_sheet`) on local PostgreSQL 16; typecheck, build, 11 parser tests and the smoke test pass
+  (`CHROME=/opt/pw-browsers/chromium`; one run takes about 4 minutes here).
