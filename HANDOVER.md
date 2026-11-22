@@ -880,3 +880,18 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Live:** migration applied on Supabase 22 Nov as `20261122165840 route_plan_files` (owner said yes first; file text without the header comment). Checked after:
   the 5 functions equal the tested file by hash, nobody signed out can call them, `route_day_files` has RLS, its policy and three triggers, staff counts
   unchanged (144 active). The PDF box goes live when the pull request is merged.
+
+## 2026-11-22 — GitHub Actions মিনিট বাঁচানো (fewer Actions minutes)
+- Why: on 22 Nov the account's free Actions allowance for the month ran out (GitHub Free; from about 11:13 UTC every job ended in a second with no runner).
+  Owner: "খরচ কমানো যাবে কিভাবে সেইটা করো".
+- **Before:** `tests.yml` ran on every push and every pull request, so a pushed commit of a pull request was checked twice (about 2 × 8 minutes), also when
+  only a document changed; after a merge the website was built and smoke-tested twice (Tests and "Android APK and site build").
+- **Now:**
+  - `tests.yml` (name "Tests", job `database`): pull requests and pushes to `main` only, and only when `supabase/**`, `scripts/test-db.sh` or the file itself changed.
+  - `website.yml` (new, job `website`): pull requests only, and only when `web/**` changed. After a merge the same build and smoke test run in
+    "Android APK and site build" before the site is published, so `main` is not checked a second time.
+  - Both, and the site build, keep the npm download between runs; `website.yml` also keeps the Chromium download (cache key = Playwright version).
+  - Both can still be started by hand (Actions → the workflow → Run workflow).
+- **Worth knowing:** a branch pushed without a pull request is no longer tested; a change to documents alone starts nothing; in a pull request the path rule
+  looks at the whole pull request, so a later documents-only commit still re-runs the checks of what the pull request touches.
+- **Not verified on GitHub:** the allowance was used up when this was written, so the new files have only been checked as valid YAML. Watch the first runs.

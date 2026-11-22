@@ -1,0 +1,56 @@
+# Website check: TypeScript, build, and the browser smoke test of the React app in web/.
+# Runs on pull requests only, and only when the website changed. After a merge the same build and smoke test run again in
+# "Android APK and site build" before the site is published, so a push to main is not checked a second time here.
+# No secrets are used.
+name: Website
+
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/website.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install packages
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript check
+        run: npm run typecheck
+      - name: Build app
+        run: npm run build
+      # The browser download is kept between runs (free cache); only its system packages are installed each time.
+      - name: Playwright version
+        id: pw
+        run: echo "v=$(node -p "require('./node_modules/playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        id: pwcache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.v }}
+      - name: Install Chromium
+        if: steps.pwcache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - name: Chromium system packages
+        run: npx playwright install-deps chromium
+      - name: Browser smoke tests
+        run: npm run test:smoke
