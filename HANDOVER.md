@@ -782,4 +782,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   4. The older pages (`/app/hr/requests`, `/app/zonal/files`) are untouched and still work.
 - **Tests:** `99…_staff_lifecycle.sql` (37 assertions); `99…_role_demo_audit.sql` follows the new inbox link. Whole SQL suite 2241 pass; smoke passes;
   the full flow (ask → inbox → approve → download, both roles, PC and phone) was run in a browser against the local database with the role-demo gateway: 0 failed database calls.
-- **Live:** the migration is **not applied yet** — the pages need it. Apply the file as it is, then merge.
+- **Live:** migration applied on Supabase 22 Nov as `20261122151145 staff_lifecycle` (owner said yes first; file text without the header comment). Checked after:
+  all 13 functions equal the tested file by hash, nobody signed out can call the five public ones, `hr_record_files` has RLS, its policy and both triggers,
+  the hub manager role's page list gained `/app/manager/staff`, staff counts unchanged (144 active). The pages themselves go live when the pull request is merged;
+  until then a new request's notification to approvers points at `/app/zonal/requests`, which the published site does not have yet.
