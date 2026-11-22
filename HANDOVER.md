@@ -731,3 +731,12 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Limits:** coverage counts this zone's routes only; a stop typed by hand far from the place's own point (more than 250 m) does not count as covering it;
   places without a location (the 52 unions) are counted apart and not drawn.
 - **Tests:** smoke test: the tab, dots, counts, the gap list, tapping a dot (638 checks pass). Tried by hand with the real 665 places: 561 dots, dragging stays smooth (about 17 ms a step).
+
+## 2026-11-22 — অফিসের পানি / গ্যাস বিল ও এক্সপোর্ট অনুমতি লাইভে বসানো
+- A check of live against the repository found two files that had never been applied: `20261121000100_office_bill_water_gas.sql` and
+  `20261121000200_office_export_permissions.sql`. Both are additive. Applied on 22 Nov as `office_bill_water_gas` and `office_export_permissions`
+  (see docs/MIGRATIONS_LIVE_MAP.md). No website change was needed — the pages were already on the site.
+- `20261120000100_notice_workflow.sql` is live too (as 20261119202045 `notice_workflow`); the "not yet applied" note in the 20 Nov entry is out of date.
+- **Open:** live has two migrations with no file on `main`: `dynamic_voucher` (20261121202903) and `role_demo_audit_fixes` (20261122142603).
+  Their files must be brought into `supabase/migrations/`.
+
