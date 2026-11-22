@@ -94,7 +94,7 @@ function NewAccount({ onClose, onDone }: { onClose: () => void; onDone: () => vo
     setErr('')
     if (f.name.trim().length < 2) return setErr(L('পূর্ণ নাম দিন', 'Enter the full name'))
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) return setErr(L('সঠিক ইমেইল দিন', 'Enter a valid email'))
-    if (!strongEnough(f.password)) return setErr(L('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের, অক্ষর ও সংখ্যা দুটোই লাগবে', 'Password: at least 8 characters with letters and digits'))
+    if (!strongEnough(f.password)) return setErr(L('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে', 'Password: at least 6 characters'))
     if (!pick.role) return setErr(L('জায়গা ও রোল বেছে নিন', 'Choose the place and role'))
     setBusy(true)
     try {
@@ -112,8 +112,8 @@ function NewAccount({ onClose, onDone }: { onClose: () => void; onDone: () => vo
 
   return <Modal wide title={L('নতুন লগইন অ্যাকাউন্ট', 'New login account')} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void go()}>{busy ? L('তৈরি হচ্ছে…', 'Creating…') : L('অ্যাকাউন্ট তৈরি করুন', 'Create account')}</button></>}>
-    <p className="muted small">{L('স্টাফ এই ইমেইল আর পাসওয়ার্ড দিয়ে লগইন করবেন। প্রথম লগইনে তাঁকে নিজের পাসওয়ার্ড বসাতে হবে — তার আগে কিছুই খুলবে না।',
-      'Staff sign in with this email and password. At first sign-in they must set their own password — nothing opens before that.')}</p>
+    <p className="muted small">{L('স্টাফ এই ইমেইল আর পাসওয়ার্ড দিয়ে লগইন করবেন এবং সরাসরি অ্যাপে ঢুকবেন। চাইলে পরে সেটিং থেকে নিজের পাসওয়ার্ড বদলাতে পারবেন।',
+      'Staff sign in with this email and password and go straight into the app. They can change it later under Settings.')}</p>
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
       {!!free.data?.length && <Field wide label={L('কর্মী (ঐচ্ছিক)', 'Employee (optional)')} hint={L('কর্মী বেছে নিলে নাম, মোবাইল আর হাব নিজে থেকে বসবে', 'Picking an employee fills name, mobile and hub')}>
         <select value={f.employee} onChange={e => chooseEmployee(e.target.value)}><option value="">{L('— কর্মীর সাথে যুক্ত নয় —', '— not linked to an employee —')}</option>
@@ -121,7 +121,7 @@ function NewAccount({ onClose, onDone }: { onClose: () => void; onDone: () => vo
       <Field label={L('পূর্ণ নাম', 'Full name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field>
       <Field label={L('ইমেইল (লগইন)', 'Email (login)')}><input type="email" autoComplete="off" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></Field>
       <Field label={L('মোবাইল', 'Mobile')}><input inputMode="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="01711000000" /></Field>
-      <Field label={L('অস্থায়ী পাসওয়ার্ড', 'Temporary password')}>
+      <Field label={L('পাসওয়ার্ড', 'Password')}>
         <span style={{ display: 'flex', gap: 6 }}><input autoComplete="new-password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} style={{ flex: 1 }} />
           <button type="button" className="secondary sm" onClick={() => setF({ ...f, password: tempPassword() })}>{L('নতুন', 'New')}</button></span></Field>
       <RoleScopePicker value={pick} onChange={setPick} />

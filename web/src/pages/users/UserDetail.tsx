@@ -146,7 +146,7 @@ function ResetModal({ u, onClose }: { u: UserRow; onClose: () => void }) {
   const [pw, setPw] = useState(tempPassword())
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [done, setDone] = useState(false)
   async function go() {
-    if (!strongEnough(pw)) return setErr(L('পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের, অক্ষর ও সংখ্যা দুটোই লাগবে', 'Password: at least 8 characters with letters and digits'))
+    if (!strongEnough(pw)) return setErr(L('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে', 'Password: at least 6 characters'))
     setBusy(true); setErr('')
     try { await users.resetPassword(u.id, pw); setDone(true) } catch (e) { setErr(userFriendly(e)) } finally { setBusy(false) }
   }
@@ -155,9 +155,9 @@ function ResetModal({ u, onClose }: { u: UserRow; onClose: () => void }) {
   </Modal>
   return <Modal title={L('পাসওয়ার্ড রিসেট', 'Reset password')} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void go()}>{L('রিসেট করুন', 'Reset')}</button></>}>
-    <p className="muted small">{L('নতুন অস্থায়ী পাসওয়ার্ড বসবে, লক খুলে যাবে। পরের লগইনে তাঁকে নিজের পাসওয়ার্ড দিতে হবে।',
-      'A new temporary password is set and any lock is cleared. They must choose their own password at next sign-in.')}</p>
-    <Field label={L('অস্থায়ী পাসওয়ার্ড', 'Temporary password')}>
+    <p className="muted small">{L('নতুন পাসওয়ার্ড বসবে, লক খুলে যাবে। তিনি এই পাসওয়ার্ড দিয়েই সরাসরি ঢুকবেন।',
+      'A new password is set and any lock is cleared. They sign in with it straight away.')}</p>
+    <Field label={L('নতুন পাসওয়ার্ড', 'New password')}>
       <span style={{ display: 'flex', gap: 6 }}><input value={pw} onChange={e => setPw(e.target.value)} style={{ flex: 1 }} />
         <button type="button" className="secondary sm" onClick={() => setPw(tempPassword())}>{L('নতুন', 'New')}</button></span></Field>
     {err && <p className="da-error">{err}</p>}

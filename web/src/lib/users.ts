@@ -60,16 +60,17 @@ export const users = {
   },
 }
 
-/** Readable temporary password: no look-alike characters, always letters and digits. */
+/** Readable first password: no look-alike characters, letters and digits. */
 export function tempPassword(): string {
   const letters = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ', digits = '23456789'
   const pick = (s: string) => { const a = new Uint32Array(1); crypto.getRandomValues(a); return s[a[0] % s.length] }
   let p = ''
-  for (let i = 0; i < 6; i++) p += pick(letters)
-  for (let i = 0; i < 4; i++) p += pick(digits)
+  for (let i = 0; i < 3; i++) p += pick(letters)
+  for (let i = 0; i < 3; i++) p += pick(digits)
   return p
 }
-export const strongEnough = (pw: string) => pw.length >= 8 && /[A-Za-z]/.test(pw) && /[0-9]/.test(pw)
+/** At least 6 characters (owner, 22 Nov 2026: staff type it on phones; no letter/digit rule). */
+export const strongEnough = (pw: string) => pw.length >= 6 && pw.length <= 72
 
 export const SCOPE_LABEL: Record<Scope, [string, string]> = {
   global: ['পুরো কোম্পানি (হেড অফিস)', 'Whole company (Head Office)'],
@@ -81,7 +82,7 @@ const BN: Array<[RegExp, string]> = [
   [/already exists/i, 'এই ইমেইলে আগেই একটি অ্যাকাউন্ট আছে'],
   [/already has that role/i, 'এই অ্যাকাউন্টের ওই জায়গায় এই রোল আগেই আছে'],
   [/valid email/i, 'সঠিক ইমেইল দিন'],
-  [/weak_password|Password should/i, 'পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে, এতে অক্ষর ও সংখ্যা দুটোই থাকবে'],
+  [/weak_password|Password should/i, 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে'],
   [/whole company/i, 'সুপার অ্যাডমিন শুধু পুরো কোম্পানির জন্য দেওয়া যায়'],
   [/active zone/i, 'জোন বেছে নিন'],
   [/active hub/i, 'হাব বেছে নিন'],

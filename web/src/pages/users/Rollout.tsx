@@ -24,13 +24,13 @@ export function Rollout() {
   const bar = (a: number, b: number) => <span className="ro-cell"><span className="ro-bar"><span style={{ width: `${b ? Math.round((a / b) * 100) : 0}%` }} /></span>{of(a, b)}</span>
   const when = (v: string | null) => v ? new Date(v).toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—'
 
-  return <AppShell title="চালু করার অগ্রগতি" subtitle="হাব ধরে ধরে: কার লগইন আছে, কে ঢুকেছেন, কে নিজের পাসওয়ার্ড বসিয়েছেন, কে মোবাইল নম্বর দিয়েছেন।"
+  return <AppShell title="চালু করার অগ্রগতি" subtitle="হাব ধরে ধরে: কার লগইন আছে, কে ঢুকেছেন, কে মোবাইল নম্বর দিয়েছেন।"
     actions={can('system.user.create') ? <Link to="/app/users?bulk=1" className="btn-ghost">+ সব কর্মীর লগইন তৈরি</Link> : null}>
     <section className="panel ro-steps">
       <h2>ধাপে ধাপে চালু</h2>
       <ol>
         <li><b>লগইন তৈরি</b> — এক হাবের সব কর্মীর লগইন একসাথে; আইডিই লগইন, পদবি অনুযায়ী রোল।</li>
-        <li><b>প্রথম লগইন</b> — প্রত্যেকে একবার ঢুকে নিজের পাসওয়ার্ড বসাবেন।</li>
+        <li><b>প্রথম লগইন</b> — প্রত্যেকে দেওয়া পাসওয়ার্ড দিয়ে একবার ঢুকবেন।</li>
         <li><b>মোবাইল নম্বর</b> — “আমার প্রোফাইল”-এ নম্বর দিলে নম্বর দিয়েও লগইন হবে।</li>
         <li><b>প্রোফাইলের তথ্য</b> — বাকি তথ্য <Link to="/app/hr/profile-gaps">প্রোফাইল পূর্ণতা</Link> পাতা ধরে পূরণ।</li>
         <li><b>দৈনন্দিন কাজ</b> — হাজিরা, ইস্যু ও অর্ডার, তারপর হিসাব খাতা। একটা হাবে ঠিকমতো চললে পরের হাব।</li>

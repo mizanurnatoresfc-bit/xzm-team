@@ -7,7 +7,8 @@ export function ProtectedRoute({ permission }: { permission?: string }) {
   const where = useLocation()
   if (loading) return <main className="center-screen">লোড হচ্ছে…</main>
   if (!session) return <Navigate to="/staff/login" replace />
-  // A temporary password (new account or admin reset) opens nothing but the change-password page.
+  // An account still flagged to change its password (or one that came in by the email reset link) opens nothing but the change-password page.
+  // New logins and admin resets no longer set the flag (owner, 22 Nov 2026).
   if (mustChangePassword && where.pathname !== '/app/password') return <Navigate to="/app/password" replace />
   // A role limited to a list of pages opens nothing else, even by typing the address.
   if (!pageAllowed(menu, where.pathname)) return <main className="center-screen">
