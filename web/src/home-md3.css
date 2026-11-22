@@ -98,3 +98,18 @@
 .home-dash .wf-alert{border:0!important;border-radius:18px!important;box-shadow:var(--md-shadow)!important}
 .home-dash .dash-edit{border-radius:999px!important}
 .home-dash .ri-home .qi{border-radius:14px}
+
+/* ---------- office items: good / broken / needed, then the actions the role may use ---------- */
+.home-dash .panel.office-items{background:none!important;box-shadow:none!important;padding:4px 0 0}
+.home-dash .panel.office-items>.da-bar{padding:0 4px}
+.home-dash .oi-tri{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.home-dash .oi-tri a{display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:14px 14px 12px;border-radius:18px;text-decoration:none}
+.home-dash .oi-tri b{font-size:1.4375rem;font-weight:700;line-height:1.25;margin-top:6px}
+.home-dash .oi-tri span{font-size:.8438rem;font-weight:600}
+.home-dash .k-ok{background:var(--st-ok-bg);color:var(--st-ok)}.home-dash .k-bad{background:var(--st-bad-bg);color:var(--st-bad)}.home-dash .k-need{background:var(--st-need-bg);color:var(--st-need)}
+.home-dash .oi-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.home-dash .oi-act{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;border-radius:999px!important;border:1px solid var(--border)!important;
+  background:var(--surface)!important;color:var(--text)!important;font-size:.875rem;font-weight:600;text-decoration:none;box-shadow:none!important}
+.home-dash .oi-act svg{color:var(--primary)}
+.home-dash .oi-act:hover:not(:disabled){border-color:var(--primary)!important}
+.home-dash .oi-act:disabled{opacity:.55}

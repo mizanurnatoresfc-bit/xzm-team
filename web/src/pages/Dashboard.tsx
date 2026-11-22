@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthProvider'
 import { AppShell, useMyPhoto } from '../components/AppShell'
 import { Icon } from '../components/Icon'
 import { NetworkPanel } from '../components/NetworkPanel'
+import { OfficeItemsPanel } from '../components/OfficeItemsPanel'
 import { HrReqPanel } from '../components/HrReqPanel'
 import { Badge, Stat, useLoad } from './accounts/ui'
 import { usePrefs } from '../lib/prefs'
@@ -92,6 +93,7 @@ export function Dashboard() {
       case 'my_day': return <MyDayPanel />
       case 'hub_today': return <HubTodayPanel />
       case 'network': return <NetworkPanel />
+      case 'office_items': return <OfficeItemsPanel />
       case 'approvals': return null   // always shown at the top as "আমার অনুমোদন" (MyApprovalCard)
       case 'my_requests': return <HrReqPanel />
       case 'my_work': return d?.my_work ? <Panel code="my_work">
