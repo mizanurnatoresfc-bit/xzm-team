@@ -1615,6 +1615,8 @@ try {
     await page.locator('.ri-hub', { hasText: 'Lalpur' }).click(); await page.waitForURL(/report-import\?hub=h2/)
     check(/hub=h2/.test(page.url()), `${size}: a hub on the zonal tab opens that hub's upload page`)
     await page.goto(`${BASE}/app`); await page.waitForSelector('.ri-home')
+    // the count shows "…" until its answer arrives (later now that other pages load in the background): wait for the number
+    await page.waitForFunction(() => document.querySelector('.ri-home-n b')?.textContent?.trim() !== '…', null, { timeout: 8000 }).catch(() => {})
     check((await page.locator('.ri-home').innerText()).includes('রিপোর্ট আপলোড') && (await page.locator('.ri-home-n b').innerText()).trim() === '১', `${size}: the home card shows how many reports came today`)
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
 
