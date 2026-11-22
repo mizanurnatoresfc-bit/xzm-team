@@ -699,3 +699,15 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Tests:** `99…_route_load.sql` (14 assertions; whole SQL suite 2183 pass); smoke test: the tab, saving the rider average, hire / more-riders suggestions (630 checks pass).
 - **Live:** migration applied on Supabase 22 Nov as `20261122122659 route_load` (owner said yes first). Checked after: column `hub_routes.avg_parcels`, table `route_hub_load`
   with RLS, one policy and three triggers, both functions callable by signed-in people only. The site gets the tab when the pull request is merged to `main`.
+
+## 2026-11-22 — রুট: জেলার কাভারেজ ম্যাপ (district coverage)
+- Owner: "নাটোর জেলার রুট প্লানিং করবো যেন প্রতিটি এলাকা কাভারেজ দেখা যায়, কোনগুলা আমাদের কাভারেজ নেই সেইটা দেখা যাবে"।
+- Page: রুট সেটিং → new tab **কাভারেজ** (`pages/zonal/RouteCoverage.tsx`). **No database change**: it reads `geo_upazilas` / `route_places` (already loaded for the
+  suggestions tab) and the zone's routes. A place is covered when a stop of any route of the zone is within 250 m (the rule the suggestions tab uses).
+  Map: every place as a small dot (green = on a route, red = not), hubs, upazila boundaries; a tapped dot names the place, its route or "on no route", the nearest hub,
+  distance and direction. Side list: whole district and each upazila with covered / all and a bar (tap = that upazila only). Filters: kinds of place, all / not covered / covered.
+  Below: the places without coverage sorted by nearest hub (Excel / PDF); a row opens that hub's "এলাকা ও সাজেশন" to build routes from them.
+- `OsmMap`: new pin option `small` (an 11 px dot) for hundreds of places on one map; places at exactly the same point share one dot (first one's colour).
+- **Limits:** coverage counts this zone's routes only; a stop typed by hand far from the place's own point (more than 250 m) does not count as covering it;
+  places without a location (the 52 unions) are counted apart and not drawn.
+- **Tests:** smoke test: the tab, dots, counts, the gap list, tapping a dot (638 checks pass). Tried by hand with the real 665 places: 561 dots, dragging stays smooth (about 17 ms a step).
