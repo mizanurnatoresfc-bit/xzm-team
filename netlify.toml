@@ -3,7 +3,8 @@
 # Site configuration -> Environment variables (public browser values only).
 [build]
   base    = "web"
-  command = "npm ci || npm install; npm run build"
+  # keep-live-apk: a build made by Netlify itself keeps the Android app that is live (the GitHub workflow does this on its own).
+  command = "(npm ci || npm install) && npm run build && bash ../scripts/keep-live-apk.sh dist"
   publish = "dist"
 
 [build.environment]
