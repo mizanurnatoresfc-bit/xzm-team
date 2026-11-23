@@ -1,3 +1,4 @@
+import { RowMenu } from '../../components/RowMenu'
 // অফিস অপারেশন — the parts of the Office pages that deal with running a place: the lease and the month's bills,
 // what the electricity should cost, vehicles / locks / logins, who lives there, reports to the zonal manager, and the zone picture.
 import { askConfirm, askText } from '../../components/ask'
@@ -456,8 +457,13 @@ export function Notices({ ctx }: { ctx: Ctx }) {
   const [add, setAdd] = useState(false); const [err, setErr] = useState('')
   const place = Object.fromEntries(ctx.all.map(x => [x.id, x.name])) as Record<string, string>
   const rows = (list.data ?? []).filter(x => !openOnly || x.status === 'open' || x.status === 'seen')
-  async function act(x: Notice, status: 'seen' | 'done' | 'rejected') {
+  async function act(x: Notice, status: 'seen' | 'done' | 'rejected', decision?: string) {
     let reply: string | null = null; let fixed = false
+    if (decision) {
+      const detail = await askText(decision, { ok: L('সিদ্ধান্ত পাঠান', 'Send decision') })
+      if (!detail?.trim()) return
+      reply = decision + ' — ' + detail.trim()
+    }
     if (status === 'rejected') { reply = await askWith(L)(L('কেন হবে না, লিখুন', 'Why not?')); if (!reply) return }
     if (status === 'done') { const done = await askText(L('কী ব্যবস্থা হলো?', 'What was done?'), { optional: true, ok: L('সম্পন্ন', 'Done') }); if (done === null) return; reply = done || null
       if (x.kind === 'broken' && x.asset_id) fixed = await askConfirm(L('জিনিসটা ঠিক হয়ে গেছে?', 'Is the item working again?'), { detail: L('"হ্যাঁ" দিলে জিনিসটার অবস্থা "ভালো" হবে।', '"Yes" marks the item good.'), ok: L('হ্যাঁ, ঠিক হয়েছে', 'Yes, it works'), cancel: L('না, এখনো না', 'Not yet') }) }
@@ -469,8 +475,8 @@ export function Notices({ ctx }: { ctx: Ctx }) {
       <span className="row-acts">
         <span className="da-seg"><button className={all ? 'secondary sm' : 'sm'} onClick={() => setAll(false)}>{ctx.p.name}</button><button className={all ? 'sm' : 'secondary sm'} onClick={() => setAll(true)}>{L('সব অফিস', 'All offices')}</button></span>
         <label className="small oo-check"><input type="checkbox" checked={openOnly} onChange={e => setOpenOnly(e.target.checked)} />{L('শুধু খোলা', 'Open only')}</label>
-        {can('office.notice.create') && <button onClick={() => setAdd(true)}><Icon name="plus" size={15} />{L('নতুন রিপোর্ট', 'New report')}</button>}</span></div>
-    <p className="muted small">{L('রিসোর্সের তালিকায় প্রতিটা জিনিসের পাশে "নষ্ট" ও "লাগবে" বোতাম আছে — এক ক্লিকে রিপোর্ট হয়।', 'Every item in the resources list has "Broken" and "Needed" buttons — one tap reports it.')}</p>
+        {can('office.notice.create') && <button onClick={() => setAdd(true)}><Icon name="plus" size={15} />{L('চাহিদা পাঠান', 'Send a request')}</button>}</span></div>
+    <p className="muted small">{L('রিসোর্স তালিকা থেকে নষ্ট সরঞ্জাম রিপোর্ট করুন, অথবা এখান থেকে নতুন চাহিদা পাঠান।', 'Report damaged equipment from the resources list, or send a new request here.')}</p>
     {err || list.error ? <p className="da-error">{err || opsFriendly(list.error)}</p> : null}
     {!rows.length ? <p className="muted">{L('কোনো রিপোর্ট নেই।', 'No reports.')}</p> : <div className="oo-list">{rows.map(x => <article key={x.id} className="oo-row">
       <div className="oo-main"><Badge tone={NOTICE_KIND[x.kind][2]}>{L(NOTICE_KIND[x.kind][0], NOTICE_KIND[x.kind][1])}</Badge> <b>{x.title}{x.quantity > 1 ? ` ×${n(x.quantity)}` : ''}</b>
@@ -481,6 +487,12 @@ export function Notices({ ctx }: { ctx: Ctx }) {
       <div className="row-acts"><Badge tone={NOTICE_STATUS[x.status][2]}>{L(NOTICE_STATUS[x.status][0], NOTICE_STATUS[x.status][1])}</Badge>
         {can('office.notice.approve') && (x.status === 'open' || x.status === 'seen') && <>
           {x.status === 'open' && <button className="secondary sm" onClick={() => void act(x, 'seen')}>{L('দেখেছি', 'Seen')}</button>}
+          <RowMenu label={L('সিদ্ধান্ত দিন', 'Give a decision')} items={[
+            ...(x.kind === 'broken' ? [L('মেরামতের অনুমতি', 'Approve repair')] : []),
+            L('অন্য হাব থেকে বরাদ্দ', 'Allocate from another hub'),
+            L('ক্রয়ের অনুমোদন', 'Approve purchase'),
+            L('আরও তথ্য চান', 'Request more information'),
+          ].map(label => ({ label, onClick: () => void act(x, 'seen', label) }))} />
           <button className="sm" onClick={() => void act(x, 'done')}>{L('ব্যবস্থা হয়েছে', 'Done')}</button>
           <button className="secondary sm" onClick={() => void act(x, 'rejected')}>{L('হবে না', 'Decline')}</button></>}</div>
     </article>)}</div>}
