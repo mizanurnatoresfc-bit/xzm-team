@@ -15,7 +15,7 @@ import { dmy, hr, todayDhaka, type Employee } from '../../lib/hr'
 import { LIFE, joinFields, lifeFriendly, lifecycle, pickJoinFormat, scopeHubs, type JoinField, type PendingReq } from '../../lib/lifecycle'
 import { usePrefs } from '../../lib/prefs'
 import { BD_MOBILE, cleanMobile, rules } from '../../lib/validate'
-import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { useOrg } from '../hr/common'
 
 const HUB_KEY = 'xzm_manager_staff_hub'
@@ -37,6 +37,17 @@ export function ManagerStaff() {
   const pending = useLoad(() => (hub ? lifecycle.pendingForHub(hub.id) : Promise.resolve([] as PendingReq[])), [hub?.id])
   const [act, setAct] = useState<Act>(null)
   const waiting = useMemo(() => new Set((pending.data ?? []).filter(p => p.kind === 'id_inactive' && p.employee_id).map(p => p.employee_id as string)), [pending.data])
+  // Position -> head count for the summary card; a chip narrows the list below to that position.
+  const [pos, setPos] = useState<string | null>(null)
+  useEffect(() => setPos(null), [hub?.id])
+  const byPos = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const e of staff.data ?? []) m.set(e.position_id ?? '', (m.get(e.position_id ?? '') ?? 0) + 1)
+    return [...m].map(([id, count]) => ({ id, count, name: (id && o.names.pos[id]) || L('পদবি নেই', 'No position') }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  }, [staff.data, o.names.pos, L])
+  const shown = useMemo(() => (pos === null ? staff.data : (staff.data ?? []).filter(e => (e.position_id ?? '') === pos)), [staff.data, pos])
+  const posName = pos === null ? '' : byPos.find(p => p.id === pos)?.name ?? ''
   const done = (m: string) => { setAct(null); toast(m); void staff.reload(); void pending.reload() }
   const canJoin = can('hr.application.create')
 
@@ -59,11 +70,21 @@ export function ManagerStaff() {
     {!o.loading && !hubs.length && <p className="notice">{L('আপনাকে কোনো হাবের দায়িত্ব দেওয়া হয়নি।', 'No hub is assigned to you.')}</p>}
 
     {hub && <>
-      <div className="da-stats">
-        <Stat icon="hub" label={L('হাব', 'Hub')} value={hub.name} />
-        <Stat icon="users" tone="ok" label={L('সক্রিয় স্টাফ', 'Active staff')} value={n(staff.data?.length ?? 0)} />
-        <Stat icon="clock" tone={pending.data?.length ? 'warn' : undefined} label={L('অপেক্ষমাণ আবেদন', 'Waiting requests')} value={n(pending.data?.length ?? 0)} />
-      </div>
+      <section className="ms-sum" aria-label={L('হাবের সারাংশ', 'Hub summary')}>
+        <div className="ms-hub"><span className="ms-ic"><Icon name="hub" size={20} /></span>
+          <span className="ms-tx"><small>{L('হাব', 'Hub')}</small><b>{hub.name}</b></span></div>
+        <div className="ms-nums">
+          <button type="button" onClick={() => { setPos(null); setSp({}) }}><span className="v">{n(staff.data?.length ?? 0)}</span><span className="l">{L('সক্রিয় স্টাফ', 'Active staff')}</span></button>
+          <button type="button" className={pending.data?.length ? 'warn' : ''} onClick={() => setSp({ tab: 'pending' })}><span className="v">{n(pending.data?.length ?? 0)}</span><span className="l">{L('অপেক্ষমাণ আবেদন', 'Waiting requests')}</span></button>
+        </div>
+        {!!byPos.length && <>
+          <div className="ms-pos-h"><h2>{L('পদবি অনুযায়ী', 'By position')}</h2>
+            {pos !== null ? <button type="button" className="ms-clear" onClick={() => setPos(null)}><Icon name="x" size={14} />{L('সব দেখান', 'Show all')}</button>
+              : <span>{L(`${n(byPos.length)}টি পদবি`, `${byPos.length} positions`)}</span>}</div>
+          <div className="ms-chips">{byPos.map(p => <button type="button" key={p.id} className="ms-chip" aria-pressed={pos === p.id}
+            onClick={() => { setPos(pos === p.id ? null : p.id); setSp({}) }}>{p.name}<b>{n(p.count)}</b></button>)}</div>
+        </>}
+      </section>
       <nav className="emp-tabs no-print" role="tablist">
         <button role="tab" aria-selected={tab === 'active'} className={tab === 'active' ? 'on' : ''} onClick={() => setSp({})}><Icon name="users" size={16} />{L('সক্রিয় স্টাফ', 'Active staff')}</button>
         <button role="tab" aria-selected={tab === 'pending'} className={tab === 'pending' ? 'on' : ''} onClick={() => setSp({ tab: 'pending' })}><Icon name="clock" size={16} />
@@ -72,7 +93,7 @@ export function ManagerStaff() {
       {(staff.error || pending.error) ? <p className="da-error">{lifeFriendly(staff.error || pending.error)}</p> : null}
 
       {tab === 'active' && <section className="panel">
-        <DataTable<Employee> title={`${hub.name} — ${L('সক্রিয় স্টাফ', 'active staff')}`} file={`active-staff-${hub.name}`} prefKey="manager-staff" rows={staff.data} rowKey={e => e.id}
+        <DataTable<Employee> title={`${hub.name} — ${posName || L('সক্রিয় স্টাফ', 'active staff')}`} file={`active-staff-${hub.name}`} prefKey="manager-staff" rows={shown} rowKey={e => e.id}
           empty={<p className="muted">{staff.loading ? L('লোড হচ্ছে…', 'Loading…') : L('এই হাবে কোনো সক্রিয় স্টাফ নেই।', 'No active staff in this hub.')}</p>}
           cols={[
             { key: 'code', label: L('আইডি', 'ID'), value: e => e.employee_code ?? '', render: e => <strong>{e.employee_code ?? '—'}</strong> },
