@@ -1141,10 +1141,10 @@ try {
     await page.waitForSelector(staffSel)
     const staffRowsShown = () => page.locator(staffSel).count()
     check(await staffRowsShown() === 12 && (await page.locator('.eb-chips').innerText()).includes('Rider'), `${size}: the staff list shows everyone with a chip per post (${await staffRowsShown()})`)
-    check(await page.locator('.emp-board .dv-fbtn').count() === 0 && (await page.locator('.hr-emp-list-heading p').innerText()).includes('১২ জনের মধ্যে ১২ জন'),
+    check(await page.locator('.emp-board .dv-fbtn').count() === 0 && (await page.locator('.eb-count').innerText()).includes('১২ জনের মধ্যে ১২ জন'),
       `${size}: the staff list has one set of filters, and its heading counts what is on screen`)
     check(await page.locator(staffSel).first().locator('.row-acts button').count() === 2, `${size}: every row has Edit and View`)
-    { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), page.getByRole('button', { name: /আইডি তৈরির ফাইল/ }).click()])
+    { const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }).catch(() => null), (async () => { await page.locator('.hr-more button').click(); await page.getByRole('menuitem', { name: /আইডি তৈরির ফাইল/ }).click() })()])
       const sent = exported.at(-1), asked = flowCalls.findLast(c => c.fn === 'hr_sheet_people')
       check(!!dl && /^New-Admin-Rider-ID-Creat-Information \d{4}-\d\d-\d\d\.xlsx$/.test(dl.suggestedFilename()) && sent?.p_status === 'active' && asked?.p_ids?.join() === 'e02,e01'
         && ['nid_number', 'cf:blood_group', 'doc:nid_front', 'basic_salary'].every(f => asked.p_fields.includes(f)), `${size}: the staff page makes the company's ID Create sheet`)

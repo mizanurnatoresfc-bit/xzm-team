@@ -8,7 +8,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Contact } from '../../components/Contact'
 import { DataTable } from '../../components/DataTable'
-import { ExportByFormat } from '../../components/ExportByFormat'
+import { ExportByFormatDialog } from '../../components/ExportByFormat'
 import { Icon } from '../../components/Icon'
 import { Combo, TextInput } from '../../components/inputs'
 import { RowMenu, type RowMenuItem } from '../../components/RowMenu'
@@ -25,9 +25,6 @@ import { HubPostMatrix } from '../zonal/HubPostMatrix'
 import '../hr/Employees.css'
 
 const HUB_KEY = 'xzm_manager_staff_hub'
-const TONES = ['g', 'b', 'o', 'p', 'c', 'r']
-const toneOf = (s: string) => TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % TONES.length]
-const initials = (nm: string) => nm.replace(/^(md\.?|mohammad|mohammed|mst\.?)\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 const STATUS_TABS: Array<[string, string]> = [['active', 'সক্রিয়'], ['applicant', 'আইডির অপেক্ষায়'], ['inactive', 'নিষ্ক্রিয়'], ['', 'সব']]
 const inStatus = (e: Employee, s: string) => !s || e.status === s || (s === 'inactive' && ['inactive', 'resigned', 'terminated'].includes(e.status))
 
@@ -142,6 +139,7 @@ function FullStaffView() {
   const [showMatrix, setShowMatrix] = useState(false)
   const [newApp, setNewApp] = useState(false)
   const [quick, setQuick] = useState(false)
+  const [exportFmt, setExportFmt] = useState(false)
   const list = useLoad(() => hr.employees({ limit: 2000 }), [])
   const leave = useLoad(() => hr.onLeaveToday().catch(() => [] as string[]), [])
   const [act, setAct] = useState<{ kind: 'transfer' | 'status' | 'wrong' | 'ids'; list: Employee[]; clear: () => void } | null>(null)
@@ -160,49 +158,43 @@ function FullStaffView() {
   const canMove = can('hr.employee.edit') || can('hr.transfer.edit')
   const done = (m: string) => { act?.clear(); setAct(null); toast(m); void list.reload() }
   const activeCount = all.filter(e => e.status === 'active').length
-  const applicantCount = all.filter(e => e.status === 'applicant').length
-  const inactiveCount = all.filter(e => ['inactive', 'resigned', 'terminated'].includes(e.status)).length
   const hasFilters = !!(q || zone || hubF || status !== 'active' || post)
   const clearFilters = () => { setQ(''); setZone(''); setHubF(''); setStatus('active'); setPost('') }
   const ready = !!list.data && !list.error
-  const stat = (v: number) => ready ? bn(v) : '—'
+  const idFile = () => { void downloadIdCreateFile({ zone: zone || null, hub: hubF || null, status: status || 'active', q: q || null }).then(n2 => toast(n2 ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n2} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }
+  const moreMenu: RowMenuItem[] = [
+    { label: showMatrix ? 'ম্যাট্রিক্স লুকান' : 'হাব-ম্যাট্রিক্স', icon: 'hub', onClick: () => setShowMatrix(s => !s) },
+    { label: 'আইডি তৈরির ফাইল', icon: 'xls', onClick: idFile },
+    { label: 'ফরম্যাটে এক্সপোর্ট', icon: 'xls', onClick: () => setExportFmt(true) },
+  ]
 
   return <AppShell title="কর্মী ব্যবস্থাপনা" subtitle={ready ? `${bn(activeCount)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।` : 'পদ, এরিয়া বা হাব ধরে কর্মী দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।'}
     actions={<>
-      <button type="button" className="secondary" onClick={() => setShowMatrix(s => !s)} title="হাব অনুযায়ী পদ ম্যাট্রিক্স">
-        <Icon name="hub" size={16} />{showMatrix ? 'ম্যাট্রিক্স লুকান' : 'হাব-ম্যাট্রিক্স'}</button>
-      <button type="button" className="secondary" title="New Admin & Rider ID Creat Information" onClick={() => { void downloadIdCreateFile({ zone: zone || null, hub: hubF || null, status: status || 'active', q: q || null }).then(n2 => toast(n2 ? `আইডি তৈরির ফাইল নামানো হয়েছে — ${n2} জন` : 'কোনো কর্মী পাওয়া যায়নি')).catch((e: unknown) => toast(e instanceof Error ? e.message : 'ফাইল বানানো যায়নি')) }}>⬇ আইডি তৈরির ফাইল</button>
-      <ExportByFormat zone={zone || null} hub={hubF || null} status={status || null} q={q || null} title="কর্মী তালিকা" />
-      {canMove && <button className="secondary" onClick={() => setQuick(true)}>⇄ হাব বদলি</button>}
-      {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setNewApp(true)}>+ নতুন কর্মী</button>}</>}>
+      {canMove && <button className="secondary" onClick={() => setQuick(true)}><Icon name="swap" size={16} />হাব বদলি</button>}
+      {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setNewApp(true)}><Icon name="plus" size={16} />নতুন কর্মী</button>}
+      <span className="hr-more no-print"><RowMenu label="আরও কাজ" items={moreMenu} /></span></>}>
     {node}
-    <section className="hr-emp-stats" aria-label="কর্মীর সারসংক্ষেপ">
-      <article className="hr-emp-stat blue"><small>মোট কর্মী</small><strong>{stat(all.length)}</strong><span>আপনি যে এলাকা দেখতে পারেন</span></article>
-      <article className="hr-emp-stat green"><small>সক্রিয় কর্মী</small><strong>{stat(activeCount)}</strong><span>বর্তমানে কর্মরত</span></article>
-      <article className="hr-emp-stat amber"><small>আইডির অপেক্ষায়</small><strong>{stat(applicantCount)}</strong><span>আবেদন / অনুমোদন বাকি</span></article>
-      <article className="hr-emp-stat gray"><small>নিষ্ক্রিয়</small><strong>{stat(inactiveCount)}</strong><span>নিষ্ক্রিয় / পদত্যাগ / সমাপ্ত</span></article>
-    </section>
-
     {showMatrix && <HubPostMatrix zone={zone || null} onHub={id => setHubF(id)} />}
 
     <section className="panel emp-board hr-emp-board">
-      <div className="hr-emp-list-heading"><div><h2>কর্মী তালিকা</h2><p aria-live="polite">{list.error ? 'তালিকা আনা যায়নি' : !list.data ? 'তথ্য লোড হচ্ছে…' : `${bn(all.length)} জনের মধ্যে ${bn(rows.length)} জন দেখানো হচ্ছে`}</p></div>{hasFilters && <button type="button" className="hr-emp-clear" onClick={clearFilters}>সব ফিল্টার মুছুন ×</button>}</div>
-      <div className="eb-top no-print">
+      <div className="eb-row no-print">
         <div className="eb-chips" role="group" aria-label="পদ অনুযায়ী">
           <button type="button" className={`chip-toggle${post === '' ? ' on' : ''}`} aria-pressed={post === ''} onClick={() => setPost('')}>সব <b>{bn(scoped.length)}</b></button>
           {posts.map(({ p, count }) => <button key={p.id} type="button" className={`chip-toggle${post === p.id ? ' on' : ''}`} aria-pressed={post === p.id} onClick={() => setPost(post === p.id ? '' : p.id)}>
             {o.names.pos[p.id] ?? p.name} <b>{bn(count)}</b></button>)}
           <button type="button" className={`chip-toggle${post === 'leave' ? ' on' : ''}`} aria-pressed={post === 'leave'} onClick={() => setPost(post === 'leave' ? '' : 'leave')}>আজ ছুটিতে <b>{bn(leaveCount)}</b></button>
         </div>
-        <label className="emp-search"><Icon name="search" size={18} />
+        <label className="emp-search"><Icon name="search" size={16} />
           <input type="search" placeholder="নাম, আইডি বা মোবাইল দিয়ে খুঁজুন…" value={q} onChange={e => setQ(e.target.value)} aria-label="খুঁজুন" />
           {q && <button type="button" className="icon-btn" aria-label="মুছুন" onClick={() => setQ('')}><Icon name="x" size={16} /></button>}</label>
       </div>
-      <div className="eb-filters no-print">
-        {zones.length > 1 && <Field label="এরিয়া"><Combo value={zone} onChange={v => { setZone(v); setHubF('') }} placeholder="সব এরিয়া" options={zones.map(z => ({ value: z.id, label: z.name }))} /></Field>}
-        <Field label="হাব"><Combo value={hubF} onChange={setHubF} placeholder="সব হাব" options={hubList.map(h => ({ value: h.id, label: h.name }))} /></Field>
-        <div className="emp-status" role="group" aria-label="অবস্থা">{STATUS_TABS.map(([k, l]) => <button key={k || 'all'} type="button" className={`chip-toggle${status === k ? ' on' : ''}`} aria-pressed={status === k} onClick={() => setStatus(k)}>
-          {l} <b>{bn(base.filter(e => inStatus(e, k)).length)}</b></button>)}</div>
+      <div className="eb-sub no-print">
+        {zones.length > 1 && <div className="eb-sel"><Combo label="এরিয়া" value={zone} onChange={v => { setZone(v); setHubF('') }} placeholder="সব এরিয়া" options={zones.map(z => ({ value: z.id, label: z.name }))} /></div>}
+        <div className="eb-sel"><Combo label="হাব" value={hubF} onChange={setHubF} placeholder="সব হাব" options={hubList.map(h => ({ value: h.id, label: h.name }))} /></div>
+        <div className="eb-sel"><select aria-label="অবস্থা" value={status} onChange={e => setStatus(e.target.value)}>
+          {STATUS_TABS.map(([k, l]) => <option key={k || 'all'} value={k}>{l} ({bn(base.filter(e => inStatus(e, k)).length)})</option>)}</select></div>
+        <span className="eb-count" aria-live="polite">{list.error ? 'তালিকা আনা যায়নি' : !list.data ? 'তথ্য লোড হচ্ছে…' : `${bn(all.length)} জনের মধ্যে ${bn(rows.length)} জন দেখানো হচ্ছে`}</span>
+        {hasFilters && <button type="button" className="hr-emp-clear" onClick={clearFilters}>সব ফিল্টার মুছুন ×</button>}
       </div>
       {list.error ? <p className="da-error" role="alert">{hrFriendly(list.error)} <button type="button" className="link" onClick={() => void list.reload()}>আবার চেষ্টা করুন</button></p> : null}
       <DataTable<Employee> title="কর্মী তালিকা" file="employees" rows={list.data ? rows : null} rowKey={e => e.id} search={false} quickFilters={false} phoneView="list" onRowClick={e => nav(`/app/hr/employees/${e.id}`)}
@@ -214,11 +206,11 @@ function FullStaffView() {
           {can('hr.employee.archive') && <button type="button" className="sm danger" onClick={() => setAct({ kind: 'wrong', list: marked, clear })}>ভুল এন্ট্রি — মুছুন</button>}
           <button type="button" className="secondary sm" onClick={clear}>বাছাই তুলুন</button></>}
         cols={[
-          { key: 'full_name', label: 'নাম', primary: true, value: e => e.full_name, render: e => <span className="emp-tname"><span className={`ec-av sm t-${toneOf(e.full_name)}`}>{initials(e.full_name)}</span>
-            <span><b>{e.full_name}</b><span className="sec">{e.employee_code ? `আইডি ${e.employee_code}` : 'আইডি বাকি'}{e.full_name_bn ? ` · ${e.full_name_bn}` : ''}</span></span></span> },
+          { key: 'full_name', label: 'নাম', primary: true, value: e => e.full_name, render: e => <span className="emp-tname"><span>
+            <b>{e.full_name}</b><span className="sec">{e.employee_code ? `আইডি ${e.employee_code}` : 'আইডি বাকি'}{e.full_name_bn ? ` · ${e.full_name_bn}` : ''}</span></span></span> },
           { key: 'employee_code', label: 'আইডি', hidden: true, value: e => e.employee_code ?? '' },
           { key: 'mobile', label: 'মোবাইল', value: e => e.mobile ?? '', render: e => <Contact phone={e.mobile} /> },
-          { key: 'pos', label: 'পদবি', value: posName, render: e => posName(e) ? <Badge tone="ok">{posName(e)}</Badge> : <Badge tone="neutral">পদ দেওয়া নেই</Badge> },
+          { key: 'pos', label: 'পদবি', value: posName, render: e => posName(e) ? <span className="pos-badge">{posName(e)}</span> : <Badge tone="neutral">পদ দেওয়া নেই</Badge> },
           { key: 'hub', label: 'হাব', value: hubName },
           { key: 'status', label: 'অবস্থা', value: e => EMP_STATUS[e.status as EmployeeStatus]?.[0] ?? e.status, render: e => <EmpBadge status={e.status} /> },
           { key: 'act', label: 'কাজ', noExport: true, className: 'r', render: e => <span className="row-acts" onClick={ev => ev.stopPropagation()}>
@@ -231,6 +223,7 @@ function FullStaffView() {
     {act?.kind === 'status' && <StatusAction list={act.list} onClose={() => setAct(null)} onDone={done} />}
     {act?.kind === 'ids' && <GiveIdsAction list={act.list} onClose={() => setAct(null)} onDone={done} />}
     {act?.kind === 'wrong' && <RemoveWrong list={act.list} onClose={() => setAct(null)} onDone={done} />}
+    {exportFmt && <ExportByFormatDialog zone={zone || null} hub={hubF || null} status={status || null} q={q || null} title="কর্মী তালিকা" onClose={() => setExportFmt(false)} />}
     {quick && <QuickTransfer onClose={() => setQuick(false)} onDone={m => { setQuick(false); toast(m); void list.reload() }} />}
     {newApp && <NewApplication onClose={() => setNewApp(false)} onDone={id => { toast('আবেদন খোলা হয়েছে — বাকি তথ্য দিয়ে সাবমিট করুন'); nav(`/app/hr/employees/${id}`) }} />}
   </AppShell>
