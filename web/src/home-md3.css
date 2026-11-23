@@ -10,9 +10,9 @@
 .home-dash :is(button,input,select,textarea){font-family:inherit}
 /* light mode: the exact brand values (dark mode keeps the app's own dark tokens) */
 :root[data-theme="light"] .home-dash{--primary:#137A46;--primary-dark:#0E5E36;--primary-50:#DDF2E6;--canvas:#F4F7F8;--border:#E4EAE7;--text:#15211B;--muted:#5C6B64;
-  --st-ok:#11703B;--st-ok-bg:#E3F6EA;--st-bad:#B32626;--st-bad-bg:#FDEAEA;--st-need:#A85C00;--st-need-bg:#FFF1DC}
+  --st-ok:#11703B;--st-ok-bg:#E3F6EA;--st-bad:#B32626;--st-bad-bg:#FDEAEA;--st-need:#A15600;--st-need-bg:#FFF1DC}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]) .home-dash{--primary:#137A46;--primary-dark:#0E5E36;--primary-50:#DDF2E6;--canvas:#F4F7F8;--border:#E4EAE7;--text:#15211B;--muted:#5C6B64;
-  --st-ok:#11703B;--st-ok-bg:#E3F6EA;--st-bad:#B32626;--st-bad-bg:#FDEAEA;--st-need:#A85C00;--st-need-bg:#FFF1DC}
+  --st-ok:#11703B;--st-ok-bg:#E3F6EA;--st-bad:#B32626;--st-bad-bg:#FDEAEA;--st-need:#A15600;--st-need-bg:#FFF1DC}
   :root:not([data-theme="dark"]) body:has(.home-dash){background:#F4F7F8}}
 :root[data-theme="light"] body:has(.home-dash){background:#F4F7F8}
 :root[data-theme="dark"] .home-dash{--md-shadow:none}

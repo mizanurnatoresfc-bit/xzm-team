@@ -3425,3 +3425,21 @@ button.chip:not(.on){color:var(--text)}
 .att-btns button.on{background:var(--t,var(--c))!important;border-color:var(--t,var(--c))!important}
 [data-theme="dark"] .att-btns button:not(.on){color:color-mix(in srgb,var(--c) 55%,#fff)!important}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .att-btns button:not(.on){color:color-mix(in srgb,var(--c) 55%,#fff)!important}}
+
+/* System-dark gap: the app's default theme is "system", which leaves <html> with no data-theme attribute, so every rule above
+   written only for :root[data-theme="dark"] was skipped for phones set to dark (a pale pink alert card with salmon text, 1.66:1).
+   The same rules again for the automatic dark mode. */
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]) .rb-super{background:#2E1F55;color:#C4B5FD}
+  :root:not([data-theme="light"]) .scope-bar,:root:not([data-theme="light"]) .cb-chip{color:var(--side-fg)}
+  :root:not([data-theme="light"]) .quick-tile .qi,:root:not([data-theme="light"]) .nk-i,:root:not([data-theme="light"]) .rq-kind-tag,
+  :root:not([data-theme="light"]) .rq-tile .qi,:root:not([data-theme="light"]) .nf-ic{background:color-mix(in srgb,currentColor 16%,transparent)}
+  :root:not([data-theme="light"]) .ct-b{background:color-mix(in srgb,currentColor 18%,transparent)}
+  :root:not([data-theme="light"]) .alert-card.warn{background:var(--warn-bg);color:var(--warn-fg);border-color:transparent}
+  :root:not([data-theme="light"]) .alert-card.bad{background:var(--bad-bg);color:var(--bad-fg);border-color:transparent}
+  :root:not([data-theme="light"]) .ax-savebar .plus,:root:not([data-theme="light"]) .ax-count .plus,:root:not([data-theme="light"]) .ax-own .plus,
+  :root:not([data-theme="light"]) .ax-review .plus,:root:not([data-theme="light"]) .ax-hl .plus{color:#4ADE80}
+}
+/* the role chip on "my profile": its dark-green text on a dark card was 2.8:1 in either dark mode */
+:root[data-theme="dark"] .p-hero .p-role{color:var(--ok-fg)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .p-hero .p-role{color:var(--ok-fg)}}
