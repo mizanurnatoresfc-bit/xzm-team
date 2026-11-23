@@ -94,7 +94,6 @@ type PushPlugin = {
 const PUSH_KEY = 'xzm_push_token'
 let pushStarted = false
 export const pushToken = (): string | null => { try { return localStorage.getItem(PUSH_KEY) } catch { return null } }
-export const pushAvailable = (): boolean => isNativeApp() && !!(cap()?.Plugins as unknown as { PushNotifications?: PushPlugin } | undefined)?.PushNotifications
 
 /** Ask once for permission, register with Firebase, hand the token to `save`, and open `link` when a push is tapped. */
 export async function setupPush(save: (token: string) => Promise<void>, open: (link: string) => void): Promise<'on' | 'denied' | 'unavailable'> {

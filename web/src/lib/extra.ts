@@ -49,7 +49,6 @@ export const fields = {
 
 export const referrals = {
   lookup: async (code: string) => (await rpc<Array<{ id: string; employee_code: string; full_name: string; position_name: string | null; hub_name: string | null; status: string }>>('hr_lookup_employee', { p_code: code }))?.[0] ?? null,
-  setReferrer: (employee: string, code: string) => rpc<void>('hr_set_referrer', { p_employee: employee, p_referrer_code: code || null }),
   referenceOf: (employee: string) => rpc<null | { kind: 'employee' | 'manual'; id?: string; code?: string | null; name: string; hub?: string | null; hub_code?: string | null; position?: string | null; mobile?: string | null }>('hr_reference_of', { p_employee: employee }),
   setReference: (employee: string, referrer: string | null, manual: Record<string, string> | null) =>
     rpc<void>('hr_set_reference', { p_employee: employee, p_referrer: referrer, p_manual: manual }),
@@ -63,7 +62,6 @@ export const referrals = {
   broughtPending: (referrer: string) => rpc<BroughtPending[]>('hr_reference_brought_pending', { p_referrer: referrer }),
   referenceRequests: () => rpc<RefRequest[]>('hr_reference_requests'),
   decideReference: (ids: string[], ok: boolean, note?: string) => rpc<number>('hr_reference_decide', { p_ids: ids, p_ok: ok, p_note: note || null }),
-  referrerOf: async (employee: string) => (await rpc<Array<{ id: string; employee_code: string; full_name: string }>>('hr_referrer_of', { p_employee: employee }))?.[0] ?? null,
   brought: (employee: string | null) => rpc<Referral[]>('hr_referrals', { p_employee: employee }),
   myEmployeeId: () => rpc<string | null>('my_employee_id'),
   summary: (zone: string | null) => rpc<Summary[]>('hr_referral_summary', { p_zone: zone }),

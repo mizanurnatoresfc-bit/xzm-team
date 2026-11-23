@@ -2,7 +2,6 @@ import { askConfirm, askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { inMenu } from '../../lib/menu'
-import { AttendanceDays } from './AttendanceDays'
 import { HubLogins } from './HubLogins'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -13,12 +12,12 @@ import { RouteViz } from '../../components/RouteViz'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { ATT_STATUS, autoCode, hr, hrFriendly, type AttendanceStatus, type Employee, type Hub } from '../../lib/hr'
-import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts'
+import { taka } from '../../lib/dailyAccounts'
 import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 
-export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'days' | 'logins' | 'routes'
+export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'team' | 'logins' | 'routes'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
@@ -27,9 +26,7 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
   { key: 'tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
   { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
-  { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
   { key: 'team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'] },
-  { key: 'days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
   { key: 'logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
   { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
 ]
@@ -54,9 +51,7 @@ export function HubManagement() {
   if (!sec) return <Navigate to="/app/hub/team" replace />
   const allowed = sec.perms.some(p => can(p))
   const current = hubs.find(h => h.id === hub) ?? null
-  // "আজকের হিসাব" and "হাজিরার দিন মেলানো" are off the strip (see HIDDEN_PAGES in AppShell); they still open by address.
-  const offStrip = (k: HubSection) => (k === 'accounts' || k === 'days') && section !== k
-  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`) && !offStrip(s.key))
+  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
     <section className="da-filters panel no-print hub-top">
@@ -80,9 +75,7 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
     case 'pickup': return <PickupToday hub={hub} />
     case 'tasks': return <TasksToday hub={hub} />
     case 'ops': return <OpsToday hub={hub} />
-    case 'accounts': return <AccountsToday hub={hub} />
     case 'team': return <HubTeam hub={hub} />
-    case 'days': return <AttendanceDays hub={hub} />
     case 'logins': return <HubLogins hub={hub} />
     case 'routes': return <RiderRoutes hub={hub} />
   }
@@ -500,53 +493,6 @@ function OpsToday({ hub }: { hub: Hub }) {
       </div>
       {err && <p className="da-error">{err}</p>}
     </Modal>}
-  </>
-}
-
-// ---------------------------------------------------------------- accounts
-function AccountsToday({ hub }: { hub: Hub }) {
-  const { can } = useAuth()
-  const { L, n } = usePrefs()
-  const nav = useNavigate()
-  const date = hubToday()
-  const list = useLoad(() => da.list(date, date, hub.id, null, null), [hub.id, date])
-  const [err, setErr] = useState('')
-  const rows = list.data ?? []
-  const s = (k: 'amount' | 'due' | 'expense' | 'merchant_cash') => rows.reduce((a, r) => a + Number(r[k] || 0), 0)
-  async function start() { setErr(''); try { nav(`/app/accounts/daily/${await da.start(hub.id)}`) } catch (e) { setErr(hrFriendly(e)) } }
-  const links: Array<[string, string, string, string, boolean]> = [
-    ['/app/accounts/daily', 'ledger', 'আজকের হিসাব খাতা', 'Daily accounts', true],
-    ['/app/accounts/mine', 'wallet', 'আমার হিসাব', 'My accounts', true],
-    ['/app/accounts/reports', 'chart', 'হিসাবের রিপোর্ট', 'Accounts reports', can('da.report.view')],
-    ['/app/accounts/settings', 'gear', 'হিসাব সেটিংস', 'Accounts settings', can('da.settings.configure')],
-  ]
-  return <>
-    <div className="da-stats">
-      <Stat icon="ledger" label={L('আজকের খাতা', 'Sheets today')} value={n(rows.length)} />
-      <Stat icon="cash" label={L('মোট হিসাব', 'Amount')} value={taka(s('amount'))} />
-      <Stat icon="receipt" label={L('মার্চেন্ট পেমেন্ট', 'Merchant cash')} value={taka(s('merchant_cash'))} />
-      <Stat icon="truck" label={L('খরচ', 'Expenses')} value={taka(s('expense'))} />
-      <Stat icon="alert" tone={s('due') ? 'warn' : undefined} label={L('বাকি', 'Due')} value={taka(s('due'))} />
-    </div>
-    <section className="panel">
-      <div className="da-bar"><h2>{L('আজকের হিসাব', "Today's accounts")}</h2>
-        {can('da.sheet.create') && !rows.length && <button onClick={() => void start()}><Icon name="plus" size={15} />{L('আজকের খাতা খুলুন', "Open today's sheet")}</button>}</div>
-      {err && <p className="da-error">{err}</p>}
-      {list.error ? <p className="da-error">{hrFriendly(list.error)}</p> : <DataTable<SessionRow> title={L('আজকের হিসাব', "Today's accounts")} file={`accounts-${date}`} rows={list.data} rowKey={r => r.id}
-        onRowClick={r => nav(`/app/accounts/daily/${r.id}`)} empty={<p className="muted">{L('আজকের খাতা এখনো খোলা হয়নি।', "Today's sheet is not open yet.")}</p>}
-        cols={[
-          { key: 'no', label: L('খাতা', 'Sheet'), value: r => `#${r.no}` },
-          { key: 'status', label: L('অবস্থা', 'Status'), value: r => STATUS_LABEL[r.status] },
-          { key: 'riders', label: L('রাইডার', 'Riders'), className: 'r', value: r => n(r.riders) },
-          { key: 'amount', label: L('হিসাব', 'Amount'), className: 'r', value: r => taka(r.amount) },
-          { key: 'due', label: L('বাকি', 'Due'), className: 'r', value: r => taka(r.due) },
-          { key: 'by', label: L('খুলেছেন', 'Opened by'), value: r => r.started_by_name ?? '' },
-        ]} />}
-    </section>
-    <section className="panel">
-      <h2>{L('হিসাব ম্যানেজমেন্ট', 'Accounts management')}</h2>
-      <div className="hub-links">{links.filter(x => x[4]).map(([to, ic, bn, en]) => <Link key={to} to={to} className="hub-link"><Icon name={ic} size={18} /><span>{L(bn, en)}</span><Icon name="chev" size={14} /></Link>)}</div>
-    </section>
   </>
 }
 

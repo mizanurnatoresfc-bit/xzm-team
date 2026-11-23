@@ -59,7 +59,6 @@ export const MODULES: ModuleDef[] = [
   { key: 'hub', icon: 'hub', bn: 'হাব (ম্যানেজার প্যানেল)', en: 'Hub (manager panel)', db: [], subs: [
     { to: '/app/hub/attendance', codes: ['hr.attendance.view', 'hr.attendance.create', 'hr.attendance.edit'] },
     { to: '/app/hub/late', codes: ['hr.attendance.view', 'hr.attendance.create'] },
-    { to: '/app/hub/days', codes: ['hr.attendance.view', 'hr.attendance.create'] },
     { to: '/app/hub/pickup', res: ['ops.pickup', 'ops.pickup_as_hub_manager', 'ops.pickup_as_pickup_manager', 'ops.pickup_as_rider', 'ops.pickup_verification'], codes: ['ops.merchant.create'] },
     { to: '/app/hub/tasks', res: ['zonal.task'] },
     { to: '/app/hub/ops', res: ['zonal.hub_metric'] },

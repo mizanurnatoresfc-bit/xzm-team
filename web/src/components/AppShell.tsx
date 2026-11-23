@@ -198,29 +198,12 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
     { to: '/app/accounts/report-import', icon: 'upload', bn: 'ডেইলি রিপোর্ট ইম্পোর্ট', en: 'Daily report import', perms: ['da.import.create', 'da.sheet.view'] },
     { to: '/app/accounts/center', icon: 'chart', bn: 'হিসাব কেন্দ্র (সব হাবের চিত্র)', en: 'Accounts centre', perms: DA },
   ] },
-  { bn: 'হিসাবের অংশ', en: 'Accounts parts', items: [
-    { to: '/app/accounts/center?tab=reports', icon: 'doc', bn: 'দৈনিক রিপোর্ট', en: 'Daily report', perms: DA },
-    { to: '/app/accounts/center?tab=expenses', icon: 'receipt', bn: 'হাবের খরচ', en: 'Hub expense', perms: DA },
-    { to: '/app/accounts/center?tab=merchant', icon: 'cash', bn: 'মার্চেন্ট ক্যাশ পেমেন্ট', en: 'Merchant cash payment', perms: DA },
-    { to: '/app/accounts/center?tab=bank', icon: 'wallet', bn: 'ব্যাংকে জমা', en: 'Bank deposit', perms: DA },
-    { to: '/app/accounts/center?tab=due', icon: 'ledger', bn: 'হাবের বকেয়া / ফান্ড', en: 'Hub due / add funds', perms: DA },
-    { to: '/app/accounts/center?tab=staff', icon: 'users', bn: 'স্টাফ খরচ', en: 'Staff expense', perms: DA },
-    { to: '/app/accounts/center?tab=transport', icon: 'truck', bn: 'যাতায়াত বিল', en: 'Transport bill', perms: DA },
-  ] },
-  { bn: 'ভাউচার', en: 'Vouchers', items: [
-    { to: '/app/accounts/center?tab=new', icon: 'plus', bn: 'নতুন ভাউচার', en: 'New voucher', perms: ['da.sheet.create'] },
-    { to: '/app/accounts/center?tab=vouchers', icon: 'file', bn: 'ভাউচার ম্যানেজমেন্ট', en: 'Voucher management', perms: DA },
-    { to: '/app/accounts/center?tab=missing', icon: 'alert', bn: 'ভাউচার জমা হয়নি', en: 'Missing voucher', perms: DA },
-  ] },
-  { bn: 'ইতিহাস ও রিপোর্ট', en: 'History & reports', items: [
-    { to: '/app/accounts/center?tab=history', icon: 'log', bn: 'হিসাবের ইতিহাস', en: 'Accounts history', perms: DA },
+  { bn: 'রিপোর্ট ও সেটিংস', en: 'Reports & settings', items: [
     { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'] },
     { to: '/app/accounts/settings', icon: 'gear', bn: 'হিসাব সেটিংস', en: 'Accounts settings', perms: ['da.settings.configure'] },
   ] },
   { bn: 'শেখা', en: 'Learning', items: [
     { to: '/app/accounts/learn', icon: 'book', bn: 'বাংলা শেখার কেন্দ্র', en: 'Bangla learning centre', perms: DA },
-    { to: '/app/accounts/learn?p=practice', icon: 'play', bn: 'অনুশীলন (নমুনা হিসাব)', en: 'Practice (sample data)', perms: DA },
-    { to: '/app/accounts/learn?p=ask', icon: 'sms', bn: 'নদী AI হিসাব শিক্ষক', en: 'Nodi AI accounts teacher', perms: DA },
   ] },
 ])
 
@@ -235,14 +218,10 @@ export const OFFICE: Group = panel('office', 'home', 'আমার অফিস'
 ])
 
 /**
- * Pages taken off the menu because another page does the same job. The pages still open by their address;
- * they are to be removed for good once nobody misses them.
- *   /app/hub/accounts        -> /app/accounts/daily (the hub's sheets for today)
- *   /app/hr                  -> the home page's staff panels
- *   /app/issues?tab=orders   -> a tab inside /app/issues
- *   /app/hub/days            -> nothing: never used (no rows on 21 Nov 2026); the attendance book shows each day's state
+ * Pages taken off the menu because another page does the same job. /app/hub/accounts, /app/hub/days and /app/hr were
+ * removed for good (duplicate audit, 23 Nov 2026); their old addresses lead to the home page or the hub team page.
  */
-export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders', '/app/hub/days']
+export const HIDDEN_PAGES = ['/app/issues?tab=orders']
 
 // ---- small caches so the frame does not refetch on every page ----
 type MyRole = { code: string; name: string; scope_type: string; zone: string | null; hub: string | null }
@@ -471,7 +450,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
   const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
     const want = new URLSearchParams(q ?? ''), cur = new URLSearchParams(loc.search)
-    return q ? [...want].every(([k, v]) => cur.get(k) === v) : !cur.get('tab') && !cur.get('p') }
+    // no menu row shares its page with another row any more (the accounts centre's parts are tabs inside it), so a plain row stays marked on every tab
+    return q ? [...want].every(([k, v]) => cur.get(k) === v) : true }
   // Right side of a menu row: জরুরি + number when something waits on this person, a plain number for a head count
   // (hub team), or নতুন for a page added lately (it goes away by itself after the date in NEW_UNTIL).
   const tagOf = (i: Item) => {

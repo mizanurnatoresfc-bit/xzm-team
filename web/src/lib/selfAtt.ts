@@ -38,7 +38,4 @@ export const selfAttFriendly = (e: unknown) => {
 export const selfAtt = {
   mine: () => rpc<MyAttToday | null>('my_att_today'),
   mark: (kind: SelfKind, note?: string) => rpc<string>('att_self_mark', { p_kind: kind, p_note: note || null }),
-  list: (hub: string, date: string) => rpc<SelfMark[]>('att_self_list', { p_hub: hub, p_date: date }),
-  decide: (ids: string[], ok: boolean, as?: Decided | null, note?: string) =>
-    rpc<number>('att_self_decide', { p_ids: ids, p_ok: ok, p_as: as ?? null, p_note: note || null }),
 }

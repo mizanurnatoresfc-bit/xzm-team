@@ -335,7 +335,6 @@ export const da = {
       p_reg_no: v.reg ?? null, p_status: v.status ?? 'active', p_remarks: v.remarks ?? null, p_id: v.id ?? null }),
   assignVehicle: (vehicle: string, code: string, reason: string) =>
     rpc<string>('vehicle_assign', { p_vehicle: vehicle, p_employee_code: code, p_reason: reason }),
-  releaseVehicle: (vehicle: string, reason: string) => rpc<void>('vehicle_release', { p_vehicle: vehicle, p_reason: reason }),
   myVehicles: () => rpc<MyVehicle[]>('da_my_vehicles', {}),
   myClaims: (days = 90) => rpc<Claim[]>('da_my_claims', { p_days: days }),
   sheetClaims: (session: string) => rpc<Claim[]>('da_sheet_claims', { p_session: session }),
@@ -376,7 +375,6 @@ export const da = {
   riderAcceptAll: (session: string) => rpc<number>('da_rider_accept_all', { p_session: session }),
   closeMyPart: (session: string, note?: string | null, done = true) =>
     rpc<void>('da_close_my_part', { p_session: session, p_note: note ?? null, p_done: done }),
-  collectors: (session: string) => rpc<Collector[]>('da_collectors', { p_session: session }),
   closeDay: (session: string, note?: string | null) => rpc<ClosedTotals>('da_close_day', { p_session: session, p_note: note ?? null }),
   reopenDay: (session: string, reason: string) => rpc<void>('da_reopen_day', { p_session: session, p_reason: reason }),
   // ---- draft -> submit -> check -> report OK ----
@@ -387,7 +385,6 @@ export const da = {
   reportOkUndo: (session: string, reason: string) => rpc<void>('da_report_ok_undo', { p_session: session, p_reason: reason }),
   flowList: (from: string, to: string, hub?: string | null) => rpc<FlowRow[]>('da_flow_list', { p_from: from, p_to: to, p_hub: hub || null }),
   setHubCollectors: (hub: string, count: number | null) => rpc<void>('da_hub_collectors_set', { p_hub: hub, p_count: count }),
-  applyFixed: (session: string) => rpc<{ riders: number; expenses: number }>('da_apply_fixed', { p_session: session }),
   saveNote: (a: { session: string; amount: number; method?: string; fromCode?: string | null; fromName?: string | null
                   note?: string | null; id?: string | null }) =>
     rpc<string>('da_note_save', { p_session: a.session, p_amount: a.amount, p_method: a.method ?? 'cash',
@@ -402,8 +399,6 @@ export const da = {
       p_ref: a.ref ?? null, p_slip: a.slip ?? null, p_date: a.date ?? null, p_transport: a.transport ?? null, p_charge: a.charge ?? null,
       p_people: a.people ?? null, p_remarks: a.remarks ?? null, p_id: a.id ?? null }),
   removeDeposit: (id: string, reason: string) => rpc<void>('da_deposit_remove', { p_id: id, p_reason: reason }),
-  bankCharge: (amount: number, method = 'bank', date?: string | null) =>
-    rpc<number>('da_bank_charge', { p_amount: amount, p_method: method, p_date: date ?? null }),
   bankDone: (session: string, note?: string | null) => rpc<void>('da_bank_done', { p_session: session, p_note: note ?? null }),
   setCell: (session: string, section: string, row: string, col: string, value: string | null) =>
     rpc<void>('da_cell_set', { p_session: session, p_section: section, p_row: row, p_col: col, p_value: value }),

@@ -52,7 +52,6 @@ export function stopNotices() {
   window.removeEventListener('focus', onShow)
   state = { user: null, list: [], unread: 0, live: false, fresh: null }; subs.forEach(f => f())
 }
-export const refreshNotices = () => load()
 export const clearFresh = () => emit({ fresh: null })
 
 export async function markRead(ids: string[]) {
