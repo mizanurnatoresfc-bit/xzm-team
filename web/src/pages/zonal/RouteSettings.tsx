@@ -21,6 +21,21 @@ type Tab = 'map' | 'cover' | 'places' | 'routes' | 'load' | 'plan' | 'day' | 'wa
 type NewDraft = { hub_id: string; name?: string; color?: string; stops?: RouteStop[] }
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
+/** /app/routes/plan — plan-only wrapper for users with route_plan perm but not route_setting. */
+export function RoutePlanPage() {
+  const { L } = usePrefs()
+  const [sp, setSp] = useSearchParams()
+  const [hub, setHub] = useState(sp.get('hub') ?? '')
+  useEffect(() => { const q = new URLSearchParams(); if (hub) q.set('hub', hub); setSp(q, { replace: true }) },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hub])
+  return <AppShell title={L('আজকের পার্সেল পরিকল্পনা', "Today's parcel plan")}
+    subtitle={L('হাবে কয়টা পার্সেল এল, কে উপস্থিত, কোন রাইডার কোন রুটে কয়টা নেবেন — কেউ না এলে কাকে দেওয়া যায় তার পরামর্শসহ।',
+      'How many parcels reached the hub, who is here, who takes how many on which route — with a suggestion when someone is away.')}>
+    <PlanTab hub={hub} onHub={setHub} />
+  </AppShell>
+}
+
 /** জোনাল ম্যানেজার প্যানেল → রুট সেটিং: every hub's rider routes on a real map, with stops, riders, rules and today's check-ins. */
 export function RouteSettings() {
   const { L, n } = usePrefs()

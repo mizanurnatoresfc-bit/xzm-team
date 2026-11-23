@@ -1,7 +1,5 @@
 import { askReason } from '../../components/ask'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
@@ -462,20 +460,7 @@ function SetupModal({ data, onClose, onSaved }: { data: PlanData; onClose: () =>
   </Modal>
 }
 
-/** The page on its own (hub manager and anyone given the plan permission). */
-export function RoutePlanPage() {
-  const { L } = usePrefs()
-  const [sp, setSp] = useSearchParams()
-  const [hub, setHub] = useState(sp.get('hub') ?? '')
-  useEffect(() => { const q = new URLSearchParams(); if (hub) q.set('hub', hub); setSp(q, { replace: true }) },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hub])
-  return <AppShell title={L('আজকের পার্সেল পরিকল্পনা', "Today's parcel plan")}
-    subtitle={L('হাবে কয়টা পার্সেল এল, কে উপস্থিত, কোন রাইডার কোন রুটে কয়টা নেবেন — কেউ না এলে কাকে দেওয়া যায় তার পরামর্শসহ।',
-      'How many parcels reached the hub, who is here, who takes how many on which route — with a suggestion when someone is away.')}>
-    <PlanTab hub={hub} onHub={setHub} />
-  </AppShell>
-}
+// RoutePlanPage moved to RouteSettings.tsx — PlanTab (above) is reused as both the master tab and the standalone page.
 
 /** Staff panel: my parcels of today's approved plan. */
 export function MyParcelsCard() {
