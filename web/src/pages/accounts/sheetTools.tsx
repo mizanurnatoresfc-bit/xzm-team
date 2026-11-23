@@ -16,7 +16,7 @@ import { Badge, Modal, Field, ErrorNote, Stat } from './ui'
 export const SECTIONS: Array<{ key: string; label: string }> = [
   { key: 'riders', label: 'রাইডার-ভিত্তিক হিসাব' },
   { key: 'payment', label: 'মার্চেন্ট ক্যাশ পেমেন্ট' },
-  { key: 'expense', label: 'যাতায়াত ও হাব কর্মীর খরচ' },
+  { key: 'expense', label: 'হাবের খরচ' },
   { key: 'claims', label: 'কর্মীদের জমা দেওয়া বিল' },
   { key: 'notes', label: 'জমা ও নোট' },
   { key: 'reports', label: 'আপডেট রিপোর্ট আইডি' },
