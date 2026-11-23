@@ -850,9 +850,10 @@ try {
         await page.locator('.oo-kind', { hasText: 'ফ্যান' }).click(); await page.waitForTimeout(150)
         await page.locator('.row-menu-btn').first().click()
         const items = await page.locator('.row-menu button').allInnerTexts()
+        const brokenAction = await page.getByRole('button', { name: 'নষ্ট', exact: true }).count()
         await page.keyboard.press('Escape')
         check(chips === 4 && onlyFan && await page.locator('.oo-name').count() === 3 && await page.locator('.oo-help[open]').count() === 0
-          && items.some(t => t.includes('নষ্ট')) && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
+          && brokenAction > 0 && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
           `${size}: office resources — kind chips filter the list, help is folded, each item has one ⋮ menu`) }
       // every office and residential page opens, shows its tabs, has no error box and fits the screen
       { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports'].map(k => `/app/office/${k}`),
@@ -1316,7 +1317,8 @@ try {
     await mobile.fill('0171'); await mobile.blur()
     check(await page.locator('.da-modal .field-err').count() === 1, `${size}: a wrong mobile number is flagged as soon as the box is left`)
     await mobile.fill('+৮৮ ০১৭১১-০০০০০০'); await mobile.blur()
-    check(await mobile.inputValue() === '01711-000000', `${size}: Bangla digits, +88 and dashes are tidied and shown as 01711-000000 (input mask)`)
+    const formattedMobile = await page.waitForFunction(() => document.querySelector('.da-modal input[inputmode=tel]')?.value === '01711-000000', undefined, { timeout: 5000 }).then(() => true, () => false)
+    check(formattedMobile, `${size}: Bangla digits, +88 and dashes are tidied and shown as 01711-000000 (input mask)`)
     await page.waitForSelector('.da-modal .dup-note', { timeout: 5000 }).catch(() => {})
     check((await page.locator('.da-modal .dup-note').innerText().catch(() => '')).includes('Staff 01'), `${size}: a mobile number that is already used is flagged with the person's name`)
     await fits('new staff form')
