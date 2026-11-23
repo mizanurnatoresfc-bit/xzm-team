@@ -11,9 +11,10 @@
 :root{--tone-h:#0369A1}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--tone-h:#38BDF8}}
 :root[data-theme="dark"]{--tone-h:#38BDF8}
-.ngrp[data-panel="hr"]{--tone:var(--tone-h)}
-.ngrp[data-panel="sorting"]{--tone:var(--tone-o)}
-.ngrp[data-panel="admin"]{--tone:var(--side-muted)}
+/* :not(#_) lifts these above theme.css's long :not() chain that paints every other panel red */
+.ngrp[data-panel="hr"]:not(#_){--tone:var(--tone-h)}
+.ngrp[data-panel="sorting"]:not(#_){--tone:var(--tone-o)}
+.ngrp[data-panel="admin"]:not(#_){--tone:var(--side-muted)}
 
 /* ---------- divisions (both sizes) ---------- */
 .ndiv{display:flex;flex-direction:column;gap:2px}
