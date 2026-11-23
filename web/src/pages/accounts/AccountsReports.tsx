@@ -40,14 +40,16 @@ export function AccountsReports() {
   const [to, setTo] = useState(today)
   const [hub, setHub] = useState('')
   const hubs = useLoad(() => da.myHubs(), [])
-  const rep = useLoad(() => da.report(kind, from, to, hub || null), [kind, from, to, hub])
+  const filterKey = JSON.stringify([kind, from, to, hub])
+  const rep = useLoad(async () => ({ filterKey, rows: await da.report(kind, from, to, hub || null) }), [filterKey])
+  const reportReady = !rep.loading && !rep.error && rep.data?.filterKey === filterKey
   const def = KINDS.find(k => k[0] === kind)!
-  const rows = rep.data ?? []
+  const rows = reportReady ? rep.data?.rows ?? [] : []
   const totals = def[2].filter(c => c.t === 'n' || c.t === 'tk').map(c => [c.k, rows.reduce((a, r) => a + Number(r[c.k] ?? 0), 0)] as const)
   const sub = `${dateBn(from)} – ${dateBn(to)} · ${hub ? (hubs.data ?? []).find(h => h.hub_id === hub)?.name ?? '' : 'সব হাব'}`
 
   return <AccountsShell title="হিসাবের রিপোর্ট" subtitle="Daily Accounts · Reports & Export"
-    actions={can('da.report.export') || can('da.report.print') ? <>
+    actions={reportReady && (can('da.report.export') || can('da.report.print')) ? <>
       {can('da.report.export') && <button onClick={() => download(xlsxBlob(`XZM-TEAM — ${def[1]}`, sub, def[2].map(c => c.l), rows.map(r => def[2].map(c => raw(r[c.k], c.t)))), `daily-accounts-${kind}-${from}-${to}.xlsx`)}>Excel</button>}
       {can('da.report.export') && <button className="secondary" onClick={() => printArea(`daily-accounts-${kind}-${from}-${to}`)}>PDF</button>}
       {can('da.report.print') && <button className="secondary" onClick={() => printArea(`daily-accounts-${kind}`)}>প্রিন্ট</button>}</> : undefined}>
@@ -61,10 +63,14 @@ export function AccountsReports() {
       <Field label="শেষ তারিখ"><input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} /></Field>
       <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}><option value="">সব হাব</option>{(hubs.data ?? []).map(h => <option key={h.hub_id} value={h.hub_id}>{h.name}</option>)}</select></Field>
     </section>
-    <ErrorNote error={rep.error} />
+    {hubs.error && <ErrorNote error={hubs.error} />}
+    {rep.error && <div className="no-print">
+      <ErrorNote error={rep.error} />
+      <button type="button" className="secondary" disabled={rep.loading} onClick={() => void rep.reload()}>আবার চেষ্টা করুন</button>
+    </div>}
     <section className="panel print-area">
-      <h2>{def[1]} <span className="muted small">{sub} · {num(rows.length)}টি সারি</span></h2>
-      {rep.loading ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
+      <h2>{def[1]} <span className="muted small">{sub}{reportReady && ` · ${num(rows.length)}টি সারি`}</span></h2>
+      {rep.error ? null : !reportReady ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
         <thead><tr><th>#</th>{def[2].map(c => <th key={c.k} className={c.t === 'n' || c.t === 'tk' ? 'r' : ''}>{c.l}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => <tr key={i}><td data-l="#">{num(i + 1)}</td>{def[2].map(c => <td key={c.k} data-l={c.l} className={c.t === 'n' || c.t === 'tk' ? 'r' : ''}>{show(r[c.k], c.t)}</td>)}</tr>)}
           {rows.length === 0 && <tr><td colSpan={def[2].length + 1} className="muted">এই সময়ে কোনো তথ্য নেই।</td></tr>}</tbody>
