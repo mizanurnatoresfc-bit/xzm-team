@@ -84,3 +84,39 @@ button:not(:disabled):active{scale:.97}
   .ptr span{transition:none}
 }
 :root[data-motion=reduce] .top .top-title{animation:none}
+
+/* ---- Android app feel, part 3 (owner, 23 Nov 2026): ripple, lifted top bar, snackbar, bottom-sheet pull, no browser bounce ---- */
+
+/* Touch ripple (lib/nativeFeel.tsx setupRipple): a soft circle grows from the finger; the layer clips it to the host's own corners. */
+.ripple-wrap{position:absolute;inset:0;border-radius:inherit;overflow:hidden;pointer-events:none;z-index:1}
+.ripple-ink{position:absolute;border-radius:50%;background:currentColor;opacity:.16;transform:scale(0);animation:ripple-grow .45s cubic-bezier(.2,.6,.3,1) forwards;pointer-events:none}
+.ripple-ink.out{opacity:0;transition:opacity .3s ease}
+@keyframes ripple-grow{to{transform:scale(1)}}
+
+/* Top bar: flat at the top of a page, a soft shadow once the page has scrolled under it. */
+.top{transition:box-shadow .2s ease,border-color .2s ease}
+.scrolled .top{box-shadow:0 2px 8px rgba(0,0,0,.10);border-bottom-color:transparent}
+:root[data-theme=dark].scrolled .top{box-shadow:0 2px 10px rgba(0,0,0,.45)}
+
+/* In the app the page does not bounce or glow at the ends, and a drag that starts inside a sheet does not move the page behind it. */
+.native-app,.native-app body{overscroll-behavior-y:none}
+.native-app .da-modal,.native-app .sheet{overscroll-behavior:contain;touch-action:pan-y}
+
+/* Messages come up from the bottom like Android's snackbar: dark, rounded, above the bottom bar. */
+@media (max-width:960px){
+  .da-toast{left:12px!important;right:12px;bottom:calc(88px + env(safe-area-inset-bottom))!important;transform:none!important;width:auto;
+    padding:14px 16px!important;border-radius:12px!important;background:#2b3430!important;color:#f4f7f5!important;font-size:.9375rem;line-height:1.4;
+    box-shadow:0 6px 18px rgba(0,0,0,.28);animation:snack-in .22s cubic-bezier(.2,.7,.3,1)}
+}
+@keyframes snack-in{from{opacity:0;translate:0 16px}to{opacity:1;translate:0 0}}
+.kb-open .da-toast{bottom:16px!important}
+
+/* The pull bar on a bottom sheet looks and feels draggable. */
+@media (max-width:960px){.native-app .da-modal::before{width:36px;height:4px;background:color-mix(in srgb,var(--muted) 45%,transparent)}}
+
+@media (prefers-reduced-motion:reduce){
+  .ripple-wrap{display:none}
+  .da-toast{animation:none!important}
+  .top{transition:none}
+}
+:root[data-motion=reduce] .ripple-wrap{display:none}
