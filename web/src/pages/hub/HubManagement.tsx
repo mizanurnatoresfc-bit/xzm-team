@@ -1,6 +1,5 @@
 import { askConfirm, askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
-import { Contact } from '../../components/Contact'
 import { inMenu } from '../../lib/menu'
 import { AttendanceDays } from './AttendanceDays'
 import { HubLogins } from './HubLogins'
@@ -15,8 +14,8 @@ import { usePrefs } from '../../lib/prefs'
 import { ATT_STATUS, autoCode, hr, hrFriendly, type AttendanceStatus, type Employee, type Hub } from '../../lib/hr'
 import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts'
 import { routesApi, type HubRoute } from '../../lib/hub'
-import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
-import { EmpBadge, NewApplication, useOrg } from '../hr/common'
+import { hubApi, hubToday, PICKUP_STATUS, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
+import { useOrg } from '../hr/common'
 
 // Team view moved to /app/staff/list (role-aware). HubManagement no longer exposes 'team'.
 export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'days' | 'logins' | 'routes'
