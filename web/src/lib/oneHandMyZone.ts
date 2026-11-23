@@ -86,11 +86,23 @@ export interface RiderCandidate {
   assignedParcels: number
 }
 
-/** Suggestions only: a manager must approve any real assignment. */
-export function suggestRiders(routeId: string, requiredParcels: number, candidates: readonly RiderCandidate[]) {
-  if (!Number.isFinite(requiredParcels) || requiredParcels <= 0) return []
-  return candidates
-    .filter(r => r.available && Number.isFinite(r.capacity) && Number.isFinite(r.assignedParcels))
+/** 
+ * Read-only allocation preview. The caller must supply candidates already authorized
+ * by existing zone/hub RLS. Passing hubId additionally prevents cross-hub suggestions.
+ * Each suggested parcel is counted once across the ranked riders.
+ * A manager must approve any real assignment through the existing workflow.
+ */
+export function suggestRiders(
+  routeId: string,
+  requiredParcels: number,
+  candidates: readonly RiderCandidate[],
+  hubId?: string,
+) {
+  if (!routeId || !Number.isFinite(requiredParcels) || requiredParcels <= 0) return []
+  const ranked = candidates
+    .filter(r => r.available && (!hubId || r.hubId === hubId)
+      && Number.isFinite(r.capacity) && r.capacity >= 0
+      && Number.isFinite(r.assignedParcels) && r.assignedParcels >= 0)
     .map(r => ({
       employeeId: r.employeeId,
       hubId: r.hubId,
@@ -98,6 +110,12 @@ export function suggestRiders(routeId: string, requiredParcels: number, candidat
       freeCapacity: Math.max(0, r.capacity - r.assignedParcels),
     }))
     .filter(r => r.freeCapacity > 0)
-    .sort((a, b) => Number(b.familiar) - Number(a.familiar) || b.freeCapacity - a.freeCapacity)
-    .map(r => ({ ...r, suggestedParcels: Math.min(requiredParcels, r.freeCapacity) }))
+    .sort((a, b) => Number(b.familiar) - Number(a.familiar)
+      || b.freeCapacity - a.freeCapacity || a.employeeId.localeCompare(b.employeeId))
+  let remaining = Math.floor(requiredParcels)
+  return ranked.map(r => {
+    const suggestedParcels = Math.min(remaining, Math.floor(r.freeCapacity))
+    remaining -= suggestedParcels
+    return { ...r, suggestedParcels }
+  }).filter(r => r.suggestedParcels > 0)
 }
