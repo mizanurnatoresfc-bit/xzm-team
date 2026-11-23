@@ -461,7 +461,11 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
   const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
   const [accG, hrG, officeG, sortingG, adminG] = [ACCOUNTS, HR, OFFICE, SORTING, ADMIN].map(g => layoutGroup(g, layout))
-  const accSecs = own(accG), hrSecs = own(hrG), officeSecs = own(officeG), sortingSecs = own(sortingG), adminSecs = own(adminG)
+  // A staff member (level 0) gets one panel only: the few HR pages they may open sit inside it, not under an HR heading.
+  const hrAll = own(hrG)
+  if (level === 0 && shown[0]) { shown[0].secs.push(...hrAll) }
+  const hrSecs = level === 0 ? [] : hrAll
+  const accSecs = own(accG), officeSecs = own(officeG), sortingSecs = own(sortingG), adminSecs = own(adminG)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
   const onLink = (to: string) => { const [p, q] = to.split('?'); if (loc.pathname !== p) return false
