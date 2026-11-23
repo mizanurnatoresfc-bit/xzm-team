@@ -69,9 +69,18 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]) {
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [loading, setLoading] = useState(true)
+  const request = useRef(0)
   const run = useCallback(async () => {
+    const current = ++request.current
     setLoading(true); setError(null)
-    try { setData(await fn()) } catch (e) { setError(e) } finally { setLoading(false) }
+    try {
+      const result = await fn()
+      if (current === request.current) setData(result)
+    } catch (error) {
+      if (current === request.current) setError(error)
+    } finally {
+      if (current === request.current) setLoading(false)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
   useEffect(() => { void run() }, [run])

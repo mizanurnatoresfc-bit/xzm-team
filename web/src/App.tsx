@@ -300,6 +300,8 @@ export default function App() {
       <Route path="/app/access/role/:id" element={<AccessPage><RoleBuilder /></AccessPage>} />
       <Route path="/app/access/user/:id" element={<AccessPage><UserAccess /></AccessPage>} />
       <Route path="/app/access/:section" element={<AccessPage><AccessCenter /></AccessPage>} />
+    </Route>
+    <Route element={<ProtectedRoute permission="system.role.edit" />}>
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
     </Route>
     {/* Nodi AI and branding open by the same permission their menu links use (not the role-page permission). */}
