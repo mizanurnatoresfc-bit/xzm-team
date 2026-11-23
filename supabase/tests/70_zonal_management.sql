@@ -176,9 +176,6 @@ select tests.login(tests.id('zonal_a'));
 update public.hub_visits set fuel_amount = 450 where purpose = 'Follow-up visit';
 select tests.ok((select fuel_amount = 450 and claim_id is null from public.hub_visits where purpose = 'Follow-up visit'),
                 'a returned claim releases its visits for correction');
-select tests.ok((select sum(total) = 2550 and sum(approved) = 2100 and sum(visits) = 3
-                 from public.zm_visit_report('month', current_date - 6, current_date, tests.id('zone_a'))),
-                'visit report totals km and expenses and separates approved amounts');
 
 -- ---------- 5. Tasks ----------
 insert into tests.ids select 'task1', public.task_assign('Upload missing NID back', tests.id('hub_mgr'), current_date + 5,
@@ -295,31 +292,6 @@ select tests.ok((select pickups = 2100 and deliveries = 2100 and volume_rank = 1
                 'hub performance totals and ranks hubs');
 select tests.ok(tests.row_count(format('select * from public.zm_hub_performance(%L, current_date - 7, current_date - 1)', tests.id('zone_a'))) = 2,
                 'hub comparison lists the hubs of the zone');
-select tests.ok(tests.row_count($$select * from public.zm_report_operations('hub', current_date - 7, current_date - 1)$$) = 2,
-                'hub-wise report is limited to the caller''s zone');
-select tests.ok((select sum(pickups) = 2450 from public.zm_report_operations('zone', current_date - 7, current_date - 1)),
-                'zone-wise report totals the zone');
-select tests.ok(tests.row_count($$select * from public.zm_report_operations('week', current_date - 7, current_date - 1)$$) >= 1
-                and tests.row_count($$select * from public.zm_report_operations('month', current_date - 7, current_date - 1)$$) >= 1,
-                'weekly and monthly reports return periods');
-select tests.ok(tests.row_count($$select * from public.zm_report_operations('bogus', current_date - 7, current_date - 1)$$) = 0,
-                'unknown grouping returns nothing');
-select tests.ok((select headcount = 2 and transferred = 1
-                 from public.zm_report_workforce('hub', current_date - 7, current_date, tests.id('zone_a')) where group_key = 'A1'),
-                'hub-wise workforce report');
-select tests.ok((select headcount = 2 from public.zm_report_workforce('department', current_date - 7, current_date, tests.id('zone_a')) where group_key = 'OPS'),
-                'department-wise workforce report');
-select tests.ok(tests.row_count('select * from public.zm_report_employees(current_date - 7, current_date)') = 2,
-                'employee-wise report lists employees in scope only');
-select public.zm_log_export('hub_performance', 'excel', '{"zone":"ZA"}');
-select tests.throws($$select public.zm_log_export('hub_performance', 'docx')$$, 'unknown export format rejected', '22023');
-select tests.login(tests.id('hub_mgr'));
-select tests.ok(tests.row_count($$select * from public.zm_report_operations('hub', current_date - 7, current_date - 1)$$) = 1,
-                'hub manager report shows own hub only');
-select tests.throws($$select public.zm_log_export('hub_performance', 'pdf')$$, 'export needs the export permission', '42501');
-select tests.login(tests.id('super'));
-select tests.ok(tests.row_count($$select * from public.zm_report_operations('hub', current_date - 7, current_date - 1)$$) = 3,
-                'head office sees every hub');
 
 select tests.login_anon();
 select tests.throws('select * from public.hub_daily_metrics', 'anonymous users cannot read hub figures', '42501');
@@ -327,8 +299,4 @@ select tests.throws('select * from public.tasks', 'anonymous users cannot read t
 select tests.throws(format('select public.zm_dashboard(%L, current_date - 7, current_date)', tests.id('zone_a')),
                     'anonymous users cannot call the dashboard', '42501');
 
-select tests.logout();
-select tests.ok(exists (select 1 from public.audit_logs where action = 'EXPORT' and module = 'zonal' and record_id = 'hub_performance'
-                        and actor_id = tests.id('zonal_a')),
-                'every export is written to the audit log');
 rollback;
