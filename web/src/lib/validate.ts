@@ -7,7 +7,7 @@ export const toLatinDigits = (s: string) => s.replace(/[০-৯]/g, d => String(
 export const BD_MOBILE = /^01[3-9][0-9]{8}$/
 /** 01XXXXXXXXX from whatever a person types: Bangla digits, +88 / 88 in front, spaces and dashes. */
 export function cleanMobile(raw: string): string {
-  return toLatinDigits(raw).replace(/[\s-]/g, '').replace(/^\+?88(?=01)/, '')
+  return toLatinDigits(raw).replace(/[\s-]/g, '').replace(/^\+?88(?=01)/, '').replace(/^\+?880?(?=1[3-9]\d{8}$)/, '0')
 }
 
 /** A rule looks at the text of one box and returns the message to show, or null when it is fine. */
