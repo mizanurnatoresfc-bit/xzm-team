@@ -27,3 +27,16 @@ node ../scripts/role-demo/walk.mjs          # ROLES=hub_mgr SIZES=phone to narro
 
 Screenshots and `walk-report.json` land in `web/role-demo-out/`.
 Result of 22 Nov 2026: 227 pages × 2 sizes, 0 crashes, 0 failed database calls (see `docs/GO_LIVE_ROADMAP.md`).
+
+## UI/UX measurements (`ux.mjs`)
+
+Same set-up, but instead of looking for crashes it measures every page: wider than the screen, small tap targets,
+tiny text, cut-off text, sideways-scrolling strips, English-only text, and axe-core (WCAG A/AA: contrast, labels).
+
+```bash
+cd web && npm i --no-save pg axe-core
+OUT=/tmp/ux PORT=4201 ROLES=hub_mgr SIZES=phone node ../scripts/role-demo/ux.mjs   # one role and size per run; give each run its own PORT
+PATHS=/app,/app/staff OUT=/tmp/ux PORT=4201 ROLES=rider_login node ../scripts/role-demo/ux.mjs   # only these pages
+```
+
+Full-page screenshots and `report-<role>-<size>.json` land in `OUT`. Result of 23 Nov 2026: `docs/UI_UX_AUDIT_2026-11-23.md`.

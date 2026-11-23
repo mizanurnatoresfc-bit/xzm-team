@@ -1,3 +1,4 @@
+import { askReason } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
@@ -50,7 +51,7 @@ export function RouteSettings() {
   const warns = useMemo(() => o ? problems(o, L, n) : [], [o, L, n])
 
   async function archive(r: ZoneRoute) {
-    const why = window.prompt(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`)) ?? ''
+    const why = (await askReason(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`), { ok: L('সরান', 'Remove') })) ?? ''
     if (!why.trim()) return
     try { await routeApi.archive(r.id, why.trim()); toast(L('রুট সরানো হয়েছে', 'Route removed')); if (sel === r.id) setSel(null); await ov.reload() } catch (e) { setErr(routeFriendly(e)) }
   }

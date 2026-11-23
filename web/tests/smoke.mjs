@@ -436,7 +436,8 @@ try {
     })
     const page = await ctx.newPage()
     const errors = []; page.on('pageerror', e => errors.push(String(e)))
-    page.on('dialog', d => { void d.accept() })
+    // The app asks with its own boxes (components/ask.tsx); a browser prompt / confirm / alert is a mistake.
+    const nativeDialogs = []; page.on('dialog', d => { nativeDialogs.push(`${d.type()}: ${d.message().slice(0, 60)}`); void d.accept() })
     const fits = async where => check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${size}: ${where} does not scroll sideways`)
 
     await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1', { state: 'attached' })
@@ -1184,6 +1185,8 @@ try {
     await page.locator('.da-modal input[autocomplete=new-password]').fill('Natore2026')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-bulk.png`, fullPage: true })
     await page.locator('.da-modal-acts button').last().click()
+    // the app's own "start?" box (it used to be the browser's confirm)
+    await page.locator('.da-modal', { hasText: 'শুরু করবেন?' }).locator('.da-modal-acts button', { hasText: 'শুরু করুন' }).click()
     await page.waitForFunction(() => /শেষ হয়েছে/.test(document.querySelector('.da-modal')?.textContent ?? ''), null, { timeout: 30000 }).catch(() => {})
     const bulkMade = accounts.filter(a => a.password === 'Natore2026')
     check(bulkMade.length === 12 && bulkMade.every(a => a.action === 'create' && /^id-10\d\d@xzmteam\.com$/.test(a.email) && a.role_id === 'r3' && a.scope_type === 'hub'
@@ -1215,9 +1218,11 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-panel.png`, fullPage: true })
     check(await page.locator('.app-dl').count() === 1, `${size}: the staff panel ends with the Android app card`)
     { const sp = await page.locator('.sp').innerText()
-      const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
+      // Today's attendance is not given yet, so it comes first; the rest keep the owner's order.
+      const order = ['আজকের হাজিরা', 'আমার হিসাব', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
       check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
-        `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
+        `${size}: the staff panel shows attendance (not given yet) first, then accounts, bill, route, complaint, issues and my people, in that order`)
+      check(await page.locator('.sp-hero a.sp-att.go[href="#sp-att"]', { hasText: 'হাজিরা দিন' }).count() === 1, `${size}: the hero's "give attendance" badge takes you to the attendance buttons`)
       check(await page.locator('.sp-hero .hoodie-av').count() === 1 && await page.locator('.sp-hero .my-av-cam input[type=file][accept="image/*"]').count() === 1,
         `${size}: with no photo the staff panel shows the hoodie avatar, with a button to put up my own photo`)
       check(await page.locator('.sp a.nv-row[href="/app/workforce/hand"]').count() === 1 && await page.locator('.sp a.nv-row[href="/app/workforce/given"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel people rows open their personal workforce pages`)
@@ -1627,6 +1632,7 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
 
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
+    check(nativeDialogs.length === 0, `${size}: no browser prompt, confirm or alert boxes${nativeDialogs.length ? ' — ' + nativeDialogs[0] : ''}`)
     await ctx.close()
   }
 } finally { await browser.close(); stop() }

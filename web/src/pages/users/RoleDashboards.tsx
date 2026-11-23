@@ -45,7 +45,7 @@ export function RoleDashboards() {
           <tbody>{(list.data ?? []).map(r => <tr key={r.role_id}>
             <td><strong>{lang === 'bn' && r.name_bn ? r.name_bn : r.name}</strong>{r.is_super ? <> <Badge tone="bad">{L('সব ক্ষমতা', 'Full control')}</Badge></> : null}</td>
             <td>{n(r.user_count)}</td>
-            <td data-label={L('প্রথমে কোন ভিউ', 'Opens on')}><select className="rd-view" value={r.default_view ?? ''} onChange={e => void setRoleView(r, e.target.value)}>
+            <td data-label={L('প্রথমে কোন ভিউ', 'Opens on')}><select className="rd-view" aria-label={L('প্রথমে কোন ভিউ', 'Opens on')} value={r.default_view ?? ''} onChange={e => void setRoleView(r, e.target.value)}>
               <option value="">{L('নিজে ঠিক হবে', 'Automatic')}</option>{VIEWS.map(([v, bn, en]) => <option key={v} value={v}>{L(bn, en)}</option>)}</select></td>
             <td className="small">{r.panels.length ? r.panels.map(p => panelLabel(p, lang)).join(' · ')
               : <span className="muted">{L('আলাদা করে কিছু বলা নেই — অনুমতি অনুযায়ী দেখাবে', 'Nothing set — follows their permissions')}</span>}</td>

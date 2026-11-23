@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/ask'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { ACCOUNTS, ADMIN, AppShell, GROUPS, HOME, NEW_UNTIL, OFFICE, SORTING, type MenuGroup, type MenuItem } from '../../components/AppShell'
@@ -93,7 +94,7 @@ export function MenuEditor() {
     subtitle={L('মেনুর নাম, আইকন, ক্রম, লুকানো সারি আর “নতুন” ব্যাজ এখান থেকে বদলান — কোড ধরতে হবে না। কে কোন পাতা খুলতে পারবে তা আগের মতোই রোলের অনুমতি ঠিক করে।',
       'Change the menu’s names, icons, order, hidden rows and “new” badges here, without touching the code. Who may open a page is still decided by the role’s permissions.')}
     actions={allowed ? <>
-      <button className="secondary" disabled={busy || !changed} onClick={() => { if (window.confirm(L('সব বদল মুছে মেনু আগের মতো করবেন?', 'Undo every change and bring back the original menu?'))) put(EMPTY_LAYOUT) }}>{L('সব আগের মতো', 'Reset all')}</button>
+      <button className="secondary" disabled={busy || !changed} onClick={async () => { if (await askConfirm(L('সব বদল মুছে মেনু আগের মতো করবেন?', 'Undo every change and bring back the original menu?'), { ok: L('আগের মতো করুন', 'Reset'), danger: true })) put(EMPTY_LAYOUT) }}>{L('সব আগের মতো', 'Reset all')}</button>
       <button disabled={busy || !dirty} onClick={() => void save()}>{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('সেভ করুন', 'Save')}</button></> : null}>
     <style>{CSS}</style>
     {node}

@@ -1,5 +1,6 @@
 // The sheet as a tool: a ⋮ menu on every part (add a line, print this part, Excel of this part, lay out its
 // columns, switch it off), own columns with values per line, and the bank part (report IDs, deposits, slips).
+import { askConfirm, askText, tell } from '../../components/ask'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import {
   da, num, taka, dateBn, timeBn, todayDhaka, NOTE_METHOD,
@@ -134,8 +135,8 @@ export function SectionMenu({ sec, title, s, settings, onAdd, addLabel, onLayout
       { label: 'এই অংশ প্রিন্ট / পিডিএফ', onClick: () => printSection(el(), `${title} — ${sub}`) },
       { label: 'এই অংশ এক্সেলে', onClick: () => exportSection(el(), title, sub) },
       { label: 'কলাম সাজান (দেখান, লুকান, নাম বদল, নতুন কলাম)', onClick: () => setDlg(true), hide: !s.can_layout },
-      { label: 'এই অংশ বন্ধ করুন', danger: true, hide: !s.can_layout, onClick: () => {
-        if (!window.confirm(`"${title}" অংশটা সবার জন্য বন্ধ হবে। হিসাব সেটিংস থেকে আবার চালু করা যাবে।`)) return
+      { label: 'এই অংশ বন্ধ করুন', danger: true, hide: !s.can_layout, onClick: async () => {
+        if (!await askConfirm(`"${title}" অংশটা সবার জন্য বন্ধ করবেন?`, { detail: 'হিসাব সেটিংস থেকে আবার চালু করা যাবে।', ok: 'বন্ধ করুন', danger: true })) return
         const all: Layout = { ...(settings['da.layout'] ?? {}) }
         all[sec] = { ...(all[sec] ?? {}), off: true }
         void da.configure('da.layout', all).then(() => onLayoutSaved(`"${title}" বন্ধ করা হলো`))
@@ -220,10 +221,10 @@ export function ExtraCells({ s, settings, sec, row, reload }: {
   const cols = layoutOf(settings, sec).extra ?? []
   const val = (col: string) => s.cells?.find(c => c.section === sec && c.row_id === row && c.col === col)?.value ?? ''
   async function edit(col: string, label: string) {
-    const v = window.prompt(label, val(col))
+    const v = await askText(label, { initial: val(col), optional: true, short: true, label: 'মান', ok: 'সেভ করুন' })
     if (v === null) return
     try { await da.setCell(s.session.id, sec, row, col, v); await reload('সংরক্ষিত') }
-    catch (e) { window.alert(String((e as Error).message ?? e)) }
+    catch (e) { void tell(String((e as Error).message ?? e)) }
   }
   return <>{cols.map(x => <td key={x.key} data-l={x.label}>
     {s.can_edit ? <button type="button" className="link cell-edit" onClick={() => void edit(x.key, x.label)}>{val(x.key) || <span className="muted">＋</span>}</button>
@@ -551,7 +552,7 @@ export function LayoutCard({ value, onSave }: { value: Layout | undefined; onSav
         <td data-l="লুকানো">{(c.hidden ?? []).join(', ') || '—'}</td>
         <td data-l="নতুন নাম">{Object.entries(c.labels ?? {}).map(([a, b]) => `${a} → ${b}`).join(', ') || '—'}</td>
         <td data-l="নিজের কলাম">{(c.extra ?? []).map(x => x.label).join(', ') || '—'}</td>
-        <td><button className="secondary sm" disabled={!lay[sec.key]} onClick={() => { if (window.confirm('এই অংশ আগের মতো করবেন? নিজের কলামের লেখা খাতায় থেকে যাবে, শুধু দেখাবে না।')) set(sec.key, null) }}>আগের মতো</button></td>
+        <td><button className="secondary sm" disabled={!lay[sec.key]} onClick={async () => { if (await askConfirm('এই অংশ আগের মতো করবেন?', { detail: 'নিজের কলামের লেখা খাতায় থেকে যাবে, শুধু দেখাবে না।', ok: 'আগের মতো করুন' })) set(sec.key, null) }}>আগের মতো</button></td>
       </tr> })}</tbody></table></div>
   </section>
 }
