@@ -31,12 +31,12 @@ export function MyApprovalCard() {
       supabase.from('da_rider_lines')
         .select('id, session_id, hub_id, rider_name, employee_code, pickup_qty, delivery_qty, amount, seq, office_deposit, created_at')
         .eq('created_by', uid).eq('source', 'rider').is('accepted_at', null).is('removed_at', null).order('created_at').limit(200)
-        .then(r => (r.error ? [] : r.data ?? []) as RiderRow[]),
+        .then(r => { if (r.error) throw r.error; return (r.data ?? []) as RiderRow[] }),
       canBills ? supabase.from('da_expense_claims')
         .select('id, no, hub_id, employee_code, employee_name, kind, expense_name, category, amount, bill_date, attachment_path, remarks, created_at')
         .eq('status', 'submitted').order('created_at').limit(200)
-        .then(r => (r.error ? [] : r.data ?? []) as BillRow[]) : Promise.resolve([] as BillRow[]),
-      dashboard.approvals(can).catch(() => ({ apps: -1, leave: -1, sheets: -1, hrreq: -1 })),
+        .then(r => { if (r.error) throw r.error; return (r.data ?? []) as BillRow[] }) : Promise.resolve([] as BillRow[]),
+      dashboard.approvals(can, { throwOnError: true }),
       org.hubs().catch(() => []),
     ])
     return { riders, bills, other, hubs: new Map(hubs.map(h => [h.id, h.name])) }
@@ -50,6 +50,12 @@ export function MyApprovalCard() {
   useEffect(() => { if (!done) return; const t = window.setTimeout(() => setDone(null), 3500); return () => window.clearTimeout(t) }, [done])
   // riders keep sending through the day: look again every minute
   useEffect(() => { const t = window.setInterval(() => void d.reload(), 60000); return () => window.clearInterval(t) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (d.error) return <section className="panel">
+    <h2>{L('আমার অনুমোদন', 'My approvals')}</h2>
+    <ErrorNote error={d.error} />
+    <button type="button" className="secondary" disabled={d.loading} onClick={() => void d.reload()}>{L('আবার চেষ্টা করুন', 'Retry')}</button>
+  </section>
 
   const v = d.data
   if (!v) return null

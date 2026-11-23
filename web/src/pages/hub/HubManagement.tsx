@@ -98,6 +98,7 @@ function AttendanceToday({ hub }: { hub: Hub }) {
   const [busy, setBusy] = useState(''); const [err, setErr] = useState('')
   const canAdd = can('hr.attendance.create'); const canEdit = can('hr.attendance.edit')
   async function mark(emp: string, s: AttendanceStatus) {
+    if (busy) return
     const ex = byEmp[emp]
     if (ex?.status === s) return
     if (ex && !canEdit) { setErr(L('একবার দেওয়া হাজিরা বদলানোর অনুমতি নেই', 'You may not change attendance once given')); return }
@@ -106,9 +107,27 @@ function AttendanceToday({ hub }: { hub: Hub }) {
     try { await hr.markAttendance(emp, date, s, ex); await day.reload() } catch (e) { setErr(hrFriendly(e)) } finally { setBusy('') }
   }
   async function allPresent() {
+    if (busy) return
     const todo = (staff.data ?? []).filter(e => !byEmp[e.id])
-    for (const e of todo) { try { await hr.markAttendance(e.id, date, 'present') } catch (x) { setErr(hrFriendly(x)); break } }
-    await day.reload(); toast(L(`${n(todo.length)} জনকে উপস্থিত দেওয়া হয়েছে`, `${todo.length} marked present`))
+    if (!todo.length) return
+    setBusy('bulk')
+    setErr('')
+    let saved = 0
+    try {
+      for (const employee of todo) {
+        await hr.markAttendance(employee.id, date, 'present')
+        saved += 1
+      }
+    } catch (error) {
+      setErr(hrFriendly(error))
+    } finally {
+      try {
+        await day.reload()
+        if (saved > 0) toast(L(`${n(saved)} জনকে উপস্থিত দেওয়া হয়েছে`, `${saved} marked present`))
+      } finally {
+        setBusy('')
+      }
+    }
   }
   const total = staff.data?.length ?? 0
   const c = (s: AttendanceStatus) => (day.data ?? []).filter(r => r.status === s).length
@@ -124,7 +143,7 @@ function AttendanceToday({ hub }: { hub: Hub }) {
     {canAdd && <SelfMarks hub={hub.id} />}
     <section className="panel">
       <div className="da-bar"><h2>{L('আজকের হাজিরা খাতা', "Today's attendance")}</h2>
-        {canAdd && staff.data?.some(e => !byEmp[e.id]) && <button className="secondary sm" onClick={() => void allPresent()}>{L('বাকি সবাই উপস্থিত', 'Rest are present')}</button>}</div>
+        {canAdd && staff.data?.some(e => !byEmp[e.id]) && <button className="secondary sm" disabled={Boolean(busy)} onClick={() => void allPresent()}>{L('বাকি সবাই উপস্থিত', 'Rest are present')}</button>}</div>
       {err && <p className="da-error">{err}</p>}
       {staff.error ? <p className="da-error">{hrFriendly(staff.error)}</p> : staff.data && !staff.data.length ? <p className="muted">{L('এই হাবে কোনো সক্রিয় কর্মী নেই।', 'No active staff in this hub.')}</p> :
         <div className="da-table-wrap"><table className="da-table att-table"><thead><tr><th>{L("আইডি", "ID")}</th><th>{L("নাম", "Name")}</th><th>{L("হাজিরা", "Attendance")}</th></tr></thead>

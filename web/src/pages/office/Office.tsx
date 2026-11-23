@@ -68,6 +68,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
       {sec.key !== 'places' && !allFlats && list.length > 0 && <Field label={res ? L('আবাসিক ফ্ল্যাট', 'Residence') : L('অফিস / গ্যারেজ', 'Office / garage')}><select value={pid} onChange={e => setPid(e.target.value)}>
         {list.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>}
       <nav className="hub-tabs" aria-label={res ? L('আবাসিক', 'Residential') : L('আমার অফিস', 'My office')}>
+        {res && can('issue.issue.create') && <Link to={'/app/issues?new=residential' + (p?.hub_id && !allFlats ? '&hub=' + p.hub_id : '')}><Icon name="alert" size={15} /><span>{L('আবাসিক ইস্যু জানান', 'Report a residential issue')}</span></Link>}
         {tabs.map(t => <Link key={t.key} to={scopePath(scope, t.key)} className={t.key === sec.key ? 'on' : ''}><Icon name={t.icon} size={15} /><span>{L(t.bn, t.en)}</span></Link>)}
       </nav>
     </section>
@@ -481,7 +482,6 @@ function Assets({ ctx }: { ctx: Ctx }) {
     watt: r.watt?.toString() ?? '', hours: r.hours_per_day?.toString() ?? '', spec: r.spec ?? '' }) }
   /** One ⋮ menu per item instead of a row of five buttons. */
   const actions = (r: Asset): RowMenuItem[] => [
-    ...(canRep && r.condition !== 'broken' ? [{ label: L('নষ্ট — রিপোর্ট করুন', 'Broken — report it'), icon: 'alert', danger: true, onClick: () => setRep({ a: r, kind: 'broken' }) }] : []),
     ...(canRep ? [{ label: L('আরও লাগবে', 'Need more'), icon: 'bell', onClick: () => setRep({ a: r, kind: 'need' }) }] : []),
     ...(edit ? [{ label: L('অন্য অফিসে দিন', 'Lend to another office'), icon: 'hub', onClick: () => setLend(r) },
       { label: L('এডিট', 'Edit'), icon: 'edit', onClick: () => openEdit(r) },
@@ -495,13 +495,13 @@ function Assets({ ctx }: { ctx: Ctx }) {
           {Object.entries(CONDITION).map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select>
         {edit && <button onClick={() => { setErr(''); setF({ kind: 'monitor', name: ASSET_KIND.monitor[0], room: '', desk: '', qty: '1', condition: 'good', brand: '', serial: '', holder: null, date: '', price: '', note: '', watt: '', hours: '', spec: '' }) }}>
           <Icon name="plus" size={15} />{L('জিনিস যোগ', 'Add item')}</button>}
-        {canRep && <button className="secondary" onClick={() => setRep({ a: null, kind: 'need' })}><Icon name="bell" size={15} />{L('কিছু লাগবে', 'Need something')}</button>}</span></div>
+        {canRep && <button className="secondary" onClick={() => setRep({ a: null, kind: 'need' })}><Icon name="bell" size={15} />{L('চাহিদা পাঠান', 'Send a request')}</button>}</span></div>
       {byKind.length > 0 && <div className="oo-kind-row" role="group" aria-label={L('ধরন অনুযায়ী দেখুন', 'Show by kind')}>
         {byKind.length > 1 && <button type="button" className={`oo-kind${!kindF ? ' on' : ''}`} aria-pressed={!kindF} onClick={() => setKindF('')}>{L('সব', 'All')}</button>}
         {byKind.map(([k, c]) => <button type="button" key={k} className={`oo-kind${kindF === k ? ' on' : ''}`} aria-pressed={kindF === k} onClick={() => setKindF(kindF === k ? '' : k)}>
           <Icon name={ASSET_KIND[k]?.[2] ?? 'form'} size={16} /><span>{L(ASSET_KIND[k]?.[0] ?? k, ASSET_KIND[k]?.[1] ?? k)}</span><b>{n(c)}</b></button>)}</div>}
       <details className="oo-help"><summary>{L('কীভাবে ব্যবহার করবেন', 'How to use this')}</summary>
-        <p className="muted small">{L('প্রতিটা জিনিসের ⋮ মেনুতে "নষ্ট" চাপলে জোনাল ম্যানেজারের কাছে রিপোর্ট যায়; "আরও লাগবে" দিয়ে আরও চাওয়া যায়। তালিকায় যা নেই তা "অন্যান্য" ধরনে নিজের নাম দিয়ে যোগ করুন।', 'In each item\'s ⋮ menu, "Broken" reports it to the zonal manager; "Need more" asks for more. Anything not in the list goes under "Other" with its own name.')}</p></details>
+        <p className="muted small">{L('প্রতিটা জিনিসের পাশে "নষ্ট" চাপলে জোনাল ম্যানেজারের কাছে রিপোর্ট যায়; "আরও লাগবে" দিয়ে আরও চাওয়া যায়। তালিকায় যা নেই তা "অন্যান্য" ধরনে নিজের নাম দিয়ে যোগ করুন।', 'Next to each item, "Broken" reports it to the zonal manager; "Need more" asks for more. Anything not in the list goes under "Other" with its own name.')}</p></details>
       {mineOut.length > 0 && <p className="small">{L('অন্য হাব ব্যবহার করছে (গোনা এই অফিসের নামেই)', 'Used by other hubs (still counted here)')}: {mineOut.map(l => `${l.asset_name} ${n(l.quantity)} → ${l.to_name}`).join(' · ')}</p>}
       {mineIn.length > 0 && <p className="small">{L('অন্যের জিনিস এখানে ব্যবহার হচ্ছে', 'Borrowed from others')}: {mineIn.map(l => `${l.asset_name} ${n(l.quantity)} (${l.from_name})`).join(' · ')}</p>}
     </section>
@@ -518,7 +518,7 @@ function Assets({ ctx }: { ctx: Ctx }) {
           { key: 'holder', label: L('কার কাছে', 'Held by'), value: r => empLabel(ctx.emp[r.holder_id ?? '']) },
           { key: 'cond', label: L('অবস্থা', 'Condition'), value: r => L(CONDITION[r.condition][0], CONDITION[r.condition][1]),
             render: r => <Badge tone={CONDITION[r.condition][2]}>{L(CONDITION[r.condition][0], CONDITION[r.condition][1])}</Badge> },
-          ...(edit || canRep ? [{ key: 'act', label: '', noExport: true, render: (r: Asset) => <RowMenu label={`${r.name} — ${L('কাজ', 'actions')}`} items={actions(r)} /> }] : []),
+          ...(edit || canRep ? [{ key: 'act', label: '', noExport: true, render: (r: Asset) => <span className="row-acts">{canRep && r.condition !== 'broken' && <button type="button" className="secondary sm" onClick={() => setRep({ a: r, kind: 'broken' })}>{L('নষ্ট', 'Broken')}</button>}<RowMenu label={`${r.name} — ${L('কাজ', 'actions')}`} items={actions(r)} /></span> }] : []),
         ]} />
     </section>
     {f && <Modal wide title={f.id ? L('জিনিস এডিট', 'Edit item') : L('জিনিস যোগ', 'Add item')} onClose={() => setF(null)}
