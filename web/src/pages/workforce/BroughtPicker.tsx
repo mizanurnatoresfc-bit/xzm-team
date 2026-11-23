@@ -7,7 +7,7 @@ import { refs, type HubPerson } from '../../lib/refs'
 import { extraFriendly, referrals } from '../../lib/extra'
 import type { EmpRow } from '../../lib/hrreq'
 import { Badge, useLoad, useToast } from '../accounts/ui'
-import { useOrg } from '../hr/common'
+import { hubLabel } from '../../lib/hr'
 
 /**
  * "আমার লোক দেওয়া" — everything on one page, no trip to the profile:
@@ -17,7 +17,8 @@ import { useOrg } from '../hr/common'
  */
 export function BroughtPicker({ me }: { me: EmpRow }) {
   const { L, n } = usePrefs()
-  const o = useOrg()
+  // every hub of my zone (owner, 23 Nov: staff bring people to other hubs too), not only the hubs my role may open
+  const zoneHubs = useLoad(() => refs.zoneHubs(), [])
   const { toast, node } = useToast()
   const [open, setOpen] = useState(false)
   const [hub, setHub] = useState(me.hub_id ?? '')
@@ -79,7 +80,7 @@ export function BroughtPicker({ me }: { me: EmpRow }) {
     {open && <section className="panel bp-pick">
       <div className="bp-step"><span className="bp-n">১</span><b>{L('হাব', 'Hub')}</b></div>
       <Combo value={hub} label={L('হাব', 'Hub')} onChange={v => { setHub(v); setPost(''); setQ('') }}
-        options={(o.data?.hubs ?? []).map(h => ({ value: h.id, label: h.name }))} placeholder={L('হাব বেছে নিন…', 'Choose a hub…')} />
+        options={(zoneHubs.data ?? []).map(h => ({ value: h.id, label: hubLabel(h) }))} placeholder={L('হাব বেছে নিন…', 'Choose a hub…')} />
 
       {hub && <>
         <div className="bp-step"><span className="bp-n">২</span><b>{L('পদবী', 'Post')}</b></div>
