@@ -31,7 +31,7 @@ type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 /** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
 export const NEW_UNTIL: Record<string, string> = {
   '/app/manpower': '2026-11-30', '/app/workforce/attendance': '2026-11-30', '/app/workforce/hub': '2026-11-30',
-  '/app/manager/staff': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
+  '/app/staff/list': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
   '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
 }
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
@@ -155,10 +155,8 @@ export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং স
  */
 export const HR: Group = panel('hr', 'users', 'এইচআর বিভাগ', 'HR department', [
   { bn: 'কর্মী তালিকা ও প্রোফাইল', en: 'Staff & profiles', items: [
-      { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
-      { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
+      { to: '/app/staff/list', icon: 'users', bn: 'কর্মী তালিকা', en: 'Staff list', hint: { bn: 'পুরো কর্মী তালিকা — পদ, এরিয়া, হাব; হাব ম্যানেজারের জন্য নিজ হাবের সক্রিয় স্টাফ', en: 'Full staff list — roles see their scope' }, perms: ['hr.employee.view', 'hr.application.create', 'hr.request.create'] },
       { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
-      { to: '/app/manager/staff', icon: 'usercheck', bn: 'সক্রিয় স্টাফ', en: 'Active staff', hint: { bn: 'সক্রিয় স্টাফ (নতুন যোগ / চাকরি ছাড়া)', en: 'Active staff (join / leave)' }, perms: ['hr.request.create'] },
       { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
   ] },
   { bn: 'আইডি ও এইচআর অনুরোধ', en: 'IDs & HR requests', items: [
@@ -294,7 +292,7 @@ const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: str
   { to: '/app/hub/attendance', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'ট্রিপ', en: 'Trips', perms: ['sorting.parcel.view', 'sorting.parcel.create', 'sorting.center.view'], match: '/app/sorting' },
   { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: DA, match: '/app/accounts/daily' },
-  { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Staff', perms: ['hr.employee.view'], match: '/app/hr' },
+  { to: '/app/staff/list', icon: 'users', bn: 'কর্মী', en: 'Staff', perms: ['hr.employee.view'], match: '/app/staff' },
 ]
 // The tab bar follows the home view: a staff member's own app, a hub manager's hub app, or the full zone app.
 type Tab = { to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }
@@ -328,7 +326,7 @@ const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: st
   { to: '/app/accounts/mine?bill=1', icon: 'receipt', bn: 'আমার বিল', en: 'My bill', perms: null, tone: 'o' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },
   { to: '/app/sorting/fuel', icon: 'cash', bn: 'তেলের রিকুয়েস্ট', en: 'Fuel request', perms: ['sorting.fuel.create'], tone: 'r' },
-  { to: '/app/zonal/staff', icon: 'user', bn: 'নতুন কর্মী', en: 'New staff', perms: ['hr.application.create'], tone: 'p' },
+  { to: '/app/staff/list', icon: 'user', bn: 'নতুন কর্মী', en: 'New staff', perms: ['hr.application.create'], tone: 'p' },
   { to: '/app/office/assets', icon: 'grid', bn: 'অফিস রিসোর্স', en: 'Office item', perms: ['office.asset.edit'], tone: 'b' },
 ]
 
@@ -545,7 +543,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <button className="icon menu-btn" aria-label={L('মেনু', 'Menu')} aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name="menu" /></button>
         {here !== '/app' && <button className="icon back-btn" aria-label={L('পেছনে', 'Back')} onClick={() => history.length > 1 ? nav(-1) : nav('/app')}><Icon name="back" /></button>}
         <div className="top-title"><b>{title}</b>{subtitle && <span>{subtitle}</span>}</div>
-        {canSearch && <form className={`search${mSearch ? ' m-open' : ''}`} role="search" onSubmit={e => { e.preventDefault(); if (q.trim()) { setMSearch(false); nav(`/app/hr/employees?q=${encodeURIComponent(q.trim())}`) } }}>
+        {canSearch && <form className={`search${mSearch ? ' m-open' : ''}`} role="search" onSubmit={e => { e.preventDefault(); if (q.trim()) { setMSearch(false); nav(`/app/staff/list?q=${encodeURIComponent(q.trim())}`) } }}>
           <Icon name="search" size={16} /><input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('কর্মীর নাম, আইডি বা মোবাইল খুঁজুন…', 'Search employee name, ID or mobile…')} aria-label={L('খুঁজুন', 'Search')} />
         </form>}
         <span className="spacer" />

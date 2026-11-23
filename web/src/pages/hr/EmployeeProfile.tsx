@@ -45,7 +45,7 @@ export function EmployeeProfile() {
   return <AppShell title="কর্মীর প্রোফাইল" subtitle="টিম">
     {node}
     <section className="emp-head">
-      <div className="emp-cover"><Link to="/app/hr/employees" className="emp-back"><Icon name="back" size={16} /> সব কর্মী</Link></div>
+      <div className="emp-cover"><Link to="/app/staff/list" className="emp-back"><Icon name="back" size={16} /> সব কর্মী</Link></div>
       <div className="emp-top">
         <div className="emp-photo">{photo.data ? <img src={photo.data} alt="" /> : (e.full_name || '?').slice(0, 2).toUpperCase()}</div>
         <div className="emp-id">
@@ -284,7 +284,7 @@ function Details({ e, askEdit = 0, onChanged }: { e: Employee; askEdit?: number;
       if (modal === 'transfer') { await hr.transfer(e.id, { hub: f.hub, department: f.department || null, position: f.position || null, manager: e.reporting_manager_id, effective: f.effective, reason: f.reason.trim(), type: f.type }); await onChanged('বদলি/পরিবর্তন সেভ হয়েছে') }
       if (modal === 'archive') { await hr.archive(e.id, f.reason.trim()); await onChanged('আর্কাইভ করা হয়েছে — তথ্য মুছে যায়নি') }
       if (modal === 'code') { const c = await hr.correctCode(e.id, f.code.trim(), f.reason.trim()); await onChanged(`এমপ্লয়ি আইডি এখন ${c}`) }
-      if (modal === 'wrong') { await hr.removeWrongEntry(e.id, f.reason.trim()); setModal(null); nav('/app/hr/employees', { replace: true }); return }
+      if (modal === 'wrong') { await hr.removeWrongEntry(e.id, f.reason.trim()); setModal(null); nav('/app/staff/list', { replace: true }); return }
       if (modal === 'reveal') { const r = await hr.reveal(e.id, f.reason.trim()); setRevealed(r?.[0] ?? null) }
       if (modal === 'edit') {
         if (!BD_MOBILE.test(f.mobile.trim())) throw new Error('সঠিক মোবাইল নম্বর দিন')

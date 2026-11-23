@@ -76,7 +76,7 @@ export function ZonalDashboard() {
       {(can('zonal.hub_ops.view') || can('zonal.hub_ops.create')) && <Link to="/app/zonal/hub-ops" className="btn-ghost"><Icon name="chart" size={16} />{L('হাব অপারেশন ড্যাশবোর্ড', 'Hub Operations Dashboard')}</Link>}
       {can('hr.attendance.configure') && <Link to="/app/workforce/zone?tab=setting" className="btn-ghost"><Icon name="cal" size={16} />{L('হাজিরা: আগের তারিখ খোলা', 'Attendance: open earlier dates')}</Link>}
       <Link to="/app/accounts/report-import" className="btn-ghost"><Icon name="upload" size={16} />{L('রিপোর্ট আপলোড', 'Report upload')}</Link>
-      <Link to="/app/zonal/staff" className="btn-ghost"><Icon name="users" size={16} />{L('হাব অনুযায়ী কর্মী ও বদলি', 'Staff by hub & transfers')}</Link>
+      <Link to="/app/staff/list" className="btn-ghost"><Icon name="users" size={16} />{L('হাব অনুযায়ী কর্মী ও বদলি', 'Staff by hub & transfers')}</Link>
       <button className="secondary no-print" onClick={() => window.print()}><Icon name="print" size={16} />{L('প্রিন্ট', 'Print')}</button></>}>
     {node}
     <section className="da-filters panel no-print">
@@ -143,7 +143,7 @@ export function ZonalDashboard() {
         ['plan', 'জনবল পরিকল্পনা', 'Workforce plan', 'users'], ['visits', 'ভিজিট ও ক্লেইম', 'Visits & claims', 'map']] as const).map(([k, b, e, ic]) =>
         <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={16} />{L(b, e)}</button>)}
     </nav>
-    {tab === 'hubs' && <HubPerformance rows={hubs.data ?? []} loading={hubs.loading} onOpen={() => nav('/app/zonal/staff')} />}
+    {tab === 'hubs' && <HubPerformance rows={hubs.data ?? []} loading={hubs.loading} onOpen={() => nav('/app/staff/list')} />}
     {tab === 'reports' && <ReportStatus zone={z} />}
     {tab === 'tasks' && <ManagerTasks zone={z} from={from} to={to} />}
     {tab === 'plan' && <WorkforcePlan zone={zone} from={from} to={to} onToast={toast} />}

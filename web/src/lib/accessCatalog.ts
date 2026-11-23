@@ -37,8 +37,7 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/accounts/learn' },
   ] },
   { key: 'hr', icon: 'users', bn: 'স্টাফ ও এইচআর', en: 'Staff & HR', db: ['hr'], subs: [
-    { to: '/app/hr/employees', res: ['hr.employee', 'hr.employee_sensitive', 'hr.employee_profile', 'hr.document', 'hr.transfer', 'hr.status'] },
-    { to: '/app/zonal/staff', codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.transfer.edit', 'hr.status.edit', 'hr.application.create', 'hr.application.approve'] },
+    { to: '/app/staff/list', res: ['hr.employee', 'hr.employee_sensitive', 'hr.employee_profile', 'hr.document', 'hr.transfer', 'hr.status'], codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.transfer.edit', 'hr.status.edit', 'hr.application.create', 'hr.application.approve'] },
     { to: '/app/hr/applications', res: ['hr.application'] },
     { to: '/app/hr/attendance', res: ['hr.attendance'] },
     { to: '/app/zonal/assistant', res: ['hr.attendance_gap'] },
@@ -64,7 +63,7 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/hub/tasks', res: ['zonal.task'] },
     { to: '/app/hub/ops', res: ['zonal.hub_metric'] },
     { to: '/app/hub/team', codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.employee_profile.edit', 'hr.application.create'] },
-    { to: '/app/manager/staff', codes: ['hr.request.create', 'hr.application.create', 'hr.employee.view'] },
+    { to: '/app/staff/list', codes: ['hr.request.create', 'hr.application.create', 'hr.employee.view'] },
     { to: '/app/hub/logins', res: ['system.user_hub'] },
     { to: '/app/hub/routes', res: ['ops.route'] },
     { to: '/app/routes/plan', res: ['ops.route_plan', 'ops.route_plan_own'] },

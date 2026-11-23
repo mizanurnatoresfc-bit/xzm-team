@@ -53,7 +53,7 @@ export function ZonalRequests() {
   return <AppShell title={L('এইচআর অনুরোধ', 'HR requests')}
     subtitle={L('হাব থেকে আসা অনুরোধ। অনুমোদন করলে আইডি চালু / বন্ধ / বদলি সাথে সাথে হয়ে যায় আর কোম্পানির ফরম্যাটে ফাইল তৈরি হয়।',
       'Requests from the hubs. Approving does the change at once and writes the file in the company format.')}
-    actions={<><Link to="/app/manager/staff" className="btn-ghost">{L('সক্রিয় স্টাফ', 'Active staff')}</Link>
+    actions={<><Link to="/app/staff/list" className="btn-ghost">{L('সক্রিয় স্টাফ', 'Active staff')}</Link>
       <Link to="/app/zonal/hr-records" className="btn-ghost"><Icon name="xls" size={16} />{L('HR রেকর্ড', 'HR records')}</Link></>}>
     {node}
     <section className="da-filters panel no-print">

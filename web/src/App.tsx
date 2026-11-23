@@ -32,7 +32,7 @@ const AccountsSettings = lazy(() => import('./pages/accounts/AccountsSettings').
 const OrgSetup = lazy(() => import('./pages/org/OrgSetup').then(m => ({ default: m.OrgSetup })))
 const Hubs = lazy(() => import('./pages/org/Hubs').then(m => ({ default: m.Hubs })))
 const HrDashboard = lazy(() => import('./pages/hr/HrDashboard').then(m => ({ default: m.HrDashboard })))
-const Employees = lazy(() => import('./pages/hr/Employees').then(m => ({ default: m.Employees })))
+const StaffList = lazy(() => import('./pages/staff/StaffList').then(m => ({ default: m.StaffList })))
 const EmployeeProfile = lazy(() => import('./pages/hr/EmployeeProfile').then(m => ({ default: m.EmployeeProfile })))
 const Applications = lazy(() => import('./pages/hr/Applications').then(m => ({ default: m.Applications })))
 const Leave = lazy(() => import('./pages/hr/Leave').then(m => ({ default: m.Leave })))
@@ -45,10 +45,8 @@ const ZonalFiles = lazy(() => import('./pages/zonal/ZonalFiles').then(m => ({ de
 const Manpower = lazy(() => import('./pages/Manpower').then(m => ({ default: m.Manpower })))
 const HubOps = lazy(() => import('./pages/zonal/HubOps').then(m => ({ default: m.HubOps })))
 const HubOpsPanel = lazy(() => import('./pages/zonal/HubOpsPanel').then(m => ({ default: m.HubOpsPanel })))
-const ManagerStaff = lazy(() => import('./pages/manager/ManagerStaff').then(m => ({ default: m.ManagerStaff })))
 const ZonalRequests = lazy(() => import('./pages/zonal/ZonalRequests').then(m => ({ default: m.ZonalRequests })))
 const HrRecords = lazy(() => import('./pages/zonal/HrRecords').then(m => ({ default: m.HrRecords })))
-const ZonalStaff = lazy(() => import('./pages/zonal/ZonalStaff').then(m => ({ default: m.ZonalStaff })))
 const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m => ({ default: m.RoleDashboards })))
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
 const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
@@ -91,7 +89,7 @@ const WorkforceZone = lazy(() => import('./pages/workforce/WorkforceZone').then(
 // After the first screen is shown, quietly fetch the pages so later taps open at once (an app does not wait on each tap).
 // The most-used ones come first; on a phone with "data saver" on, nothing is fetched ahead.
 const FIRST = ['./pages/hub/HubManagement', './pages/hr/Attendance', './pages/hr/Requests', './pages/workforce/MyWorkforce', './pages/workforce/WorkforceHub',
-  './pages/hr/Employees', './pages/accounts/DailyDashboard', './pages/accounts/DailySheet', './pages/MyProfile']
+  './pages/staff/StaffList', './pages/accounts/DailyDashboard', './pages/accounts/DailySheet', './pages/MyProfile']
 const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/accounts/DailyDashboard', () => import('./pages/accounts/DailyDashboard')],
   ['./pages/accounts/sheetFlow', () => import('./pages/accounts/sheetFlow')],
@@ -106,7 +104,7 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/org/OrgSetup', () => import('./pages/org/OrgSetup')],
   ['./pages/org/Hubs', () => import('./pages/org/Hubs')],
   ['./pages/hr/HrDashboard', () => import('./pages/hr/HrDashboard')],
-  ['./pages/hr/Employees', () => import('./pages/hr/Employees')],
+  ['./pages/staff/StaffList', () => import('./pages/staff/StaffList')],
   ['./pages/hr/EmployeeProfile', () => import('./pages/hr/EmployeeProfile')],
   ['./pages/hr/Applications', () => import('./pages/hr/Applications')],
   ['./pages/hr/Leave', () => import('./pages/hr/Leave')],
@@ -119,10 +117,8 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/Manpower', () => import('./pages/Manpower')],
   ['./pages/zonal/HubOps', () => import('./pages/zonal/HubOps')],
   ['./pages/zonal/HubOpsPanel', () => import('./pages/zonal/HubOpsPanel')],
-  ['./pages/manager/ManagerStaff', () => import('./pages/manager/ManagerStaff')],
   ['./pages/zonal/ZonalRequests', () => import('./pages/zonal/ZonalRequests')],
   ['./pages/zonal/HrRecords', () => import('./pages/zonal/HrRecords')],
-  ['./pages/zonal/ZonalStaff', () => import('./pages/zonal/ZonalStaff')],
   ['./pages/users/RoleDashboards', () => import('./pages/users/RoleDashboards')],
   ['./pages/nodi/NodiChat', () => import('./pages/nodi/NodiChat')],
   ['./pages/users/NodiSettings', () => import('./pages/users/NodiSettings')],
@@ -218,13 +214,14 @@ export default function App() {
       <Route path="/app/org" element={<OrgSetup />} />
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />
-      <Route path="/app/zonal/staff" element={<ZonalStaff />} />
+      <Route path="/app/staff/list" element={<StaffList />} />
+      <Route path="/app/zonal/staff" element={<Navigate to="/app/staff/list" replace />} />
       <Route path="/app/zonal/hub-ops" element={<HubOps />} />
       <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       {/* Staff lifecycle: the hub manager asks, the zonal manager decides, every approval leaves a file */}
       <Route element={<AnyOf perms={['hr.request.create']} />}>
-        <Route path="/app/manager/staff" element={<ManagerStaff />} />
+        <Route path="/app/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
       </Route>
       <Route element={<AnyOf perms={['hr.request.approve']} />}>
         <Route path="/app/zonal/requests" element={<ZonalRequests />} />
@@ -255,7 +252,7 @@ export default function App() {
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
       <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
       <Route path="/app/hr" element={<HrDashboard />} />
-      <Route path="/app/hr/employees" element={<Employees />} />
+      <Route path="/app/hr/employees" element={<Navigate to="/app/staff/list" replace />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
       <Route path="/app/hr/applications" element={<Applications />} />
       <Route path="/app/hr/attendance" element={<Attendance />} />
@@ -328,7 +325,7 @@ export default function App() {
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     {/* short addresses of the staff lifecycle pages */}
-    <Route path="/manager/staff" element={<Navigate to="/app/manager/staff" replace />} />
+    <Route path="/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
     <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
     <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />

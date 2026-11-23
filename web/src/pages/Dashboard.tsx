@@ -107,7 +107,7 @@ export function Dashboard() {
       </div>
       {!showsMyDay && <p className="muted small home-links"><Link to="/app/me">{L('আমার প্রোফাইল', 'My profile')}</Link> · <Link to="/app/hr/leave">{L('ছুটি', 'Leave')}</Link> · <Link to="/app/accounts/mine">{L('আমার হিসাব', 'My accounts')}</Link></p>}
     </Panel> : null
-      case 'hr_overview': return d?.hr_overview ? <Panel code="hr_overview" to="/app/hr/employees">
+      case 'hr_overview': return d?.hr_overview ? <Panel code="hr_overview" to="/app/staff/list">
       <div className="da-stats">
         <Stat icon="users" label={L('মোট কর্মী', 'Staff')} value={n(d.hr_overview.total)} />
         <Stat icon="check" tone="ok" label={L('সক্রিয়', 'Active')} value={n(d.hr_overview.active)} />
@@ -121,11 +121,11 @@ export function Dashboard() {
       <div className="da-stats">
         <Row to="/app/hr/applications" icon="form" label={L('আইডি আবেদন', 'ID applications')} value={d.hr_pending.applications} />
         <Row to="/app/hr/leave" icon="log" label={L('ছুটির আবেদন', 'Leave requests')} value={d.hr_pending.leave} />
-        <Row to="/app/hr/employees" icon="wallet" label={L('বেতনের প্রস্তাব', 'Salary proposals')} value={d.hr_pending.salary} />
-        <Row to="/app/hr/employees" icon="shield" label={L('ডকুমেন্ট যাচাই', 'Documents to verify')} value={d.hr_pending.documents} />
+        <Row to="/app/staff/list" icon="wallet" label={L('বেতনের প্রস্তাব', 'Salary proposals')} value={d.hr_pending.salary} />
+        <Row to="/app/staff/list" icon="shield" label={L('ডকুমেন্ট যাচাই', 'Documents to verify')} value={d.hr_pending.documents} />
       </div>
     </Panel> : null
-      case 'hub_staff': return d?.hub_staff ? <Panel code="hub_staff" to="/app/zonal/staff">
+      case 'hub_staff': return d?.hub_staff ? <Panel code="hub_staff" to="/app/staff/list">
       {!d.hub_staff.length ? <p className="muted">{L('কোনো হাব নেই।', 'No hubs yet.')}</p> :
         <div className="da-table-wrap"><table className="da-table">
           <thead><tr><th>{L('হাব', 'Hub')}</th><th>{L('মোট', 'Total')}</th><th>{L('সক্রিয়', 'Active')}</th><th>{L('নিষ্ক্রিয়', 'Inactive')}</th><th>{L('আইডির অপেক্ষায়', 'Waiting')}</th></tr></thead>
@@ -164,7 +164,7 @@ export function Dashboard() {
         <Stat icon="check" tone="ok" label={L('অনুমোদিত', 'Approved')} value={n(d.accounts_today.approved)} />
       </div>
     </Panel> : null
-      case 'zonal_overview': return d?.zonal_overview ? <Panel code="zonal_overview" to="/app/zonal/staff">
+      case 'zonal_overview': return d?.zonal_overview ? <Panel code="zonal_overview" to="/app/staff/list">
       <div className="da-stats">
         <Stat icon="map" label={L('এরিয়া', 'Areas')} value={n(d.zonal_overview.zones)} />
         <Stat icon="hub" label={L('হাব', 'Hubs')} value={n(d.zonal_overview.hubs)} />
