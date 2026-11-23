@@ -151,6 +151,13 @@ export const sorting = {
     const { data, error } = await supabase.from('employees').select('id, employee_code, full_name, mobile, position_id').in('id', u); fail(error)
     return (data ?? []) as EmpLite[]
   },
+  /** Active employees of one hub, by name — for picking sorting staff from a list. */
+  employeesByHub: async (hubId: string) => {
+    if (!hubId) return [] as EmpLite[]
+    const { data, error } = await supabase.from('employees').select('id, employee_code, full_name, mobile, position_id')
+      .eq('hub_id', hubId).is('archived_at', null).order('full_name').limit(1000); fail(error)
+    return (data ?? []) as EmpLite[]
+  },
   findEmployee: async (code: string) => {
     const c = code.trim().replace(/^[a-z]+-/i, '')
     if (!c) return null

@@ -333,18 +333,20 @@ function Staff({ ctx }: { ctx: Ctx }) {
   const emps = useLoad(() => sorting.employeesByIds((q.data ?? []).map(s => s.employee_id)), [q.data])
   const emp = Object.fromEntries((emps.data ?? []).map(e => [e.id, e])) as Record<string, EmpLite>
   const [role, setRole] = useState<string | null>(null)
-  const [f, setF] = useState<{ id?: string; emp: EmpLite | null; role: string; shift: string; duties: string } | null>(null)
+  const [f, setF] = useState<{ id?: string; emp: EmpLite | null; picked: EmpLite[]; role: string; shift: string; duties: string } | null>(null)
+  const taken = new Set((q.data ?? []).map(s => s.employee_id))
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const rows = (q.data ?? []).filter(s => !role || s.role === role)
   const counts = Object.keys(ROLE).map(k => [k, (q.data ?? []).filter(s => s.role === k).length] as const).filter(x => x[1] > 0)
   async function save() {
     if (!f) return
-    if (!f.id && !f.emp) return setErr(L('এমপ্লয়ি আইডি দিন', 'Give the employee ID'))
+    const people = f.id ? [] : f.picked.filter(e => !taken.has(e.id))
+    if (!f.id && !people.length) return setErr(L('হাব বেছে তালিকা থেকে অন্তত একজনকে টিক দিন', 'Pick a hub and tick at least one person'))
     setBusy(true); setErr('')
     try {
       if (f.id) await sorting.updateStaff(f.id, { role: f.role, shift: f.shift.trim() || null, duties: f.duties.trim() || null })
-      else await sorting.addStaff({ center_id: ctx.center.id, zone_id: ctx.center.zone_id, employee_id: f.emp!.id, role: f.role, shift: f.shift.trim() || null, duties: f.duties.trim() || null })
-      setF(null); await q.reload(); toast(L('সেভ হয়েছে', 'Saved'))
+      else for (const p of people) await sorting.addStaff({ center_id: ctx.center.id, zone_id: ctx.center.zone_id, employee_id: p.id, role: f.role, shift: f.shift.trim() || null, duties: f.duties.trim() || null })
+      setF(null); await q.reload(); toast(f.id ? L('সেভ হয়েছে', 'Saved') : L(`${people.length.toLocaleString('bn-BD')} জন যোগ হয়েছে`, `${people.length} added`))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function end(s: StaffRow) {
@@ -356,7 +358,7 @@ function Staff({ ctx }: { ctx: Ctx }) {
   return <>{node}
     <section className="panel">
       <div className="da-bar"><h2>{L('সোর্টিং সেন্টারের স্টাফ', 'Sorting staff')} <span className="count-pill">{n(q.data?.length ?? 0)}</span></h2>
-        {editable && <button onClick={() => { setErr(''); setF({ emp: null, role: 'sorter', shift: '', duties: '' }) }}><Icon name="plus" size={15} />{L('স্টাফ যোগ', 'Add staff')}</button>}</div>
+        {editable && <button onClick={() => { setErr(''); setF({ emp: null, picked: [], role: 'sorter', shift: '', duties: '' }) }}><Icon name="plus" size={15} />{L('স্টাফ যোগ', 'Add staff')}</button>}</div>
       <div className="team-cards">
         <button type="button" className={`team-card all${role === null ? ' on' : ''}`} onClick={() => setRole(null)}><span className="ti"><Icon name="users" size={22} /></span>
           <span className="tn">{L('সবাই', 'Everyone')}</span><span className="tc">{n(q.data?.length ?? 0)}</span></button>
@@ -376,7 +378,7 @@ function Staff({ ctx }: { ctx: Ctx }) {
           { key: 'duties', label: L('কাজের বিবরণ', 'Duties'), value: r => r.duties ?? '', render: r => r.duties ? <span className="pre-wrap">{r.duties}</span> : <span className="muted">—</span> },
           { key: 'mobile', label: L('মোবাইল', 'Mobile'), value: r => emp[r.employee_id]?.mobile ?? '' },
           ...(editable ? [{ key: 'act', label: '', noExport: true, render: (r: StaffRow) => <span className="row-acts">
-            <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, emp: emp[r.employee_id] ?? null, role: r.role, shift: r.shift ?? '', duties: r.duties ?? '' }) }}><Icon name="edit" size={14} /></button>
+            <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, emp: emp[r.employee_id] ?? null, picked: [], role: r.role, shift: r.shift ?? '', duties: r.duties ?? '' }) }}><Icon name="edit" size={14} /></button>
             <button className="secondary sm" onClick={() => void end(r)}><Icon name="trash" size={14} /></button></span> }] : []),
         ]} />
     </section>
@@ -384,7 +386,7 @@ function Staff({ ctx }: { ctx: Ctx }) {
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
         {f.id ? <Field label={L('কর্মী', 'Staff')}><input value={empLabel(f.emp ?? undefined)} disabled /></Field>
-          : <EmpPicker label={L('এমপ্লয়ি আইডি', 'Employee ID')} value={f.emp} onPick={e => setF({ ...f, emp: e })} />}
+          : <HubStaffPicker ctx={ctx} taken={taken} picked={f.picked} onChange={picked => setF({ ...f, picked })} />}
         <Field label={L('কাজ', 'Role')}><select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>
           {Object.entries(ROLE).map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select></Field>
         <Field label={L('শিফট', 'Shift')}><input value={f.shift} onChange={e => setF({ ...f, shift: e.target.value })} placeholder={L('যেমন রাত ৮টা–ভোর ৪টা', 'e.g. 8pm–4am')} /></Field>
@@ -394,6 +396,38 @@ function Staff({ ctx }: { ctx: Ctx }) {
       {err && <p className="da-error">{err}</p>}
     </Modal>}
   </>
+}
+
+/** Choose a hub, then tick people from that hub's list by name (ID also searchable). */
+function HubStaffPicker({ ctx, taken, picked, onChange }: { ctx: Ctx; taken: Set<string>; picked: EmpLite[]; onChange: (p: EmpLite[]) => void }) {
+  const { L } = usePrefs()
+  const hubIds = [...new Set([ctx.center.home_hub_id, ...ctx.hubs.map(h => h.id)].filter(Boolean) as string[])]
+  const [hub, setHub] = useState(hubIds[0] ?? '')
+  const [qs, setQs] = useState('')
+  const list = useLoad(() => sorting.employeesByHub(hub), [hub])
+  const term = qs.trim().toLowerCase()
+  const shown = (list.data ?? []).filter(e => !term || e.full_name.toLowerCase().includes(term) || (e.employee_code ?? '').includes(term) || (e.mobile ?? '').includes(term))
+  const on = (id: string) => picked.some(p => p.id === id)
+  const toggle = (e: EmpLite) => onChange(on(e.id) ? picked.filter(p => p.id !== e.id) : [...picked, e])
+  return <div style={{ gridColumn: '1 / -1' }}>
+    <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <Field label={L('হাব', 'Hub')}><select value={hub} onChange={e => { setHub(e.target.value); setQs('') }}>
+        {!hubIds.length && <option value="">{L('কোনো হাব নেই', 'No hubs')}</option>}
+        {hubIds.map(id => <option key={id} value={id}>{ctx.hubName[id] ?? id}</option>)}</select></Field>
+      <Field label={L('নাম দিয়ে খুঁজুন', 'Search by name')}><input value={qs} onChange={e => setQs(e.target.value)} placeholder={L('নাম, আইডি বা মোবাইল', 'Name, ID or mobile')} /></Field>
+    </div>
+    <div className="da-bar" style={{ marginTop: 6 }}><b>{L('বেছে নেওয়া', 'Selected')}: {picked.length.toLocaleString('bn-BD')}</b>
+      {picked.length > 0 && <button className="secondary sm" onClick={() => onChange([])}>{L('সব বাদ', 'Clear')}</button>}</div>
+    <div className="pick-list" style={{ maxHeight: 260, overflowY: 'auto' }}>
+      {list.loading && !list.data ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
+        : list.error ? <p className="da-error">{hrFriendly(list.error)}</p>
+        : !shown.length ? <p className="muted">{L('এই হাবে কাউকে পাওয়া যায়নি', 'Nobody found in this hub')}</p>
+        : shown.map(e => { const already = taken.has(e.id)
+          return <label key={e.id} className={already ? 'muted' : ''}><input type="checkbox" disabled={already} checked={already || on(e.id)} onChange={() => toggle(e)} />{' '}
+            {e.full_name}{e.employee_code ? <span className="muted small"> · {e.employee_code}</span> : null}
+            {already && <span className="muted small"> · {L('আগেই আছে', 'already added')}</span>}</label> })}
+    </div>
+  </div>
 }
 
 // ---------------------------------------------------------------- fuel
