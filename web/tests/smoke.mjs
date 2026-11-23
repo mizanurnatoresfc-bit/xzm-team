@@ -842,8 +842,8 @@ try {
         const items = await page.locator('.row-menu button').allInnerTexts()
         await page.keyboard.press('Escape')
         check(chips === 4 && onlyFan && await page.locator('.oo-name').count() === 3 && await page.locator('.oo-help[open]').count() === 0
-          && items.some(t => t.includes('নষ্ট')) && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
-          `${size}: office resources — kind chips filter the list, help is folded, each item has one ⋮ menu`) }
+          && await page.locator('.row-acts button', { hasText: 'নষ্ট' }).count() > 0 && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
+          `${size}: office resources — kind chips filter the list, help is folded, "Broken" is a button on the row and the other actions are in one ⋮ menu`) }
       // every office and residential page opens, shows its tabs, has no error box and fits the screen
       { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports'].map(k => `/app/office/${k}`),
           ...['overview', 'places', 'rooms', 'people', 'rent', 'bills', 'assets', 'reports', 'power', 'security', 'notices', 'desks'].map(k => `/app/office/residential/${k}`)]
@@ -899,6 +899,7 @@ try {
       if (process.env.SHOTS) await page.locator('.nodi-fab-seg').screenshot({ path: `${process.env.SHOTS}/${size}-nodi-fab-setting.png` })
       await page.locator('.nodi-fab-seg button', { hasText: 'চালু' }).click()
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
+      await page.waitForSelector('.nodi-fab', { timeout: 4000 }).catch(() => {})  // the button appears once the Nodi features are loaded
       check(fabOff === 0 && await page.locator('.nodi-fab').count() === 1 && await page.locator('.side a.nl[href="/app/nodi/chat"]').count() === 1,
         `${size}: the floating Nodi button turns off on the chat screen and back on in Setting; the menu entry stays`)
       permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'da.sheet.view', 'da.sheet.create', 'org.hub.view', 'sorting.parcel.view', 'nodi.assistant.view']
