@@ -11,7 +11,7 @@ const ALWAYS = ['/app', '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '
 export const ALWAYS_OPEN: readonly string[] = ALWAYS
 /** Pages that belong to a listed page (opened from it, not from the menu). */
 const WITH: Record<string, string[]> = {
-  '/app/staff/list': ['/app/hr/applications', '/app/hub/team'],
+  '/app/staff/list': ['/app/hr/applications', '/app/hub/team', '/app/hr/employees'],   // a person's profile opens from the staff list
   '/app/roles': ['/app/access'],
   '/app/access': ['/app/roles'],
   // the report upload page comes with the accounts and zonal pages it is opened from
