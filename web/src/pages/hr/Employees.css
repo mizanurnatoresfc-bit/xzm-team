@@ -1,17 +1,26 @@
-.hr-emp-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 18px}
-.hr-emp-stat{position:relative;overflow:hidden;min-width:0;padding:16px;border:1px solid var(--line,rgba(127,127,127,.18));border-radius:16px;background:var(--panel,var(--card,#fff))}
-.hr-emp-stat:after{content:"";position:absolute;right:-20px;bottom:-30px;width:88px;height:88px;border-radius:50%;background:var(--stat-tint,rgba(59,130,246,.10))}
-.hr-emp-stat small{display:block;color:var(--muted,#737373);font-size:12px;font-weight:650}
-.hr-emp-stat strong{display:block;margin-top:8px;font-size:clamp(24px,3vw,31px);line-height:1.2;font-variant-numeric:tabular-nums}
-.hr-emp-stat span{display:block;margin-top:5px;color:var(--muted,#737373);font-size:12px}
-.hr-emp-stat.blue{--stat-tint:rgba(59,130,246,.13)}.hr-emp-stat.green{--stat-tint:rgba(34,197,94,.13)}.hr-emp-stat.amber{--stat-tint:rgba(245,158,11,.14)}.hr-emp-stat.gray{--stat-tint:rgba(148,163,184,.16)}
+/* summary strip: one slim row, and it is also the status filter */
+.hr-emp-stats{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.hr-emp-stat{--dot:#3b82f6;display:inline-flex;align-items:center;gap:8px;min-width:0;min-height:40px;padding:6px 14px;border:1px solid var(--line,rgba(127,127,127,.22));border-radius:999px;background:var(--panel,var(--card,#fff));color:inherit;font:inherit;cursor:pointer;margin:0}
+.hr-emp-stat:before{content:"";width:9px;height:9px;border-radius:50%;background:var(--dot);flex:none}
+.hr-emp-stat small{color:var(--muted,#737373);font-size:13px;font-weight:650;white-space:nowrap}
+.hr-emp-stat strong{font-size:16px;line-height:1.2;font-variant-numeric:tabular-nums}
+.hr-emp-stat.green{--dot:#22c55e}.hr-emp-stat.amber{--dot:#f59e0b}.hr-emp-stat.gray{--dot:#94a3b8}
+.hr-emp-stat:hover,.hr-emp-stat.on{border-color:var(--primary);background:var(--primary-50)}
+.hr-emp-stat.on small{color:var(--primary);font-weight:700}
 .hr-emp-board{overflow:hidden;border-radius:18px}
-.hr-emp-board .eb-top{padding:16px 16px 10px}
-.hr-emp-board .eb-filters{padding:0 16px 16px}
-.hr-emp-board .emp-search{min-height:44px;border-radius:12px}
 .hr-emp-board .chip-toggle{border-radius:999px}
-@media(max-width:760px){.hr-emp-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:12px}.hr-emp-stat{padding:13px;border-radius:13px}.hr-emp-board .eb-top{padding:12px}.hr-emp-board .eb-filters{padding:0 12px 12px}}
-@media(max-width:380px){.hr-emp-stat{padding:11px}.hr-emp-stat strong{font-size:22px}}
+/* one filter row: search + area + hub */
+.hr-emp-board .eb-bar{display:grid;grid-template-columns:minmax(220px,1.4fr) minmax(150px,1fr) minmax(150px,1fr);gap:10px;align-items:center;padding:12px 16px 8px}
+.hr-emp-board .eb-bar .emp-search{min-height:44px;border-radius:12px;flex:none;min-width:0}
+.hr-emp-board .eb-sel{min-width:0}
+.hr-emp-board .eb-sel select,.hr-emp-board .eb-sel .cb>input{min-height:44px;width:100%}
+/* the searchable hub box gets the same arrow as the plain area dropdown */
+.hr-emp-board .eb-sel .cb>input:placeholder-shown{background-image:var(--f-chev)!important;background-repeat:no-repeat!important;background-position:right 12px center!important;background-size:20px 20px!important;cursor:pointer}
+/* post chips: one line, scroll sideways instead of wrapping into 3 rows */
+.hr-emp-board .eb-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding:2px 16px 12px;margin:0}
+.hr-emp-board .eb-chips .chip-toggle{flex:none}
+.hr-more{display:inline-flex;align-items:center}
+@media(max-width:760px){.hr-emp-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:10px}.hr-emp-stat{border-radius:12px;justify-content:space-between}.hr-emp-board .eb-bar{grid-template-columns:1fr 1fr;padding:12px 12px 8px}.hr-emp-board .eb-bar .emp-search{grid-column:1/-1}.hr-emp-board .eb-chips{padding:2px 12px 10px}}
 
 .hr-emp-list-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 16px 0}
 .hr-emp-list-heading h2{font-size:16px;margin:0}

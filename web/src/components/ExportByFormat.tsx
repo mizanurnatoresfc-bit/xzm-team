@@ -17,6 +17,14 @@ export function ExportByFormat({ zone, hub, status, q, title }: {
   </>
 }
 
+/** The same dialog, opened from somewhere else (e.g. a "more" menu) instead of its own button. */
+export function ExportByFormatDialog({ zone, hub, status, q, title, onClose }: {
+  zone?: string | null; hub?: string | null; status?: string | null; q?: string | null; title: string; onClose: () => void
+}) {
+  const { L, n, lang } = usePrefs()
+  return <ExportModal zone={zone} hub={hub} status={status} q={q} title={title} onClose={onClose} L={L} n={n} lang={lang} />
+}
+
 function ExportModal({ zone, hub, status, q, title, onClose, L, n, lang }: {
   zone?: string | null; hub?: string | null; status?: string | null; q?: string | null; title: string; onClose: () => void
   L: (bn: string, en: string) => string; n: (v: number | string) => string; lang: string
