@@ -246,6 +246,7 @@ export function StaffPanel() {
       {ok('/app/issues') && <>
       <h2 className="sd-h">{L('আমার অভিযোগ', 'My complaint')}</h2>
       <div className="nv-rows">
+        {row('/app/issues?new=residential', 'r', 'alert', L('আবাসিক ইস্যু জানান', 'Report a residential issue'), L('ফ্ল্যাট ও রুমের সমস্যা হাবের ইস্যুতে জমা দিন', 'Submit a flat or room problem to the hub'))}
         {row('/app/issues?new=1', 'r', 'alert', L('অভিযোগ জানান', 'Make a complaint'), L('লিখে বা ছবি দিয়ে — হাবের ইস্যু হিসেবে যাবে', 'Write it or add a photo — it goes in as a hub issue'))}
         {row('/app/issues?tab=given', 'b', 'eye', L('আমি যা জানিয়েছি', 'What I reported'), given.length ? L(`${n(given.length)}টি চলছে`, `${given.length} open`) : L('এখন কিছু চলছে না', 'Nothing open now'))}
       </div>

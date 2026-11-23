@@ -65,6 +65,7 @@ export function Issues() {
   const groups = useLoad(() => issues.groupHubs(), [])
   const zones = useLoad(() => issues.zoneGroups(), [])
   const [creating, setCreating] = useState<string | null>(null)
+  const [residential, setResidential] = useState(false)
   const [ordering, setOrdering] = useState<OrderKind | null>(null)
   const [q, setQ] = useState('')
   const [settings, setSettings] = useState(false)
@@ -89,8 +90,9 @@ export function Issues() {
   // A shortcut link (/app/issues?new=1) opens the new-issue form at once.
   useEffect(() => {
     if (!sp.get('new') || !hubs.length) return
-    setCreating(c => c ?? hubs[0].hub_id)
-    const n = new URLSearchParams(sp); n.delete('new'); setSp(n, { replace: true })
+    setResidential(sp.get('new') === 'residential')
+    setCreating(c => c ?? hubs.find(h => h.hub_id === sp.get('hub'))?.hub_id ?? hubs[0].hub_id)
+    const n = new URLSearchParams(sp); n.delete('new'); n.delete('hub'); setSp(n, { replace: true })
   }, [sp, hubs, setSp])
   // ...and /app/issues?order=store (or it) opens the order form.
   useEffect(() => {
@@ -171,7 +173,7 @@ export function Issues() {
     {settings && <UiSettings ui={ui} onChange={setUi} onClose={() => setSettings(false)} />}
     {desk && <Modal wide title="স্টোর / আইটি অর্ডার কে পাবেন" onClose={() => setDesk(false)} actions={<button type="button" onClick={() => setDesk(false)}>বন্ধ</button>}>
       <OrderDesk canOrder={hubs.length > 0} onOrder={k => { setDesk(false); setOrdering(k) }} /></Modal>}
-    {creating && <NewIssue hubs={hubs} hub={creating} onClose={() => setCreating(null)} onDone={id => { setCreating(null); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
+    {creating && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
     {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('g'); n.set('id', id) }) }} />}
     {node}
   </AppShell>
@@ -419,8 +421,9 @@ function UiSettings({ ui, onChange, onClose }: { ui: Ui; onChange: (p: Partial<U
 
 // ------------------------------------------------------------------ new issue
 /** Fast path: give the label screenshot (choose, drop, paste or camera), the parcel ID is read from it, pick who gets it. */
-function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: string; onClose: () => void; onDone: (id: string) => void }) {
+function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: GroupHub[]; hub: string; residential: boolean; onClose: () => void; onDone: (id: string) => void }) {
   const [hub, setHub] = useState(h0)
+  const [room, setRoom] = useState('')
   const [f, setF] = useState({ title: '', body: '', parcel: '', kind: 'parcel' as IssueKind, priority: 'normal' as Priority, due: '' })
   const [person, setPerson] = useState<RefPerson | null>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -436,6 +439,7 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
     setErr('')
     if (img && !img.type.startsWith('image/')) { setErr('শুধু ছবি দিন (JPG / PNG)'); return }
     latest.current = img; setFile(img)
+    if (residential) return
     if (!img) { setScan({ state: 'idle', ids: [], pct: 0 }); return }
     setScan({ state: 'reading', ids: [], pct: 0 })
     void readLabel(img, pct => { if (latest.current === img) setScan(v => v.state === 'reading' ? { ...v, pct } : v) }).then(ids => {
@@ -444,7 +448,7 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
       // Only fills an empty box: an ID the person typed is never replaced.
       if (ids.length) setF(v => v.parcel.trim() ? v : { ...v, parcel: ids[0] })
     }).catch(() => { if (latest.current === img) setScan({ state: 'failed', ids: [], pct: 0 }) })
-  }, [])
+  }, [residential])
   useEffect(() => {
     if (!file) { setPreview(''); return }
     const u = URL.createObjectURL(file); setPreview(u); return () => URL.revokeObjectURL(u)
@@ -460,18 +464,19 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
 
   async function save() {
     setErr('')
+    if (residential && (!room.trim() || !f.title.trim() || !f.body.trim())) { setErr('ফ্ল্যাট ও রুম, সমস্যার নাম এবং বিস্তারিত লিখুন'); return }
     if (!f.title.trim() && !f.parcel.trim() && !file) { setErr('লেবেলের ছবি দিন, পার্সেল আইডি দিন বা কী সমস্যা লিখুন'); return }
     setBusy(true)
     try {
       const photo = file ? await issues.uploadPhoto(hub, file) : null
-      onDone(await issues.create({ hub, title: f.title, body: f.body, kind: f.kind, parcel_ref: f.parcel, photo, assignee: person?.kind === 'employee' ? person.id : null,
+      onDone(await issues.create({ hub, title: residential ? 'আবাসিক: ' + f.title.trim() : f.title, body: residential ? room.trim() + '\n' + f.body.trim() : f.body, kind: residential ? 'other' : f.kind, parcel_ref: residential ? '' : f.parcel, photo, assignee: person?.kind === 'employee' ? person.id : null,
         due: f.due ? new Date(f.due).toISOString() : null, priority: f.priority }))
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
-  return <Modal wide title="নতুন ইস্যু / কাজ দিন" onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : person ? 'ইস্যু তৈরি করে কাজ দিন' : 'ইস্যু তৈরি করুন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
+  return <Modal wide title={residential ? "আবাসিক ইস্যু জানান" : "নতুন ইস্যু / কাজ দিন"} onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : person ? 'ইস্যু তৈরি করে কাজ দিন' : 'ইস্যু তৈরি করুন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
     <label className={`is-drop${preview ? ' has' : ''}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); take(e.dataTransfer.files?.[0] ?? null) }}>
       <input type="file" accept="image/*" className="is-file" onChange={e => { take(e.target.files?.[0] ?? null); e.target.value = '' }} />
-      {preview ? <img src={preview} alt="লেবেলের ছবি" /> : <><Icon name="scan" size={30} /><b>পার্সেল লেবেলের স্ক্রিনশট / ছবি দিন</b>
+      {preview ? <img src={preview} alt="লেবেলের ছবি" /> : <><Icon name="scan" size={30} /><b>{residential ? "সমস্যার ছবি দিন (ঐচ্ছিক)" : "পার্সেল লেবেলের স্ক্রিনশট / ছবি দিন"}</b>
         <small>চাপ দিয়ে গ্যালারি থেকে বাছুন, টেনে আনুন, অথবা কপি করা স্ক্রিনশট পেস্ট করুন (Ctrl+V)</small></>}
     </label>
     <div className="is-drop-acts">
@@ -484,13 +489,14 @@ function NewIssue({ hubs, hub: h0, onClose, onDone }: { hubs: GroupHub[]; hub: s
       {scan.state === 'done' && scan.ids.map(id => <button key={id} type="button" className={`secondary sm${f.parcel === id ? ' on' : ''}`} onClick={() => setF({ ...f, parcel: id })}>{id}</button>)}
     </div>
     <div className="da-form">
-      <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} />
-        {same.length > 0 && <DupNote>এই পার্সেলে আগে থেকেই ইস্যু খোলা আছে: {same.map(x => `${x.issue_no} (${STATUS_BN[x.status as keyof typeof STATUS_BN] ?? x.status})`).join(', ')} — আবার দিলে দুটো হবে।</DupNote>}</Field>
+      {!residential && <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} />
+        {same.length > 0 && <DupNote>এই পার্সেলে আগে থেকেই ইস্যু খোলা আছে: {same.map(x => `${x.issue_no} (${STATUS_BN[x.status as keyof typeof STATUS_BN] ?? x.status})`).join(', ')} — আবার দিলে দুটো হবে।</DupNote>}</Field>}
       <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
-      <Field label="কী সমস্যা" wide hint="না লিখলে পার্সেল আইডি দিয়েই ইস্যুর নাম হবে"><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="যেমন: কাস্টমার ফোন ধরছে না" /></Field>
-      <Field label="কাকে দেবেন" wide hint="এখন না বাছলে পরে দেওয়া যাবে"><PersonPicker value={person} onChange={setPerson} /></Field>
+      {residential && <Field label="ফ্ল্যাট ও রুম" required wide><input value={room} onChange={e => setRoom(e.target.value)} /></Field>}
+      <Field label="কী সমস্যা" wide hint={residential ? undefined : "না লিখলে পার্সেল আইডি দিয়েই ইস্যুর নাম হবে"}><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder={residential ? "যেমন: রুমের ফ্যান চলছে না" : "যেমন: কাস্টমার ফোন ধরছে না"} /></Field>
+      {residential ? <Field label="বিস্তারিত" required wide><textarea value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></Field> : <Field label="কাকে দেবেন" wide hint="এখন না বাছলে পরে দেওয়া যাবে"><PersonPicker value={person} onChange={setPerson} /></Field>}
     </div>
-    <button type="button" className="link" aria-expanded={more} onClick={() => setMore(m => !m)}>{more ? '▾ কম দেখান' : '▸ আরও তথ্য (ধরন, গুরুত্ব, শেষ সময়, বিস্তারিত)'}</button>
+    {!residential && <button type="button" className="link" aria-expanded={more} onClick={() => setMore(m => !m)}>{more ? '▾ কম দেখান' : '▸ আরও তথ্য (ধরন, গুরুত্ব, শেষ সময়, বিস্তারিত)'}</button>}
     {more && <div className="da-form">
       <Field label="ধরন"><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as IssueKind })}>{Object.entries(KIND_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
       <Field label="গুরুত্ব"><select value={f.priority} onChange={e => setF({ ...f, priority: e.target.value as Priority })}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
