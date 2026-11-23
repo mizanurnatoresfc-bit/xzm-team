@@ -1,0 +1,113 @@
+/* =====================================================================
+   Menu, two faces (owner, 23 Nov 2026: "মোবাইল Android Native style, PC responsive Professional Division").
+   Loaded last, so it sits on top of the earlier menu layers in theme.css.
+   PC  (961px+): a calm, professional sidebar split into divisions — বিভাগ · আমার কাজের প্যানেল · সিস্টেম —
+                 each with a heading and a hairline, panel headers show how many pages they hold.
+   Phone (≤960px): Material 3 like Android — a modal navigation drawer with 56dp pill rows and a
+                 flat navigation bar at the bottom whose active tab has the pill indicator behind its icon.
+   ===================================================================== */
+
+/* the HR department gets a colour of its own (it used to fall to the red default) */
+:root{--tone-h:#0369A1}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--tone-h:#38BDF8}}
+:root[data-theme="dark"]{--tone-h:#38BDF8}
+.ngrp[data-panel="hr"]{--tone:var(--tone-h)}
+.ngrp[data-panel="sorting"]{--tone:var(--tone-o)}
+.ngrp[data-panel="admin"]{--tone:var(--side-muted)}
+
+/* ---------- divisions (both sizes) ---------- */
+.ndiv{display:flex;flex-direction:column;gap:2px}
+.ndiv+.ndiv{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.ndiv-h{padding:8px 12px 4px;font-size:0.7188rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--side-muted);
+  display:flex;align-items:center;gap:8px}
+.ndiv-h::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
+.ndiv .ngh{margin-top:2px!important}
+.ngh .ncount{flex:none;min-width:22px;padding:1px 7px;border-radius:999px;font-size:0.7188rem;font-weight:700;line-height:18px;text-align:center;
+  background:var(--canvas);color:var(--side-muted);border:1px solid var(--border)}
+.ngrp.open>.ngh .ncount,.ngrp.has-on>.ngh .ncount{background:color-mix(in srgb,var(--tone) 12%,var(--surface));color:color-mix(in srgb,var(--tone) 85%,var(--text));border-color:transparent}
+
+/* ======================= PC: professional sidebar ======================= */
+@media (min-width:961px){
+  .app-frame{grid-template-columns:272px minmax(0,1fr)}
+  .app-frame .side{padding:14px 12px;gap:2px;border-right:1px solid var(--border);
+    background:linear-gradient(180deg,var(--side),color-mix(in srgb,var(--canvas) 55%,var(--side)))}
+  /* rows are quieter on a big screen: smaller tiles, tighter rows, a clear active bar */
+  .side a.nl{min-height:36px!important;padding:4px 10px 4px 6px!important;border-radius:10px!important;font-size:0.8438rem;gap:10px!important}
+  .side a.nl>svg.ic{width:28px!important;height:28px!important;padding:6px;border-radius:8px}
+  .side a.nl.active{position:relative;box-shadow:inset 3px 0 0 var(--tone)!important}
+  .ngh{min-height:40px!important;padding:6px 8px 6px 6px!important;border-radius:10px!important;font-size:0.875rem!important;gap:10px!important}
+  .ngh .gi{width:32px!important;height:32px!important;border-radius:9px!important}
+  .ngh .chev{width:22px;height:22px;border-radius:6px;background:transparent}
+  .ngh:hover .chev{background:var(--canvas)}
+  /* the pages of an open panel hang on a thin guide line, like an org chart */
+  .ngi{margin:2px 0 6px 21px!important;padding-left:10px!important;border-left:1px solid var(--border)!important}
+  .ngi a.nl>svg.ic{width:26px!important;height:26px!important;padding:5.5px}
+  .nsec{margin:8px 0 2px!important;font-size:0.6875rem!important}
+  .side-foot{font-size:0.75rem;line-height:1.4}
+  /* the folded icon rail: headings and counts go, a short rule marks each division */
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) :is(.ncount,.ndiv-h){display:none!important}
+  .side-mini .side:not(:hover):not(:has(:focus-visible)) .ndiv+.ndiv{margin:6px 10px 0;padding-top:6px}
+}
+/* a wide screen gets a little more room */
+@media (min-width:1440px){.app-frame{grid-template-columns:288px minmax(0,1fr)}}
+
+/* ======================= Phone: Android (Material 3) ======================= */
+@media (max-width:960px){
+  /* modal navigation drawer */
+  .app-frame .side{width:min(360px,88vw)!important;border-radius:0 16px 16px 0!important;padding-left:12px!important;padding-right:12px!important;gap:0!important;
+    background:color-mix(in srgb,var(--primary) 4%,var(--surface))!important;
+    transition:transform .3s cubic-bezier(.2,0,0,1)!important}
+  .app-frame .side.open{box-shadow:0 8px 12px 6px rgba(0,0,0,.15),0 4px 4px rgba(0,0,0,.3)!important}
+  .side-head{background:color-mix(in srgb,var(--primary) 4%,var(--surface))!important}
+  .side-backdrop.open{background:rgba(0,0,0,.32)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+
+  /* section headings = M3 "title small" */
+  .ndiv+.ndiv{margin-top:4px;padding-top:4px;border-top:1px solid color-mix(in srgb,var(--border) 80%,transparent)}
+  .ndiv-h{padding:16px 16px 8px;font-size:0.875rem;font-weight:600;letter-spacing:.01em;text-transform:none;color:var(--muted)}
+  .ndiv-h::after{display:none}
+
+  /* every row is a 56dp pill; the open page is filled with the secondary container colour */
+  .side a.nl,.side .ngh{min-height:56px!important;padding:0 16px 0 12px!important;border-radius:28px!important;gap:12px!important;
+    font-size:0.9375rem!important;font-weight:500!important;letter-spacing:.006em;margin:0!important}
+  .side a.nl>svg.ic{width:24px!important;height:24px!important;padding:0!important;background:none!important;box-shadow:none!important;color:var(--muted)!important;border-radius:0}
+  .side a.nl.active{background:color-mix(in srgb,var(--tone) 16%,var(--surface))!important;color:color-mix(in srgb,var(--tone) 70%,var(--text))!important;font-weight:700!important;box-shadow:none!important}
+  .side a.nl.active>svg.ic{color:color-mix(in srgb,var(--tone) 85%,var(--text))!important}
+  /* pressed / hover state layer */
+  .side a.nl:hover,.side .ngh:hover{background:color-mix(in srgb,var(--text) 6%,transparent)!important}
+  .side a.nl:active,.side .ngh:active{background:color-mix(in srgb,var(--text) 12%,transparent)!important;scale:none}
+
+  /* panel headers: icon in a tonal circle, title, page count, chevron */
+  .ngh .gi{width:40px!important;height:40px!important;border-radius:50%!important}
+  .ngh .chev{background:none;width:24px;height:24px}
+  .ngh .ncount{font-size:0.75rem;line-height:20px}
+  /* the pages of an open panel: indented pills, no guide line */
+  .ngi{margin:2px 0 6px 0!important;padding-left:20px!important;border-left:0!important;gap:0!important}
+  .ngi a.nl{min-height:48px!important;border-radius:24px!important;font-size:0.9063rem!important}
+  .nsec{margin:10px 0 4px!important;padding:0 16px!important;font-size:0.75rem!important;letter-spacing:.04em}
+  /* Android drawers have no lines between rows */
+  .ngi a.nl+a.nl::before{display:none}
+
+  /* navigation bar: flat, 80dp, pill indicator behind the active icon */
+  .bottom-nav{left:0!important;right:0!important;bottom:0!important;border-radius:0!important;border:0!important;
+    padding:0 4px env(safe-area-inset-bottom)!important;min-height:calc(80px + env(safe-area-inset-bottom));align-items:stretch!important;
+    background:color-mix(in srgb,var(--primary) 5%,var(--surface))!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+    box-shadow:0 -1px 0 color-mix(in srgb,var(--border) 70%,transparent)!important}
+  .bn-item{justify-content:center!important;gap:4px!important;padding:12px 0 16px!important;border-radius:0!important;background:none!important;
+    color:var(--muted)!important;font-size:0.75rem!important;font-weight:500!important}
+  .bn-item.on{background:none!important;color:var(--text)!important}
+  .bn-item>svg,.bn-item>.rel{height:32px!important;width:64px;justify-content:center;border-radius:16px;transition:background .2s cubic-bezier(.2,0,0,1)}
+  .bn-item>.rel>svg{transform:none}
+  .bn-item.on>svg,.bn-item.on>.rel{background:color-mix(in srgb,var(--primary) 18%,var(--surface));color:color-mix(in srgb,var(--primary) 75%,var(--text))}
+  .bn-item>svg{box-sizing:content-box;padding:4px 20px;width:24px;height:24px!important}
+  .bn-item.on svg{transform:none!important;scale:none!important;translate:none!important}
+  .bn-item.on>span:last-child{font-weight:700}
+  .bn-item:active>svg,.bn-item:active>.rel{background:color-mix(in srgb,var(--text) 10%,transparent)}
+  .bn-dot{top:2px!important;right:14px!important}
+  /* the quick-add in the middle = an M3 FAB (rounded square), sitting inside the bar */
+  .bn-plus{align-items:center!important}
+  .bn-plus>span{width:56px!important;height:56px!important;margin-top:0!important;border-radius:16px!important;border:0!important;
+    box-shadow:0 3px 6px rgba(0,0,0,.16),0 1px 2px rgba(0,0,0,.2)!important}
+  /* pages keep clear of the taller bar */
+  .app-main .da-main{padding-bottom:calc(104px + env(safe-area-inset-bottom))!important}
+}
+@media (prefers-reduced-motion:reduce){.bn-item>svg,.bn-item>.rel{transition:none}}

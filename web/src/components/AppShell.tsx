@@ -91,13 +91,9 @@ export const GROUPS: Group[] = [
       { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি ব্যবস্থাপনা', en: 'Vehicles', hint: { bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals' }, perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view'] },
     ] },
     { bn: 'হাবের টিম', en: 'Hub team', items: [
-      { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
-      { to: '/app/manager/staff', icon: 'usercheck', bn: 'সক্রিয় স্টাফ', en: 'Active staff', hint: { bn: 'সক্রিয় স্টাফ (নতুন যোগ / চাকরি ছাড়া)', en: 'Active staff (join / leave)' }, perms: ['hr.request.create'] },
       { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
       { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট (হাব)', en: 'Rider routes (hub)', hint: { bn: 'হাবের রুট বানান ও রাইডারদের রুট দিন', en: 'Make the hub’s routes and give riders their route' }, perms: ['ops.route.view', 'ops.route.edit'] },
       { to: '/app/routes/plan', icon: 'box', bn: 'আজকের পার্সেল পরিকল্পনা', en: "Today's parcel plan", perms: ['ops.route_plan.view'] },
-      { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
-      { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
     ] },
   ]),
   panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
@@ -109,24 +105,8 @@ export const GROUPS: Group[] = [
       { to: '/app/zonal/routes', icon: 'map', bn: 'রুট ম্যাপ (জোন)', en: 'Route map (zone)', hint: { bn: 'রুট সেটিং — জোনের সব হাবের রাইডার রুট ম্যাপ', en: 'Route settings — rider route map of every hub in the zone' }, perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
-    { bn: 'কর্মী ও আইডি', en: 'Staff & IDs', items: [
-      { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
-      { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
-      { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
-      { to: '/app/zonal/requests', icon: 'form', bn: 'এইচআর অনুরোধ', en: 'HR requests', perms: ['hr.request.approve'], count: 'hrreq' },
-      { to: '/app/zonal/hr-records', icon: 'xls', bn: 'এইচআর রেকর্ড', en: 'HR records', hint: { bn: 'এইচআর রেকর্ড (জয়েনিং / এক্সিট / ট্রান্সফার ফাইল)', en: 'HR records (joining / exit / transfer files)' }, perms: ['hr.request.approve'] },
-      { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল', en: 'Zonal files', hint: { bn: 'জোনাল ফাইল (বদলি / চালু / বন্ধ)', en: 'Zonal files (transfer / on / off)' }, perms: ['hr.request.create', 'hr.request.approve'] },
-      { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
-    ] },
-    { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
-      { to: '/app/hr/attendance', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
-      { to: '/app/zonal/assistant', icon: 'cal', bn: 'হাজিরার ফাঁকা দিন', en: 'Attendance gaps', hint: { bn: 'জোনাল অ্যাসিস্ট্যান্ট — যেদিনের হাজিরা ওঠেনি', en: 'Zonal assistant — days with no attendance' }, perms: ['hr.attendance_gap.view'] },
-      { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
-    ] },
-    { bn: 'নোটিশ ও রেফারেন্স', en: 'Notices & references', items: [
+    { bn: 'নোটিশ', en: 'Notices', items: [
       { to: '/app/notices', icon: 'bell', bn: 'নোটিশ বোর্ড ও রিমাইন্ডার', en: 'Notice board & reminders', perms: null },
-      { to: '/app/references', icon: 'users', bn: 'রেফারেন্স তালিকা', en: 'Reference list', perms: null },
-      { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
     ] },
 
   ]),
@@ -142,10 +122,6 @@ export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অন�
     { to: '/app/role-dashboards', icon: 'chart', bn: 'রোলভিত্তিক ড্যাশবোর্ড বিল্ডার', en: 'Role-based Dashboard Builder', perms: ['system.role.edit'] },
     { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
     { to: '/app/menu', icon: 'menu', bn: 'মেনু এডিটর', en: 'Menu editor', perms: ['system.settings.configure'], hint: { bn: 'মেনুর নাম, ক্রম, লুকানো আর “নতুন” ব্যাজ', en: 'Menu names, order, hidden rows and “new” badges' } },
-  ] },
-  { bn: 'এইচআর সেটআপ', en: 'HR setup', items: [
-    { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
-    { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
   ] },
   { bn: 'নদী AI', en: 'Nodi AI', items: [
     { to: '/app/nodi/chat', icon: 'phone', bn: 'নদী AI (চ্যাট ও কণ্ঠ)', en: 'Nodi AI (chat & voice)', perms: ['nodi.assistant.view'] },
@@ -171,6 +147,44 @@ export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং স
   ] },
 ])
 
+
+/**
+ * এইচআর বিভাগ — a menu of its own (owner, 23 Nov 2026): every HR page in one place, in categories, instead of spread over
+ * the manager, zonal and settings panels. Like হিসাব it is not a level panel: each row shows only to a role that may use it.
+ * The staff member's own requests and leave stay in the staff panel.
+ */
+export const HR: Group = panel('hr', 'users', 'এইচআর বিভাগ', 'HR department', [
+  { bn: 'কর্মী তালিকা ও প্রোফাইল', en: 'Staff & profiles', items: [
+      { to: '/app/hr/employees', icon: 'users', bn: 'কর্মী', en: 'Employees', perms: ['hr.employee.view', 'hr.application.create'] },
+      { to: '/app/zonal/staff', icon: 'users', bn: 'হাব অনুযায়ী কর্মী ও পদ', en: 'Staff & posts by hub', perms: ['hr.employee.view'] },
+      { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
+      { to: '/app/manager/staff', icon: 'usercheck', bn: 'সক্রিয় স্টাফ', en: 'Active staff', hint: { bn: 'সক্রিয় স্টাফ (নতুন যোগ / চাকরি ছাড়া)', en: 'Active staff (join / leave)' }, perms: ['hr.request.create'] },
+      { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
+  ] },
+  { bn: 'আইডি ও এইচআর অনুরোধ', en: 'IDs & HR requests', items: [
+      { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
+      { to: '/app/zonal/requests', icon: 'form', bn: 'এইচআর অনুরোধ', en: 'HR requests', perms: ['hr.request.approve'], count: 'hrreq' },
+  ] },
+  { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
+      { to: '/app/hr/attendance', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
+      { to: '/app/zonal/assistant', icon: 'cal', bn: 'হাজিরার ফাঁকা দিন', en: 'Attendance gaps', hint: { bn: 'জোনাল অ্যাসিস্ট্যান্ট — যেদিনের হাজিরা ওঠেনি', en: 'Zonal assistant — days with no attendance' }, perms: ['hr.attendance_gap.view'] },
+      { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
+  ] },
+  { bn: 'নিয়োগ ও রেফারেন্স', en: 'Hiring & referrals', items: [
+      { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
+      { to: '/app/references', icon: 'users', bn: 'রেফারেন্স তালিকা', en: 'Reference list', perms: null },
+      { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
+  ] },
+  { bn: 'এইচআর রেকর্ড ও ফাইল', en: 'HR records & files', items: [
+      { to: '/app/zonal/hr-records', icon: 'xls', bn: 'এইচআর রেকর্ড', en: 'HR records', hint: { bn: 'এইচআর রেকর্ড (জয়েনিং / এক্সিট / ট্রান্সফার ফাইল)', en: 'HR records (joining / exit / transfer files)' }, perms: ['hr.request.approve'] },
+      { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল', en: 'Zonal files', hint: { bn: 'জোনাল ফাইল (বদলি / চালু / বন্ধ)', en: 'Zonal files (transfer / on / off)' }, perms: ['hr.request.create', 'hr.request.approve'] },
+      { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
+  ] },
+  { bn: 'এইচআর সেটআপ', en: 'HR setup', items: [
+      { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
+      { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
+  ] },
+])
 
 /**
  * হিসাব — a menu of its own (owner, 17 Nov 2026): every SteadFast accounts part one tap away, in the order of the day's work.
@@ -446,7 +460,11 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
   const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
-  const [accG, officeG, sortingG, adminG] = [ACCOUNTS, OFFICE, SORTING, ADMIN].map(g => layoutGroup(g, layout))
+  const [accG, hrG, officeG, sortingG, adminG] = [ACCOUNTS, HR, OFFICE, SORTING, ADMIN].map(g => layoutGroup(g, layout))
+  // A staff member (level 0) gets one panel only: the few HR pages they may open sit inside it, not under an HR heading.
+  const hrAll = own(hrG)
+  if (level === 0 && shown[0]) { shown[0].secs.push(...hrAll) }
+  const hrSecs = level === 0 ? [] : hrAll
   const accSecs = own(accG), officeSecs = own(officeG), sortingSecs = own(sortingG), adminSecs = own(adminG)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
@@ -492,18 +510,28 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
       {layoutItems(HOME, layout).filter(i => forMe(i) && hit(i)).map(link)}
-      {[{ g: accG, secs: accSecs }, { g: officeG, secs: officeSecs }, { g: sortingG, secs: sortingSecs }, ...shown, { g: adminG, secs: adminSecs }].map(({ g, secs }) => {
-        const vis = secs.flatMap(x => x.items)
-        if (!vis.length) return null
-        const has = vis.some(i => i.to.split('?')[0] === here)
-        const isOpen = groupOpen[g.key] ?? (g.key === defaultOpenGroup || has)
-        const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
-        return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`} data-panel={g.key}>
-          <button type="button" className="ngh" aria-expanded={isOpen} title={L(g.bn, g.en)} onClick={() => toggleGroup(g.key, !isOpen)}>
-            <span className="gi"><Icon name={g.icon} size={16} />{badge > 0 && !isOpen ? <span className="gdot">{n(badge)}</span> : null}</span>
-            <span className="t">{L(g.bn, g.en)}</span><span className="chev"><Icon name="chev" size={14} /></span></button>
-          <div className="ngi" onClick={() => setOpen(false)}>{secs.map((x, i) => <Fragment key={i}>
-            {x.bn && <div className="nsec t">{L(x.bn, x.en)}</div>}{x.items.map(link)}</Fragment>)}</div>
+      {/* Divisions (owner, 23 Nov 2026): departments, my own panels, then system — each with a heading, so the menu reads like an org chart. */}
+      {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: sortingG, secs: sortingSecs }] },
+        { key: 'work', bn: 'আমার কাজের প্যানেল', en: 'My work panels', list: shown },
+        { key: 'sys', bn: 'সিস্টেম', en: 'System', list: [{ g: adminG, secs: adminSecs }] }].map(d => {
+        const groups = d.list.filter(x => x.secs.some(sc => sc.items.length))
+        if (!groups.length) return null
+        return <div key={d.key} className={`ndiv ndiv-${d.key}`} role="group" aria-label={L(d.bn, d.en)}>
+          <div className="ndiv-h t" aria-hidden="true">{L(d.bn, d.en)}</div>
+          {groups.map(({ g, secs }) => {
+          const vis = secs.flatMap(x => x.items)
+          if (!vis.length) return null
+          const has = vis.some(i => i.to.split('?')[0] === here)
+          const isOpen = groupOpen[g.key] ?? (g.key === defaultOpenGroup || has)
+          const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
+          return <div key={g.key} className={`ngrp${isOpen ? ' open' : ''}${has ? ' has-on' : ''}`} data-panel={g.key}>
+            <button type="button" className="ngh" aria-expanded={isOpen} title={L(g.bn, g.en)} onClick={() => toggleGroup(g.key, !isOpen)}>
+              <span className="gi"><Icon name={g.icon} size={16} />{badge > 0 && !isOpen ? <span className="gdot">{n(badge)}</span> : null}</span>
+              <span className="t">{L(g.bn, g.en)}</span><span className="ncount" aria-hidden="true">{n(vis.length)}</span><span className="chev"><Icon name="chev" size={14} /></span></button>
+            <div className="ngi" onClick={() => setOpen(false)}>{secs.map((x, i) => <Fragment key={i}>
+              {x.bn && <div className="nsec t">{L(x.bn, x.en)}</div>}{x.items.map(link)}</Fragment>)}</div>
+          </div>
+          })}
         </div>
       })}
       <div className="side-foot">{L('এই রোল যা খুলতে পারে মেনুতে শুধু সেটাই দেখায়।', 'The menu shows only what your role may open.')}</div>
