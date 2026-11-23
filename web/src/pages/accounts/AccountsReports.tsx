@@ -64,11 +64,11 @@ export function AccountsReports() {
       <Field label="শেষ তারিখ"><input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} /></Field>
       <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}><option value="">সব হাব</option>{(hubs.data ?? []).map(h => <option key={h.hub_id} value={h.hub_id}>{h.name}</option>)}</select></Field>
     </section>
-    {hubs.error && <ErrorNote error={hubs.error} />}
-    {rep.error && <div className="no-print">
+    {hubs.error ? <ErrorNote error={hubs.error} /> : null}
+    {validDates && rep.error ? <div className="no-print">
       <ErrorNote error={rep.error} />
       <button type="button" className="secondary" disabled={rep.loading} onClick={() => void rep.reload()}>আবার চেষ্টা করুন</button>
-    </div>}
+    </div> : null}
     <section className="panel print-area">
       <h2>{def[1]} <span className="muted small">{sub}{reportReady && ` · ${num(rows.length)}টি সারি`}</span></h2>
       {!validDates ? <p role="status" className="muted">শুরু ও শেষের সঠিক তারিখ নির্বাচন করুন। শেষের তারিখ আজকের পরে হতে পারবে না।</p> : rep.error ? null : !reportReady ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
