@@ -97,6 +97,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       supabase.from('profiles').select('must_change_password').eq('id', current.user.id).maybeSingle(),
     ])
     if (error) throw error
+    if (prof.error) throw prof.error
     setMustChange(Boolean((prof.data as { must_change_password?: boolean } | null)?.must_change_password))
     setGrants((data ?? []) as PermissionGrant[])
     setOwnMenu(await menuApi.mine().catch(() => null))
@@ -139,7 +140,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (!tokens?.access_token || !tokens.refresh_token) throw new LoginError('network')
     const { error: setErr } = await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token })
     if (setErr) throw new LoginError(/locked|not active/i.test(setErr.message) ? 'blocked' : 'network')
-    await refreshGrants()
+    try {
+      await refreshGrants()
+    } catch {
+      await supabase.auth.signOut({ scope: 'local' })
+      throw new LoginError('network')
+    }
   }, [refreshGrants])
 
   const signOut = useCallback(async () => {

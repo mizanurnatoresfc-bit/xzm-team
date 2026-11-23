@@ -24,6 +24,7 @@ export function Attendance() {
   const [busyId, setBusyId] = useState(''); const [err, setErr] = useState('')
   const canMark = can('hr.attendance.create') || can('hr.attendance.edit')
   async function mark(emp: string, s: AttendanceStatus) {
+    if (busyId) return
     const ex = byEmp[emp]
     if (ex?.status === s) return
     if (ex?.status === 'leave') { setErr('অনুমোদিত ছুটি এখান থেকে বদলানো যায় না — ছুটির পাতা থেকে প্রত্যাহার করুন'); return }
@@ -31,9 +32,27 @@ export function Attendance() {
     try { await hr.markAttendance(emp, date, s, ex); await day.reload() } catch (e) { setErr(hrFriendly(e)) } finally { setBusyId('') }
   }
   async function allPresent() {
+    if (busyId) return
     const todo = (staff.data ?? []).filter(e => !byEmp[e.id])
-    for (const e of todo) { try { await hr.markAttendance(e.id, date, 'present') } catch (x) { setErr(hrFriendly(x)); break } }
-    await day.reload(); toast(`${bn(todo.length)} জনকে উপস্থিত দেওয়া হয়েছে`)
+    if (!todo.length) return
+    setBusyId('bulk')
+    setErr('')
+    let saved = 0
+    try {
+      for (const employee of todo) {
+        await hr.markAttendance(employee.id, date, 'present')
+        saved += 1
+      }
+    } catch (error) {
+      setErr(hrFriendly(error))
+    } finally {
+      try {
+        await day.reload()
+        if (saved > 0) toast(`${bn(saved)} জনকে উপস্থিত দেওয়া হয়েছে`)
+      } finally {
+        setBusyId('')
+      }
+    }
   }
   const counts = MARKABLE.concat(['leave']).map(s => [s, (day.data ?? []).filter(r => r.status === s).length] as const)
   return <AppShell title="হাজিরা" subtitle="দৈনিক হাজিরা দিন, মাসের সারসংক্ষেপ দেখুন। ভবিষ্যতের তারিখে হাজিরা দেওয়া যায় না।">
@@ -49,7 +68,7 @@ export function Attendance() {
     {tab === 'day' ? <section className="panel">
       <div className="da-bar"><div className="da-mini">{counts.map(([s, n]) => <span key={s}>{ATT_STATUS[s]}: <strong>{bn(n)}</strong></span>)}
         <span>বাকি: <strong>{bn((staff.data?.length ?? 0) - (day.data?.length ?? 0))}</strong></span></div>
-        {canMark && staff.data && staff.data.some(e => !byEmp[e.id]) && <button className="secondary sm" onClick={() => void allPresent()}>বাকি সবাই উপস্থিত</button>}</div>
+        {canMark && staff.data && staff.data.some(e => !byEmp[e.id]) && <button className="secondary sm" disabled={Boolean(busyId)} onClick={() => void allPresent()}>বাকি সবাই উপস্থিত</button>}</div>
       {staff.data && staff.data.length === 0 ? <p className="muted">এই হাবে কোনো সক্রিয় কর্মী নেই।</p> :
         <div className="da-table-wrap"><table className="da-table att-table"><thead><tr><th>আইডি</th><th>নাম</th><th>হাজিরা</th></tr></thead>
           <tbody>{staff.data?.map(e => { const r = byEmp[e.id]; return <tr key={e.id}><td><strong>{e.employee_code}</strong></td><td>{e.full_name}</td>

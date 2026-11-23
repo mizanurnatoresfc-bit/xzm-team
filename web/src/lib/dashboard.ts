@@ -45,9 +45,11 @@ export const dashboard = {
   defaultView: async (): Promise<DashView | null> => {
     const { data, error } = await supabase.rpc('dashboard_default_view'); return error ? null : (data as DashView | null)
   },
-  approvals: async (can: (p: string) => boolean) => {
+  approvals: async (can: (p: string) => boolean, options?: { throwOnError?: boolean }) => {
     const head = async (table: string, col: string, vals: string[]) => {
-      const { count, error } = await supabase.from(table).select('id', { count: 'exact', head: true }).in(col, vals); return error ? 0 : count ?? 0
+      const { count, error } = await supabase.from(table).select('id', { count: 'exact', head: true }).in(col, vals)
+      if (error && options?.throwOnError) throw error
+      return error ? 0 : count ?? 0
     }
     const [apps, leave, sheets, hrreq] = await Promise.all([
       can('hr.application.approve') ? head('employee_applications', 'status', ['submitted']) : Promise.resolve(-1),

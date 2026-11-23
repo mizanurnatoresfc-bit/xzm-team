@@ -111,3 +111,15 @@ same text to live. Never change live with SQL that is not in a file here.
 613 functions in `public` and `private`, with the same code (compared by hash with comments, spacing and Windows line breaks ignored — 174 live
 functions were pasted from Windows and carry `\r\n`, and three advanced-permission functions were applied without their comments). Only
 `branding()` may be run by an anonymous visitor on both. Role ↔ permission rows were not compared: the Super Admin changes those from the app.
+
+## Release reconciliation (23 Nov 2026)
+
+The live migration ledger uses application timestamps, while this repository retains its replay order. The mapping below does not reconcile the full ledger. Validate a clean staging replay and compare schema and migration history before using `supabase db push` against the live project.
+
+| Repository file | Live version by migration name |
+|---|---|
+| `20261122001200_drop_workforce_manager_book.sql` | 20261122211830 |
+| `20261122001250_menu_icons.sql` | 20261122214158 |
+| `20261123000100_cleanup_unused.sql` | 20261123080527 |
+
+The menu-icons filename avoids the duplicate local version and preserves replay order before `20261122001300_password_reset_no_force.sql`. Its SQL is unchanged. Confirm the remaining one-to-many and live-only records during staging reconciliation.
