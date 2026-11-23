@@ -54,10 +54,6 @@ export const users = {
     zone_id: string | null; hub_id: string | null; employee_id: string | null }) => fn({ action: 'create', ...f }),
   resetPassword: (user: string, password: string) => fn({ action: 'reset_password', user_id: user, password }),
   changeMyPassword: (password: string) => fn({ action: 'change_password', password }),
-  mustChangePassword: async (user: string): Promise<boolean> => {
-    const { data } = await supabase.from('profiles').select('must_change_password').eq('id', user).maybeSingle()
-    return Boolean((data as { must_change_password?: boolean } | null)?.must_change_password)
-  },
 }
 
 /** Readable first password: no look-alike characters, letters and digits. */

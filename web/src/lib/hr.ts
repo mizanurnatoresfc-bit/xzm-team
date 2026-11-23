@@ -52,7 +52,6 @@ export type AttendanceStatus = 'present' | 'late' | 'half_day' | 'absent' | 'lea
 export type AttendanceRow = { id: string; employee_id: string; work_date: string; status: AttendanceStatus; note: string | null; source: string }
 export type AttendanceSummary = { employee_id: string; employee_code: string; full_name: string; present: number; late: number; half_day: number
   absent: number; leave: number; holiday: number; weekly_off: number; not_recorded: number }
-export type HrDashboard = Record<string, number | Record<string, number>>
 
 // ---------- labels ----------
 export const EMP_STATUS: Record<EmployeeStatus, [string, 'ok' | 'warn' | 'bad' | 'info' | 'neutral']> = {
@@ -128,8 +127,6 @@ export const org = {
 // ---------- employees ----------
 export const hr = {
   setWorkFocus: (employee: string, focus: string | null) => rpc<void>('hr_set_work_focus', { p_employee: employee, p_focus: focus ?? '' }),
-  dashboard: (from: string, to: string, zone?: string | null, hub?: string | null) =>
-    rpc<HrDashboard>('hr_dashboard', { p_from: from, p_to: to, p_zone: zone ?? null, p_hub: hub ?? null }),
   employees: async (opts: { q?: string; hub?: string; status?: string; limit?: number } = {}) => {
     let q = supabase.from('employees').select('*').is('archived_at', null).order('created_at', { ascending: false }).limit(opts.limit ?? 500)
     if (opts.hub) q = q.eq('hub_id', opts.hub)

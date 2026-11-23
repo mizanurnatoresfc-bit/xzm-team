@@ -240,9 +240,6 @@ export const wf = {
   bookFullMonth: (on: boolean, note?: string | null) => rpc<BookMode>('wf_book_full_month_set', { p_on: on, p_note: note || null }),
   // staff — the four numbers
   myOps: (days = 14) => rpc<MyOps | null>('wf_ops_mine', { p_days: days }),
-  submitOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
-    rpc<DailyOps>('wf_ops_submit', { p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return,
-      p_note: note || null, p_date: date ?? null }),
   /** One tap: ADDS the four numbers to the day's total (empty = 0). */
   addOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
     rpc<DailyOps>('wf_ops_add', { p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return,

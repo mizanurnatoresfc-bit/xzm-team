@@ -31,7 +31,6 @@ const AccountsReports = lazy(() => import('./pages/accounts/AccountsReports').th
 const AccountsSettings = lazy(() => import('./pages/accounts/AccountsSettings').then(m => ({ default: m.AccountsSettings })))
 const OrgSetup = lazy(() => import('./pages/org/OrgSetup').then(m => ({ default: m.OrgSetup })))
 const Hubs = lazy(() => import('./pages/org/Hubs').then(m => ({ default: m.Hubs })))
-const HrDashboard = lazy(() => import('./pages/hr/HrDashboard').then(m => ({ default: m.HrDashboard })))
 const Employees = lazy(() => import('./pages/hr/Employees').then(m => ({ default: m.Employees })))
 const EmployeeProfile = lazy(() => import('./pages/hr/EmployeeProfile').then(m => ({ default: m.EmployeeProfile })))
 const Applications = lazy(() => import('./pages/hr/Applications').then(m => ({ default: m.Applications })))
@@ -105,7 +104,6 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/accounts/AccountsSettings', () => import('./pages/accounts/AccountsSettings')],
   ['./pages/org/OrgSetup', () => import('./pages/org/OrgSetup')],
   ['./pages/org/Hubs', () => import('./pages/org/Hubs')],
-  ['./pages/hr/HrDashboard', () => import('./pages/hr/HrDashboard')],
   ['./pages/hr/Employees', () => import('./pages/hr/Employees')],
   ['./pages/hr/EmployeeProfile', () => import('./pages/hr/EmployeeProfile')],
   ['./pages/hr/Applications', () => import('./pages/hr/Applications')],
@@ -254,7 +252,10 @@ export default function App() {
       {/* the old vehicle pages were replaced by /app/fleet (owner, 16 Nov) */}
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
       <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
-      <Route path="/app/hr" element={<HrDashboard />} />
+      {/* removed pages: their old addresses lead to a page that still exists (duplicate audit, 23 Nov 2026) */}
+      <Route path="/app/hr" element={<Navigate to="/app" replace />} />
+      <Route path="/app/hub/accounts" element={<Navigate to="/app/accounts/daily" replace />} />
+      <Route path="/app/hub/days" element={<Navigate to="/app/hub/attendance" replace />} />
       <Route path="/app/hr/employees" element={<Employees />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
       <Route path="/app/hr/applications" element={<Applications />} />
@@ -321,7 +322,7 @@ export default function App() {
       <Route path="/app/accounts/settings" element={<AccountsSettings />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.admin_portal.view" />}>
-      <Route path="/secure-control" element={<Dashboard />} />
+      <Route path="/secure-control" element={<Navigate to="/app" replace />} />
     </Route>
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />

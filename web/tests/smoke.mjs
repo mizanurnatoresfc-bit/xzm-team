@@ -734,16 +734,6 @@ try {
       check(href.includes('/app/workforce/hub?hub=') && href.includes('tab=approve'), `${size}: the hub attendance page sends the manager to the approval list`) }
     await fits('self attendance approval')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-self-att.png`, fullPage: true })
-    // attendance days to compare: two numbers per person, a difference is pointed out, then submit
-    await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
-    const adRow = page.locator('.ad-rows .nv-row', { hasText: 'Alamin Sarker' })
-    await adRow.locator('.ad-in input').nth(0).fill('১৩'); await adRow.locator('.ad-in input').nth(1).fill('15')
-    check(await page.locator('.ad-rows .nv-row:not(.ad-head)').count() === 2 && (await adRow.innerText()).includes('পার্থক্য ২ দিন'), `${size}: attendance days take two numbers per person and point out a difference`)
-    await page.locator('.ad .da-actionbar button').click(); await page.waitForTimeout(300)
-    { const c = flowCalls.at(-1) ?? {}
-      check(c.fn === 'att_days_save' && c.p_rows?.length === 2 && c.p_rows[0].online_days === 13 && c.p_rows[0].register_days === 15 && /^\d{4}-\d\d-(01|16)$/.test(c.p_from), `${size}: the hub submits the attendance days for the half month`) }
-    await fits('attendance days')
-    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-days.png` })
     // the hub sets up its own people: logins for riders / plain staff, a new password, profile details, "has left"
     await page.goto(`${BASE}/app/hub/logins`); await page.waitForSelector('.hl .nv-row', { timeout: 10000 }).catch(() => {})
     check(await page.locator('.hl .nv-row').count() === 3 && await page.locator('.hl .nv-row button', { hasText: 'লগইন বানান' }).count() === 1 && (await page.locator('.hl .nv-row').last().innerText()).includes('অ্যাডমিন'),
@@ -868,18 +858,20 @@ try {
         }
         check(!bad.length, `${size}: all ${pages.length} office and residential pages open cleanly and fit the screen${bad.length ? ' — ' + bad.join(', ') : ''}`) }
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
-      { const want = ['ডেইলি রিপোর্ট ইম্পোর্ট', 'দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
+      { const want = ['ডেইলি রিপোর্ট ইম্পোর্ট', 'হিসাব কেন্দ্র (সব', 'বাংলা শেখার কেন্দ্র']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))
-        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 5 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 20 && got.every(c => c === 1),
-          `${size}: accounts has a menu of its own, every part one tap away${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
+        const gone = await Promise.all(['ব্যাংকে জমা', 'ভাউচার ম্যানেজমেন্ট', 'হিসাবের ইতিহাস', 'নদী AI হিসাব শিক্ষক', 'অনুশীলন (নমুনা হিসাব)'].map(t => inPanel('accounts', t)))
+        check(await page.locator('.side .ngrp[data-panel=accounts] .nsec').count() === 3 && await page.locator('.side .ngrp[data-panel=accounts] a.nl').count() === 7 && got.every(c => c === 1) && gone.every(c => c === 0),
+          `${size}: accounts has a menu of its own; the accounts centre is one entry (its parts are tabs inside it), not ten links${got.every(c => c === 1) ? '' : ' — missing: ' + want.filter((_, i) => got[i] !== 1).join(', ')}`) }
       if (size === 'phone') await page.locator('.bottom-nav button.bn-item').last().click()
       const accountsToggle = page.locator('.side .ngrp[data-panel=accounts] button.ngh')
       if (await accountsToggle.getAttribute('aria-expanded') === 'false') await accountsToggle.click()
-      await page.locator('.side .ngrp[data-panel=accounts] a.nl', { hasText: 'ব্যাংকে জমা' }).click()
-      await page.waitForSelector('.ac .da-table', { timeout: 10000 }).catch(() => {})
+      await page.locator('.side .ngrp[data-panel=accounts] a.nl', { hasText: 'হিসাব কেন্দ্র (সব' }).click()
+      await page.waitForSelector('.ac .ac-tabs', { timeout: 10000 }).catch(() => {})
+      await page.locator('.ac .ac-tabs button', { hasText: 'ব্যাংকে জমা' }).click(); await page.waitForSelector('.ac .da-table', { timeout: 10000 }).catch(() => {})
       check(page.url().includes('/app/accounts/center?tab=bank') && (await page.locator('.ac .da-table').innerText().catch(() => '')).includes('NOT MATCH')
-        && await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').count() === 1 && (await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').innerText()).includes('ব্যাংকে জমা'),
-        `${size}: a menu entry opens its own part, and only that entry is marked`)
+        && await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').count() === 1 && (await page.locator('.side .ngrp[data-panel=accounts] a.nl.active').innerText()).includes('হিসাব কেন্দ্র'),
+        `${size}: the accounts centre opens one part from its own tab bar, and the menu keeps the one centre entry marked`)
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-menu-bank.png` })
       for (const [t, want] of [['দৈনিক রিপোর্ট', '#743858'], ['মার্চেন্ট ক্যাশ পেমেন্ট', 'SFC-33223762'], ['হাবের বকেয়া / ফান্ড', 'বকেয়া']]) {
         await page.goto(`${BASE}/app/accounts/center?tab=${{ 'দৈনিক রিপোর্ট': 'reports', 'মার্চেন্ট ক্যাশ পেমেন্ট': 'merchant', 'হাবের বকেয়া / ফান্ড': 'due' }[t]}`)
@@ -887,7 +879,7 @@ try {
         check((await page.locator('.ac .da-table').innerText().catch(() => '')).includes(want), `${size}: "${t}" shows its own list`)
       }
       await page.goto(`${BASE}/app/accounts/learn?p=practice`); await page.waitForSelector('.lr-card')
-      check(await page.locator('.lr-card').count() === 7, `${size}: the practice menu entry lists the lessons that have practice`)
+      check(await page.locator('.lr-card').count() === 7, `${size}: the practice address lists the lessons that have practice`)
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       check(!links.includes('/app/hub/accounts') && !links.includes('/app/hr') && !links.includes('/app/issues?tab=orders') && new Set(links).size === links.length,
         `${size}: pages that repeat another page are off the menu, and no page is listed twice`)
@@ -915,7 +907,7 @@ try {
       const managerPanels = (await panels()).split(',')
       check(['accounts', 'self', 'hub', 'sorting'].every(k => managerPanels.includes(k)) && new Set(managerPanels).size === managerPanels.length
         && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 0 && await inPanel('sorting', 'পার্সেল আদান-প্রদান') === 1
-        && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
+        && await inPanel('accounts', 'হিসাব কেন্দ্র (সব') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
         `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       { const dl = page.locator('.app-dl'); await dl.waitFor({ timeout: 5000 }).catch(() => {})
@@ -985,7 +977,7 @@ try {
     await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
     check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && flowCalls.at(-1)?.p_menu?.join() === '/app/hub/team,/app/hub/late', `${size}: the Super Admin picks the pages of a role`)
     // a list saved before the days page was hidden still names it: it stays off the strip but opens by its address
-    menuNow = ['/app/hub/team', '/app/hub/late', '/app/hub/days', '/app/accounts/khata']
+    menuNow = ['/app/hub/team', '/app/hub/late', '/app/hub/days', '/app/accounts/khata']  // a list saved before the days page was removed still names it
     await page.goto(`${BASE}/app/hub/team`); await page.waitForSelector('.hub-tabs a', { timeout: 10000 }).catch(() => {}); await page.waitForSelector('.post-chip i svg', { timeout: 10000 }).catch(() => {})
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.post-chip').count() >= 1 && await page.locator('.post-chip i svg').count() === await page.locator('.post-chip').count(), `${size}: the team's posts are chips with a small icon`)
@@ -994,9 +986,9 @@ try {
     const limitedMenuOk = hubTabs === 2 && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
     check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
     { const stripOnTeam = await page.locator('.hub-tabs a').evaluateAll(a => a.map(x => x.getAttribute('href')).join())
-      await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
-      check(!stripOnTeam.includes('/app/hub/days') && await page.locator('.ad-rows .nv-row:not(.ad-head)').count() === 2 && await page.locator('.center-screen .notice').count() === 0,
-        `${size}: the attendance days page is off the hub strip but still opens by its address (${stripOnTeam})`) }
+      await page.goto(`${BASE}/app/hub/days`); await page.waitForTimeout(400)
+      check(!stripOnTeam.includes('/app/hub/days') && !page.url().includes('/app/hub/days'),
+        `${size}: the removed attendance days page is not on the hub strip and its old address leads elsewhere (${stripOnTeam})`) }
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})

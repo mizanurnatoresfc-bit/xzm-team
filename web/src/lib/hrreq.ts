@@ -85,9 +85,6 @@ export const hrReq = {
     if (to) q = q.lte('created_at', `${to}T23:59:59.999+06:00`)
     const { data, error } = await q; fail(error); return (data ?? []) as HrRequest[]
   },
-  one: async (id: string) => {
-    const { data, error } = await supabase.from('hr_requests').select('*').eq('id', id).maybeSingle(); fail(error); return data as HrRequest | null
-  },
   events: async (id: string) => {
     const { data, error } = await supabase.from('hr_request_events').select('*').eq('request_id', id).order('at'); fail(error); return (data ?? []) as ReqEvent[]
   },
@@ -110,24 +107,9 @@ export const hrReq = {
     if (!ids.length) return [] as EmpRow[]
     const { data, error } = await supabase.from('employees').select(EMP_COLS).in('id', ids); fail(error); return (data ?? []) as EmpRow[]
   },
-  findPeople: async (q: string) => {
-    const s = q.replace(/[%,()]/g, ' ').trim(); if (s.length < 2) return [] as EmpRow[]
-    const { data, error } = await supabase.from('employees').select(EMP_COLS).is('archived_at', null)
-      .or(`full_name.ilike.%${s}%,employee_code.ilike.%${s}%,mobile.ilike.%${s}%`).order('full_name').limit(8); fail(error)
-    return (data ?? []) as EmpRow[]
-  },
   myEmployee: async () => {
     const id = await rpc<string | null>('my_employee_id', {}).catch(() => null)
     return id ? hrReq.employee(id) : null
-  },
-  notices: async () => {
-    const { data, error } = await supabase.from('notifications').select('id,title,body,link,created_at,read_at').order('created_at', { ascending: false }).limit(15)
-    if (error) return [] as Notice[]
-    return (data ?? []) as Notice[]
-  },
-  markRead: async (ids: string[]) => {
-    if (!ids.length) return
-    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids).is('read_at', null)
   },
   openCount: async () => {
     const { count, error } = await supabase.from('hr_requests').select('id', { count: 'exact', head: true }).in('status', ['submitted', 'processing'])

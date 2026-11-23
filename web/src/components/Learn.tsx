@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { LESSONS, OFFICIAL_NOTE, allLessonsText, lessonOf, lessonText, type Lesson, type ModuleKey } from '../lib/accountsGuide'
+import { OFFICIAL_NOTE, allLessonsText, lessonOf, lessonText, type Lesson, type ModuleKey } from '../lib/accountsGuide'
 import { da } from '../lib/dailyAccounts'
 import { nodi, type ChatMsg } from '../lib/nodi'
 import { useNodiFeatures } from '../lib/useNodiFeatures'
@@ -127,5 +127,4 @@ export function LearnButton({ module, label = 'নির্দেশনা' }: {
   </>
 }
 
-export const lessonsForGrid = LESSONS
 export { OFFICIAL_NOTE }
