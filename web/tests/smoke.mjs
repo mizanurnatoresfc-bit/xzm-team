@@ -851,8 +851,10 @@ try {
         await page.locator('.row-menu-btn').first().click()
         const items = await page.locator('.row-menu button').allInnerTexts()
         await page.keyboard.press('Escape')
+        // "Broken" is its own button beside the ⋮ menu (it opens the report to the zonal manager); the menu holds "Need more", edit, lend, remove.
+        const brokenBtn = await page.locator('.row-acts button', { hasText: 'নষ্ট' }).count()
         check(chips === 4 && onlyFan && await page.locator('.oo-name').count() === 3 && await page.locator('.oo-help[open]').count() === 0
-          && items.some(t => t.includes('নষ্ট')) && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
+          && brokenBtn > 0 && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
           `${size}: office resources — kind chips filter the list, help is folded, each item has one ⋮ menu`) }
       // every office and residential page opens, shows its tabs, has no error box and fits the screen
       { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports'].map(k => `/app/office/${k}`),
