@@ -997,3 +997,13 @@ make-android.bat       Android অ্যাপ (APK) বানায়
      replaced (`office/askText.tsx` now uses it). Cancel on an optional note now stops the action. The smoke test fails if any page opens a browser dialog.
 - **Still for the owner (section 4 of the report):**
   sparse phone lists; settings pages 15–62 screens long on a phone; three floating layers; date boxes showing month first; small tap targets; the sign-in button's contrast.
+
+## 2026-11-23 — অ্যাপের নেটিভ অনুভূতি ও ক্যামেরা (Android app feel, camera)
+
+- Owner asked for item 3 (native feel) and the camera from item 4 of the Android plan. Code: `web/src/lib/nativeFeel.tsx` (called from `setupNativeApp`), details in `docs/ANDROID.md` → "App feel".
+- Buzz on tabs/toasts/errors; every photo box offers camera or gallery (camera photo goes into the same box, so no page changed); bottom bar steps aside
+  while the keyboard is up; pull to refresh; page title slides by direction; no pinch-zoom; no text selection on long press of buttons.
+- New plugins `@capacitor/haptics`, `@capacitor/camera` (7.0.5). **A new APK is needed:** Actions → "Android APK and site build" → Run workflow. Until it is
+  installed, the app works as before (each part checks for its plugin).
+- Smoke test: an "in the app" block with a stand-in Capacitor bridge (camera sheet → photo in the box, tick, keyboard). 701 checks pass.
+- Not tried on a real phone yet (no device here): the owner should check the camera, the buzz and pull-to-refresh on the new APK.

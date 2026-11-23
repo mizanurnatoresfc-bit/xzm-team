@@ -1,5 +1,6 @@
 // Small helpers for running inside the Android app (Capacitor). On the website these do nothing.
 // Native plugins are reached through window.Capacitor, so the website bundle does not depend on them.
+import { setupNativeFeel } from './nativeFeel'
 type Listener = { remove: () => void }
 type CapacitorGlobal = {
   isNativePlatform?: () => boolean
@@ -35,6 +36,7 @@ export function setupNativeApp(): void {
   document.documentElement.classList.add('native-app')
   handOutsideLinks()
   fitStatusBar()
+  setupNativeFeel()
   const app = cap()?.Plugins?.App
   if (!app) return
   void app.addListener('backButton', () => {

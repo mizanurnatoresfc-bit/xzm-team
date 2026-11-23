@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
 import { PulsePopup } from './PulsePopup'
@@ -333,6 +333,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const { L, n, lang, setLang, theme, setTheme, nodiFab } = usePrefs()
   const [asRole, setAsRole] = useState(false)
   const nav = useNavigate()
+  // Going back slides the new page in from the left, going forward from the right (app-feel.css), like an app's screens.
+  const navType = useNavigationType()
+  useEffect(() => { document.documentElement.dataset.nav = navType === 'POP' ? 'back' : 'fwd' }, [navType])
   const user = session?.user.id ?? ''
   const name = (session?.user.user_metadata?.full_name as string | undefined) || session?.user.email || ''
   const [open, setOpen] = useState(false)
