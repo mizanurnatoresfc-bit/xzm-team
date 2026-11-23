@@ -29,9 +29,14 @@ const TONES = ['g', 'b', 'o', 'p', 'c', 'r']
 const toneOf = (s: string) => TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % TONES.length]
 const initials = (nm: string) => nm.replace(/^(md\.?|mohammad|mohammed|mst\.?)\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 // The summary strip is also the status filter: [status, label, tone, hint]
-const STATUS_TABS: Array<[string, string, string, string]> = [
-  ['', 'সব কর্মী', 'blue', 'আপনি যে এলাকা দেখতে পারেন'], ['active', 'সক্রিয়', 'green', 'বর্তমানে কর্মরত'],
-  ['applicant', 'আইডির অপেক্ষায়', 'amber', 'আবেদন / অনুমোদন বাকি'], ['inactive', 'নিষ্ক্রিয়', 'gray', 'নিষ্ক্রিয় / পদত্যাগ / সমাপ্ত']]
+const STATUS_TABS: Array<[string, string, string, string, string]> = [
+  ['', 'সব কর্মী', 'b', 'আপনি যে এলাকা দেখতে পারেন', 'users'], ['active', 'সক্রিয়', 'g', 'বর্তমানে কর্মরত', 'usercheck'],
+  ['applicant', 'আইডির অপেক্ষায়', 'o', 'আবেদন / অনুমোদন বাকি', 'clock'], ['inactive', 'নিষ্ক্রিয়', 'x', 'নিষ্ক্রিয় / পদত্যাগ / সমাপ্ত', 'userx']]
+// each post gets its own colour + icon (same in the chip row and in the table)
+const POST_TONES = ['g', 'b', 'o', 'p', 'r', 'c']
+const postIcon = (name: string) => /ড্রাইভার|রাইডার|driver|rider/i.test(name) ? 'truck' : /সিকিউরিটি|security|গার্ড/i.test(name) ? 'shield'
+  : /ডাটা|data|এন্ট্রি/i.test(name) ? 'form' : /হেল্পার|লোডার|সর্টিং|helper|load|sort/i.test(name) ? 'box' : /সিসি|\bcc\b/i.test(name) ? 'cc'
+  : /ম্যানেজার|manager/i.test(name) ? 'org' : 'user'
 const inStatus = (e: Employee, s: string) => !s || e.status === s || (s === 'inactive' && ['inactive', 'resigned', 'terminated'].includes(e.status))
 
 /** Staff management — one page, two views by role. */
@@ -157,6 +162,7 @@ function FullStaffView() {
     && matches(`${e.full_name} ${e.full_name_bn ?? ''} ${e.employee_code ?? ''} ${e.mobile ?? ''}`, q)), [all, zone, hubF, q])
   const scoped = useMemo(() => base.filter(e => inStatus(e, status)), [base, status])
   const rows = useMemo(() => scoped.filter(e => !post || (post === 'leave' ? onLeave.has(e.id) : e.position_id === post)), [scoped, post, onLeave])
+  const postTone = useMemo(() => Object.fromEntries((o.data?.positions ?? []).map((p, i) => [p.id, POST_TONES[i % POST_TONES.length]])) as Record<string, string>, [o.data])
   const posts = (o.data?.positions ?? []).map(p => ({ p, count: scoped.filter(e => e.position_id === p.id).length })).filter(x => x.count > 0)
   const leaveCount = scoped.filter(e => onLeave.has(e.id)).length
   const zones = o.data?.zones ?? []
@@ -177,31 +183,31 @@ function FullStaffView() {
 
   return <AppShell title="কর্মী ব্যবস্থাপনা" subtitle={ready ? `${bn(activeCount)} জন সক্রিয় কর্মী — পদ, এরিয়া বা হাব ধরে দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।` : 'পদ, এরিয়া বা হাব ধরে কর্মী দেখুন; টিক দিয়ে একসাথে অনেকের কাজ করুন।'}
     actions={<>
-      {canMove && <button className="secondary" onClick={() => setQuick(true)}>⇄ হাব বদলি</button>}
-      {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setNewApp(true)}>+ নতুন কর্মী</button>}
+      {canMove && <button className="secondary" onClick={() => setQuick(true)}><Icon name="swap" size={16} />হাব বদলি</button>}
+      {can('hr.application.create') && <button className="nv-wide-only" onClick={() => setNewApp(true)}><Icon name="userplus" size={16} />নতুন কর্মী</button>}
       <span className="hr-more no-print"><RowMenu label="আরও কাজ" items={moreMenu} /></span></>}>
     {node}
     <section className="hr-emp-stats no-print" role="group" aria-label="অবস্থা অনুযায়ী">
-      {STATUS_TABS.map(([k, l, tone, hint]) => <button key={k || 'all'} type="button" className={`hr-emp-stat ${tone}${status === k ? ' on' : ''}`} aria-pressed={status === k} title={hint} onClick={() => setStatus(k)}>
-        <small>{l}</small><strong>{stat(base.filter(e => inStatus(e, k)).length)}</strong></button>)}
+      {STATUS_TABS.map(([k, l, tone, hint, ic]) => <button key={k || 'all'} type="button" className={`hr-emp-stat tn-${tone}${status === k ? ' on' : ''}`} aria-pressed={status === k} title={hint} onClick={() => setStatus(k)}>
+        <span className="si"><Icon name={ic} size={16} /></span><small>{l}</small><strong>{stat(base.filter(e => inStatus(e, k)).length)}</strong></button>)}
     </section>
 
     {showMatrix && <HubPostMatrix zone={zone || null} onHub={id => setHubF(id)} />}
 
     <section className="panel emp-board hr-emp-board">
-      <div className="hr-emp-list-heading"><div><h2>কর্মী তালিকা</h2><p aria-live="polite">{list.error ? 'তালিকা আনা যায়নি' : !list.data ? 'তথ্য লোড হচ্ছে…' : `${bn(all.length)} জনের মধ্যে ${bn(rows.length)} জন দেখানো হচ্ছে`}</p></div>{hasFilters && <button type="button" className="hr-emp-clear" onClick={clearFilters}>সব ফিল্টার মুছুন ×</button>}</div>
+      <div className="hr-emp-list-heading"><span className="hd-ic"><Icon name="users" size={20} /></span><div className="hd-t"><h2>কর্মী তালিকা</h2><p aria-live="polite">{list.error ? 'তালিকা আনা যায়নি' : !list.data ? 'তথ্য লোড হচ্ছে…' : `${bn(all.length)} জনের মধ্যে ${bn(rows.length)} জন দেখানো হচ্ছে`}</p></div>{hasFilters && <button type="button" className="hr-emp-clear" onClick={clearFilters}>সব ফিল্টার মুছুন ×</button>}</div>
       <div className="eb-bar no-print">
         <label className="emp-search"><Icon name="search" size={18} />
           <input type="search" placeholder="নাম, আইডি বা মোবাইল দিয়ে খুঁজুন…" value={q} onChange={e => setQ(e.target.value)} aria-label="খুঁজুন" />
           {q && <button type="button" className="icon-btn" aria-label="মুছুন" onClick={() => setQ('')}><Icon name="x" size={16} /></button>}</label>
-        {zones.length > 1 && <div className="eb-sel"><Combo label="এরিয়া" value={zone} onChange={v => { setZone(v); setHubF('') }} placeholder="সব এরিয়া" options={zones.map(z => ({ value: z.id, label: z.name }))} /></div>}
-        <div className="eb-sel"><Combo label="হাব" value={hubF} onChange={setHubF} placeholder="সব হাব" options={hubList.map(h => ({ value: h.id, label: h.name }))} /></div>
+        {zones.length > 1 && <div className="eb-sel"><Icon name="map" size={18} className="eb-ic tn-b" /><Combo label="এরিয়া" value={zone} onChange={v => { setZone(v); setHubF('') }} placeholder="সব এরিয়া" options={zones.map(z => ({ value: z.id, label: z.name }))} /></div>}
+        <div className="eb-sel"><Icon name="hub" size={18} className="eb-ic tn-o" /><Combo label="হাব" value={hubF} onChange={setHubF} placeholder="সব হাব" options={hubList.map(h => ({ value: h.id, label: h.name }))} /></div>
       </div>
       <div className="eb-chips no-print" role="group" aria-label="পদ অনুযায়ী">
-        <button type="button" className={`chip-toggle${post === '' ? ' on' : ''}`} aria-pressed={post === ''} onClick={() => setPost('')}>সব পদ <b>{bn(scoped.length)}</b></button>
-        {posts.map(({ p, count }) => <button key={p.id} type="button" className={`chip-toggle${post === p.id ? ' on' : ''}`} aria-pressed={post === p.id} onClick={() => setPost(post === p.id ? '' : p.id)}>
-          {o.names.pos[p.id] ?? p.name} <b>{bn(count)}</b></button>)}
-        <button type="button" className={`chip-toggle${post === 'leave' ? ' on' : ''}`} aria-pressed={post === 'leave'} onClick={() => setPost(post === 'leave' ? '' : 'leave')}>আজ ছুটিতে <b>{bn(leaveCount)}</b></button>
+        <button type="button" className={`chip-toggle${post === '' ? ' on' : ''}`} aria-pressed={post === ''} onClick={() => setPost('')}><span className="pi"><Icon name="users" size={13} /></span>সব পদ <b>{bn(scoped.length)}</b></button>
+        {posts.map(({ p, count }) => <button key={p.id} type="button" className={`chip-toggle tn-${postTone[p.id] ?? 'g'}${post === p.id ? ' on' : ''}`} aria-pressed={post === p.id} onClick={() => setPost(post === p.id ? '' : p.id)}>
+          <span className="pi"><Icon name={postIcon(p.name)} size={13} /></span>{o.names.pos[p.id] ?? p.name} <b>{bn(count)}</b></button>)}
+        <button type="button" className={`chip-toggle tn-r${post === 'leave' ? ' on' : ''}`} aria-pressed={post === 'leave'} onClick={() => setPost(post === 'leave' ? '' : 'leave')}><span className="pi"><Icon name="cal" size={13} /></span>আজ ছুটিতে <b>{bn(leaveCount)}</b></button>
       </div>
       {list.error ? <p className="da-error" role="alert">{hrFriendly(list.error)} <button type="button" className="link" onClick={() => void list.reload()}>আবার চেষ্টা করুন</button></p> : null}
       <DataTable<Employee> title="কর্মী তালিকা" file="employees" rows={list.data ? rows : null} rowKey={e => e.id} search={false} quickFilters={false} phoneView="list" onRowClick={e => nav(`/app/hr/employees/${e.id}`)}
@@ -217,12 +223,12 @@ function FullStaffView() {
             <span><b>{e.full_name}</b><span className="sec">{e.employee_code ? `আইডি ${e.employee_code}` : 'আইডি বাকি'}{e.full_name_bn ? ` · ${e.full_name_bn}` : ''}</span></span></span> },
           { key: 'employee_code', label: 'আইডি', hidden: true, value: e => e.employee_code ?? '' },
           { key: 'mobile', label: 'মোবাইল', value: e => e.mobile ?? '', render: e => <Contact phone={e.mobile} /> },
-          { key: 'pos', label: 'পদবি', value: posName, render: e => posName(e) ? <Badge tone="ok">{posName(e)}</Badge> : <Badge tone="neutral">পদ দেওয়া নেই</Badge> },
-          { key: 'hub', label: 'হাব', value: hubName },
+          { key: 'pos', label: 'পদবি', value: posName, render: e => posName(e) ? <span className={`pos-badge tn-${postTone[e.position_id ?? ''] ?? 'g'}`}><Icon name={postIcon(posName(e))} size={14} />{posName(e)}</span> : <Badge tone="neutral">পদ দেওয়া নেই</Badge> },
+          { key: 'hub', label: 'হাব', value: hubName, render: e => hubName(e) ? <span className="hub-cell"><Icon name="hub" size={14} />{hubName(e)}</span> : <span className="muted">—</span> },
           { key: 'status', label: 'অবস্থা', value: e => EMP_STATUS[e.status as EmployeeStatus]?.[0] ?? e.status, render: e => <EmpBadge status={e.status} /> },
           { key: 'act', label: 'কাজ', noExport: true, className: 'r', render: e => <span className="row-acts" onClick={ev => ev.stopPropagation()}>
-            {can('hr.employee.edit') && e.status !== 'applicant' && <button type="button" className="secondary sm" onClick={() => nav(`/app/hr/employees/${e.id}?edit=1`)}>এডিট</button>}
-            <button type="button" className="sm" onClick={() => nav(`/app/hr/employees/${e.id}`)}>দেখুন</button></span> },
+            {can('hr.employee.edit') && e.status !== 'applicant' && <button type="button" className="secondary sm" onClick={() => nav(`/app/hr/employees/${e.id}?edit=1`)}><Icon name="edit" size={14} />এডিট</button>}
+            <button type="button" className="sm" onClick={() => nav(`/app/hr/employees/${e.id}`)}><Icon name="eye" size={14} />দেখুন</button></span> },
         ]} />
     </section>
     {can('hr.application.create') && <button type="button" className="nv-fab no-print" onClick={() => setNewApp(true)}><Icon name="plus" size={22} /> নতুন কর্মী</button>}
