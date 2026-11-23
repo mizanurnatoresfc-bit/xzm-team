@@ -1668,6 +1668,7 @@ try {
       await ap.evaluate(() => window.scrollTo(0, 0)); await ap.waitForTimeout(150)
       check(await ap.evaluate(() => !document.documentElement.classList.contains('scrolled')), `${size}: in the app, the top bar is flat at the top again`)
       // a dialog is a bottom sheet: pulling it down closes it, a short pull springs back
+      await ap.goto(`${BASE}/app/staff`); await ap.waitForSelector('.sp .nv-row')
       await ap.locator('.sp-hero .my-av-cam').click(); await ap.waitForSelector('.da-modal')
       const pull = async dy => { const h = await ap.locator('.da-modal').boundingBox(); const x = h.x + h.width / 2, y = h.y + 20
         await ap.evaluate(([x, y, dy]) => { const t = document.querySelector('.da-modal'); const mk = (type, yy) => new TouchEvent(type, { bubbles: true, cancelable: true, touches: type === 'touchend' ? [] : [new Touch({ identifier: 1, target: t, clientX: x, clientY: yy })] })
