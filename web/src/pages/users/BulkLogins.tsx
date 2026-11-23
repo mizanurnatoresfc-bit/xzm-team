@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/ask'
 import { useMemo, useRef, useState } from 'react'
 import { Combo } from '../../components/inputs'
 import { Icon } from '../../components/Icon'
@@ -49,7 +50,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
     setErr('')
     if (!ready.length) return setErr('লগইন তৈরির মতো কোনো কর্মী নেই')
     if (mode === 'common' && !strongEnough(password)) return setErr('প্রথম পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে')
-    if (!window.confirm(`${ready.length} জন কর্মীর লগইন তৈরি হবে। শুরু করবেন?`)) return
+    if (!await askConfirm(`${ready.length} জন কর্মীর লগইন তৈরি হবে। শুরু করবেন?`, { ok: 'শুরু করুন' })) return
     stop.current = false
     const made: Made[] = [], bad: string[] = []
     setRun({ at: 0, total: ready.length, made, bad, done: false })
@@ -86,7 +87,7 @@ export function BulkLogins({ onClose, onDone }: { onClose: () => void; onDone: (
         {run.made.length > 0 && <button type="button" onClick={() => sheet(run.made)}><Icon name="xls" size={15} /> তালিকা (এক্সেল) নামান</button>}</>
       : <button type="button" className="secondary" onClick={() => { stop.current = true }}>থামান</button>}>
     <p><b>{n(run.at)} / {n(run.total)}</b> — {run.done ? 'শেষ হয়েছে' : 'তৈরি হচ্ছে… এই পাতা বন্ধ করবেন না'}</p>
-    <div className="bl-bar" role="progressbar" aria-valuemin={0} aria-valuemax={run.total} aria-valuenow={run.at}><span style={{ width: `${run.total ? (run.at / run.total) * 100 : 0}%` }} /></div>
+    <div className="bl-bar" role="progressbar" aria-label="অগ্রগতি" aria-valuemin={0} aria-valuemax={run.total} aria-valuenow={run.at}><span style={{ width: `${run.total ? (run.at / run.total) * 100 : 0}%` }} /></div>
     <p className="muted small">তৈরি হয়েছে {n(run.made.length)} জনের{run.bad.length ? `, সমস্যা ${n(run.bad.length)} জনে` : ''}।</p>
     {run.bad.length > 0 && <ul className="bl-bad">{run.bad.slice(0, 12).map((b, i) => <li key={i}>{b}</li>)}{run.bad.length > 12 && <li>… আরও {n(run.bad.length - 12)} জন</li>}</ul>}
     {run.done && run.made.length > 0 && <div className="notice">

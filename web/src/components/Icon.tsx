@@ -18,6 +18,7 @@ const P: Record<string, string> = {
   map: "<path d=\"M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z\"/><path d=\"M9 4v14M15 6v14\"/>",
   hub: "<path d=\"M3 21V9l9-6 9 6v12\"/><path d=\"M9 21v-7h6v7\"/>",
   camera: "<path d=\"M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z\"/><circle cx=\"12\" cy=\"13.5\" r=\"3.5\"/>",
+  image: "<rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"/><circle cx=\"9\" cy=\"10\" r=\"2\"/><path d=\"m21 16-5-5-9 9\"/>",
   user: "<circle cx=\"12\" cy=\"8\" r=\"4\"/><path d=\"M4 21c1-4.2 4.1-6.5 8-6.5s7 2.3 8 6.5\"/>",
   userplus: "<circle cx=\"9\" cy=\"8\" r=\"4\"/><path d=\"M2 21c.9-4 3.6-6.3 7-6.3 1.4 0 2.6.3 3.7 1\"/><path d=\"M18 13v8M14 17h8\"/>",
   usercheck: "<circle cx=\"9\" cy=\"8\" r=\"4\"/><path d=\"M2 21c.9-4 3.6-6.3 7-6.3 1.4 0 2.6.3 3.7 1\"/><path d=\"m14.5 17.5 2.2 2.2 4.8-5\"/>",

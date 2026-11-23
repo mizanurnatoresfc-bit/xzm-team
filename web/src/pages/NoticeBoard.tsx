@@ -1,5 +1,6 @@
 // নোটিশ বোর্ড · রিমাইন্ডার · আমার রিপোর্টিং লাইন.
 // Every rule (who may publish where, who sees what, reminders only for oneself) is in the database; this page only calls the functions.
+import { askConfirm } from '../components/ask'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
@@ -68,7 +69,7 @@ export function NoticeBoard() {
           {n.requires_read && (n.seen ? <Badge tone="ok">{L('পড়েছি ✓', 'Read ✓')}</Badge>
             : <button type="button" onClick={() => void act(() => rpc('notice_mark_read', { p_notice: n.id }), L('ধন্যবাদ', 'Thanks'), [notices])}>{L('পড়েছি', 'I have read this')}</button>)}
           {n.readers !== null && <span className="muted small">{L(`${n.readers} জন পড়েছেন`, `${n.readers} have read it`)}</span>}
-          {n.can_manage && <button type="button" className="secondary sm" onClick={() => { if (window.confirm(L('নোটিশটি নামিয়ে নেবেন?', 'Take this notice down?'))) void act(() => rpc('notice_archive', { p_notice: n.id }), L('নামানো হয়েছে', 'Taken down'), [notices]) }}>{L('নামান', 'Take down')}</button>}
+          {n.can_manage && <button type="button" className="secondary sm" onClick={async () => { if (await askConfirm(L('নোটিশটি নামিয়ে নেবেন?', 'Take this notice down?'), { ok: L('নামান', 'Take down'), danger: true })) void act(() => rpc('notice_archive', { p_notice: n.id }), L('নামানো হয়েছে', 'Taken down'), [notices]) }}>{L('নামান', 'Take down')}</button>}
         </div>
       </article>)}
     </section>}

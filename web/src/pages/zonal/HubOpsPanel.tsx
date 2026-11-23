@@ -1,3 +1,4 @@
+import { askConfirm, askReason } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
@@ -81,8 +82,9 @@ export function HubOpsPanel() {
 
   const touch = () => setDirty(true)
   const setRow = (key: string, patch: Partial<Row>) => { setRows(rs => rs.map(r => r.key === key ? { ...r, ...patch } : r)); touch() }
-  const goDate = (d: string) => { if (dirty && !window.confirm(L('সেভ না করা বদল হারিয়ে যাবে। যাবেন?', 'Unsaved changes will be lost. Continue?'))) return; setSp({ date: d }, { replace: true }) }
-  const goHub = (id: string) => { if (dirty && !window.confirm(L('সেভ না করা বদল হারিয়ে যাবে। যাবেন?', 'Unsaved changes will be lost. Continue?'))) return; nav(`/app/zonal/hub-ops/hub/${id}?date=${date}`) }
+  const leave = () => askConfirm(L('সেভ না করা বদল হারিয়ে যাবে। যাবেন?', 'Unsaved changes will be lost. Continue?'), { ok: L('হ্যাঁ, যাব', 'Yes, go'), cancel: L('থাকব', 'Stay'), danger: true })
+  const goDate = async (d: string) => { if (dirty && !await leave()) return; setSp({ date: d }, { replace: true }) }
+  const goHub = async (id: string) => { if (dirty && !await leave()) return; nav(`/app/zonal/hub-ops/hub/${id}?date=${date}`) }
 
   /** One tap: everyone not yet marked (and not resigned) is present. */
   function allPresent() {
@@ -134,7 +136,7 @@ export function HubOpsPanel() {
   }
   async function hrResign(r: Row) {
     if (!r.employee_id) return
-    const reason = window.prompt(L(`${r.person_name} — এইচআর রেকর্ডেও "চাকরি ছেড়েছেন" করবেন? কারণ লিখুন:`, `Also mark ${r.person_name} resigned in HR? Write the reason:`), r.reason ?? '')
+    const reason = await askReason(L(`${r.person_name} — এইচআর রেকর্ডেও "চাকরি ছেড়েছেন" করবেন?`, `Also mark ${r.person_name} resigned in HR?`), { initial: r.reason ?? '', ok: L('চাকরি ছেড়েছেন করুন', 'Mark resigned') })
     if (!reason?.trim()) return
     try { await hubOps.hrResign(r.employee_id, date, reason.trim()); toast(L('এইচআর রেকর্ডে চাকরি ছেড়েছেন করা হলো', 'Marked resigned in HR')); await q.reload() }
     catch (e) { setErr(hubOpsFriendly(e)) }
@@ -149,7 +151,7 @@ export function HubOpsPanel() {
     {node}
     <div className="hop-date no-print">
       <button type="button" className="secondary" onClick={() => goDate(shiftDay(date, -1))} aria-label={L('আগের দিন', 'Previous day')}>‹</button>
-      <input type="date" value={date} max={p?.today ?? dhakaToday()} onChange={e => e.target.value && goDate(e.target.value)} />
+      <input type="date" aria-label={L('তারিখ', 'Date')} value={date} max={p?.today ?? dhakaToday()} onChange={e => e.target.value && goDate(e.target.value)} />
       <button type="button" className="secondary" disabled={date >= (p?.today ?? dhakaToday())} onClick={() => goDate(shiftDay(date, 1))} aria-label={L('পরের দিন', 'Next day')}>›</button>
       {date !== (p?.today ?? dhakaToday()) && <button type="button" className="secondary sm" onClick={() => goDate(p?.today ?? dhakaToday())}>{L('আজ', 'Today')}</button>}
       {zoneHubs.length > 1 && <select value={hubId} onChange={e => goHub(e.target.value)} aria-label={L('হাব', 'Hub')}>
@@ -300,7 +302,7 @@ function PersonRow({ r, canWrite, canHr, saved, onChange, onHrResign }: { r: Row
       <button type="button" className="hop-more" aria-expanded={!!r.open} onClick={() => onChange({ open: !r.open })}>
         <Icon name="note" size={14} />{r.reason || r.remarks ? L('কারণ/মন্তব্য আছে', 'Has a note') : L('কারণ/মন্তব্য', 'Reason/remarks')}</button>
       {canWrite && !r.in_hr && !r.id && <button type="button" className="hop-more" onClick={() => onChange({ removed: true })}><Icon name="x" size={14} />{L('সরান', 'Remove')}</button>}
-      {canWrite && r.id && !r.in_hr && <button type="button" className="hop-more" onClick={() => { if (window.confirm(L('রিপোর্ট থেকে সরাবেন?', 'Remove from the report?'))) onChange({ removed: true }) }}><Icon name="x" size={14} />{L('সরান', 'Remove')}</button>}
+      {canWrite && r.id && !r.in_hr && <button type="button" className="hop-more" onClick={async () => { if (await askConfirm(L('রিপোর্ট থেকে সরাবেন?', 'Remove from the report?'), { ok: L('সরান', 'Remove'), danger: true })) onChange({ removed: true }) }}><Icon name="x" size={14} />{L('সরান', 'Remove')}</button>}
       {canHr && saved && r.employment === 'resigned' && r.in_hr && r.hr_status === 'active' && <button type="button" className="hop-more" onClick={onHrResign}><Icon name="userx" size={14} />{L('এইচআর-এও চাকরি ছেড়েছেন করুন', 'Also resign in HR')}</button>}
     </div>
     {r.open && <div className="hop-why">

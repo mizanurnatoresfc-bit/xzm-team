@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/ask'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -160,7 +161,7 @@ function Files({ onToast }: { onToast: (m: string) => void }) {
   async function applyMarked() {
     const marked = chosen.filter(r => r.source === 'request' && r.kind !== 'id_create' && ['submitted', 'processing'].includes(r.request_status ?? ''))
     if (!marked.length) return setErr('প্রয়োগ করার মতো মার্ক করা সারি নেই')
-    if (!window.confirm(`${marked.length} জনের বদলি / চালু / বন্ধ সিস্টেমে প্রয়োগ করে সম্পন্ন করবেন?`)) return
+    if (!await askConfirm(`${marked.length} জনের বদলি / চালু / বন্ধ সিস্টেমে প্রয়োগ করে সম্পন্ন করবেন?`, { ok: 'প্রয়োগ করুন' })) return
     setBusy(true); setErr('')
     const byNo = Object.fromEntries((reqs.data ?? []).map(r => [r.request_no, r]))
     let ok = 0; const bad: string[] = []

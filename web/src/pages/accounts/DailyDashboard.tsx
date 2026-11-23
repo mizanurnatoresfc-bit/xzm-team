@@ -86,7 +86,7 @@ export function DailyDashboard() {
         <div className="nv-hero-main">
           <span className="lbl">{oneDay ? (from === today ? 'আজকের হিসাব' : dateBn(from)) : `${dateBn(from)} – ${dateBn(to)}`}</span>
           {oneDay ? <><b className="big">{num(given)} / {num(total)} হাব জমা দিয়েছে</b>
-            <div className="nv-prog" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={given}><i style={{ width: `${total ? (given / total) * 100 : 0}%` }} /></div></>
+            <div className="nv-prog" role="progressbar" aria-label="কয়টি হাব জমা দিয়েছে" aria-valuemin={0} aria-valuemax={total} aria-valuenow={given}><i style={{ width: `${total ? (given / total) * 100 : 0}%` }} /></div></>
             : <b className="big">{num(all.length)}টি খাতা · {taka(d?.amount)}</b>}
           <span className="sub">{count('submitted') > 0 ? `${num(count('submitted'))}টি যাচাইয়ের অপেক্ষায়` : 'যাচাইয়ের অপেক্ষায় কিছু নেই'}{count('correction') > 0 ? ` · ${num(count('correction'))}টি সংশোধনে` : ''}{oneDay && missing.length > 0 ? ` · ${num(missing.length)}টি হাব শুরু করেনি` : ''}</span>
         </div>

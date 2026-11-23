@@ -258,7 +258,7 @@ button.wf-op-send.secondary{background:var(--surface);color:var(--text);border-c
 .wf-tap-lead{margin:0;font-size:14.5px;color:var(--muted)}
 .wf-tap-after{font-size:12.5px;color:var(--ok-fg);text-align:center}
 button.wf-tap-send{display:flex;align-items:center;justify-content:center;gap:10px}
-button.wf-tap-send em{font-style:normal;font-size:13px;font-weight:700;padding:2px 9px;border-radius:999px;background:rgba(255,255,255,.22)}
+button.wf-tap-send em{font-style:normal;font-size:13px;font-weight:700;padding:2px 9px;border-radius:999px;background:rgba(0,0,0,.22)}
 .wf-tap-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .wf-tap-list li{display:grid;grid-template-columns:auto auto minmax(0,1fr);gap:10px;align-items:center;padding:9px 2px;border-top:1px solid var(--border)}
 .wf-tap-list li:first-child{border-top:0}

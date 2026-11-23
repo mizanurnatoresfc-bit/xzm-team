@@ -980,3 +980,30 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Left behind:** the empty private bucket `wf-leave` — Supabase does not let SQL delete a bucket; remove it from the dashboard (Storage) if wanted.
 - **Live:** applied 22 Nov as `drop_workforce_manager_book`; checked before (all empty) and after (see `docs/MIGRATIONS_LIVE_MAP.md`).
 - **Tests:** the book's own test file is removed, the workforce test counts 27 public `wf_*` functions again; SQL suite 2442 assertions pass locally.
+
+## 2026-11-23 — তৈরি হওয়া অ্যাপের UI/UX অডিট (UI/UX audit of the built app)
+
+- **Report:** `docs/UI_UX_AUDIT_2026-11-23.md` (Bangla). Every page of four roles (staff 28, hub manager 98, zonal manager 108, super admin 127) at PC and phone size, plus the
+  public pages in light and dark: 0 crashes, 0 pages wider than the screen. The older `docs/UI_UX_AUDIT.md` (11 Nov) is the pre-build design brief, not an audit of the app.
+- **Tool:** `scripts/role-demo/ux.mjs` — the role walk with measurements (small tap targets, tiny text, cut-off text, axe-core WCAG A/AA). Needs `pg` and `axe-core`; not in CI.
+- **Fixed here (website only, no database change):** double border on the employee search box; `.btn-ghost` had no padding (34 places); five low-contrast texts
+  (menu "নতুন" badge on every PC page, sidebar footer, greeting date and motto, the submit button's count badge, `.eyebrow` in dark mode); 11px caption on the employee cards;
+  missing `aria-label` on a date box, two filters, 15 role-dashboard dropdowns, a file box and three progress bars.
+- **Also fixed:** chips that are buttons had white text on a light background (profile-gaps filters); the six attendance choices' words were too light (3.3:1).
+- **Owner said yes to the first two big items (23 Nov):**
+  1. *Staff panel:* while today's attendance is not given, the "আজকের হাজিরা" section comes first (the role's chosen order returns once it is given), and the hero's
+     badge reads "হাজিরা দিন ›" and jumps to the buttons (to the attendance book when it is open). The smoke test's section-order check follows this rule.
+  2. *No more browser boxes:* `web/src/components/ask.tsx` — `askReason`, `askText`, `askConfirm`, `tell`, built on the app's `Modal`. All 43 `window.prompt/confirm/alert`
+     replaced (`office/askText.tsx` now uses it). Cancel on an optional note now stops the action. The smoke test fails if any page opens a browser dialog.
+- **Still for the owner (section 4 of the report):**
+  sparse phone lists; settings pages 15–62 screens long on a phone; three floating layers; date boxes showing month first; small tap targets; the sign-in button's contrast.
+
+## 2026-11-23 — অ্যাপের নেটিভ অনুভূতি ও ক্যামেরা (Android app feel, camera)
+
+- Owner asked for item 3 (native feel) and the camera from item 4 of the Android plan. Code: `web/src/lib/nativeFeel.tsx` (called from `setupNativeApp`), details in `docs/ANDROID.md` → "App feel".
+- Buzz on tabs/toasts/errors; every photo box offers camera or gallery (camera photo goes into the same box, so no page changed); bottom bar steps aside
+  while the keyboard is up; pull to refresh; page title slides by direction; no pinch-zoom; no text selection on long press of buttons.
+- New plugins `@capacitor/haptics`, `@capacitor/camera` (7.0.5). **A new APK is needed:** Actions → "Android APK and site build" → Run workflow. Until it is
+  installed, the app works as before (each part checks for its plugin).
+- Smoke test: an "in the app" block with a stand-in Capacitor bridge (camera sheet → photo in the box, tick, keyboard). 701 checks pass.
+- Not tried on a real phone yet (no device here): the owner should check the camera, the buzz and pull-to-refresh on the new APK.

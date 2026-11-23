@@ -1,3 +1,4 @@
+import { askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -191,7 +192,7 @@ function Centers({ onChange }: { onChange: () => void }) {
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(c: Center) {
-    const r = window.prompt(L(`"${c.name}" সরানোর কারণ`, `Why remove "${c.name}"?`)) ?? ''
+    const r = (await askReason(L(`"${c.name}" সরানোর কারণ`, `Why remove "${c.name}"?`), { ok: L('সরান', 'Remove') })) ?? ''
     if (!r.trim()) return
     try { await sorting.archiveCenter(c.id, r.trim()); await list.reload(); onChange() } catch (e) { setErr(hrFriendly(e)) }
   }
@@ -272,7 +273,7 @@ function Routes({ ctx }: { ctx: Ctx }) {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(r: Route) {
-    const why = window.prompt(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`)) ?? ''
+    const why = (await askReason(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`), { ok: L('সরান', 'Remove') })) ?? ''
     if (!why.trim()) return
     try { await sorting.archiveRoute(r.id, why.trim()); await routesQ.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
@@ -347,7 +348,7 @@ function Staff({ ctx }: { ctx: Ctx }) {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function end(s: StaffRow) {
-    const r = window.prompt(L('কেন সরাচ্ছেন?', 'Why remove?')) ?? ''
+    const r = (await askReason(L('কেন সরাচ্ছেন?', 'Why remove?'), { ok: L('সরান', 'Remove') })) ?? ''
     if (!r.trim()) return
     try { await sorting.endStaff(s.id, r.trim()); await q.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
@@ -423,14 +424,16 @@ function FuelPage({ ctx }: { ctx: Ctx }) {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function decide(r: Fuel, ok: boolean) {
-    const note = window.prompt(ok ? (r.charge_to === 'hub' ? L(`অনুমোদন দিলে টাকাটা ${ctx.hubName[r.charge_hub_id!] ?? ''} হাবের খাতায় "কর্মীর বিল" হিসেবে যাবে। নোট (ইচ্ছা হলে):`, 'On approval it goes to the hub sheet as a staff bill. Note (optional):') : L('নোট (ইচ্ছা হলে)', 'Note (optional)'))
-      : L('বাতিলের কারণ', 'Reason for rejecting'))
+    const note = ok
+      ? await askText(r.charge_to === 'hub' ? L(`অনুমোদন দিলে টাকাটা ${ctx.hubName[r.charge_hub_id!] ?? ''} হাবের খাতায় "কর্মীর বিল" হিসেবে যাবে`, 'On approval it goes to the hub sheet as a staff bill') : L('অনুমোদন দেবেন?', 'Approve it?'),
+        { optional: true, label: L('নোট (ইচ্ছা হলে)', 'Note (optional)'), ok: L('অনুমোদন দিন', 'Approve') })
+      : await askReason(L('কেন বাতিল করছেন?', 'Why reject it?'), { ok: L('বাতিল করুন', 'Reject'), cancel: L('ফিরে যান', 'Back') })
     if (note === null || (!ok && !note.trim())) return
     setErr('')
     try { await sorting.decideFuel(r.id, ok, note.trim() || null); await q.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   async function withdraw(r: Fuel) {
-    const why = window.prompt(L('কেন তুলে নিচ্ছেন?', 'Why withdraw?')) ?? ''
+    const why = (await askReason(L('কেন তুলে নিচ্ছেন?', 'Why withdraw?'))) ?? ''
     if (!why.trim()) return
     try { await sorting.withdrawFuel(r.id, why.trim()); await q.reload() } catch (e) { setErr(hrFriendly(e)) }
   }

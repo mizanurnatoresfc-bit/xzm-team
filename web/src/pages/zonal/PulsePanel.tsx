@@ -1,3 +1,4 @@
+import { askConfirm } from '../../components/ask'
 import { useState } from 'react'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
@@ -36,7 +37,7 @@ export function PulsePanel({ zone }: { zone: string }) {
     } catch (e) { setErr(pulseFriendly(e)) } finally { setBusy(false) }
   }
   async function close(r: PulseRow) {
-    if (!window.confirm(L('প্রশ্নটা বন্ধ করবেন? এরপর আর কেউ উত্তর দিতে পারবে না।', 'Close it? Nobody can answer after this.'))) return
+    if (!await askConfirm(L('প্রশ্নটা বন্ধ করবেন?', 'Close this question?'), { detail: L('এরপর আর কেউ উত্তর দিতে পারবে না।', 'Nobody can answer after this.'), ok: L('বন্ধ করুন', 'Close it'), danger: true })) return
     try { await pulse.close(r.id); await q.reload() } catch (e) { setErr(pulseFriendly(e)) }
   }
   const rows = q.data ?? []

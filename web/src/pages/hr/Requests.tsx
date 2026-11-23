@@ -1,3 +1,4 @@
+import { askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { Combo } from '../../components/inputs'
@@ -465,8 +466,8 @@ function Report() {
     }
   }
   const title = `${cfg.name} — ${from ? `${from}${to && to !== from ? ` থেকে ${to}` : ''}` : RANGES.all}`
-  function saveAs() {
-    const name = (window.prompt('রিপোর্টের নাম', cfg.name) ?? '').trim(); if (!name) return
+  async function saveAs() {
+    const name = (await askText('রিপোর্টের নাম', { initial: cfg.name, short: true, label: 'নাম', ok: 'সেভ করুন' })) ?? ''; if (!name) return
     const next = [...saved.filter(x => x.name !== name), { ...cfg, name }]; setSaved(next); storeSaved(next); set({ name })
   }
   function remove(name: string) { const next = saved.filter(x => x.name !== name); setSaved(next); storeSaved(next) }

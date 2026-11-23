@@ -1,3 +1,4 @@
+import { askReason, tell } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { DataTable } from '../../components/DataTable'
@@ -200,9 +201,9 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
           ...(canPlaces ? [{ key: 'act', label: '', noExport: true, value: () => '', render: (p: Place) => <span className="row-acts">
             <button className="secondary sm" onClick={e => { e.stopPropagation(); setEdit(p) }}><Icon name="edit" size={13} />{L('বানান ঠিক', 'Fix')}</button>
             <button className="secondary sm" onClick={async e => { e.stopPropagation()
-              const why = p.hidden ? '' : window.prompt(L(`"${placeName(p)}" কেন লুকাবেন?`, 'Why hide it?')) ?? ''
+              const why = p.hidden ? '' : (await askReason(L(`"${placeName(p)}" কেন লুকাবেন?`, 'Why hide it?'))) ?? ''
               if (!p.hidden && !why.trim()) return
-              try { await placesApi.hide(p.id, !p.hidden, why); await pl.setData(await placesApi.load(true)) } catch (er) { window.alert(routeFriendly(er)) } }}>
+              try { await placesApi.hide(p.id, !p.hidden, why); await pl.setData(await placesApi.load(true)) } catch (er) { void tell(routeFriendly(er)) } }}>
               {p.hidden ? L('দেখান', 'Show') : L('লুকান', 'Hide')}</button></span> }] : []),
         ]} />
       <p className="muted small">{PLACE_SOURCES}</p>

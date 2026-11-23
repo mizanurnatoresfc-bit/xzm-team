@@ -1,3 +1,4 @@
+import { askConfirm, askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { inMenu } from '../../lib/menu'
@@ -177,7 +178,7 @@ function LateToday({ hub }: { hub: Hub }) {
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function undo(r: LateRow) {
-    if (!window.confirm(L('দেরি তুলে উপস্থিত করবেন?', 'Change this to present?'))) return
+    if (!await askConfirm(L('দেরি তুলে উপস্থিত করবেন?', 'Change this to present?'), { ok: L('উপস্থিত করুন', 'Make present') })) return
     try { await hr.markAttendance(r.employee_id, date, 'present', r, 'Late removed'); await day.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   return <>
@@ -256,7 +257,7 @@ function PickupToday({ hub }: { hub: Hub }) {
   async function act(r: Pickup, kind: 'verify' | 'approve' | 'reject' | 'withdraw') {
     let reason = ''
     if (kind === 'reject' || kind === 'withdraw') {
-      reason = window.prompt(kind === 'reject' ? L('বাতিলের কারণ লিখুন', 'Reason for rejecting') : L('কেন তুলে নিচ্ছেন?', 'Why withdraw it?')) ?? ''
+      reason = (await askReason(kind === 'reject' ? L('কেন বাতিল করছেন?', 'Why reject it?') : L('কেন তুলে নিচ্ছেন?', 'Why withdraw it?'))) ?? ''
       if (!reason.trim()) return
     }
     setErr('')
@@ -355,7 +356,9 @@ function TasksToday({ hub }: { hub: Hub }) {
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function act(t: HubTask, kind: 'start' | 'done' | 'cancel') {
-    const note = kind === 'cancel' ? window.prompt(L('কেন বাতিল করছেন?', 'Why cancel it?')) ?? '' : kind === 'done' ? window.prompt(L('কী করা হলো (ইচ্ছা হলে)', 'What was done (optional)')) ?? '' : ''
+    const note = kind === 'cancel' ? await askReason(L('কেন বাতিল করছেন?', 'Why cancel it?'), { ok: L('বাতিল করুন', 'Cancel it'), cancel: L('ফিরে যান', 'Back') })
+      : kind === 'done' ? await askText(L('কী করা হলো?', 'What was done?'), { optional: true, ok: L('সম্পন্ন', 'Done') }) : ''
+    if (note === null) return
     if (kind === 'cancel' && !note.trim()) return
     setErr('')
     try {
@@ -448,7 +451,7 @@ function OpsToday({ hub }: { hub: Hub }) {
     if (!m.data) return
     setErr('')
     try {
-      if (reopen) { const r = window.prompt(L('কেন আবার খুলছেন?', 'Why reopen?')) ?? ''; if (!r.trim()) return; await hubApi.reopenMetric(m.data.id, r.trim()) }
+      if (reopen) { const r = (await askReason(L('কেন আবার খুলছেন?', 'Why reopen?'))) ?? ''; if (!r.trim()) return; await hubApi.reopenMetric(m.data.id, r.trim()) }
       else await hubApi.verifyMetric(m.data.id)
       await m.reload()
     } catch (e) { setErr(hrFriendly(e)) }
@@ -675,7 +678,7 @@ function RiderRoutes({ hub }: { hub: Hub }) {
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   async function remove(r: HubRoute) {
-    const why = window.prompt(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`)) ?? ''
+    const why = (await askReason(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`), { ok: L('সরান', 'Remove') })) ?? ''
     if (!why.trim()) return
     try { await routesApi.archive(r.id, why.trim()); await routes.reload(); await riders.reload() } catch (e) { setErr(hrFriendly(e)) }
   }

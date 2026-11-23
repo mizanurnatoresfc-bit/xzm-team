@@ -436,7 +436,8 @@ try {
     })
     const page = await ctx.newPage()
     const errors = []; page.on('pageerror', e => errors.push(String(e)))
-    page.on('dialog', d => { void d.accept() })
+    // The app asks with its own boxes (components/ask.tsx); a browser prompt / confirm / alert is a mistake.
+    const nativeDialogs = []; page.on('dialog', d => { nativeDialogs.push(`${d.type()}: ${d.message().slice(0, 60)}`); void d.accept() })
     const fits = async where => check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${size}: ${where} does not scroll sideways`)
 
     await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1', { state: 'attached' })
@@ -1184,6 +1185,8 @@ try {
     await page.locator('.da-modal input[autocomplete=new-password]').fill('Natore2026')
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-bulk.png`, fullPage: true })
     await page.locator('.da-modal-acts button').last().click()
+    // the app's own "start?" box (it used to be the browser's confirm)
+    await page.locator('.da-modal', { hasText: 'শুরু করবেন?' }).locator('.da-modal-acts button', { hasText: 'শুরু করুন' }).click()
     await page.waitForFunction(() => /শেষ হয়েছে/.test(document.querySelector('.da-modal')?.textContent ?? ''), null, { timeout: 30000 }).catch(() => {})
     const bulkMade = accounts.filter(a => a.password === 'Natore2026')
     check(bulkMade.length === 12 && bulkMade.every(a => a.action === 'create' && /^id-10\d\d@xzmteam\.com$/.test(a.email) && a.role_id === 'r3' && a.scope_type === 'hub'
@@ -1215,9 +1218,11 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-staff-panel.png`, fullPage: true })
     check(await page.locator('.app-dl').count() === 1, `${size}: the staff panel ends with the Android app card`)
     { const sp = await page.locator('.sp').innerText()
-      const order = ['আমার হিসাব', 'আজকের হাজিরা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
+      // Today's attendance is not given yet, so it comes first; the rest keep the owner's order.
+      const order = ['আজকের হাজিরা', 'আমার হিসাব', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
       check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
-        `${size}: the staff panel shows accounts, attendance, bill, route, complaint, issues and my people, in that order`)
+        `${size}: the staff panel shows attendance (not given yet) first, then accounts, bill, route, complaint, issues and my people, in that order`)
+      check(await page.locator('.sp-hero a.sp-att.go[href="#sp-att"]', { hasText: 'হাজিরা দিন' }).count() === 1, `${size}: the hero's "give attendance" badge takes you to the attendance buttons`)
       check(await page.locator('.sp-hero .hoodie-av').count() === 1 && await page.locator('.sp-hero .my-av-cam input[type=file][accept="image/*"]').count() === 1,
         `${size}: with no photo the staff panel shows the hoodie avatar, with a button to put up my own photo`)
       check(await page.locator('.sp a.nv-row[href="/app/workforce/hand"]').count() === 1 && await page.locator('.sp a.nv-row[href="/app/workforce/given"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel people rows open their personal workforce pages`)
@@ -1626,7 +1631,40 @@ try {
     check((await page.locator('.ri-home').innerText()).includes('রিপোর্ট আপলোড') && (await page.locator('.ri-home-n b').innerText()).trim() === '১', `${size}: the home card shows how many reports came today`)
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
 
+    // ---- inside the Android app (a stand-in for the Capacitor bridge): camera sheet, buzz, keyboard
+    if (size === 'phone') {
+      await ctx.addInitScript(() => {
+        const calls = window.__cap = []
+        const rec = n => async () => { calls.push(n) }
+        window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {
+          Haptics: { impact: rec('impact'), notification: rec('notification'), selectionChanged: rec('select') },
+          Camera: { getPhoto: async o => { calls.push('getPhoto ' + o.source); return { format: 'png',
+            dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' } } },
+          App: { addListener: () => ({ remove() {} }), exitApp: async () => {} },
+          StatusBar: { setOverlaysWebView: async () => {}, setBackgroundColor: async () => {}, setStyle: async () => {} } } }
+      })
+      const ap = await ctx.newPage(); ap.on('pageerror', e => errors.push(String(e))); ap.on('dialog', d => { nativeDialogs.push(d.message()); void d.dismiss() })
+      await ap.goto(`${BASE}/app/staff`); await ap.waitForSelector('.sp .nv-row')
+      check(await ap.evaluate(() => document.documentElement.classList.contains('native-app')), `${size}: in the app, app mode is on`)
+      await ap.evaluate(() => document.addEventListener('change', e => { if (e.target.type === 'file') window.__picked = e.target.files.length }, true))
+      await ap.locator('.sp-hero .my-av-cam').click(); await ap.waitForSelector('.da-modal .ask-choices')
+      check(await ap.locator('.da-modal .nv-row').count() === 2, `${size}: in the app, a photo box asks camera or gallery`)
+      await ap.locator('.da-modal .nv-row', { hasText: 'ক্যামেরা দিয়ে তুলুন' }).click(); await ap.waitForTimeout(600)
+      check((await ap.evaluate(() => window.__cap)).includes('getPhoto CAMERA') && await ap.evaluate(() => window.__picked) === 1,
+        `${size}: in the app, the camera photo lands in the same photo box`)
+      await ap.locator('.bottom-nav a').first().click(); await ap.waitForTimeout(200)
+      check((await ap.evaluate(() => window.__cap)).includes('select'), `${size}: in the app, a bottom tab tap gives a tick`)
+      await ap.goto(`${BASE}/app/hr/employees`); await ap.waitForSelector('.emp-search input')
+      const box = ap.locator('.emp-search input').first()
+      if (await box.count()) {
+        await box.focus(); await ap.setViewportSize({ width: 390, height: 450 }); await ap.waitForTimeout(600)
+        check(await ap.evaluate(() => document.documentElement.classList.contains('kb-open') && getComputedStyle(document.querySelector('.bottom-nav')).display === 'none'),
+          `${size}: in the app, the bottom bar steps aside while the keyboard is up`)
+      } else check(false, `${size}: in the app, the employee search box is there`)
+      await ap.close()
+    }
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
+    check(nativeDialogs.length === 0, `${size}: no browser prompt, confirm or alert boxes${nativeDialogs.length ? ' — ' + nativeDialogs[0] : ''}`)
     await ctx.close()
   }
 } finally { await browser.close(); stop() }

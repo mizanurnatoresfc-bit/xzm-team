@@ -41,9 +41,24 @@ The script builds a *debug* APK for direct install. For Google Play you need a G
 account (one-time US$25), a signing key (keep it safe — losing it means you cannot update the app),
 and a release bundle: Android Studio → Build → Generate Signed App Bundle.
 
-## Camera (for the barcode scanner, later)
-When the scanner page is built, add `<uses-permission android:name="android.permission.CAMERA" />`
-to `web/android/app/src/main/AndroidManifest.xml`.
+## App feel (since 23 Nov 2026) — `web/src/lib/nativeFeel.tsx`
+Needs an APK built after 23 Nov (plugins `@capacitor/haptics`, `@capacitor/camera`); an older APK keeps working without these parts.
+- **Buzz** (Haptics): a light tick on bottom tabs, menu rows and tabs, a tap on every toast, an error buzz with an error box. `haptic()` for more.
+- **Camera:** every photo box (`input type=file` that takes images) asks "ক্যামেরা দিয়ে তুলুন / গ্যালারি থেকে নিন". The camera photo
+  (≤1600px, 80% JPEG) is put into the same box, so each page's upload code runs unchanged; gallery opens the usual chooser (PDF too
+  where the box takes it). A box with `capture` goes straight to the camera. No permission needed (photos are not saved to the gallery).
+  Limit: if Android closes the app while the camera is open (low-memory phones), that photo is lost — take it again.
+- **Keyboard:** while it is up, `<html>` gets `kb-open`; the bottom bar, + button, Nodi and floating buttons step aside and the box
+  scrolls into view (also on the website on a phone).
+- **Pull to refresh:** pull down from the top and let go — the page is mounted again (`app:refresh` in `App.tsx`). Not from inside a map,
+  a dialog, or while typing.
+- **Direction:** going forward the page title comes in from the right, going back from the left.
+- **No pinch-zoom** in the app (Settings → text size makes text bigger); a long press on a button, row or tab does not select text.
+- The smoke test checks the camera sheet, the tick and the keyboard with a stand-in for the Capacitor bridge.
+
+## Barcode scanner (later)
+When the scanner page is built it may need `<uses-permission android:name="android.permission.CAMERA" />`
+in `web/android/app/src/main/AndroidManifest.xml` (the photo camera above does not).
 
 ## Build online (GitHub Actions) — no Android Studio needed
 `.github/workflows/android-apk.yml` builds the same APK on GitHub's servers.

@@ -45,7 +45,7 @@ export function Training() {
     </section>
     <section className="panel">
       <div className="tr-progress"><span><b>{learned.toLocaleString('bn-BD')} / {mine.length.toLocaleString('bn-BD')}</b> পাঠ শিখেছেন</span>
-        <span className="bl-bar" role="progressbar" aria-valuemin={0} aria-valuemax={mine.length} aria-valuenow={learned}><span style={{ width: `${mine.length ? (learned / mine.length) * 100 : 0}%` }} /></span></div>
+        <span className="bl-bar" role="progressbar" aria-label="শেখার অগ্রগতি" aria-valuemin={0} aria-valuemax={mine.length} aria-valuenow={learned}><span style={{ width: `${mine.length ? (learned / mine.length) * 100 : 0}%` }} /></span></div>
       <div className="tr-groups" role="group" aria-label="ভাগ">
         <button type="button" className={`chip-toggle${group === '' ? ' on' : ''}`} aria-pressed={group === ''} onClick={() => setGroup('')}>সব <b>{mine.length.toLocaleString('bn-BD')}</b></button>
         {groups.map(k => <button key={k} type="button" className={`chip-toggle${group === k ? ' on' : ''}`} aria-pressed={group === k} onClick={() => setGroup(k)}>{GROUPS[k]} <b>{mine.filter(g => g.group === k).length.toLocaleString('bn-BD')}</b></button>)}
