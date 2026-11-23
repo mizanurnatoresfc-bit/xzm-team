@@ -40,9 +40,10 @@ export function AccountsReports() {
   const [to, setTo] = useState(today)
   const [hub, setHub] = useState('')
   const hubs = useLoad(() => da.myHubs(), [])
+  const validDates = Boolean(from && to && from <= to && to <= today)
   const filterKey = JSON.stringify([kind, from, to, hub])
-  const rep = useLoad(async () => ({ filterKey, rows: await da.report(kind, from, to, hub || null) }), [filterKey])
-  const reportReady = !rep.loading && !rep.error && rep.data?.filterKey === filterKey
+  const rep = useLoad(async () => validDates ? { filterKey, rows: await da.report(kind, from, to, hub || null) } : null, [filterKey, validDates])
+  const reportReady = validDates && !rep.loading && !rep.error && rep.data?.filterKey === filterKey
   const def = KINDS.find(k => k[0] === kind)!
   const rows = reportReady ? rep.data?.rows ?? [] : []
   const totals = def[2].filter(c => c.t === 'n' || c.t === 'tk').map(c => [c.k, rows.reduce((a, r) => a + Number(r[c.k] ?? 0), 0)] as const)
@@ -70,7 +71,7 @@ export function AccountsReports() {
     </div>}
     <section className="panel print-area">
       <h2>{def[1]} <span className="muted small">{sub}{reportReady && ` · ${num(rows.length)}টি সারি`}</span></h2>
-      {rep.error ? null : !reportReady ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
+      {!validDates ? <p role="status" className="muted">শুরু ও শেষের সঠিক তারিখ নির্বাচন করুন। শেষের তারিখ আজকের পরে হতে পারবে না।</p> : rep.error ? null : !reportReady ? <p className="muted">লোড হচ্ছে…</p> : <div className="da-table-wrap"><table className="da-table">
         <thead><tr><th>#</th>{def[2].map(c => <th key={c.k} className={c.t === 'n' || c.t === 'tk' ? 'r' : ''}>{c.l}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => <tr key={i}><td data-l="#">{num(i + 1)}</td>{def[2].map(c => <td key={c.k} data-l={c.l} className={c.t === 'n' || c.t === 'tk' ? 'r' : ''}>{show(r[c.k], c.t)}</td>)}</tr>)}
           {rows.length === 0 && <tr><td colSpan={def[2].length + 1} className="muted">এই সময়ে কোনো তথ্য নেই।</td></tr>}</tbody>
