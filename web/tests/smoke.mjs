@@ -1631,6 +1631,38 @@ try {
     check((await page.locator('.ri-home').innerText()).includes('রিপোর্ট আপলোড') && (await page.locator('.ri-home-n b').innerText()).trim() === '১', `${size}: the home card shows how many reports came today`)
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-report-home.png` })
 
+    // ---- inside the Android app (a stand-in for the Capacitor bridge): camera sheet, buzz, keyboard
+    if (size === 'phone') {
+      await ctx.addInitScript(() => {
+        const calls = window.__cap = []
+        const rec = n => async () => { calls.push(n) }
+        window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {
+          Haptics: { impact: rec('impact'), notification: rec('notification'), selectionChanged: rec('select') },
+          Camera: { getPhoto: async o => { calls.push('getPhoto ' + o.source); return { format: 'png',
+            dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' } } },
+          App: { addListener: () => ({ remove() {} }), exitApp: async () => {} },
+          StatusBar: { setOverlaysWebView: async () => {}, setBackgroundColor: async () => {}, setStyle: async () => {} } } }
+      })
+      const ap = await ctx.newPage(); ap.on('pageerror', e => errors.push(String(e))); ap.on('dialog', d => { nativeDialogs.push(d.message()); void d.dismiss() })
+      await ap.goto(`${BASE}/app/staff`); await ap.waitForSelector('.sp .nv-row')
+      check(await ap.evaluate(() => document.documentElement.classList.contains('native-app')), `${size}: in the app, app mode is on`)
+      await ap.evaluate(() => document.addEventListener('change', e => { if (e.target.type === 'file') window.__picked = e.target.files.length }, true))
+      await ap.locator('.sp-hero .my-av-cam').click(); await ap.waitForSelector('.da-modal .ask-choices')
+      check(await ap.locator('.da-modal .nv-row').count() === 2, `${size}: in the app, a photo box asks camera or gallery`)
+      await ap.locator('.da-modal .nv-row', { hasText: 'ক্যামেরা দিয়ে তুলুন' }).click(); await ap.waitForTimeout(600)
+      check((await ap.evaluate(() => window.__cap)).includes('getPhoto CAMERA') && await ap.evaluate(() => window.__picked) === 1,
+        `${size}: in the app, the camera photo lands in the same photo box`)
+      await ap.locator('.bottom-nav a').first().click(); await ap.waitForTimeout(200)
+      check((await ap.evaluate(() => window.__cap)).includes('select'), `${size}: in the app, a bottom tab tap gives a tick`)
+      await ap.goto(`${BASE}/app/hr/employees`); await ap.waitForSelector('.emp-search input')
+      const box = ap.locator('.emp-search input').first()
+      if (await box.count()) {
+        await box.focus(); await ap.setViewportSize({ width: 390, height: 450 }); await ap.waitForTimeout(600)
+        check(await ap.evaluate(() => document.documentElement.classList.contains('kb-open') && getComputedStyle(document.querySelector('.bottom-nav')).display === 'none'),
+          `${size}: in the app, the bottom bar steps aside while the keyboard is up`)
+      } else check(false, `${size}: in the app, the employee search box is there`)
+      await ap.close()
+    }
     check(errors.length === 0, `${size}: no script errors${errors.length ? ' — ' + errors[0] : ''}`)
     check(nativeDialogs.length === 0, `${size}: no browser prompt, confirm or alert boxes${nativeDialogs.length ? ' — ' + nativeDialogs[0] : ''}`)
     await ctx.close()

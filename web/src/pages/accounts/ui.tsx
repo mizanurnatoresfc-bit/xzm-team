@@ -1,3 +1,4 @@
+import { haptic } from '../../lib/nativeFeel'
 import { createPortal } from 'react-dom'
 import { cloneElement, isValidElement, useCallback, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { useDialog } from '../../lib/a11y'
@@ -79,7 +80,7 @@ export function useLoad<T>(fn: () => Promise<T>, deps: unknown[]) {
 
 export function useToast() {
   const [msg, setMsg] = useState<string | null>(null)
-  useEffect(() => { if (!msg) return; const t = window.setTimeout(() => setMsg(null), 3200); return () => window.clearTimeout(t) }, [msg])
+  useEffect(() => { if (!msg) return; haptic('tap'); const t = window.setTimeout(() => setMsg(null), 3200); return () => window.clearTimeout(t) }, [msg])
   const node = msg ? <div className="da-toast" role="status">{msg}</div> : null
   return { toast: setMsg, node }
 }

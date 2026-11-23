@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -198,7 +198,10 @@ function HomeOrPanel() {
 }
 
 export default function App() {
-  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes>
+  // Pull to refresh in the Android app (lib/nativeFeel.tsx): the page is mounted again, so it loads its data afresh.
+  const [fresh, setFresh] = useState(0)
+  useEffect(() => { const f = () => setFresh(k => k + 1); window.addEventListener('app:refresh', f); return () => window.removeEventListener('app:refresh', f) }, [])
+  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes key={fresh}>
     <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />

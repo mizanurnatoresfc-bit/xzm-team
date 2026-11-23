@@ -5,6 +5,7 @@
 import { useState, type ReactElement } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Field, Modal } from '../pages/accounts/ui'
+import { haptic } from '../lib/nativeFeel'
 
 const L = (bn: string, en: string) => (document.documentElement.lang === 'en' ? en : bn)
 
@@ -63,8 +64,21 @@ export const askConfirm = (question: string, o: ConfirmOpts = {}) => show<boolea
   </Modal>)
 
 /** A message with one button (a failed action, mostly). */
-export const tell = (message: string, o: { title?: string; ok?: string } = {}) => show<void>(done =>
+export const tell = (message: string, o: { title?: string; ok?: string } = {}) => { haptic('error'); return show<void>(done =>
   <Modal title={o.title ?? L('হয়নি', 'Could not do it')} onClose={() => done()}
     actions={<button type="button" autoFocus onClick={() => done()}>{o.ok ?? L('ঠিক আছে', 'OK')}</button>}>
     <p className="da-error" role="alert">{message}</p>
+  </Modal>) }
+
+export type Choice<K extends string> = { key: K; label: string; icon?: ReactElement; sub?: string }
+
+/** A short list of big choices (a bottom sheet on a phone). Resolves with the chosen key, or null when closed. */
+export const askChoice = <K extends string>(title: string, choices: Choice<K>[]) => show<K | null>(done =>
+  <Modal title={title} onClose={() => done(null)}
+    actions={<button type="button" className="secondary" onClick={() => done(null)}>{L('বাতিল', 'Cancel')}</button>}>
+    <div className="nv-rows ask-choices">
+      {choices.map(c => <button key={c.key} type="button" className="nv-row" onClick={() => done(c.key)}>
+        {c.icon && <span className="nv-av sd-i g">{c.icon}</span>}
+        <span className="tx"><b>{c.label}</b>{c.sub && <span>{c.sub}</span>}</span></button>)}
+    </div>
   </Modal>)

@@ -42,3 +42,45 @@ button:not(:disabled):active{scale:.97}
   .side a.nl:active,.bn-item:active,.quick-tile:active,.wf-pm-tile:active,.sp-tile:active,.hub-link:active,button:not(:disabled):active,.bn-item.on .ic{scale:none;translate:none}
   .page-skel>div,.page-skel .ps-card{animation:none}
 }
+
+/* ---- Android app feel, part 2 (owner, 23 Nov 2026) ---- */
+/* Direction: forward pages come in from the right, going back from the left. The title is the part that moves (on a phone the
+   title is in the top bar); the body only fades, so fixed bars inside it never jump. */
+@keyframes title-fwd{from{opacity:0;translate:18px 0}to{opacity:1;translate:0 0}}
+@keyframes title-back{from{opacity:0;translate:-18px 0}to{opacity:1;translate:0 0}}
+@media (max-width:960px){
+  .top .top-title{animation:title-fwd .24s cubic-bezier(.2,.7,.3,1)}
+  [data-nav=back] .top .top-title{animation-name:title-back}
+}
+[data-nav=back] .app-main .da-main>.da-head{animation-name:title-back}
+
+/* While the on-screen keyboard is up (lib/nativeFeel.tsx): the bottom bar, the + button, Nodi and other floating buttons step
+   aside, so the box being typed in and the Save button are not hidden behind them. */
+.kb-open .bottom-nav,.kb-open .bn-plus,.kb-open .nodi-fab,.kb-open .nv-fab{display:none!important}
+.kb-open .app-main{padding-bottom:16px!important}
+
+/* Pull to refresh: a ring comes down from under the top bar, turns as you pull, and spins once you let go. */
+.ptr{position:fixed;left:50%;top:calc(var(--sat,0px) + 8px);z-index:70;width:40px;height:40px;margin-left:-20px;border-radius:50%;
+  background:var(--surface);box-shadow:0 2px 10px rgba(0,0,0,.18);display:grid;place-items:center;pointer-events:none;
+  transform:translateY(calc(var(--ptr-y,0px) - 48px));transition:opacity .2s}
+.ptr span{width:20px;height:20px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--primary) 30%,transparent);border-top-color:var(--primary);
+  rotate:var(--ptr-turn,0deg)}
+.ptr.ready span{border-color:var(--primary);border-top-color:transparent}
+.ptr.spin{transition:transform .2s}
+.ptr.spin span{animation:ptr-spin .7s linear infinite}
+.ptr.gone{opacity:0}
+@keyframes ptr-spin{to{rotate:360deg}}
+
+/* In the app, a long press on a button, a row or a tab does not start selecting text or pop up the link menu (text in the page
+   and in boxes stays selectable). */
+.native-app :is(button,a,.nv-row,.bn-item,label,.chip,.chip-toggle,.da-tabs,.hub-tabs){-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.native-app :is(input,textarea,[contenteditable]){-webkit-user-select:text;user-select:text}
+
+.ask-choices .nv-row{width:100%;text-align:left;background:var(--surface);color:var(--text);border:0;border-bottom:1px solid var(--border);border-radius:0;min-height:64px;justify-content:flex-start}
+.ask-choices .nv-row:last-child{border-bottom:0}
+
+@media (prefers-reduced-motion:reduce){
+  .top .top-title,[data-nav=back] .app-main .da-main>.da-head{animation:none}
+  .ptr span{transition:none}
+}
+:root[data-motion=reduce] .top .top-title{animation:none}
