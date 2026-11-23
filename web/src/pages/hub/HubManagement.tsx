@@ -18,7 +18,8 @@ import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, postIcon, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
 import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 
-export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'team' | 'days' | 'logins' | 'routes'
+// Team view moved to /app/staff/list (role-aware). HubManagement no longer exposes 'team'.
+export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'days' | 'logins' | 'routes'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
@@ -28,7 +29,6 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
   { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
   { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
-  { key: 'team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'] },
   { key: 'days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
   { key: 'logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
   { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
@@ -50,8 +50,10 @@ export function HubManagement() {
     if (!hub || !hubs.some(h => h.id === hub)) { setHubS(hubs[0].id); storeHub(hubs[0].id) }
   }, [hubs, hub])
   const setHub = (id: string) => { setHubS(id); storeHub(id); refreshShellCounts() }
+  // Old /app/hub/team moved to /app/staff/list
+  if (section === 'team') return <Navigate to="/app/staff/list" replace />
   const sec = HUB_SECTIONS.find(s => s.key === section)
-  if (!sec) return <Navigate to="/app/hub/team" replace />
+  if (!sec) return <Navigate to="/app/hub/attendance" replace />
   const allowed = sec.perms.some(p => can(p))
   const current = hubs.find(h => h.id === hub) ?? null
   // "আজকের হিসাব" and "হাজিরার দিন মেলানো" are off the strip (see HIDDEN_PAGES in AppShell); they still open by address.
@@ -81,7 +83,6 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
     case 'tasks': return <TasksToday hub={hub} />
     case 'ops': return <OpsToday hub={hub} />
     case 'accounts': return <AccountsToday hub={hub} />
-    case 'team': return <HubTeam hub={hub} />
     case 'days': return <AttendanceDays hub={hub} />
     case 'logins': return <HubLogins hub={hub} />
     case 'routes': return <RiderRoutes hub={hub} />
@@ -547,119 +548,6 @@ function AccountsToday({ hub }: { hub: Hub }) {
       <h2>{L('হিসাব ম্যানেজমেন্ট', 'Accounts management')}</h2>
       <div className="hub-links">{links.filter(x => x[4]).map(([to, ic, bn, en]) => <Link key={to} to={to} className="hub-link"><Icon name={ic} size={18} /><span>{L(bn, en)}</span><Icon name="chev" size={14} /></Link>)}</div>
     </section>
-  </>
-}
-
-// ---------------------------------------------------------------- team
-function HubTeam({ hub }: { hub: Hub }) {
-  const { can } = useAuth()
-  const { L, n } = usePrefs()
-  const nav = useNavigate()
-  const o = useOrg()
-  const { toast, node } = useToast()
-  const [status, setStatus] = useState<string>('active')
-  const [post, setPost] = useState<string | null>(null)
-  const [q, setQ] = useState('')
-  const [newApp, setNewApp] = useState(false)
-  const [del, setDel] = useState<Employee | null>(null)
-  const [leaving, setLeaving] = useState<Employee | null>(null)
-  const [leaveDate, setLeaveDate] = useState(() => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' }))
-  const [leaveReason, setLeaveReason] = useState('')
-  const [leaveErr, setLeaveErr] = useState('')
-  const [leaveBusy, setLeaveBusy] = useState(false)
-  const [reason, setReason] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
-  const team = useLoad(() => hubApi.team(hub.id, status || null), [hub.id, status])
-  const posName = (e: Employee) => (e.position_id && o.names.pos[e.position_id]) || L('পদবি নেই', 'No post')
-  const groups = useMemo(() => {
-    const g = new Map<string, { key: string; name: string; icon: string; order: number; count: number }>()
-    for (const e of team.data ?? []) {
-      const key = e.position_id ?? '-'; const name = posName(e)
-      const cur = g.get(key) ?? { key, name, ...postIcon(name), count: 0 }
-      cur.count++; g.set(key, cur)
-    }
-    return [...g.values()].sort((a, b) => a.order - b.order || b.count - a.count)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team.data, o.names])
-  const qq = q.trim().toLowerCase()
-  const rows = (team.data ?? []).filter(e => (!post || (e.position_id ?? '-') === post) && (!qq || `${e.full_name} ${e.employee_code ?? ''} ${e.mobile ?? ''}`.toLowerCase().includes(qq)))
-    .sort((a, b) => postIcon(posName(a)).order - postIcon(posName(b)).order || (a.employee_code ?? '').localeCompare(b.employee_code ?? '', undefined, { numeric: true }))
-  async function archive() {
-    if (!del) return
-    if (reason.trim().length < 3) return setErr(L('কারণ লিখুন', 'Write a reason'))
-    setBusy(true); setErr('')
-    try { await hr.archive(del.id, reason.trim()); setDel(null); setReason(''); await team.reload(); refreshShellCounts(); toast(L('তালিকা থেকে সরানো হয়েছে', 'Removed from the list')) }
-    catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
-  }
-  async function confirmLeaving() {
-    if (!leaving) return
-    if (!leaveDate || leaveDate > new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' }))
-      return setLeaveErr(L('আজ বা আগের তারিখ দিন', 'Choose today or an earlier date'))
-    if (leaveReason.trim().length < 3) return setLeaveErr(L('কারণ লিখুন', 'Enter a reason'))
-    setLeaveBusy(true); setLeaveErr('')
-    try {
-      await hr.changeStatus(leaving.id, 'resigned', leaveDate, leaveReason.trim())
-      setLeaving(null); setLeaveReason('')
-      await team.reload(); refreshShellCounts()
-      toast(L(leaving.full_name + ' সক্রিয় হাব তালিকা থেকে সরানো হয়েছে', leaving.full_name + ' was removed from the active hub list'))
-    } catch (e) { setLeaveErr(hrFriendly(e)) } finally { setLeaveBusy(false) }
-  }
-  return <>
-    {node}
-    <section className="panel">
-      <div className="da-bar"><h2>{L('আমার হাব টিম', 'My hub team')} <span className="count-pill">{n(team.data?.length ?? 0)}</span></h2>
-        <span className="row-acts">
-          <select value={status} onChange={e => { setStatus(e.target.value); setPost(null) }} aria-label={L('অবস্থা', 'Status')}>
-            <option value="active">{L('সক্রিয়', 'Active')}</option><option value="inactive">{L('নিষ্ক্রিয়', 'Inactive')}</option>
-            <option value="applicant">{L('আইডির অপেক্ষায়', 'Waiting for ID')}</option><option value="">{L('সব', 'All')}</option></select>
-          {can('hr.application.create') && <button onClick={() => setNewApp(true)}><Icon name="plus" size={15} />{L('নতুন কর্মী', 'New staff')}</button>}</span></div>
-      <div className="post-chips" role="group" aria-label={L('পদ অনুযায়ী', 'By post')}>
-        <button type="button" className={`post-chip${post === null ? ' on' : ''}`} aria-pressed={post === null} onClick={() => setPost(null)}>
-          <i><Icon name="users" size={16} /></i><span>{L('সবাই', 'All')}</span><b>{n(team.data?.length ?? 0)}</b></button>
-        {groups.map(g => <button key={g.key} type="button" className={`post-chip${post === g.key ? ' on' : ''}`} aria-pressed={post === g.key} onClick={() => setPost(post === g.key ? null : g.key)}>
-          <i><Icon name={g.icon} size={16} /></i><span>{g.name}</span><b>{n(g.count)}</b></button>)}
-      </div>
-    </section>
-    <section className="panel emp-board">
-      <div className="da-bar"><h3 style={{ margin: 0 }}>{post ? groups.find(g => g.key === post)?.name : L('সবার তালিকা', 'Everyone')}</h3>
-        <input type="search" className="team-search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('নাম, আইডি বা মোবাইল…', 'Name, ID or mobile…')} /></div>
-      {team.error ? <p className="da-error">{hrFriendly(team.error)}</p> : <DataTable<Employee> title={`${L('হাব টিম', 'Hub team')} — ${hub.name}`} file={`team-${hub.code}`} rows={team.data ? rows : null} rowKey={r => r.id} phoneView="list" onRowClick={r => nav(`/app/hr/employees/${r.id}`)}
-        empty={<p className="muted">{L('এখানে কেউ নেই।', 'Nobody here.')}</p>}
-        cols={[
-          { key: 'name', label: L('নাম', 'Name'), primary: true, value: r => r.full_name, render: r => <span className="emp-tname"><span className="ec-av sm">{r.full_name.slice(0, 2).toUpperCase()}</span>
-            <span><b>{r.full_name}</b><span className="sec">{r.employee_code ? `${L('আইডি', 'ID')} ${r.employee_code}` : L('আইডি বাকি', 'ID pending')}</span></span></span> },
-          { key: 'code', label: L('আইডি', 'ID'), hidden: true, value: r => r.employee_code ?? '' },
-          { key: 'mobile', label: L('ফোন', 'Phone'), value: r => r.mobile ?? '', render: r => r.mobile ? <Contact phone={r.mobile} /> : <span className="warn-text">{L('নম্বর নেই', 'No number')}</span> },
-          { key: 'post', label: L('পদ', 'Role'), value: r => posName(r), render: r => <Badge tone={r.position_id ? 'ok' : 'neutral'}>{posName(r)}</Badge> },
-          { key: 'hub', label: L('হাব', 'Hub'), value: () => hub.name },
-          { key: 'status', label: L('অবস্থা', 'Status'), value: r => r.status, render: r => <EmpBadge status={r.status} /> },
-          { key: 'act', label: '', noExport: true, render: r => <span className="row-acts">
-            {can('hr.employee.edit') && r.status === 'active' && <button className="danger sm" onClick={e => { e.stopPropagation(); setLeaveErr(''); setLeaveDate(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })); setLeaveReason(''); setLeaving(r) }}>
-              <Icon name="out" size={14} />{L('চাকরি ছাড়লেন', 'Resigned')}</button>}
-            {can('hr.employee.edit') && r.status !== 'applicant' && <button className="secondary sm" onClick={e => { e.stopPropagation(); nav(`/app/hr/employees/${r.id}?edit=1`) }}>{L('এডিট', 'Edit')}</button>}
-            <button className="sm" onClick={e => { e.stopPropagation(); nav(`/app/hr/employees/${r.id}`) }}>{L('দেখুন', 'View')}</button>
-            {can('hr.employee.archive') && <button className="secondary sm" title={L('ডিলিট', 'Delete')} onClick={e => { e.stopPropagation(); setErr(''); setReason(''); setDel(r) }}><Icon name="trash" size={14} /></button>}
-          </span> },
-        ]} />}
-    </section>
-    {newApp && <NewApplication onClose={() => setNewApp(false)} onDone={id => nav(`/app/hr/employees/${id}`)} />}
-    {leaving && <Modal title={L('চাকরি ছাড়ার বিষয়টি নিশ্চিত করুন', 'Confirm resignation')} onClose={() => setLeaving(null)}
-      actions={<><button className="secondary" disabled={leaveBusy} onClick={() => setLeaving(null)}>{L('বাতিল', 'Cancel')}</button>
-        <button className="danger" disabled={leaveBusy} onClick={() => void confirmLeaving()}>{leaveBusy ? L('সেভ হচ্ছে…', 'Saving…') : L('নিশ্চিত করুন', 'Confirm')}</button></>}>
-      <p><strong>{leaving.employee_code ? leaving.employee_code + ' · ' : ''}{leaving.full_name}</strong></p>
-      <p>{L('নিশ্চিত করলে কর্মীটি এই হাবের সক্রিয় তালিকা থেকে সরে যাবেন। তাঁর প্রোফাইল ও ইতিহাস সংরক্ষিত থাকবে।', 'Confirming removes this person from the hub’s active list. Their profile and history stay on record.')}</p>
-      <Field label={L('শেষ কর্মদিবস', 'Last working day')} required>
-        <input type="date" value={leaveDate} max={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })} onChange={e => setLeaveDate(e.target.value)} /></Field>
-      <Field label={L('কারণ', 'Reason')} required>
-        <textarea rows={3} value={leaveReason} onChange={e => setLeaveReason(e.target.value)} placeholder={L('যেমন: নিজে থেকে চাকরি ছেড়েছেন', 'e.g. employee resigned')} /></Field>
-      {leaveErr && <p className="da-error" role="alert">{leaveErr}</p>}
-    </Modal>}
-    {del && <Modal title={L('তালিকা থেকে সরান', 'Remove from the list')} onClose={() => setDel(null)}
-      actions={<><button className="secondary" onClick={() => setDel(null)}>{L('বাতিল', 'Cancel')}</button><button className="danger" disabled={busy} onClick={() => void archive()}>{L('সরান', 'Remove')}</button></>}>
-      <p><strong>{del.employee_code ? `${del.employee_code} · ` : ''}{del.full_name}</strong></p>
-      <p className="muted small">{L('রেকর্ড মুছে যায় না — আর্কাইভে থাকে, অডিট লগে কারণসহ লেখা থাকে।', 'The record is archived, not erased, and the reason is kept in the audit log.')}</p>
-      <Field label={L('কারণ', 'Reason')}><input value={reason} onChange={e => setReason(e.target.value)} /></Field>
-      {err && <p className="da-error">{err}</p>}
-    </Modal>}
   </>
 }
 

@@ -234,7 +234,8 @@ export default function App() {
         <Route path="/app/routes/plan" element={<RoutePlanPage />} />
       </Route>
       <Route path="/app/manpower" element={<Manpower />} />
-      <Route path="/app/hub" element={<Navigate to="/app/hub/team" replace />} />
+      <Route path="/app/hub" element={<Navigate to="/app/hub/attendance" replace />} />
+      <Route path="/app/hub/team" element={<Navigate to="/app/staff/list" replace />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />

@@ -155,8 +155,7 @@ export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং স
  */
 export const HR: Group = panel('hr', 'users', 'এইচআর বিভাগ', 'HR department', [
   { bn: 'কর্মী তালিকা ও প্রোফাইল', en: 'Staff & profiles', items: [
-      { to: '/app/staff/list', icon: 'users', bn: 'কর্মী তালিকা', en: 'Staff list', hint: { bn: 'পুরো কর্মী তালিকা — পদ, এরিয়া, হাব; হাব ম্যানেজারের জন্য নিজ হাবের সক্রিয় স্টাফ', en: 'Full staff list — roles see their scope' }, perms: ['hr.employee.view', 'hr.application.create', 'hr.request.create'] },
-      { to: '/app/hub/team', icon: 'users', bn: 'আমার হাব টিম', en: 'My hub team', perms: ['hr.employee.view'], count: 'team' },
+      { to: '/app/staff/list', icon: 'users', bn: 'কর্মী তালিকা', en: 'Staff list', hint: { bn: 'পুরো কর্মী তালিকা — পদ, এরিয়া, হাব; হাব ম্যানেজারের জন্য নিজ হাবের সক্রিয় স্টাফ', en: 'Full staff list — roles see their scope' }, perms: ['hr.employee.view', 'hr.application.create', 'hr.request.create'], count: 'team' },
       { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
   ] },
   { bn: 'আইডি ও এইচআর অনুরোধ', en: 'IDs & HR requests', items: [
@@ -307,7 +306,7 @@ const VIEW_TABS: Record<DashView, Tab[]> = {
   ],
   hub: [HOME_TAB,
     { to: '/app/hub/attendance', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub/(?!team)' },
-    { to: '/app/hub/team', icon: 'users', bn: 'টিম', en: 'Team', perms: ['hr.employee.view'], match: '/app/hub/team' },
+    { to: '/app/staff/list', icon: 'users', bn: 'টিম', en: 'Team', perms: ['hr.employee.view'], match: '/app/staff' },
     { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: DA, match: '/app/accounts/daily' },
     { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' }],
   zone: TABS,
