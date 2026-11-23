@@ -102,7 +102,6 @@ select tests.ok((select parcel_count = 10 and cod_amount = 5000 and submission_c
 insert into tests.ids select 'pc_m2', public.ops_approve_pickup(tests.id('ps_m2_pm'));
 select tests.ok((select count(*) = 2 and bool_and(status = 'approved') from public.pickup_submissions where consolidation_id = tests.id('pc_m2')),
                 'duplicate submissions are both closed by one approval');
-                'the report counts each pickup once: 10 + 5, not the sum of all submissions (42)');
 select tests.ok((select pickup_count = 15 and status = 'verified' and source = 'courier'
                  from public.hub_daily_metrics where hub_id = tests.id('hub_a1') and metric_date = current_date),
                 'approved pickups refresh the daily hub figures');
