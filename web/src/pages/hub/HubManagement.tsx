@@ -85,9 +85,6 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
   }
 }
 
-const timeOf = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }) : ''
-const nowTime = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: false })
-
 // ---------------------------------------------------------------- pickups
 const SOURCES: Array<[string, string, string]> = [['hub_manager', 'হাব ম্যানেজার', 'Hub manager'], ['pickup_manager', 'পিকআপ ম্যানেজার', 'Pickup manager'], ['rider', 'রাইডার', 'Rider']]
 
