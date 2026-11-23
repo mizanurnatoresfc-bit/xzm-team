@@ -413,7 +413,6 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
   const [d, setD] = useState<XDraft | null>(null)
   const [err, setErr] = useState<unknown>(null); const [busy, setBusy] = useState(false)
   const [remove, setRemove] = useState<Expense | null>(null)
-  const [kindF, setKindF] = useState<'all' | 'transport' | 'employee'>('all')
   const up = useOcrUpload(s.session.id, settings)
   const active = templates.filter(t => t.status === 'active')
   const vehicles = useLoad(() => s.can_edit ? da.vehicles(s.hub.id).catch(() => [] as Vehicle[]) : Promise.resolve([] as Vehicle[]), [s.hub.id, s.can_edit])
@@ -458,7 +457,7 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
     if (!d) return
     setBusy(true); setErr(null)
     try {
-      const line = await da.saveExpense({ session: s.session.id, kind: d.kind, employee: d.employee || null, name: d.name, category: d.category, amount: +d.amount,
+      const line = await da.saveExpense({ session: s.session.id, kind: d.employee.trim() ? 'employee' : 'transport', employee: d.employee.trim() || null, name: d.name, category: d.category, amount: +d.amount,
         date: d.date, billNo: d.billNo || null, ref: d.ref && !/-$/.test(d.ref) ? d.ref : null, path: d.path, paidBy: d.paidBy || null,
         ocr: d.ocr, verified: d.ocr ? d.verified : false, template: d.template || null, remarks: d.remarks, line: d.line })
       if (d.vehicle || d.refName || d.refPhone || d.refPosition) {
@@ -471,13 +470,13 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
     name: x.expense_name, category: x.category, amount: String(x.amount), date: x.bill_date, billNo: x.bill_no ?? '', ref: x.reference_no ?? '', paidBy: '',
     path: x.attachment_path, ocr: x.ocr, verified: x.ocr_verified, remarks: x.remarks ?? '',
     vehicle: x.vehicle_id ?? '', refName: x.reference_name ?? '', refPhone: x.reference_phone ?? '', refPosition: x.reference_position ?? '' })
-  const list = s.expenses.filter(x => kindF === 'all' || x.kind === kindF)
+  const list = s.expenses
   const tSum = list.filter(x => x.kind === 'transport').reduce((a, x) => a + x.amount, 0)
   const eSum = list.filter(x => x.kind === 'employee').reduce((a, x) => a + x.amount, 0)
 
   // ---- Excel-like quick entry: name, amount, whose (Employee ID), category
   const ecols: GCol[] = [{ key: 'name', label: 'খরচের নাম', width: 170, placeholder: 'যেমন: তেল' }, { key: 'amount', label: 'টাকা', type: 'number', width: 100 },
-    { key: 'employee', label: 'কার খরচ (আইডি)', width: 110, placeholder: 'ফাঁকা = যাতায়াত', list: 'da-staff-x' }, { key: 'empName', label: 'কার', width: 130, ro: true },
+    { key: 'employee', label: 'কার খরচ (আইডি)', width: 110, placeholder: 'ফাঁকা = হাবের খরচ', list: 'da-staff-x' }, { key: 'empName', label: 'কার', width: 130, ro: true },
     { key: 'category', label: 'খাত', type: 'select', width: 150, options: cats.map(c => [c.code, c.bn] as [string, string]) }]
   const eblank = useCallback((): Vals => ({ name: '', amount: '', employee: '', empName: '', category: cats[0]?.code ?? 'other' }), [cats])
   const esave = useCallback(async (v: Vals) => {
@@ -489,11 +488,10 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
     return { empName: r ? (r.allowed ? r.full_name : `${r.full_name} — এই হাবের নন`) : 'পাওয়া যায়নি' } } }), [s.hub.id])
   const staffX = useLoad(() => s.can_edit ? da.hubEmployees(s.hub.id) : Promise.resolve([]), [s.hub.id, s.can_edit])
   return <section className="panel" id="da-expense">
-    <div className="da-bar"><h2>যাতায়াত ও হাব কর্মীর খরচ</h2>
-      <div className="row no-print"><select value={kindF} onChange={e => setKindF(e.target.value as typeof kindF)} aria-label="ধরন">
-        <option value="all">সব</option><option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select>
-        {s.can_edit && <><button onClick={() => { setErr(null); setD(blank('transport')) }}>＋ যাতায়াত খরচ</button><button className="secondary" onClick={() => { setErr(null); setD(blank('employee')) }}>＋ কর্মীর খরচ</button></>}
-        <SectionMenu sec="expense" title="যাতায়াত ও হাব কর্মীর খরচ" s={s} settings={settings} onAdd={() => { setErr(null); setD(blank('transport')) }} addLabel="＋ খরচ যোগ" onLayoutSaved={ls} /></div></div>
+    <div className="da-bar da-xbar"><h2>হাবের খরচ</h2>
+      <div className="row no-print">
+        {s.can_edit && <button className="da-xadd" onClick={() => { setErr(null); setD(blank('transport')) }}>＋ খরচ যোগ করুন</button>}
+        <SectionMenu sec="expense" title="হাবের খরচ" s={s} settings={settings} onAdd={() => { setErr(null); setD(blank('transport')) }} addLabel="＋ খরচ যোগ করুন" onLayoutSaved={ls} /></div></div>
     <ErrorNote error={err && !d ? err : null} />
     {s.can_edit && <div className="screen-only"><p className="qg-tip no-print">নিচের ফাঁকা লাইনে <b>খরচের নাম, টাকা, কার খরচ (এমপ্লয়ি আইডি), খাত</b> লিখুন — লাইন ছাড়লেই সেভ। বিল ফাইল/ভাউচার/গাড়ির তথ্য লাগলে উপরের বাটন।</p>
       <datalist id="da-staff-x">{(staffX.data ?? []).map(e => <option key={e.employee_id} value={e.employee_code}>{e.full_name}</option>)}</datalist>
@@ -516,15 +514,15 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
       {list.length > 0 && <tfoot><tr><td colSpan={5}>মোট ({num(list.length)} টি) · যাতায়াত {taka(tSum)} · কর্মী {taka(eSum)}</td>
         <td data-l="মোট খরচ" className="r">{taka(tSum + eSum)}</td><td colSpan={7} className="no-print" /></tr></tfoot>}</table></div>
 
-    {d && <Modal title={`${d.line ? 'এডিট' : 'নতুন'} · ${d.kind === 'transport' ? 'যাতায়াত খরচ' : 'কর্মীর খরচ'}`} wide onClose={() => setD(null)}
+    {d && <Modal title={d.line ? 'খরচ এডিট' : 'খরচ যোগ করুন'} wide onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || up.progress !== null || (!!d.ocr && !d.verified)} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'যাচাই করে সেভ'}</button></>}>
       <Field label="বিল / মেমোর ছবি বা PDF" hint={up.progress !== null ? `পড়া হচ্ছে… ${num(Math.round(up.progress * 100))}%` : d.path ? 'আপলোড হয়েছে' : `ছবি দিলে AI/OCR দিয়ে তথ্য পূরণ হবে · সর্বোচ্চ ${num(billCfg.max_mb)} MB`}>
         <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void onFile(f) }} /></Field>
       <ErrorNote error={up.err} /><OcrNote ocr={d.ocr} min={settings['da.ocr'].min_confidence} />
       <div className="da-grid3">
-        <Field label="খরচের নাম *" hint="যেমন: CNG ভাড়া, ভ্যানের তেল"><input autoFocus={!d.line} value={d.name} onChange={e => setD({ ...d, name: e.target.value })} /></Field>
-        <Field label="বিলের টাকা *"><input type="number" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
-        <Field label={d.kind === 'employee' ? 'কার খরচ — এমপ্লয়ি আইডি *' : 'কার খরচ — এমপ্লয়ি আইডি'} hint={d.employeeName || 'রাইডার বা স্টাফের আইডি'}>
+        <Field label="খরচের নাম *" hint="যেমন: CNG ভাড়া, ভ্যানের তেল"><input autoFocus={!d.line} enterKeyHint="next" value={d.name} onChange={e => setD({ ...d, name: e.target.value })} /></Field>
+        <Field label="বিলের টাকা *"><input type="number" inputMode="decimal" enterKeyHint="next" min={1} value={d.amount} onChange={e => setD({ ...d, amount: e.target.value })} /></Field>
+        <Field label="কার খরচ — এমপ্লয়ি আইডি" hint={d.employeeName || 'কর্মীর খরচ হলে আইডি দিন, না হলে ফাঁকা'}>
           <input inputMode="numeric" value={d.employee} onChange={e => { setD({ ...d, employee: e.target.value, employeeName: '' }); void lookup(e.target.value) }} /></Field>
         <Field label="খাত *" wide><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.bn} ({c.en})</option>)}</select>
           <CatHelp cat={cats.find(c => c.code === d.category)} amount={+d.amount || 0} /></Field>
@@ -536,7 +534,6 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
         <Field label="রেফারেন্সের নাম" hint="কার মাধ্যমে / কার কথায় খরচ"><input value={d.refName} onChange={e => setD({ ...d, refName: e.target.value })} /></Field>
       </div>
       <details className="da-more no-print"><summary>আরও তথ্য (দরকার হলে)</summary><div className="da-grid3">
-        <Field label="ধরন"><select value={d.kind} onChange={e => setD({ ...d, kind: e.target.value as XDraft['kind'] })}><option value="transport">যাতায়াত</option><option value="employee">কর্মীর খরচ</option></select></Field>
         <Field label="টেমপ্লেট"><select value={d.template} onChange={e => applyTemplate(e.target.value)}><option value="">— নেই —</option>{active.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
         <Field label="বিলের তারিখ *"><input type="date" max={todayDhaka()} value={d.date} onChange={e => setD({ ...d, date: e.target.value })} /></Field>
         <Field label="বিল নম্বর"><input value={d.billNo} onChange={e => setD({ ...d, billNo: e.target.value })} /></Field>
