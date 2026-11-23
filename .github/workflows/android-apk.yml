@@ -124,6 +124,27 @@ jobs:
         run: |
           mkdir -p dist/download
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ "$GITHUB_REF" = "refs/heads/main" ]; then
+              live_apk="$RUNNER_TEMP/xzm-live.apk"
+              status="$(curl -sSL --retry 2 -o "$live_apk" -w '%{http_code}' https://xzmteam.com/download/XZM-TEAM.apk)"
+              if [ "$status" = 200 ]; then
+                apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+                test -x "$apksigner"
+                signer_digests() {
+                  "$apksigner" verify --print-certs "$1" > "$RUNNER_TEMP/xzm-apk-certs.txt" || return 1
+                  awk '/^Signer #[0-9]+ certificate SHA-256 digest:/ { print $NF }' "$RUNNER_TEMP/xzm-apk-certs.txt" | sort
+                }
+                live_signers="$(signer_digests "$live_apk")"
+                build_signers="$(signer_digests "$GITHUB_WORKSPACE/XZM-TEAM.apk")"
+                if [ -z "$live_signers" ] || [ "$live_signers" != "$build_signers" ]; then
+                  echo "::error::The APK signer differs from the published APK. Keep the current download and build with the original signing key."
+                  exit 1
+                fi
+              elif [ "$status" != 404 ]; then
+                echo "::error::Could not check the published APK (HTTP $status)."
+                exit 1
+              fi
+            fi
             cp "$GITHUB_WORKSPACE/XZM-TEAM.apk" dist/download/XZM-TEAM.apk
             printf '{"build":%s,"version":"1.%s","url":"/download/XZM-TEAM.apk","at":"%s"}\n' "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$(date -u +%FT%TZ)" > dist/download/apk.json
           else
