@@ -423,9 +423,9 @@ function HubStaffPicker({ ctx, taken, picked, onChange }: { ctx: Ctx; taken: Set
         : list.error ? <p className="da-error">{hrFriendly(list.error)}</p>
         : !shown.length ? <p className="muted">{L('এই হাবে কাউকে পাওয়া যায়নি', 'Nobody found in this hub')}</p>
         : shown.map(e => { const already = taken.has(e.id)
-          return <label key={e.id} className={already ? 'muted' : ''}><input type="checkbox" disabled={already} checked={already || on(e.id)} onChange={() => toggle(e)} />{' '}
-            {e.full_name}{e.employee_code ? <span className="muted small"> · {e.employee_code}</span> : null}
-            {already && <span className="muted small"> · {L('আগেই আছে', 'already added')}</span>}</label> })}
+          return <label key={e.id} className={already ? 'muted' : ''} style={{ display: 'flex', alignItems: 'center', gap: 8, flexDirection: 'row', margin: 0, padding: '6px 4px', cursor: already ? 'default' : 'pointer' }}><input type="checkbox" style={{ width: 18, height: 18, margin: 0, flex: 'none' }} disabled={already} checked={already || on(e.id)} onChange={() => toggle(e)} />
+            <span>{e.full_name}{e.employee_code ? <span className="muted small"> · {e.employee_code}</span> : null}
+            {already && <span className="muted small"> · {L('আগেই আছে', 'already added')}</span>}</span></label> })}
     </div>
   </div>
 }
