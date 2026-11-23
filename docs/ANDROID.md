@@ -54,7 +54,14 @@ Needs an APK built after 23 Nov (plugins `@capacitor/haptics`, `@capacitor/camer
   a dialog, or while typing.
 - **Direction:** going forward the page title comes in from the right, going back from the left.
 - **No pinch-zoom** in the app (Settings → text size makes text bigger); a long press on a button, row or tab does not select text.
-- The smoke test checks the camera sheet, the tick and the keyboard with a stand-in for the Capacitor bridge.
+- **Ripple (part 3):** a press on a button, menu row, tab, tile or card grows the usual Android touch ripple from the finger (`setupRipple`). It lives in its own
+  clipping layer, so badges hanging off a button are never cut; a block marked `data-no-ripple` (or bigger than a card) is skipped. Off for "reduce motion".
+- **Top bar lifts on scroll:** flat at the top of a page, a soft shadow once the page has scrolled under it (`scrolled` class on `<html>`).
+- **Pull a sheet down to close it:** dialogs on a phone and the choose-one sheets follow the finger and close past ~110px or on a quick flick; a short pull springs
+  back (`setupSheetSwipe`). Not from inside inputs, maps or a block marked `data-no-swipe`.
+- **Snackbar:** messages (`.da-toast`) come up from the bottom, dark and rounded, above the bottom bar (all phones, app or browser).
+- **No bounce or glow** at the ends of a page in the app (`overscroll-behavior`).
+- The smoke test checks the camera sheet, the tick, the keyboard, the ripple, the lifted bar and the sheet pull with a stand-in for the Capacitor bridge.
 
 ## Barcode scanner (later)
 When the scanner page is built it may need `<uses-permission android:name="android.permission.CAMERA" />`

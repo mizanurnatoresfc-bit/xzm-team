@@ -1657,6 +1657,25 @@ try {
         `${size}: in the app, the camera photo lands in the same photo box`)
       await ap.locator('.bottom-nav a').first().click(); await ap.waitForTimeout(200)
       check((await ap.evaluate(() => window.__cap)).includes('select'), `${size}: in the app, a bottom tab tap gives a tick`)
+      // ripple: a press on a bottom tab starts a ripple layer that is removed again, and nothing about the tab changes
+      await ap.locator('.bottom-nav .bn-item').first().dispatchEvent('pointerdown', { clientX: 60, clientY: 760, pointerType: 'touch', bubbles: true })
+      check(await ap.locator('.bn-item .ripple-ink').count() === 1, `${size}: in the app, a press on a tab starts a ripple`)
+      await ap.locator('.bottom-nav .bn-item').first().dispatchEvent('pointerup', { pointerType: 'touch', bubbles: true }); await ap.waitForTimeout(900)
+      check(await ap.locator('.ripple-wrap').count() === 0, `${size}: in the app, the ripple goes away by itself`)
+      // top bar: flat at the top, lifted once the page has scrolled
+      await ap.evaluate(() => { document.body.style.minHeight = '3000px'; window.scrollTo(0, 400) }); await ap.waitForTimeout(150)
+      check(await ap.evaluate(() => document.documentElement.classList.contains('scrolled')), `${size}: in the app, the top bar lifts when the page is scrolled`)
+      await ap.evaluate(() => window.scrollTo(0, 0)); await ap.waitForTimeout(150)
+      check(await ap.evaluate(() => !document.documentElement.classList.contains('scrolled')), `${size}: in the app, the top bar is flat at the top again`)
+      // a dialog is a bottom sheet: pulling it down closes it, a short pull springs back
+      await ap.locator('.sp-hero .my-av-cam').click(); await ap.waitForSelector('.da-modal')
+      const pull = async dy => { const h = await ap.locator('.da-modal').boundingBox(); const x = h.x + h.width / 2, y = h.y + 20
+        await ap.evaluate(([x, y, dy]) => { const t = document.querySelector('.da-modal'); const mk = (type, yy) => new TouchEvent(type, { bubbles: true, cancelable: true, touches: type === 'touchend' ? [] : [new Touch({ identifier: 1, target: t, clientX: x, clientY: yy })] })
+          t.dispatchEvent(mk('touchstart', y)); t.dispatchEvent(mk('touchmove', y + dy / 2)); t.dispatchEvent(mk('touchmove', y + dy)); t.dispatchEvent(mk('touchend', y + dy)) }, [x, y, dy]) }
+      await pull(40); await ap.waitForTimeout(400)
+      check(await ap.locator('.da-modal').count() === 1, `${size}: in the app, a short pull on a sheet springs back`)
+      await pull(220); await ap.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 3000 }).catch(() => {})
+      check(await ap.locator('.da-modal').count() === 0, `${size}: in the app, pulling a sheet down closes it`)
       await ap.goto(`${BASE}/app/hr/employees`); await ap.waitForSelector('.emp-search input')
       const box = ap.locator('.emp-search input').first()
       if (await box.count()) {

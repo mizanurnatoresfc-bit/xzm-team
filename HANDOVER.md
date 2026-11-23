@@ -1007,3 +1007,11 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   installed, the app works as before (each part checks for its plugin).
 - Smoke test: an "in the app" block with a stand-in Capacitor bridge (camera sheet → photo in the box, tick, keyboard). 701 checks pass.
 - Not tried on a real phone yet (no device here): the owner should check the camera, the buzz and pull-to-refresh on the new APK.
+
+## 2026-11-23 — অ্যাপের নেটিভ অনুভূতি, পর্ব ৩ (ripple, sheet টানা, snackbar)
+
+- Owner: "android native real app feel দিবে সেই রকম করে দেও". Added on top of part 1–2 (no new plugin, so **no new APK is needed** — the app loads the live site, a site publish is enough):
+  Material touch ripple on buttons/rows/tabs/tiles; the top bar lifts with a shadow once the page scrolls; dialogs and choose-one sheets are pulled down to close;
+  messages come up as a bottom snackbar; no bounce/glow at page ends in the app. Code: `web/src/lib/nativeFeel.tsx` (`setupRipple`, `setupBarLift`, `setupSheetSwipe`), CSS at the end of `web/src/app-feel.css`.
+- Details in `docs/ANDROID.md` → "App feel". Smoke test: new checks in the "in the app" block.
+- Not tried on a real phone (no device here): the owner should feel the ripple and the sheet pull on the phone.

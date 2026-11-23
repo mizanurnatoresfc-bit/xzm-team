@@ -119,6 +119,104 @@ function setupPullToRefresh(): void {
   window.addEventListener('touchcancel', () => { on = false; dy = 0; hide() })
 }
 
+// ---------------------------------------------------------------- touch ripple
+/** Material touch ripple: a soft circle grows from the finger on buttons, menu rows, tabs, tiles and cards, like every Android app.
+ *  Pure decoration (pointer-events none, removed after it plays); nothing here changes what a tap does. */
+const RIPPLE_ON = 'button:not(:disabled), a.nl, .bn-item, .quick-tile, .wf-pm-tile, .sp-tile, .emp-card, .hub-link, .nv-row, .chip, .chip-toggle, .rq-tab, summary, [role=button], [role=tab], .da-seg button, label.fl-check, label.fl-toggle, .pick-row'
+function setupRipple(): void {
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    if (document.documentElement.getAttribute('data-motion') === 'reduce') return
+    const host = (e.target as Element | null)?.closest?.(RIPPLE_ON) as HTMLElement | null
+    if (!host || host.closest('.ptr, [data-no-ripple]') || host.hasAttribute('data-no-ripple')) return
+    const r = host.getBoundingClientRect()
+    if (r.width < 8 || r.height < 8 || r.width * r.height > 520 * 420) return   // not on page-sized blocks
+    const size = Math.max(r.width, r.height) * 2.2
+    // The ink lives in its own clipping layer laid over the host, so badges or dots hanging off the host are never cut.
+    const wrap = document.createElement('span'); wrap.className = 'ripple-wrap'; wrap.setAttribute('aria-hidden', 'true')
+    const ink = document.createElement('span'); ink.className = 'ripple-ink'
+    ink.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`
+    wrap.appendChild(ink)
+    const hadPos = getComputedStyle(host).position !== 'static'
+    if (!hadPos) host.style.position = 'relative'
+    host.appendChild(wrap)
+    const done = () => window.setTimeout(() => {
+      ink.classList.add('out')
+      window.setTimeout(() => { wrap.remove(); if (!hadPos && !host.querySelector(':scope > .ripple-wrap')) host.style.position = '' }, 300)
+    }, 120)
+    let ended = false; const end = () => { if (ended) return; ended = true; done() }
+    host.addEventListener('pointerup', end, { once: true }); host.addEventListener('pointercancel', end, { once: true }); host.addEventListener('pointerleave', end, { once: true })
+    window.setTimeout(end, 900)
+  }, { capture: true, passive: true })
+}
+
+// ---------------------------------------------------------------- top bar shadow
+/** The top bar sits flat on the page at the top and gets a soft shadow once the page has scrolled under it (Material "lift on scroll"). */
+function setupBarLift(): void {
+  let lifted = false
+  const set = () => { const y = window.scrollY > 4; if (y !== lifted) { lifted = y; document.documentElement.classList.toggle('scrolled', y) } }
+  window.addEventListener('scroll', set, { passive: true }); set()
+}
+
+// ---------------------------------------------------------------- swipe a sheet down to close it
+/** Bottom sheets (the dialogs on a phone and the choose-one sheets) close by pulling them down, like Android's bottom sheet:
+ *  drag from the grab bar / title area, past ~110px or a quick flick, and it closes as if the back button were pressed. */
+function setupSheetSwipe(): void {
+  const SHEETS = '.da-modal, .sheet'
+  let sheet: HTMLElement | null = null, y0 = 0, dy = 0, t0 = 0
+  const reset = (animate: boolean) => {
+    if (!sheet) return
+    const s = sheet; sheet = null
+    s.style.transition = animate ? 'transform .2s ease, opacity .2s' : ''
+    s.style.transform = ''; s.style.opacity = ''
+    window.setTimeout(() => { s.style.transition = '' }, 220)
+  }
+  const close = (s: HTMLElement) => {
+    const esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+    s.style.transition = 'transform .18s ease-in, opacity .18s'; s.style.transform = 'translateY(100%)'; s.style.opacity = '0'
+    window.setTimeout(() => {
+      // The dimmed backdrop closes its sheet on a press of itself; with no backdrop, press Escape (the same thing the back button does).
+      const bg = s.closest('.sheet-bg, .da-modal-bg') as HTMLElement | null
+      if (bg) bg.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+      else { window.dispatchEvent(esc); document.dispatchEvent(esc) }
+      window.setTimeout(() => { if (s.isConnected) { s.style.transition = ''; s.style.transform = ''; s.style.opacity = '' } }, 250)
+    }, 170)
+    sheet = null
+  }
+  document.addEventListener('touchstart', e => {
+    sheet = null
+    const el = e.target as Element | null
+    const s = el?.closest?.(SHEETS) as HTMLElement | null
+    if (!s || e.touches.length !== 1) return
+    if (s.classList.contains('da-modal') && window.innerWidth > 960) return      // PC dialogs are centred boxes
+    if (el!.closest('input, textarea, select, [contenteditable], .leaflet-container, canvas, [data-no-swipe]')) return
+    // only from the top strip (grab bar + heading) or when the sheet's own content is at its top
+    const r = s.getBoundingClientRect(); const ty = e.touches[0].clientY
+    const scroller = el!.closest('.modal-body, .da-modal-body, .sheet-body') as HTMLElement | null
+    const atTop = (scroller ? scroller.scrollTop <= 0 : s.scrollTop <= 0)
+    if (!(ty - r.top < 64 || atTop)) return
+    sheet = s; y0 = ty; dy = 0; t0 = Date.now()
+  }, { passive: true })
+  document.addEventListener('touchmove', e => {
+    if (!sheet) return
+    const d = e.touches[0].clientY - y0
+    if (d <= 0) { if (dy > 0) { dy = 0; sheet.style.transform = ''; sheet.style.opacity = '' } return }
+    // a short pull inside scrolled content is just a scroll: start moving the sheet after a few px
+    if (d < 6) return
+    dy = d
+    sheet.style.transition = 'none'
+    sheet.style.transform = `translateY(${d}px)`; sheet.style.opacity = String(Math.max(0.4, 1 - d / 500))
+    if (e.cancelable) e.preventDefault()
+  }, { passive: false })
+  document.addEventListener('touchend', () => {
+    if (!sheet) return
+    const quick = dy > 40 && dy / Math.max(1, Date.now() - t0) > 0.6
+    if (dy > 110 || quick) { haptic('tap'); close(sheet) } else reset(true)
+  })
+  document.addEventListener('touchcancel', () => reset(true))
+}
+
 // ---------------------------------------------------------------- camera
 /** Every photo box in the app (input type=file that takes images) first asks "camera or gallery". Camera opens the phone's own
  *  camera through the Camera plugin and the photo lands in the same box, so each page's own upload code runs unchanged.
@@ -165,6 +263,9 @@ function setupCamera(): void {
 /** Called once from setupNativeApp() inside the app. */
 export function setupNativeFeel(): void {
   buzzOnTabs()
+  setupRipple()
+  setupBarLift()
+  setupSheetSwipe()
   setupPullToRefresh()
   setupCamera()
   // no pinch-zoom in the app, like other apps (the text size setting in Settings makes text bigger instead)
