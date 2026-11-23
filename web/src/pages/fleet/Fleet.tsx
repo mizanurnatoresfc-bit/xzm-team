@@ -8,6 +8,8 @@ import { hubLabel, org } from '../../lib/hr'
 import { COST_KIND, EVENT_BN, FUNCTIONS, KIND_FALLBACK, REPORT_STATUS, REQ_KIND, ROLE_BN, VEHICLE_STATUS, fleet, fleetFriendly, fnOn, kindName, kindsOf,
   type BoardRow, type FleetSetting, type FormField, type Kind, type ReportStatus, type ReqKind, type Role, type Settings, type WaitLog, type WaitReq } from '../../lib/fleet'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { Combo } from '../../components/inputs'
+import { refs } from '../../lib/refs'
 import { Thumb, bnNum, dayBn, timeBn, tk, todayDhaka } from './common'
 
 type Tab = 'list' | 'today' | 'approve' | 'reports' | 'log' | 'settings'
@@ -124,6 +126,13 @@ function CrewForm({ v, role, settings, onClose, onDone }: { v: BoardRow; role: R
   const [code, setCode] = useState(cur?.code ?? ''); const [amt, setAmt] = useState(String(cur?.allowance ?? def ?? ''))
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
   const [remove, setRemove] = useState(false); const [why, setWhy] = useState('')
+  // Hub-wise staff list (owner, 23 Nov): pick the hub, then tap a name — no need to know the ID by heart. Typing the ID still works.
+  const [pHub, setPHub] = useState(v.hub_id ?? ''); const [q, setQ] = useState('')
+  const hubs = useLoad(() => refs.zoneHubs(), [])
+  const people = useLoad(() => pHub ? refs.hubPeople(pHub) : Promise.resolve([]), [pHub])
+  const hubOpts = (hubs.data ?? []).filter(h => !v.zone_id || h.zone_id === v.zone_id || h.id === v.hub_id)
+  const sq = q.trim().toLowerCase()
+  const shown = (people.data ?? []).filter(p => !sq || `${p.full_name} ${p.employee_code ?? ''} ${p.mobile ?? ''} ${p.post ?? ''}`.toLowerCase().includes(sq))
   async function save() {
     setBusy(true); setErr('')
     try { await fleet.setCrew(v.id, role, code.trim(), amt.trim() ? Number(amt) : null); onDone(`${ROLE_BN[role]} ঠিক করা হয়েছে`) } catch (e) { setErr(fleetFriendly(e)) } finally { setBusy(false) }
@@ -138,7 +147,20 @@ function CrewForm({ v, role, settings, onClose, onDone }: { v: BoardRow; role: R
       {remove ? <button className="danger" disabled={busy || !why.trim()} onClick={() => void release()}>সরিয়ে দিন</button>
         : <button disabled={busy || !code.trim()} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'সেভ'}</button>}</>}>
     {remove ? <Field label="কেন সরাচ্ছেন *"><input autoFocus value={why} onChange={e => setWhy(e.target.value)} /></Field> : <>
-      <Field label="এমপ্লয়ি আইডি *" hint={cur ? `এখন: ${cur.name}` : 'যাঁকে দায়িত্ব দেবেন তাঁর আইডি'}><input id="fl-c-code" autoFocus inputMode="numeric" value={code} onChange={e => setCode(e.target.value)} /></Field>
+      <Field label="হাব"><Combo value={pHub} label="হাব" onChange={x => { setPHub(x); setQ('') }} placeholder="হাব বেছে নিন…"
+        options={hubOpts.map(h => ({ value: h.id, label: hubLabel(h) }))} /></Field>
+      {pHub && <div className="bp-pick fl-pick">
+        <input className="bp-q" value={q} onChange={e => setQ(e.target.value)} placeholder="নাম, আইডি, মোবাইল বা পদবি দিয়ে খুঁজুন" aria-label="কর্মী খুঁজুন" />
+        <div className="bp-list" style={{ maxHeight: 260 }} role="listbox" aria-label="হাবের কর্মী">
+          {people.loading ? <p className="muted small">লোড হচ্ছে…</p> : !shown.length ? <p className="muted small">এই হাবে কাউকে পাওয়া যায়নি</p>
+            : shown.map(p => { const on = !!p.employee_code && code.trim() === p.employee_code
+              return <button key={p.id} type="button" role="option" aria-selected={on} className={`bp-row${on ? ' on' : ''}${p.employee_code ? '' : ' dis'}`} disabled={!p.employee_code}
+                onClick={() => setCode(p.employee_code ?? '')}>
+                <span className="nv-av">{on ? <Icon name="check" size={16} /> : p.full_name.slice(0, 1).toUpperCase()}</span>
+                <span className="tx"><b>{p.full_name}</b><span>{[p.employee_code ? `#${p.employee_code}` : 'আইডি নেই', p.post, p.mobile].filter(Boolean).join(' · ')}</span></span>
+              </button> })}
+        </div></div>}
+      <Field label="এমপ্লয়ি আইডি *" hint={cur ? `এখন: ${cur.name} · তালিকা থেকে নামে চাপলে আইডি বসে যাবে` : 'তালিকা থেকে নামে চাপুন, অথবা আইডি লিখুন'}><input id="fl-c-code" inputMode="numeric" value={code} onChange={e => setCode(e.target.value)} /></Field>
       <Field label="দৈনিক খোরাকি (৳)" hint={def != null ? `সেটিংসে ${ROLE_BN[role]}-এর খোরাকি ${tk(def)}` : undefined}>
         <input id="fl-c-amt" type="number" min={0} inputMode="numeric" value={amt} onChange={e => setAmt(e.target.value)} /></Field>
       <p className="muted small">বদলালে এস্যাইন লগে থেকে যাবে। নতুন কেউ এলে আগের জন দায়িত্ব থেকে সরে যাবেন।</p>
