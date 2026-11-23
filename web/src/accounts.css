@@ -84,7 +84,7 @@ select,textarea{width:100%;margin-top:6px;border:1px solid #cbd5e1;border-radius
 }
 .hr-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 @media (max-width:900px){.hr-form{grid-template-columns:1fr 1fr}}@media (max-width:560px){.hr-form{grid-template-columns:1fr}}
-.hr-kv{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:0.875rem;margin:0}.hr-kv dt{color:#64748b}.hr-kv dd{margin:0}
+.hr-kv{display:grid;grid-template-columns:160px 1fr;gap:6px 14px;font-size:0.875rem;margin:0}.hr-kv dt{color:var(--muted)}.hr-kv dd{margin:0}
 .att-btns{display:flex;gap:4px;flex-wrap:wrap}.att-btns button{padding:4px 8px;font-size:0.8438rem}.att-btns button.on{background:var(--primary);color:#fff;border-color:var(--primary)}
 
 /* What belongs in a category, and what to do with it on the main site */
