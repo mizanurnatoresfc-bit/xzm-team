@@ -36,7 +36,6 @@ const StaffList = lazy(() => import('./pages/staff/StaffList').then(m => ({ defa
 const EmployeeProfile = lazy(() => import('./pages/hr/EmployeeProfile').then(m => ({ default: m.EmployeeProfile })))
 const Applications = lazy(() => import('./pages/hr/Applications').then(m => ({ default: m.Applications })))
 const Leave = lazy(() => import('./pages/hr/Leave').then(m => ({ default: m.Leave })))
-const Attendance = lazy(() => import('./pages/hr/Attendance').then(m => ({ default: m.Attendance })))
 const ImportEmployees = lazy(() => import('./pages/hr/ImportEmployees').then(m => ({ default: m.ImportEmployees })))
 const FieldSettings = lazy(() => import('./pages/hr/FieldSettings').then(m => ({ default: m.FieldSettings })))
 const Referrals = lazy(() => import('./pages/hr/Referrals').then(m => ({ default: m.Referrals })))
@@ -88,7 +87,7 @@ const WorkforceZone = lazy(() => import('./pages/workforce/WorkforceZone').then(
 
 // After the first screen is shown, quietly fetch the pages so later taps open at once (an app does not wait on each tap).
 // The most-used ones come first; on a phone with "data saver" on, nothing is fetched ahead.
-const FIRST = ['./pages/hub/HubManagement', './pages/hr/Attendance', './pages/hr/Requests', './pages/workforce/MyWorkforce', './pages/workforce/WorkforceHub',
+const FIRST = ['./pages/hub/HubManagement', './pages/workforce/WorkforceHub', './pages/hr/Requests', './pages/workforce/MyWorkforce',
   './pages/staff/StaffList', './pages/accounts/DailyDashboard', './pages/accounts/DailySheet', './pages/MyProfile']
 const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/accounts/DailyDashboard', () => import('./pages/accounts/DailyDashboard')],
@@ -108,7 +107,6 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/hr/EmployeeProfile', () => import('./pages/hr/EmployeeProfile')],
   ['./pages/hr/Applications', () => import('./pages/hr/Applications')],
   ['./pages/hr/Leave', () => import('./pages/hr/Leave')],
-  ['./pages/hr/Attendance', () => import('./pages/hr/Attendance')],
   ['./pages/hr/ImportEmployees', () => import('./pages/hr/ImportEmployees')],
   ['./pages/hr/FieldSettings', () => import('./pages/hr/FieldSettings')],
   ['./pages/hr/Referrals', () => import('./pages/hr/Referrals')],
@@ -234,8 +232,10 @@ export default function App() {
         <Route path="/app/routes/plan" element={<RoutePlanPage />} />
       </Route>
       <Route path="/app/manpower" element={<Manpower />} />
-      <Route path="/app/hub" element={<Navigate to="/app/hub/attendance" replace />} />
+      <Route path="/app/hub" element={<Navigate to="/app/workforce/hub" replace />} />
       <Route path="/app/hub/team" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/hub/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hub/late" element={<Navigate to="/app/workforce/hub" replace />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
@@ -256,7 +256,7 @@ export default function App() {
       <Route path="/app/hr/employees" element={<Navigate to="/app/staff/list" replace />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
       <Route path="/app/hr/applications" element={<Applications />} />
-      <Route path="/app/hr/attendance" element={<Attendance />} />
+      <Route path="/app/hr/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />

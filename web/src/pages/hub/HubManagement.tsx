@@ -1,4 +1,4 @@
-import { askConfirm, askReason, askText } from '../../components/ask'
+import { askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { inMenu } from '../../lib/menu'
 import { AttendanceDays } from './AttendanceDays'
@@ -11,19 +11,17 @@ import { Icon } from '../../components/Icon'
 import { RouteViz } from '../../components/RouteViz'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
-import { ATT_STATUS, autoCode, hr, hrFriendly, type AttendanceStatus, type Employee, type Hub } from '../../lib/hr'
+import { autoCode, hrFriendly, type Employee, type Hub } from '../../lib/hr'
 import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts'
 import { routesApi, type HubRoute } from '../../lib/hub'
-import { hubApi, hubToday, PICKUP_STATUS, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type LateRow, type Pickup } from '../../lib/hub'
+import { hubApi, hubToday, PICKUP_STATUS, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type Pickup } from '../../lib/hub'
 import { useOrg } from '../hr/common'
 
-// Team view moved to /app/staff/list (role-aware). HubManagement no longer exposes 'team'.
-export type HubSection = 'attendance' | 'late' | 'pickup' | 'tasks' | 'ops' | 'accounts' | 'days' | 'logins' | 'routes'
+// Team moved to /app/staff/list; attendance+late moved to /app/workforce/hub (role-aware).
+export type HubSection = 'pickup' | 'tasks' | 'ops' | 'accounts' | 'days' | 'logins' | 'routes'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
-  { key: 'attendance', icon: 'cal', bn: 'আজকের হাজিরা খাতা', en: "Today's attendance", perms: ['hr.attendance.view', 'hr.attendance.create'] },
-  { key: 'late', icon: 'clock', bn: 'আজকের দেরিতে হাজিরা', en: 'Late today', perms: ['hr.attendance.view', 'hr.attendance.create'] },
   { key: 'pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
   { key: 'tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
   { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
@@ -49,10 +47,11 @@ export function HubManagement() {
     if (!hub || !hubs.some(h => h.id === hub)) { setHubS(hubs[0].id); storeHub(hubs[0].id) }
   }, [hubs, hub])
   const setHub = (id: string) => { setHubS(id); storeHub(id); refreshShellCounts() }
-  // Old /app/hub/team moved to /app/staff/list
+  // Old sections moved to new master pages
   if (section === 'team') return <Navigate to="/app/staff/list" replace />
+  if (section === 'attendance' || section === 'late') return <Navigate to="/app/workforce/hub" replace />
   const sec = HUB_SECTIONS.find(s => s.key === section)
-  if (!sec) return <Navigate to="/app/hub/attendance" replace />
+  if (!sec) return <Navigate to="/app/workforce/hub" replace />
   const allowed = sec.perms.some(p => can(p))
   const current = hubs.find(h => h.id === hub) ?? null
   // "আজকের হিসাব" and "হাজিরার দিন মেলানো" are off the strip (see HIDDEN_PAGES in AppShell); they still open by address.
@@ -76,8 +75,6 @@ export function HubManagement() {
 
 function Body({ section, hub }: { section: HubSection; hub: Hub }) {
   switch (section) {
-    case 'attendance': return <AttendanceToday hub={hub} />
-    case 'late': return <LateToday hub={hub} />
     case 'pickup': return <PickupToday hub={hub} />
     case 'tasks': return <TasksToday hub={hub} />
     case 'ops': return <OpsToday hub={hub} />
@@ -90,152 +87,6 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
 
 const timeOf = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }) : ''
 const nowTime = () => new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: false })
-
-// ---------------------------------------------------------------- attendance
-const MARKABLE: AttendanceStatus[] = ['present', 'late', 'half_day', 'absent', 'holiday', 'weekly_off']
-
-function AttendanceToday({ hub }: { hub: Hub }) {
-  const { can } = useAuth()
-  const { L, n } = usePrefs()
-  const { toast, node } = useToast()
-  const date = hubToday()
-  const staff = useLoad(() => hubApi.team(hub.id, 'active'), [hub.id])
-  const day = useLoad(() => hubApi.attendance(date, (staff.data ?? []).map(e => e.id)), [date, staff.data])
-  const byEmp = useMemo(() => Object.fromEntries((day.data ?? []).map(r => [r.employee_id, r])) as Record<string, LateRow>, [day.data])
-  const [busy, setBusy] = useState(''); const [err, setErr] = useState('')
-  const canAdd = can('hr.attendance.create'); const canEdit = can('hr.attendance.edit')
-  async function mark(emp: string, s: AttendanceStatus) {
-    if (busy) return
-    const ex = byEmp[emp]
-    if (ex?.status === s) return
-    if (ex && !canEdit) { setErr(L('একবার দেওয়া হাজিরা বদলানোর অনুমতি নেই', 'You may not change attendance once given')); return }
-    if (ex?.status === 'leave') { setErr(L('অনুমোদিত ছুটি এখান থেকে বদলানো যায় না', 'Approved leave cannot be changed here')); return }
-    setBusy(emp); setErr('')
-    try { await hr.markAttendance(emp, date, s, ex); await day.reload() } catch (e) { setErr(hrFriendly(e)) } finally { setBusy('') }
-  }
-  async function allPresent() {
-    if (busy) return
-    const todo = (staff.data ?? []).filter(e => !byEmp[e.id])
-    if (!todo.length) return
-    setBusy('bulk')
-    setErr('')
-    let saved = 0
-    try {
-      for (const employee of todo) {
-        await hr.markAttendance(employee.id, date, 'present')
-        saved += 1
-      }
-    } catch (error) {
-      setErr(hrFriendly(error))
-    } finally {
-      try {
-        await day.reload()
-        if (saved > 0) toast(L(`${n(saved)} জনকে উপস্থিত দেওয়া হয়েছে`, `${saved} marked present`))
-      } finally {
-        setBusy('')
-      }
-    }
-  }
-  const total = staff.data?.length ?? 0
-  const c = (s: AttendanceStatus) => (day.data ?? []).filter(r => r.status === s).length
-  return <>
-    {node}
-    <div className="da-stats">
-      <Stat icon="users" label={L('মোট কর্মী', 'Staff')} value={n(total)} />
-      <Stat icon="check" tone="ok" label={L('উপস্থিত', 'Present')} value={n(c('present') + c('late') + c('half_day'))} />
-      <Stat icon="clock" tone={c('late') ? 'warn' : undefined} label={L('দেরিতে', 'Late')} value={n(c('late'))} />
-      <Stat icon="x" tone={c('absent') ? 'bad' : undefined} label={L('অনুপস্থিত', 'Absent')} value={n(c('absent'))} />
-      <Stat icon="alert" tone={total - (day.data?.length ?? 0) ? 'warn' : undefined} label={L('এখনো বাকি', 'Not marked')} value={n(total - (day.data?.length ?? 0))} />
-    </div>
-    {canAdd && <SelfMarks hub={hub.id} />}
-    <section className="panel">
-      <div className="da-bar"><h2>{L('আজকের হাজিরা খাতা', "Today's attendance")}</h2>
-        {canAdd && staff.data?.some(e => !byEmp[e.id]) && <button className="secondary sm" disabled={Boolean(busy)} onClick={() => void allPresent()}>{L('বাকি সবাই উপস্থিত', 'Rest are present')}</button>}</div>
-      {err && <p className="da-error">{err}</p>}
-      {staff.error ? <p className="da-error">{hrFriendly(staff.error)}</p> : staff.data && !staff.data.length ? <p className="muted">{L('এই হাবে কোনো সক্রিয় কর্মী নেই।', 'No active staff in this hub.')}</p> :
-        <div className="da-table-wrap"><table className="da-table att-table"><thead><tr><th>{L("আইডি", "ID")}</th><th>{L("নাম", "Name")}</th><th>{L("হাজিরা", "Attendance")}</th></tr></thead>
-          <tbody>{staff.data?.map(e => { const r = byEmp[e.id]; return <tr key={e.id}><td><strong>{e.employee_code ?? '—'}</strong></td>
-            <td>{e.full_name}{r?.check_in ? <span className="sec">{L('এসেছেন', 'In')} {timeOf(r.check_in)}</span> : null}</td>
-            <td>{r?.status === 'leave' ? <Badge tone="info">{L('ছুটি (অনুমোদিত)', 'On leave')}</Badge> : (canAdd && !r) || (canEdit && r) ? <div className="att-btns">{MARKABLE.map(s =>
-              <button key={s} className={`secondary att-${s}${r?.status === s ? ' on' : ''}`} aria-pressed={r?.status === s} disabled={busy === e.id} onClick={() => void mark(e.id, s)}>{ATT_STATUS[s]}</button>)}</div>
-              : r ? ATT_STATUS[r.status] : <span className="muted">{L('দেওয়া হয়নি', 'Not marked')}</span>}</td></tr> })}</tbody></table></div>}
-    </section>
-  </>
-}
-
-/** Attendance staff gave themselves is approved on the workforce hub page (every date, one list); this box only points there. */
-function SelfMarks({ hub }: { hub: string }) {
-  const { L } = usePrefs()
-  return <section className="panel self-marks">
-    <div className="nv-rows"><Link to={`/app/workforce/hub?hub=${hub}&tab=approve`} className="nv-row">
-      <span className="nv-av sd-i g"><Icon name="check" size={20} /></span>
-      <span className="tx"><b>{L('স্টাফের দেওয়া হাজিরা — অনুমোদন', 'Attendance staff gave — approvals')}</b>
-        <span>{L('আজকের ও আগের সব তারিখ এক জায়গায়: হাজিরা বই ও দৈনিক রিপোর্ট → অনুমোদন', 'Today and every earlier date in one place: Attendance book & daily report → Approvals')}</span></span>
-      <Icon name="chev" size={18} /></Link></div>
-  </section>
-}
-
-// ---------------------------------------------------------------- late
-function LateToday({ hub }: { hub: Hub }) {
-  const { can } = useAuth()
-  const { L, n } = usePrefs()
-  const { toast, node } = useToast()
-  const date = hubToday()
-  const staff = useLoad(() => hubApi.team(hub.id, 'active'), [hub.id])
-  const day = useLoad(() => hubApi.attendance(date, (staff.data ?? []).map(e => e.id)), [date, staff.data])
-  const names = useMemo(() => Object.fromEntries((staff.data ?? []).map(e => [e.id, e])) as Record<string, Employee>, [staff.data])
-  const late = (day.data ?? []).filter(r => r.status === 'late').sort((a, b) => (a.check_in ?? '').localeCompare(b.check_in ?? ''))
-  const [edit, setEdit] = useState<{ emp: string; time: string; note: string; row?: LateRow } | null>(null)
-  const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
-  async function save() {
-    if (!edit?.emp) return setErr(L('কর্মী বেছে নিন', 'Choose a staff member'))
-    if (!/^\d{2}:\d{2}$/.test(edit.time)) return setErr(L('সময় দিন', 'Give the time'))
-    const ex = edit.row ?? (day.data ?? []).find(r => r.employee_id === edit.emp)
-    if (ex && !can('hr.attendance.edit')) return setErr(L('আজকের হাজিরা আগেই দেওয়া — বদলানোর অনুমতি নেই', 'Already marked today — you may not change it'))
-    setBusy(true); setErr('')
-    try { await hubApi.markLate(edit.emp, date, edit.time, edit.note.trim(), ex); setEdit(null); await day.reload(); toast(L('দেরিতে হাজিরা সেভ হয়েছে', 'Saved')) }
-    catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
-  }
-  async function undo(r: LateRow) {
-    if (!await askConfirm(L('দেরি তুলে উপস্থিত করবেন?', 'Change this to present?'), { ok: L('উপস্থিত করুন', 'Make present') })) return
-    try { await hr.markAttendance(r.employee_id, date, 'present', r, 'Late removed'); await day.reload() } catch (e) { setErr(hrFriendly(e)) }
-  }
-  return <>
-    {node}
-    <div className="da-stats">
-      <Stat icon="clock" tone={late.length ? 'warn' : 'ok'} label={L('আজ দেরিতে', 'Late today')} value={n(late.length)} />
-      <Stat icon="users" label={L('সক্রিয় কর্মী', 'Active staff')} value={n(staff.data?.length ?? 0)} />
-      <Stat icon="log" label={L('প্রথম দেরি', 'Earliest late')} value={late[0]?.check_in ? n(timeOf(late[0].check_in)) : '—'} />
-    </div>
-    <section className="panel">
-      <div className="da-bar"><h2>{L('আজকের দেরিতে হাজিরা', 'Late today')}</h2>
-        {can('hr.attendance.create') && <button onClick={() => { setErr(''); setEdit({ emp: '', time: nowTime(), note: '' }) }}><Icon name="plus" size={15} />{L('দেরিতে হাজিরা দিন', 'Mark late')}</button>}</div>
-      {err && !edit && <p className="da-error">{err}</p>}
-      <DataTable<LateRow> title={L('আজকের দেরিতে হাজিরা', 'Late today')} file={`late-${date}`} rows={day.data ? late : null} rowKey={r => r.id}
-        empty={<p className="muted">{L('আজ কেউ দেরিতে আসেননি।', 'Nobody was late today.')}</p>}
-        cols={[
-          { key: 'code', label: L('আইডি', 'ID'), value: r => names[r.employee_id]?.employee_code ?? '' },
-          { key: 'name', label: L('নাম', 'Name'), value: r => names[r.employee_id]?.full_name ?? '' },
-          { key: 'time', label: L('এসেছেন', 'Arrived'), value: r => timeOf(r.check_in) },
-          { key: 'note', label: L('কারণ', 'Reason'), value: r => r.note ?? '' },
-          ...(can('hr.attendance.edit') ? [{ key: 'act', label: '', noExport: true, render: (r: LateRow) => <span className="row-acts">
-            <button className="secondary sm" onClick={() => { setErr(''); setEdit({ emp: r.employee_id, time: timeOf(r.check_in) || nowTime(), note: r.note ?? '', row: r }) }}><Icon name="edit" size={14} />{L('এডিট', 'Edit')}</button>
-            <button className="secondary sm" onClick={() => void undo(r)}><Icon name="trash" size={14} />{L('দেরি তুলুন', 'Remove')}</button></span> }] : []),
-        ]} />
-    </section>
-    {edit && <Modal title={edit.row ? L('দেরিতে হাজিরা এডিট', 'Edit late arrival') : L('দেরিতে হাজিরা দিন', 'Mark late')} onClose={() => setEdit(null)}
-      actions={<><button className="secondary" onClick={() => setEdit(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
-      <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <Field label={L('কর্মী', 'Staff')}><select value={edit.emp} disabled={!!edit.row} onChange={e => setEdit({ ...edit, emp: e.target.value })}>
-          <option value="">{L('বেছে নিন…', 'Choose…')}</option>
-          {staff.data?.map(e => <option key={e.id} value={e.id}>{e.employee_code ? `${e.employee_code} · ` : ''}{e.full_name}</option>)}</select></Field>
-        <Field label={L('কখন এসেছেন', 'Arrived at')}><input type="time" value={edit.time} onChange={e => setEdit({ ...edit, time: e.target.value })} /></Field>
-        <Field label={L('কারণ (ইচ্ছা হলে)', 'Reason (optional)')} wide><input value={edit.note} onChange={e => setEdit({ ...edit, note: e.target.value })} /></Field>
-      </div>
-      {err && <p className="da-error">{err}</p>}
-    </Modal>}
-  </>
-}
 
 // ---------------------------------------------------------------- pickups
 const SOURCES: Array<[string, string, string]> = [['hub_manager', 'হাব ম্যানেজার', 'Hub manager'], ['pickup_manager', 'পিকআপ ম্যানেজার', 'Pickup manager'], ['rider', 'রাইডার', 'Rider']]

@@ -352,7 +352,7 @@ function DaySheet({ hubId, can, person, date, cell, go, onClose, onChanged }: {
             <button type="button" disabled={busy || !why.trim()} onClick={() => void run(() => wf.correct(mark.id, as, why.trim()), L('সংশোধন হয়েছে', 'Corrected'))}>{L('সংশোধন সেভ করুন', 'Save correction')}</button></div></>}</div>}
       {mark && mark.status === 'approved' && !can.correct && <p className="muted small">{L('সংশোধনের অনুমতি আপনার নেই।', 'You may not correct this.')}</p>}
 
-      {!mark && can.decide && cell.s !== 'f' && <p className="wm-act-box"><Link to="/app/hub/attendance" className="wm-lnk" onClick={onClose}><Icon name="cal" size={16} />{L('হাব হাজিরা খাতায় লিখুন', 'Write it in the hub register')}</Link></p>}
+      {!mark && can.decide && cell.s !== 'f' && <p className="wm-act-box"><Link to="/app/workforce/hub" className="wm-lnk" onClick={onClose}><Icon name="cal" size={16} />{L('হাব হাজিরা খাতায় লিখুন', 'Write it in the hub register')}</Link></p>}
 
       {err ? <p className="da-error" role="alert">{err}</p> : null}
       {(d.data?.hist.length ?? 0) > 0 && <div className="wm-hist"><b>{L('এই তারিখের ইতিহাস', 'History of this date')}</b>

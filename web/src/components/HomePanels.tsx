@@ -92,14 +92,14 @@ export function HubTodayPanel() {
     {!v ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : <>
       {/* attendance at a glance: how much of the team is marked present, and what is still open */}
       <div className="ht-att">
-        <Link to="/app/hub/attendance" className="ht-ring" style={{ '--p': pct } as CSSProperties} aria-label={L(`উপস্থিত ${n(pct)}%`, `${pct}% present`)}><span>{n(pct)}%</span></Link>
+        <Link to="/app/workforce/hub" className="ht-ring" style={{ '--p': pct } as CSSProperties} aria-label={L(`উপস্থিত ${n(pct)}%`, `${pct}% present`)}><span>{n(pct)}%</span></Link>
         <div className="ht-att-t"><small>{L('আজকের হাজিরা', "Today's attendance")}</small>
           <b>{n(v.present + v.late)} <i>/ {n(v.staff)} {L('জন', 'staff')}</i></b>
           <div className="ht-tags">
-            <Link to="/app/hub/attendance" className="t-ok">{L('উপস্থিত', 'Present')} {n(v.present)}</Link>
-            <Link to="/app/hub/late" className="t-need">{L('দেরি', 'Late')} {n(v.late)}</Link>
-            {v.absent > 0 && <Link to="/app/hub/attendance" className="t-bad">{L('অনুপস্থিত / ছুটি', 'Absent / leave')} {n(v.absent)}</Link>}
-            {v.notMarked > 0 && <Link to="/app/hub/attendance" className="t-bad">{L('হাজিরা বাকি', 'Not marked')} {n(v.notMarked)}</Link>}
+            <Link to="/app/workforce/hub" className="t-ok">{L('উপস্থিত', 'Present')} {n(v.present)}</Link>
+            <Link to="/app/workforce/hub" className="t-need">{L('দেরি', 'Late')} {n(v.late)}</Link>
+            {v.absent > 0 && <Link to="/app/workforce/hub" className="t-bad">{L('অনুপস্থিত / ছুটি', 'Absent / leave')} {n(v.absent)}</Link>}
+            {v.notMarked > 0 && <Link to="/app/workforce/hub" className="t-bad">{L('হাজিরা বাকি', 'Not marked')} {n(v.notMarked)}</Link>}
           </div></div>
       </div>
       <div className="net-kpis two">
@@ -109,8 +109,8 @@ export function HubTodayPanel() {
       <Link to="/app/accounts/daily" className={`ht-sheet t-${v.sheet ? SHEET[v.sheet]?.[1] ?? 'g' : 'r'}`}><Icon name="ledger" size={18} />
         <span>{L('আজকের হিসাব খাতা', "Today's daily sheet")}: <b>{v.sheet ? L(SHEET[v.sheet]?.[0] ?? v.sheet, v.sheet) : L('এখনো খোলা হয়নি', 'Not opened yet')}</b></span><Icon name="chev" size={16} /></Link>
       <div className="myday-acts">
-        <Link to="/app/hub/attendance" className="ma t-g"><Icon name="cal" size={18} />{L('হাজিরা দিন', 'Attendance')}</Link>
-        <Link to="/app/hub/late" className="ma t-o"><Icon name="clock" size={18} />{L('দেরি লিখুন', 'Late')}</Link>
+        <Link to="/app/workforce/hub" className="ma t-g"><Icon name="cal" size={18} />{L('হাজিরা দিন', 'Attendance')}</Link>
+        <Link to="/app/workforce/hub" className="ma t-o"><Icon name="clock" size={18} />{L('দেরি লিখুন', 'Late')}</Link>
         <Link to="/app/hub/pickup" className="ma t-b"><Icon name="box" size={18} />{L('পিকআপ', 'Pickup')}</Link>
         <Link to="/app/hr/requests" className="ma t-p"><Icon name="form" size={18} />{L('এইচআর রিকুয়েস্ট', 'HR request')}</Link>
       </div>
