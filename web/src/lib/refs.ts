@@ -5,6 +5,8 @@ export type RefRow = { id: string; name: string; position: string | null; phone:
   employee_id: string | null; status: 'active' | 'inactive'; approval: 'pending' | 'approved' | 'rejected'; pending_action: 'add' | 'edit' | 'remove' | null
   pending_data: { name?: string; position?: string; phone?: string; hub_name?: string } | null; pending_note: string | null
   requested_by: string | null; requested_by_name: string | null; requested_at: string | null; decided_by_name: string | null; decided_at: string | null; decision_note: string | null }
+/** A hub of the caller's own zone, for picking people anywhere in the zone (ref_zone_hubs). */
+export type ZoneHub = { id: string; zone_id: string; code: string | null; name: string }
 export type HubPerson = { id: string; employee_code: string | null; full_name: string; post: string | null; mobile: string | null }
 export type RefInput = { employee?: string | null; name?: string; position?: string; phone?: string; hub?: string | null; hubName?: string; zone?: string | null; note?: string }
 
@@ -26,6 +28,7 @@ export const refs = {
     return data ?? []
   },
   hubPeople: (hub: string) => rpc<HubPerson[]>('ref_hub_people', { p_hub: hub }),
+  zoneHubs: () => rpc<ZoneHub[]>('ref_zone_hubs', {}),
   add: (r: RefInput) => rpc<string>('ref_request_add', args(r)),
   edit: (id: string, r: RefInput) => rpc<void>('ref_request_edit', { p_id: id, ...args(r) }),
   remove: (id: string, reason: string) => rpc<void>('ref_request_remove', { p_id: id, p_reason: reason }),
