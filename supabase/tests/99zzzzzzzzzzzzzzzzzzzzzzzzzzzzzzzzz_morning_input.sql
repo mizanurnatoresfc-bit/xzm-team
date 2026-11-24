@@ -181,12 +181,17 @@ select tests.ok((select p ->> 'morning_cutoff' = '00:00' and (p ->> 'morning_ext
                    from public.wf_att_policy_save(tests.id('zone_a'), '{"morning_cutoff":"00:00","morning_extra":0}') p), 'the zone''s times are saved');
 select tests.ok((select (public.wf_att_policy_get(tests.id('zone_a')) ->> 'morning_cutoff') = '00:00'), 'and read back');
 select tests.logout();
--- the cut-off (00:00 + 0) has passed: the job submits what hub A2 typed, once
+-- Only a saved original draft is eligible when the cut-off has passed.
+insert into public.wf_morning_subs (hub_id, zone_id, work_date)
+values (tests.id('hub_a2'), tests.id('zone_a'), current_date);
+
 select tests.ok(private.wf_morning_autosubmit() >= 1, 'the job closes the open mornings whose time has passed');
 select tests.ok((select s.submit_mode = 'auto' and s.submitted_by is null and s.revision = 1 from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date)
             and (select l.state = 'unknown' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a2') and s.work_date = current_date and l.employee_id = tests.id('other')),
   'blank rows stay unchecked');
 select tests.ok(private.wf_morning_autosubmit() = 0, 'running the job again changes nothing');
+select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date < current_date),
+  'the job does not create attendance forms for unopened dates');
 select tests.ok((select count(*) = 3 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = current_date), 'a morning that was sent back (and submitted by hand) is not touched by the job');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select g ->> 'status' = 'submitted' from public.wf_morning_get(tests.id('hub_a1')) g), 'hub A1 is still submitted');
