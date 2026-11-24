@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -229,13 +229,18 @@ function SuperAdminFoundation() {
   </main>
 }
 
+function FoundationLoginRedirect() {
+  const { search, hash } = useLocation()
+  return <Navigate to={{ pathname: '/', search, hash }} replace />
+}
+
 export default function App() {
   // Pull to refresh in the Android app (lib/nativeFeel.tsx): the page is mounted again, so it loads its data afresh.
   const [fresh, setFresh] = useState(0)
   useEffect(() => { const f = () => setFresh(k => k + 1); window.addEventListener('app:refresh', f); return () => window.removeEventListener('app:refresh', f) }, [])
   return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}>{foundationPreview ? <Routes key={fresh}>
     <Route path="/" element={<SuperAdminFoundation />} />
-    <Route path="/staff/login" element={<Navigate to="/" replace />} />
+    <Route path="/staff/login" element={<FoundationLoginRedirect />} />
     <Route path="/terms" element={<Terms />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app/password" element={<ChangePassword />} />
