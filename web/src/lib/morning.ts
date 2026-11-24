@@ -15,9 +15,13 @@ export type MorningForm = {
   can: { fill: boolean; review: boolean }
   receipt: null | { revision: number; mode: 'manager' | 'auto' | null; submitted_at: string; submitted_by_name: string | null }
   returned: null | { reason: string | null; at: string }
+  hold: null | MorningHold
   people: MorningPerson[] | null           // null: the hub manager after the submit sees a receipt only
 }
+/** The server did not submit an empty or unfinished morning input; the managers were told. */
+export type MorningHold = { held_at?: string; reason: 'empty' | 'incomplete'; gap_count: number; total: number; gaps: Array<{ name: string; why: string | null }> }
 export type ZoneMorningHub = {
+  held: boolean; hold: null | MorningHold
   id: string; name: string; zone_id: string; zone_name: string; staff: number; due: string
   state: 'submitted' | 'open' | 'none'; sub_id: string | null; revision: number | null; mode: 'manager' | 'auto' | null; submitted_at: string | null
   returned: null | { reason: string | null; at: string }

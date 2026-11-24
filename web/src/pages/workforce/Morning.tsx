@@ -88,6 +88,7 @@ export function MorningTab({ hubId }: { hubId: string }) {
       hint={L(`কে এসেছে, কে আসেনি, কার তথ্য এখনও যাচাই বাকি — বেছে জোনাল ম্যানেজারের কাছে জমা দিন। ${due}-এর মধ্যে না দিলে যতটুকু লেখা আছে সার্ভার জমা করে নেবে।`,
         `Say who came, who did not and who is still unchecked, then submit to the zonal manager. If nothing is submitted by ${due}, the server submits what is typed.`)}
       tools={f.can.fill ? <button type="button" className="secondary sm" onClick={allCame}><Icon name="checkall" size={14} />{L('সবাইকে "এসেছে" দিন', 'Mark everyone as came')}</button> : null}>
+      {f.hold && <p className="da-error" role="alert"><Icon name="alert" size={16} /> <b>{L('সার্ভার সকালের ইনপুট জমা দেয়নি', 'The server did not submit the morning input')}</b> — {f.hold.reason === 'empty' ? L('কিছুই লেখা হয়নি।', 'nothing was written.') : L(`${n(f.hold.gap_count)} জনের অবস্থা বসানো হয়নি`, `${f.hold.gap_count} people are not marked`)}. {L('সবার অবস্থা বসিয়ে জমা দিন। হাব ও জোনাল ম্যানেজারকে জানানো হয়েছে।', 'Mark everybody and submit. The hub and zonal managers were told.')}</p>}
       {f.returned && <p className="notice wm-note" role="status"><b>{L('জোনাল ম্যানেজার ফেরত পাঠিয়েছেন', 'Sent back by the zonal manager')}:</b> {f.returned.reason} <span className="muted small">({fmtStamp(f.returned.at, lang)})</span></p>}
       <div className="da-stats">
         <Stat icon="users" label={L('এসেছে', 'Came')} value={n(count('present'))} tone="ok" />
@@ -164,7 +165,8 @@ export function ZoneMorningTab({ zone }: { zone: string }) {
         {!hubs.length && <Empty>{L('দেখার মতো কোনো হাব নেই।', 'No hub to show.')}</Empty>}
         <div className="mo-hubs">{hubs.map(h => <article key={h.id} className="mo-hub panel">
           <header><h3>{h.name}</h3>
-            {h.state === 'submitted' ? <Badge tone="ok">{h.mode === 'auto' ? L('অটো জমা', 'Auto-submitted') : L('জমা দিয়েছে', 'Submitted')} · {fmtTime(h.submitted_at!, lang)}{(h.revision ?? 1) > 1 ? ` · ${L('সংস্করণ', 'rev')} ${n(h.revision!)}` : ''}</Badge>
+            {h.held ? <Badge tone="bad">{h.hold?.reason === 'empty' ? L('জমা আটকে — কিছুই লেখা হয়নি', 'Held — nothing written') : L(`জমা আটকে — ${n(h.hold?.gap_count ?? 0)} জন বাকি`, `Held — ${h.hold?.gap_count ?? 0} not marked`)}</Badge>
+              : h.state === 'submitted' ? <Badge tone="ok">{h.mode === 'auto' ? L('অটো জমা', 'Auto-submitted') : L('জমা দিয়েছে', 'Submitted')} · {fmtTime(h.submitted_at!, lang)}{(h.revision ?? 1) > 1 ? ` · ${L('সংস্করণ', 'rev')} ${n(h.revision!)}` : ''}</Badge>
               : h.state === 'open' ? <Badge tone="warn">{h.returned ? L('ফেরত — সংশোধন চলছে', 'Sent back — being corrected') : L('লেখা চলছে', 'Being typed')}</Badge>
               : <Badge tone="bad">{L('শুরু হয়নি', 'Not started')}</Badge>}</header>
           {h.state !== 'submitted' && <p className="muted small">{L(`${n(h.staff)} জন কর্মী · অটো জমা ${fmtTime(h.due, lang)}-এ`, `${h.staff} staff · auto-submit at ${fmtTime(h.due, lang)}`)}{h.returned?.reason ? ` · ${L('কারণ', 'Reason')}: ${h.returned.reason}` : ''}</p>}

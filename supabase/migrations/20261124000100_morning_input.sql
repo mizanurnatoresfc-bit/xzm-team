@@ -85,6 +85,27 @@ create table if not exists public.wf_morning_lines (
 );
 create index if not exists wf_morning_lines_emp on public.wf_morning_lines (employee_id);
 
+-- An empty or unfinished register / morning input is never submitted by the server: it is held, and the hub's and the zone's managers are told once.
+-- One row per kind, hub and day; resolved when the manager submits it.
+create table if not exists public.wf_auto_holds (
+  id          uuid primary key default gen_random_uuid(),
+  kind        text not null check (kind in ('morning', 'daily')),
+  hub_id      uuid not null references public.hubs(id),
+  zone_id     uuid references public.zones(id),
+  work_date   date not null,
+  reason      text not null check (reason in ('empty', 'incomplete')),
+  gap_count   integer not null check (gap_count >= 0),
+  total       integer not null check (total >= 0),
+  gaps        jsonb not null default '[]'::jsonb check (jsonb_typeof(gaps) = 'array'),      -- [{name, why}] the first ones, for the message and the page
+  held_at     timestamptz not null default now(),
+  resolved_at timestamptz,
+  created_at timestamptz not null default now(), created_by uuid,
+  updated_at timestamptz not null default now(), updated_by uuid,
+  unique (kind, hub_id, work_date)
+);
+create index if not exists wf_auto_holds_hub on public.wf_auto_holds (hub_id);
+create index if not exists wf_auto_holds_zone on public.wf_auto_holds (zone_id);
+
 -- ---------------------------------------------------------------------
 -- 3. Published route plan versions
 -- ---------------------------------------------------------------------
@@ -161,7 +182,7 @@ create index if not exists route_plan_events_hub on public.route_plan_events (hu
 do $$
 declare t text;
 begin
-  foreach t in array array['wf_att_policy', 'wf_morning_subs', 'wf_morning_lines', 'route_plan_versions', 'route_plan_recipients', 'route_plan_events'] loop
+  foreach t in array array['wf_att_policy', 'wf_morning_subs', 'wf_morning_lines', 'wf_auto_holds', 'route_plan_versions', 'route_plan_recipients', 'route_plan_events'] loop
     execute format('drop trigger if exists %I on public.%I', t || '_stamp', t);
     execute format('create trigger %I before insert or update on public.%I for each row execute function private.stamp_row()', t || '_stamp', t);
     execute format('drop trigger if exists %I on public.%I', t || '_audit', t);
@@ -216,6 +237,37 @@ language sql stable security definer set search_path = '' as $$
       order by w.created_at limit 1))
 $$;
 
+-- Hold: the server did not submit an empty or unfinished morning input / register. Tells the hub's and the zone's managers ONCE (again only if it is
+-- held anew after being submitted and opened again). Returns true when the managers were told now.
+create or replace function private.wf_hold_set(p_kind text, p_hub uuid, p_date date, p_reason text, p_total integer, p_gap_count integer, p_gaps jsonb) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare h public.wf_auto_holds; v_zone uuid := private.hub_zone(p_hub); v_new boolean; m uuid; v_names text; v_body text; v_link text; v_title text;
+begin
+  select * into h from public.wf_auto_holds where kind = p_kind and hub_id = p_hub and work_date = p_date for update;
+  v_new := h.id is null or h.resolved_at is not null;
+  insert into public.wf_auto_holds (kind, hub_id, zone_id, work_date, reason, gap_count, total, gaps)
+  values (p_kind, p_hub, v_zone, p_date, p_reason, p_gap_count, p_total, coalesce((select jsonb_agg(x) from (select x from jsonb_array_elements(p_gaps) x limit 12) q), '[]'::jsonb))
+  on conflict (kind, hub_id, work_date) do update set reason = excluded.reason, gap_count = excluded.gap_count, total = excluded.total, gaps = excluded.gaps,
+    held_at = case when public.wf_auto_holds.resolved_at is not null then now() else public.wf_auto_holds.held_at end, resolved_at = null;
+  if v_new then
+    select string_agg(x ->> 'name', ', ') into v_names from (select x from jsonb_array_elements(p_gaps) x limit 5) q;
+    v_title := case p_kind when 'morning' then 'সকালের জনবল জমা আটকে আছে' else 'দৈনিক হাজিরা খাতা জমা আটকে আছে' end;
+    v_body := coalesce(private.hub_name(p_hub), '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') || ' — '
+      || case when p_reason = 'empty' then 'কিছুই লেখা হয়নি' else p_gap_count || ' জনের হাজিরা অসম্পূর্ণ' || coalesce(' (' || v_names || ')', '') end
+      || '। অসম্পূর্ণ হাজিরা সার্ভার জমা দেয় না — হাব ম্যানেজার পূরণ করে জমা দিন।';
+    v_link := case p_kind when 'morning' then '/app/attendance?view=hub&tab=morning&hub=' || p_hub::text else '/app/attendance?view=hub&tab=final&hub=' || p_hub::text || '&date=' || p_date::text end;
+    for m in select * from private.wf_role_hub_managers(p_hub) union select * from private.wf_role_zone_managers(v_zone) loop
+      perform private.notify(m, v_title, v_body, v_link, case p_kind when 'morning' then 'wf_morning' else 'attendance_gap' end);
+    end loop;
+  end if;
+  return v_new;
+end $$;
+
+create or replace function private.wf_hold_resolve(p_kind text, p_hub uuid, p_date date) returns void
+language sql security definer set search_path = '' as $$
+  update public.wf_auto_holds set resolved_at = now() where kind = p_kind and hub_id = p_hub and work_date = p_date and resolved_at is null
+$$;
+
 -- The first work day the server jobs may submit for (see the setting above). Missing or unreadable: the date is far away, so the jobs do nothing.
 create or replace function private.wf_auto_from() returns date
 language plpgsql stable security definer set search_path = '' as $$
@@ -236,26 +288,27 @@ language sql stable security definer set search_path = '' as $$
    order by e.full_name
 $$;
 
--- Profiles of the hub's managers (hub-scope Hub Manager role) and of the zone's managers.
-create or replace function private.wf_hub_managers(p_hub uuid) returns setof uuid
+-- Profiles holding the hub-scope Hub Manager role of a hub, and the zone-scope Zonal Manager role of a zone — active accounts only, nobody is messaged on a closed account.
+-- (Named apart from private.wf_hub_managers, which already exists and means "whoever may mark the hub's attendance"; that one is left as it was.)
+create or replace function private.wf_role_hub_managers(p_hub uuid) returns setof uuid
 language sql stable security definer set search_path = '' as $$
-  select distinct ur.user_id from public.user_roles ur join public.roles r on r.id = ur.role_id
-   where r.code = 'hub_manager' and ur.scope_type = 'hub' and ur.hub_id = p_hub and ur.revoked_at is null
-     and ur.valid_from <= current_date and (ur.valid_to is null or ur.valid_to >= current_date)
+  select distinct ur.user_id from public.user_roles ur join public.roles r on r.id = ur.role_id join public.profiles pr on pr.id = ur.user_id
+   where r.code = 'hub_manager' and ur.scope_type = 'hub' and ur.hub_id = p_hub and ur.revoked_at is null and pr.status = 'active' and pr.archived_at is null
+     and ur.valid_from <= private.wf_today() and (ur.valid_to is null or ur.valid_to >= private.wf_today())
 $$;
-create or replace function private.wf_zone_managers(p_zone uuid) returns setof uuid
+create or replace function private.wf_role_zone_managers(p_zone uuid) returns setof uuid
 language sql stable security definer set search_path = '' as $$
-  select distinct ur.user_id from public.user_roles ur join public.roles r on r.id = ur.role_id
-   where r.code = 'zonal_manager' and ur.scope_type = 'zone' and ur.zone_id = p_zone and ur.revoked_at is null
-     and ur.valid_from <= current_date and (ur.valid_to is null or ur.valid_to >= current_date)
+  select distinct ur.user_id from public.user_roles ur join public.roles r on r.id = ur.role_id join public.profiles pr on pr.id = ur.user_id
+   where r.code = 'zonal_manager' and ur.scope_type = 'zone' and ur.zone_id = p_zone and ur.revoked_at is null and pr.status = 'active' and pr.archived_at is null
+     and ur.valid_from <= private.wf_today() and (ur.valid_to is null or ur.valid_to >= private.wf_today())
 $$;
 
 -- A date the morning input may be about: today, or one of the two days before.
 create or replace function private.wf_morning_date(p_date date) returns date
 language plpgsql stable set search_path = '' as $$
-declare v date := coalesce(p_date, current_date);
+declare v date := coalesce(p_date, private.wf_today());
 begin
-  if v > current_date or v < current_date - 2 then
+  if v > private.wf_today() or v < private.wf_today() - 2 then
     raise exception 'The morning input is for today or one of the last two days.' using errcode = '22023';
   end if;
   return v;
@@ -296,6 +349,7 @@ begin
       where (wf_morning_lines.state, wf_morning_lines.leave_ref) is distinct from (excluded.state, excluded.leave_ref);
   end loop;
   update public.wf_morning_subs set status = 'submitted', submit_mode = p_mode, submitted_by = p_by, submitted_at = now() where id = v_sub.id;
+  perform private.wf_hold_resolve('morning', p_hub, p_date);
   return v_sub.id;
 end $$;
 
@@ -329,13 +383,15 @@ begin
       left join lateral (select private.wf_leave_on(q.id, v_date) as j) lv on true), '[]'::jsonb);
   end if;
   return jsonb_build_object('hub', (select jsonb_build_object('id', h.id, 'name', h.name, 'zone_id', h.zone_id) from public.hubs h where h.id = p_hub),
-    'date', v_date, 'today', current_date, 'now', now(), 'due', private.wf_morning_due(v_zone, v_date),
+    'date', v_date, 'today', private.wf_today(), 'now', now(), 'due', private.wf_morning_due(v_zone, v_date),
     'status', case when v_sub.id is not null then 'submitted' else 'open' end,
     'revision', coalesce(v_sub.revision, v_cur.revision, 1),
     'can', jsonb_build_object('fill', v_show, 'review', v_review),
     'receipt', case when v_sub.id is not null then jsonb_build_object('revision', v_sub.revision, 'mode', v_sub.submit_mode, 'submitted_at', v_sub.submitted_at,
         'submitted_by_name', (select coalesce(pr.full_name, 'user') from public.profiles pr where pr.id = v_sub.submitted_by)) end,
     'returned', case when v_back.id is not null and v_sub.id is null then jsonb_build_object('reason', v_back.return_reason, 'at', v_back.returned_at) end,
+    'hold', (select jsonb_build_object('held_at', k.held_at, 'reason', k.reason, 'gap_count', k.gap_count, 'total', k.total, 'gaps', k.gaps)
+               from public.wf_auto_holds k where k.kind = 'morning' and k.hub_id = p_hub and k.work_date = v_date and k.resolved_at is null),
     'people', v_people);
 end $$;
 
@@ -395,12 +451,15 @@ declare v_date date;
 begin
   if auth.uid() is null then raise exception 'Sign in first.' using errcode = '42501'; end if;
   v_date := private.wf_morning_date(p_date);
-  return jsonb_build_object('date', v_date, 'today', current_date, 'now', now(), 'hubs', coalesce((
+  return jsonb_build_object('date', v_date, 'today', private.wf_today(), 'now', now(), 'hubs', coalesce((
     select jsonb_agg(jsonb_build_object(
       'id', h.id, 'name', h.name, 'zone_id', h.zone_id, 'zone_name', z.name,
       'staff', (select count(*) from private.wf_morning_people(h.id)),
       'due', private.wf_morning_due(h.zone_id, v_date),
       'state', case when s.id is not null then 'submitted' when o.id is not null then 'open' else 'none' end,
+      'held', exists (select 1 from public.wf_auto_holds k where k.kind = 'morning' and k.hub_id = h.id and k.work_date = v_date and k.resolved_at is null),
+      'hold', (select jsonb_build_object('reason', k.reason, 'gap_count', k.gap_count, 'total', k.total, 'gaps', k.gaps) from public.wf_auto_holds k
+                where k.kind = 'morning' and k.hub_id = h.id and k.work_date = v_date and k.resolved_at is null),
       'sub_id', s.id, 'revision', coalesce(s.revision, o.revision), 'mode', s.submit_mode, 'submitted_at', s.submitted_at,
       'returned', (select jsonb_build_object('reason', b.return_reason, 'at', b.returned_at) from public.wf_morning_subs b
                     where b.hub_id = h.id and b.work_date = v_date and b.status = 'returned' and s.id is null order by b.revision desc limit 1),
@@ -450,7 +509,7 @@ begin
     insert into public.route_plan_events (plan_id, hub_id, plan_date, kind, note, actor, actor_name)
     values (p.id, p_hub, v_date, 'morning_returned', v_reason, auth.uid(), (select coalesce(pr.full_name, 'user') from public.profiles pr where pr.id = auth.uid()));
   end loop;
-  for m in select * from private.wf_hub_managers(p_hub) loop
+  for m in select * from private.wf_role_hub_managers(p_hub) loop
     perform private.notify(m, 'সকালের জনবল ফেরত এসেছে', v_reason, '/app/attendance?view=hub&tab=morning&hub=' || p_hub::text, 'wf_morning');
   end loop;
   return v_sub.revision + 1;
@@ -472,7 +531,7 @@ begin
     'morning_extra', coalesce(p.morning_extra, private.wf_int('workforce.morning_extra_min', 15, 0, 360)),
     'day_time', to_char(coalesce(p.day_time, nullif(private.wf_setting_text('workforce.day_close_time', '00:00'), '')::time, time '00:00'), 'HH24:MI'),
     'day_extra', coalesce(p.day_extra, private.wf_int('workforce.day_close_extra_min', 0, 0, 360)),
-    'own', p.zone_id is not null, 'today_due', private.wf_morning_due(p_zone, current_date),
+    'own', p.zone_id is not null, 'today_due', private.wf_morning_due(p_zone, private.wf_today()),
     'can_edit', private.has_permission('hr.attendance.configure', p_zone, null))
   from (select 1) one left join public.wf_att_policy p on p.zone_id = p_zone;
 end $$;
@@ -510,19 +569,31 @@ end $$;
 -- ---------------------------------------------------------------------
 create or replace function private.wf_morning_autosubmit() returns integer
 language plpgsql security definer set search_path = '' as $$
-declare h record; d date; v_id uuid; v_n integer := 0; v_left integer; m uuid;
+declare h record; d date; v_id uuid; v_n integer := 0; v_left integer; m uuid; v_need integer; v_done integer; v_names jsonb;
 begin
   for h in select hb.id, hb.zone_id from public.hubs hb where hb.archived_at is null and hb.status = 'active'
             and exists (select 1 from private.wf_morning_people(hb.id)) loop
-    for d in select g::date from generate_series(current_date - 2, current_date, interval '1 day') g loop
+    for d in select g::date from generate_series(private.wf_today() - 2, private.wf_today(), interval '1 day') g loop
       continue when d < private.wf_auto_from();                                  -- before the start date: never
       continue when now() < private.wf_morning_due(h.zone_id, d);
       continue when exists (select 1 from public.wf_morning_subs s where s.hub_id = h.id and s.work_date = d and (s.revision > 1 or s.status <> 'open'));
+      -- an empty or unfinished morning input is not submitted: every person who is not on approved leave must be marked came or did not come
+      perform pg_advisory_xact_lock(hashtextextended('wf_morning:' || h.id::text || d::text, 0));
+      select count(*), count(*) filter (where t.st in ('present', 'absent')),
+             coalesce(jsonb_agg(jsonb_build_object('name', t.name, 'why', 'অবস্থা বসানো হয়নি') order by t.name) filter (where t.st not in ('present', 'absent')), '[]'::jsonb)
+        into v_need, v_done, v_names
+        from (select q.name, coalesce((select l.state from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id
+                                         where s.hub_id = h.id and s.work_date = d and s.status = 'open' and l.employee_id = q.id), 'unknown') as st
+                from private.wf_morning_people(h.id) q where private.wf_leave_on(q.id, d) is null) t;
+      if v_need > v_done then
+        perform private.wf_hold_set('morning', h.id, d, case when v_done = 0 then 'empty' else 'incomplete' end, v_need, v_need - v_done, v_names);
+        continue;
+      end if;
       v_id := private.wf_morning_close(h.id, d, null, 'auto', null);
       if v_id is not null then
         v_n := v_n + 1;
         select count(*) into v_left from public.wf_morning_lines where sub_id = v_id and state = 'unknown';
-        for m in select * from private.wf_hub_managers(h.id) loop
+        for m in select * from private.wf_role_hub_managers(h.id) loop
           perform private.notify(m, 'সকালের জনবল নিজে জমা হয়েছে',
             case when v_left > 0 then v_left || ' জনের হাজিরা যাচাই বাকি আছে' else 'সবার অবস্থা বসানো ছিল' end, '/app/attendance?view=hub&tab=morning&hub=' || h.id::text, 'wf_morning');
         end loop;
@@ -564,7 +635,7 @@ $$;
 -- The morning input as the plan page needs it: is there one, and is the plan still based on the latest.
 create or replace function public.route_plan_morning(p_hub uuid, p_date date default null) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
-declare v_date date := coalesce(p_date, current_date); v_zone uuid; v_sub public.wf_morning_subs; v_plan public.route_day_plans; v_ver public.route_plan_versions;
+declare v_date date := coalesce(p_date, private.wf_today()); v_zone uuid; v_sub public.wf_morning_subs; v_plan public.route_day_plans; v_ver public.route_plan_versions;
 begin
   if auth.uid() is null then raise exception 'Sign in first.' using errcode = '42501'; end if;
   select zone_id into v_zone from public.hubs where id = p_hub and archived_at is null;
@@ -573,7 +644,7 @@ begin
   select * into v_sub from public.wf_morning_subs where hub_id = p_hub and work_date = v_date and status = 'submitted';
   select * into v_plan from public.route_day_plans where hub_id = p_hub and plan_date = v_date and archived_at is null;
   select * into v_ver from public.route_plan_versions where plan_id = v_plan.id and superseded_at is null order by version_no desc limit 1;
-  return jsonb_build_object('date', v_date, 'required', v_date = current_date,
+  return jsonb_build_object('date', v_date, 'required', v_date = private.wf_today(),
     'morning', case when v_sub.id is not null then jsonb_build_object('id', v_sub.id, 'revision', v_sub.revision, 'mode', v_sub.submit_mode, 'submitted_at', v_sub.submitted_at,
         'present', (select count(*) from public.wf_morning_lines l where l.sub_id = v_sub.id and l.state = 'present'),
         'absent', (select count(*) from public.wf_morning_lines l where l.sub_id = v_sub.id and l.state = 'absent'),
@@ -624,7 +695,7 @@ begin
     end if;
     -- today's plan stands on today's latest submitted morning input, and each person on it must still be available
     select * into v_sub from public.wf_morning_subs where hub_id = v.hub_id and work_date = v.plan_date and status = 'submitted';
-    if v.plan_date = current_date then
+    if v.plan_date = private.wf_today() then
       if v_sub.id is null then raise exception 'The morning input of this hub is not submitted yet.' using errcode = '22023'; end if;
       for l in select x.employee_id, e.full_name from public.route_day_riders x join public.employees e on e.id = x.employee_id
                 where x.plan_id = v.id and x.removed_at is null and (x.parcels > 0 or x.pickups > 0) loop
@@ -642,7 +713,7 @@ begin
       select v.id, v.hub_id, v.zone_id, v.plan_date, v_no, v_sub.id, v_sub.revision, private.route_plan_json(v.id), auth.uid(), v_name returning id into v_ver;
     update public.route_plan_versions set superseded_at = now() where plan_id = v.id and id <> v_ver and superseded_at is null;
     -- recipients: the hub's managers and everybody who has parcels or pickups
-    for m in select * from private.wf_hub_managers(v.hub_id) loop
+    for m in select * from private.wf_role_hub_managers(v.hub_id) loop
       insert into public.route_plan_recipients (version_id, plan_id, hub_id, plan_date, role, profile_id) values (v_ver, v.id, v.hub_id, v.plan_date, 'manager', m);
     end loop;
     for l in select x.* from public.route_day_riders x where x.plan_id = v.id and x.removed_at is null and (x.parcels > 0 or x.pickups > 0) loop
@@ -692,7 +763,7 @@ end $$;
 -- The plan the hub manager and the riders were sent: the latest published version of a day, its recipients and its history.
 create or replace function public.route_plan_published(p_hub uuid, p_date date default null) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
-declare v_date date := coalesce(p_date, current_date); v_zone uuid; v_plan public.route_day_plans; v_ver public.route_plan_versions;
+declare v_date date := coalesce(p_date, private.wf_today()); v_zone uuid; v_plan public.route_day_plans; v_ver public.route_plan_versions;
 begin
   if auth.uid() is null then raise exception 'Sign in first.' using errcode = '42501'; end if;
   select zone_id into v_zone from public.hubs where id = p_hub and archived_at is null;
@@ -734,7 +805,7 @@ begin
       'cancelled', '[]'::jsonb)
     from public.route_plan_recipients r join public.route_plan_versions v on v.id = r.version_id
     join public.route_day_plans p on p.id = r.plan_id join public.hubs h on h.id = r.hub_id
-   where r.employee_id = v_emp and r.status = 'active' and r.plan_date = current_date and p.archived_at is null
+   where r.employee_id = v_emp and r.status = 'active' and r.plan_date = private.wf_today() and p.archived_at is null
      and (r.parcels > 0 or r.pickups > 0)
      and (private.route_plan_rules(p.zone_id) ->> 'show_rider')::boolean
      and private.has_permission('ops.route_plan_own.view', p.zone_id, p.hub_id)
@@ -742,9 +813,9 @@ begin
   if v_mine is not null then return v_mine; end if;
   select jsonb_agg(jsonb_build_object('version', c.cancelled_in_version, 'at', c.cancelled_at, 'hub', h.name) order by c.cancelled_at) into v_cancel
     from public.route_plan_recipients c join public.hubs h on h.id = c.hub_id
-   where c.employee_id = v_emp and c.plan_date = current_date and c.status = 'cancelled' and c.role <> 'manager';
+   where c.employee_id = v_emp and c.plan_date = private.wf_today() and c.status = 'cancelled' and c.role <> 'manager';
   if v_cancel is null then return null; end if;
-  return jsonb_build_object('date', current_date, 'hub', null, 'parcels', 0, 'pickups', 0, 'kind', 'rider', 'note', null, 'version', null,
+  return jsonb_build_object('date', private.wf_today(), 'hub', null, 'parcels', 0, 'pickups', 0, 'kind', 'rider', 'note', null, 'version', null,
     'published_at', null, 'detail', '[]'::jsonb, 'cancelled', v_cancel);
 end $$;
 
@@ -754,7 +825,7 @@ create or replace function private.route_plan_backfill() returns integer
 language plpgsql security definer set search_path = '' as $$
 declare p public.route_day_plans; v_ver uuid; l record; v_n integer := 0;
 begin
-  for p in select * from public.route_day_plans x where x.status = 'approved' and x.archived_at is null and x.published_version = 0 and x.plan_date >= current_date - 1 loop
+  for p in select * from public.route_day_plans x where x.status = 'approved' and x.archived_at is null and x.published_version = 0 and x.plan_date >= private.wf_today() - 1 loop
     update public.route_day_plans set published_version = 1 where id = p.id;
     insert into public.route_plan_versions (plan_id, hub_id, zone_id, plan_date, version_no, snapshot, published_by, published_by_name, published_at)
       values (p.id, p.hub_id, p.zone_id, p.plan_date, 1, private.route_plan_json(p.id), p.decided_by, p.decided_by_name, coalesce(p.decided_at, now())) returning id into v_ver;
@@ -780,6 +851,6 @@ grant execute on function public.wf_morning_get(uuid, date), public.wf_morning_s
   public.wf_morning_zone(uuid, date), public.wf_morning_return(uuid, date, text), public.wf_att_policy_get(uuid), public.wf_att_policy_save(uuid, jsonb),
   public.route_plan_morning(uuid, date), public.route_plan_decide(uuid, boolean, text), public.route_plan_resend(uuid),
   public.route_plan_published(uuid, date), public.route_plan_mine() to authenticated;
-revoke all on function private.wf_morning_close(uuid, date, jsonb, text, uuid), private.wf_morning_autosubmit(), private.route_plan_notify(uuid, text), private.route_plan_backfill(), private.wf_auto_from(),
-  private.wf_leave_on(uuid, date), private.wf_morning_people(uuid), private.wf_hub_managers(uuid), private.wf_zone_managers(uuid),
+revoke all on function private.wf_morning_close(uuid, date, jsonb, text, uuid), private.wf_morning_autosubmit(), private.route_plan_notify(uuid, text), private.route_plan_backfill(), private.wf_auto_from(), private.wf_hold_set(text, uuid, date, text, integer, integer, jsonb), private.wf_hold_resolve(text, uuid, date),
+  private.wf_leave_on(uuid, date), private.wf_morning_people(uuid), private.wf_role_hub_managers(uuid), private.wf_role_zone_managers(uuid),
   private.wf_morning_due(uuid, date), private.wf_setting_text(text, text), private.wf_morning_date(date) from public, anon, authenticated;

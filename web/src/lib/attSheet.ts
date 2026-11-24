@@ -36,6 +36,7 @@ export type DaySheet = {
   sheet: null | { id: string; status: 'draft' | 'submitted'; submitted_at: string | null; submitted_by_name: string | null
     unlocked_at: string | null; unlock_note: string | null; sent_at: string | null; version: number; mode: 'manager' | 'auto' | null }
   due: string
+  hold: null | { held_at: string; reason: 'empty' | 'incomplete'; gap_count: number; total: number; gaps: Array<{ name: string; why: string | null }> }
   window: null | { id: string; from: IsoDate; to: IsoDate; expires_at: string; reason: string; by: string | null }
   versions: Array<{ no: number; mode: 'manager' | 'auto'; at: string; by: string | null }>
   can: { edit: boolean | null; unlock: boolean | null; send: boolean | null }
@@ -46,7 +47,7 @@ export type MyExplanation = { id: string; work_date: IsoDate; reason: ExplainRea
   final_status: FinalStatus | null; late_time: string | null; hub: string | null }
 export type ZoneDayHub = { hub_id: string; name: string | null; staff: number; given: number; sheet_id: string | null; status: 'draft' | 'submitted' | null
   submitted_at: string | null; sent_at: string | null; present: number; late: number; absent: number; unauthorized: number; checks: number; checks_ok: number; can_manage: boolean
-  checks_returned: number; version: number; mode: 'manager' | 'auto' | null; unchecked: number; due: string }
+  held: boolean; checks_returned: number; version: number; mode: 'manager' | 'auto' | null; unchecked: number; due: string }
 export type ZoneDay = {
   date: IsoDate; today: IsoDate; hubs: ZoneDayHub[]
   marks: Array<{ employee_id: string; code: string | null; name: string; position: string | null; hub_id: string; hub: string | null; kind: 'present' | 'absent'

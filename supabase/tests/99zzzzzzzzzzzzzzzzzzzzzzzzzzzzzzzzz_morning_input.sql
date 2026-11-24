@@ -182,11 +182,22 @@ select tests.ok((select p ->> 'morning_cutoff' = '00:00' and (p ->> 'morning_ext
                    from public.wf_att_policy_save(tests.id('zone_a'), '{"morning_cutoff":"00:00","morning_extra":0}') p), 'the zone''s times are saved');
 select tests.ok((select (public.wf_att_policy_get(tests.id('zone_a')) ->> 'morning_cutoff') = '00:00'), 'and read back');
 select tests.logout();
--- the cut-off (00:00 + 0) has passed: the job submits what hub A2 typed, once
-select tests.ok(private.wf_morning_autosubmit() >= 1, 'the job closes the open mornings whose time has passed');
+-- the cut-off (00:00 + 0) has passed. Hub A2 typed nothing: the job does NOT submit an empty morning input, it holds it and tells the managers once
+select tests.ok(private.wf_morning_autosubmit() = 0, 'the job does not submit an empty morning input');
+select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date = current_date and status = 'submitted')
+            and (select reason = 'empty' and resolved_at is null and gap_count = 1 from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a2') and work_date = current_date),
+  'it is held: the reason is "empty" and one person is unmarked');
+select tests.ok((select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A2 · ' || to_char((now() at time zone 'Asia/Dhaka')::date, 'DD-MM-YYYY') || '%'), 'the zonal manager is told');
+select tests.ok(private.wf_morning_autosubmit() = 0 and (select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A2 · ' || to_char((now() at time zone 'Asia/Dhaka')::date, 'DD-MM-YYYY') || '%'),
+  'and only once, however often the job runs');
+-- once everybody is marked, the next run submits it by itself
+select tests.login(tests.id('super'));
+select public.wf_morning_save(tests.id('hub_a2'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('other'), 'state', 'present')));
+select tests.logout();
+select tests.ok(private.wf_morning_autosubmit() >= 1, 'a complete morning input is submitted by the server at the cut-off');
 select tests.ok((select s.submit_mode = 'auto' and s.submitted_by is null and s.revision = 1 from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date)
-            and (select l.state = 'unknown' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a2') and s.work_date = current_date and l.employee_id = tests.id('other')),
-  'blank rows stay unchecked');
+            and (select l.state = 'present' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a2') and s.work_date = current_date and l.employee_id = tests.id('other'))
+            and (select resolved_at is not null from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a2') and work_date = current_date), 'submitted by the server, and the hold is over');
 select tests.ok(private.wf_morning_autosubmit() = 0, 'running the job again changes nothing');
 select tests.ok((select count(*) = 3 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = current_date), 'a morning that was sent back (and submitted by hand) is not touched by the job');
 select tests.login(tests.id('hub_mgr'));

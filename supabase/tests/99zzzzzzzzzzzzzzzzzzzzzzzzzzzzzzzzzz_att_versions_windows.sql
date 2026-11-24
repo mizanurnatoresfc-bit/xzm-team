@@ -113,25 +113,47 @@ select tests.logout();
 select tests.ok((select window_id is not null and submit_mode = 'manager' from public.att_day_sheets where hub_id = tests.id('hub_a1') and work_date = :'y2'::date)
             and (select v.window_id is not null from public.att_sheet_versions v join public.att_day_sheets s on s.id = v.sheet_id where s.hub_id = tests.id('hub_a1') and s.work_date = :'y2'::date), 'the version remembers the opening it was made in');
 
--- ---------------------------------------------------------------- the server job
--- yesterday of hub A1 is under an open opening: the job leaves it alone; hub A2 has no opening and nobody wrote: submitted by the server, unchecked
-select tests.ok(private.att_day_autosubmit() >= 1, 'the job submits the registers still open when the date has changed');
+-- ---------------------------------------------------------------- the server job: it never submits an empty or unfinished register
+-- yesterday of hub A1 is under an open opening: the job leaves it alone. Hub A2 has no opening and nobody wrote: not submitted, held, the managers told once
+select tests.ok(private.att_day_autosubmit() = 0, 'the job submits nothing: the only open register is empty');
+select tests.ok(not exists (select 1 from public.att_day_sheets where hub_id = tests.id('hub_a2') and work_date = :'y'::date and status = 'submitted')
+            and (select reason = 'empty' and resolved_at is null and gap_count = 1 and total = 1 and gaps -> 0 ->> 'name' = 'Other Hub' from public.wf_auto_holds where kind = 'daily' and hub_id = tests.id('hub_a2') and work_date = :'y'::date)
+            and not exists (select 1 from public.attendance_records where employee_id = tests.id('o1') and work_date = :'y'::date), 'an empty register is held: not submitted, nothing on the register');
+select tests.ok((select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'দৈনিক হাজিরা খাতা জমা আটকে আছে' and body like '%Hub A2 · ' || to_char(:'y'::date, 'DD-MM-YYYY') || '%'), 'the zonal manager is told');
+select tests.ok(not exists (select 1 from public.att_day_sheets where hub_id = tests.id('hub_a1') and work_date = :'y'::date and status = 'submitted')
+            and not exists (select 1 from public.wf_auto_holds where hub_id = tests.id('hub_a1') and work_date = :'y'::date), 'a day under an open opening is not touched by the job');
+select tests.ok(private.att_day_autosubmit() = 0 and (select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'দৈনিক হাজিরা খাতা জমা আটকে আছে' and body like '%Hub A2 · ' || to_char(:'y'::date, 'DD-MM-YYYY') || '%'),
+  'running the job again changes nothing and tells nobody again');
+select tests.throws(format($$select private.att_sheet_close(%L, %L, null, 'manager')$$, tests.id('hub_a2'), :'y'::date), 'nobody can submit it either: an empty register is refused', '22023');
+-- the manager of that hub finishes it (a held register stays open though the day is closed), and the next run submits it by itself
+select tests.login(tests.id('super'));
+select tests.ok((select g -> 'hold' ->> 'reason' = 'empty' and (g -> 'can' ->> 'edit')::boolean from public.att_sheet_get(tests.id('hub_a2'), :'y'::date) g), 'the page shows the hold and the held day is open for writing');
+select public.att_sheet_save(tests.id('hub_a2'), :'y'::date, jsonb_build_array(jsonb_build_object('employee_id', tests.id('o1'), 'final_status', 'present', 'online_reason', 'no phone')));
+select tests.logout();
+select tests.ok(private.att_day_autosubmit() = 1, 'a complete draft is submitted by the server when the day closes');
 select tests.ok((select submit_mode = 'auto' and version = 1 and submitted_by is null and status = 'submitted' from public.att_day_sheets where hub_id = tests.id('hub_a2') and work_date = :'y'::date)
-            and (select final_status = 'unchecked' from public.att_day_lines l join public.att_day_sheets s on s.id = l.sheet_id where s.hub_id = tests.id('hub_a2') and s.work_date = :'y'::date and l.employee_id = tests.id('o1'))
-            and not exists (select 1 from public.attendance_records where employee_id = tests.id('o1') and work_date = :'y'::date), 'an unfinished line is submitted as "unchecked" and nothing goes on the register for it');
-select tests.ok(not exists (select 1 from public.att_day_sheets where hub_id = tests.id('hub_a1') and work_date = :'y'::date and status = 'submitted'), 'a day under an open opening is not touched by the job');
-select tests.ok(private.att_day_autosubmit() = 0, 'running the job again changes nothing');
-select tests.ok(private.att_sheet_close(tests.id('hub_a2'), :'y'::date, null, 'manager', true) is null, 'a manual submit meeting the job afterwards is the same version');
+            and (select status = 'present' from public.attendance_records where employee_id = tests.id('o1') and work_date = :'y'::date)
+            and (select resolved_at is not null from public.wf_auto_holds where kind = 'daily' and hub_id = tests.id('hub_a2') and work_date = :'y'::date), 'submitted by the server (version one), the status is on the register and the hold is over');
+select tests.ok(private.att_sheet_close(tests.id('hub_a2'), :'y'::date, null, 'manager') is null, 'a manual submit meeting the job afterwards is the same version');
 select tests.ok((select count(*) = 1 from public.att_sheet_versions v join public.att_day_sheets s on s.id = v.sheet_id where s.hub_id = tests.id('hub_a2') and s.work_date = :'y'::date), 'one version for that day');
--- the opening ends: the permission ends and the draft is submitted by the server
+-- the opening of hub A1 ends: the permission ends and the unfinished register is held, not submitted; both managers are told
 update public.att_reopen_windows set expires_at = now() - interval '1 minute' where hub_id = tests.id('hub_a1');
-select tests.ok(private.att_day_autosubmit() >= 1, 'when the opening is over the server submits what is left');
+select tests.ok(private.att_day_autosubmit() = 0, 'when the opening is over the server still does not submit an unfinished register');
 select tests.ok((select bool_and(status = 'expired') from public.att_reopen_windows where hub_id = tests.id('hub_a1') and from_date = :'y2'::date and to_date = :'y'::date)
-            and (select status = 'submitted' and submit_mode = 'auto' and version = 1 from public.att_day_sheets where hub_id = tests.id('hub_a1') and work_date = :'y'::date)
-            and (select count(*) = 4 from public.att_day_lines l join public.att_day_sheets s on s.id = l.sheet_id where s.hub_id = tests.id('hub_a1') and s.work_date = :'y'::date and l.final_status in ('unchecked', 'pending_leave')),
-  'the opening expired and yesterday was submitted by the server with every line unchecked');
+            and (select status = 'draft' from public.att_day_sheets where hub_id = tests.id('hub_a1') and work_date = :'y'::date)
+            and (select resolved_at is null and gap_count = 4 from public.wf_auto_holds where kind = 'daily' and hub_id = tests.id('hub_a1') and work_date = :'y'::date),
+  'the opening expired; yesterday of hub A1 is a held draft with four lines to finish');
+select tests.ok((select count(*) = 1 from public.notifications where profile_id = tests.id('hub_mgr') and title = 'দৈনিক হাজিরা খাতা জমা আটকে আছে' and body like '%Hub A1 · ' || to_char(:'y'::date, 'DD-MM-YYYY') || '%')
+            and (select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'দৈনিক হাজিরা খাতা জমা আটকে আছে' and body like '%Hub A1 · ' || to_char(:'y'::date, 'DD-MM-YYYY') || '%'),
+  'the hub manager and the zonal manager are each told once');
 select tests.login(tests.id('hub_mgr'));
-select tests.throws(format($$select public.att_sheet_save(%L, %L, '[]')$$, tests.id('hub_a1'), :'y2'::date), 'once the opening is over the days are closed again', 'P0001');
+select tests.throws(format($$select public.att_sheet_save(%L, %L, '[]')$$, tests.id('hub_a1'), :'y2'::date), 'the other day, with no hold and no opening, is closed again', 'P0001');
+select tests.throws(format($$select public.att_sheet_submit(%L, %L, '[]')$$, tests.id('hub_a1'), :'y'::date), 'the manager cannot submit an empty register either', '22023');
+select tests.ok((select (r ->> 'version')::int = 1 and (r ->> 'unchecked')::int = 0 from public.att_sheet_submit(tests.id('hub_a1'), :'y'::date, jsonb_build_array(
+    jsonb_build_object('employee_id', tests.id('s1'), 'final_status', 'absent', 'unauthorized', true), jsonb_build_object('employee_id', tests.id('s2'), 'final_status', 'present', 'online_reason', 'no phone'),
+    jsonb_build_object('employee_id', tests.id('s3'), 'final_status', 'present', 'online_reason', 'no phone'), jsonb_build_object('employee_id', tests.id('mg'), 'final_status', 'weekly_off'))) r), 'the manager finishes the held day and submits it by hand');
+select tests.logout();
+select tests.ok((select resolved_at is not null from public.wf_auto_holds where kind = 'daily' and hub_id = tests.id('hub_a1') and work_date = :'y'::date), 'and the hold is over');
 
 -- ---------------------------------------------------------------- the month
 select tests.login(tests.id('hub_mgr'));
@@ -163,7 +185,4 @@ insert into tests.ids select 'msub', (public.att_month_get(tests.id('hub_a1'), :
 select tests.login(tests.id('rider_login'));
 select tests.throws(format($$select public.att_month_submit(%L, %L)$$, tests.id('hub_a1'), :'m'::date), 'staff cannot submit the month', '42501');
 select tests.throws(format($$select public.att_month_send(%L)$$, tests.id('msub')), 'nor send it', '42501');
--- the monthly grid shows an unchecked line as U
-select tests.login(tests.id('hub_mgr'));
-select tests.ok(exists (select 1 from jsonb_array_elements(public.att_month_sheet(tests.id('hub_a1'), :'m'::date) -> 'people') p, jsonb_array_elements_text(p -> 'cells') c where c = 'U'), 'the monthly grid marks a line nobody checked as U, not as leave');
 rollback;
