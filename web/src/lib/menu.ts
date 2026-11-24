@@ -48,7 +48,7 @@ export function pageAllowed(menu: string[] | null, pathname: string): boolean {
 
 export type RoleMenu = { role_id: string; code: string; name: string; name_bn: string | null; is_super: boolean; menu: string[] | null; user_count: number }
 export const menuApi = {
-  mine: async (): Promise<string[] | null> => { const { data, error } = await supabase.rpc('my_menu'); if (error) return null; return (data as string[] | null) ?? null },
+  mine: async (): Promise<string[] | null> => { const { data, error } = await supabase.rpc('my_menu'); if (error) throw error; return (data as string[] | null) ?? null },
   roles: async (): Promise<RoleMenu[]> => { const { data, error } = await supabase.rpc('role_menu_list'); if (error) throw error; return (data ?? []) as RoleMenu[] },
   save: async (role: string, menu: string[] | null) => { const { error } = await supabase.rpc('role_menu_save', { p_role: role, p_menu: menu ? withTwins(menu) : null }); if (error) throw error },
 }
@@ -62,3 +62,32 @@ export const panelLevel = (can: (p: string) => boolean): 0 | 1 | 2 =>
     : can('hr.employee.view') || can('hr.attendance.create') || can('da.sheet.approve') ? 1 : 0
 /** Pages only the zonal manager's level gets in the menu (the owner asked for them to be off the manager's and staff's screens). */
 export const ZONE_ONLY = ['/app/training', '/app/nodi/chat']
+
+const sheetPermissions = ['da.sheet.view', 'da.sheet.create']
+const pagePermissions: Record<string, readonly string[]> = {
+  '/app/accounts/khata': ['da.sheet.create'],
+  '/app/accounts/center': sheetPermissions,
+  '/app/accounts/daily': sheetPermissions,
+  '/app/accounts/learn': sheetPermissions,
+  '/app/accounts/report-import': ['da.import.create', 'da.sheet.view'],
+  '/app/hr/applications': ['hr.application.view', 'hr.application.create'],
+  '/app/hr/duties': ['hr.duty.view', 'hr.duty.edit'],
+  '/app/hr/profile-gaps': ['hr.employee.view'],
+  '/app/manpower': ['hr.employee.view', 'hr.request.create', 'hr.request.approve'],
+  '/app/nodi/chat': ['nodi.assistant.view', 'nodi.settings.configure'],
+  '/app/rollout': ['hr.employee.view'],
+  '/app/staff/list': ['hr.employee.view', 'hr.application.create', 'hr.request.create'],
+  '/app/workforce/hub': ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view'],
+  '/app/zonal': ['zonal.dashboard.view'],
+  '/app/zonal/files': ['hr.request.create', 'hr.request.approve'],
+  '/app/zonal/hub-ops': ['zonal.hub_ops.view', 'zonal.hub_ops.create'],
+}
+
+/** Work-page requirements shared by navigation links and direct routes. */
+export function hasPageAccess(to: string, can: (permission: string) => boolean): boolean {
+  const path = bare(to).toLowerCase()
+  if (ZONE_ONLY.includes(path) && panelLevel(can) !== 2) return false
+  const parent = ['/app/accounts/daily', '/app/zonal/hub-ops'].find(p => path.startsWith(p + '/'))
+  const required = pagePermissions[parent ?? path]
+  return !required || required.some(can)
+}

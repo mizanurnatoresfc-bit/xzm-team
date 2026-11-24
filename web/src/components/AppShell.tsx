@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
+import { hasPageAccess, inMenu, panelLevel } from '../lib/menu'
 import { PulsePopup } from './PulsePopup'
 import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
@@ -336,7 +336,7 @@ function roleClass(code: string) {
 
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  const { can, signOut, session, isSuperAdmin, menu } = useAuth()
+  const { can, signOut, session, isSuperAdmin, menu, menuUnavailable } = useAuth()
   const layout = useMenuLayout()
   const nodiOn = useNodiFeatures()
   const { L, n, lang, setLang, theme, setTheme, nodiFab } = usePrefs()
@@ -420,7 +420,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const quickRef = useRef<HTMLDivElement>(null)
   usePageFocus(loc.pathname, title, h1Ref)
   const allowed = (p: string[] | null) => !p || p.some(x => can(x))
-  const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (panelLevel(can) === 2 || !ZONE_ONLY.includes(i.to)) && (!i.only || (i.only === 'web') === advancedAccessHere())
+  const canOpen = (to: string) => !menuUnavailable && inMenu(menu, to) && hasPageAccess(to, can)
+  const forMe = (i: Item) => allowed(i.perms) && canOpen(i.to) && (!i.only || (i.only === 'web') === advancedAccessHere())
   const here = typeof location !== 'undefined' ? location.pathname : ''
   const mq = menuQ.trim().toLowerCase()
   const hit = (i: Item) => !mq || `${i.bn} ${i.en}`.toLowerCase().includes(mq)
@@ -431,7 +432,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     ['/app/hr/leave', cnt.leave, L('ছুটির অনুরোধ অপেক্ষমাণ', 'Leave requests waiting'), 'log'],
     ['/app/accounts/daily', cnt.sheets, L('হিসাব খাতা যাচাইয়ের অপেক্ষায়', 'Daily sheets waiting for verification'), 'ledger'],
     ['/app/hr/requests?tab=list', cnt.hrreq, L('এইচআর রিকুয়েস্ট অপেক্ষমাণ', 'HR requests waiting'), 'form'],
-  ] as Array<[string, number, string, string]>).filter(a => a[1] > 0)
+  ] as Array<[string, number, string, string]>).filter(([to, count]) => count > 0 && canOpen(to))
   const unreadN = nt.unread
   const totalAlerts = alerts.reduce((a, x) => a + x[1], 0) + unreadN
   function openNotice(x: LiveNotice) {
@@ -443,7 +444,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const level = panelLevel(can)
   const defaultOpenGroup = level === 2 ? 'zone' : level === 1 ? 'hub' : 'self'
   // Only show what this person can use: + needs at least one quick action, search needs the staff list.
-  const quickItems = QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to))
+  const quickItems = QUICK.filter(x => allowed(x.perms) && canOpen(x.to))
   const canSearch = can('hr.employee.view')
   // A role's saved menu list also defines page order; keep the existing category headings and sort within each section.
   const orderMenuItems = (items: Item[]) => {
@@ -479,9 +480,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     {tagOf(i)}</NavLink>
 
   // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
-  const navTabs = (dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, quickItems.length ? 3 : 4)
+  const navTabs = (dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && canOpen(t.to)).slice(0, quickItems.length ? 3 : 4)
   // On লোক লাগবে the + is the page's own action (লোক চাই); everywhere else it opens the quick sheet.
-  const plusTap = () => quick ? setQuick(false) : /^\/app\/manpower/.test(here) && can('hr.request.create') ? nav('/app/manpower?new=1') : setQuick(true)
+  const plusTap = () => quick ? setQuick(false) : /^\/app\/manpower/.test(here) && can('hr.request.create') && canOpen('/app/manpower') ? nav('/app/manpower?new=1') : setQuick(true)
   const plusAt = Math.floor((navTabs.length + 1) / 2)   // tabs + আরও, the + in the middle
   const plusTab = <button key="plus" type="button" className={`bn-plus${quick ? ' on' : ''}`} aria-expanded={quick} aria-label={quick ? L('বন্ধ', 'Close') : L('দ্রুত যোগ করুন', 'Quick add')} onClick={plusTap}><span><Icon name="plus" size={26} /></span></button>
   return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
@@ -593,7 +594,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
         <span className="nt-x-space" aria-hidden="true" /></button>
       <button type="button" className="nt-x" aria-label={L('নোটিফিকেশন বন্ধ করুন', 'Dismiss notification')} onClick={() => clearFresh()}><Icon name="x" size={14} /></button></div>}
-    {nodiFab && can('nodi.assistant.view') && nodiOn?.chat && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
+    {nodiFab && can('nodi.assistant.view') && nodiOn?.chat && canOpen('/app/nodi/chat') && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
       {navTabs.flatMap((t, i) => [...(i === plusAt && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}

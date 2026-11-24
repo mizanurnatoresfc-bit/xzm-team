@@ -272,9 +272,7 @@ export default function App() {
       <Route path="/app/hr/fields" element={<FieldSettings />} />
       {/* My Workforce & Attendance: my own three pages, the hub book and the zone report ('hub' and 'zone' come before ':tab') */}
       <Route path="/app/workforce" element={<Navigate to="/app/workforce/attendance" replace />} />
-      <Route element={<AnyOf perms={['hr.attendance.view', 'ops.staff_daily.view']} />}>
-        <Route path="/app/workforce/hub" element={<WorkforceHub />} />
-      </Route>
+      <Route path="/app/workforce/hub" element={<WorkforceHub />} />
       <Route path="/app/workforce/:tab" element={<MyWorkforce />} />
     </Route>
     <Route element={<ProtectedRoute permission="zonal.dashboard.view" />}>

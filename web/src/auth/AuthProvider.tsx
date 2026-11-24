@@ -48,6 +48,7 @@ type AuthContextValue = {
   /** The role being previewed, or null. */
   /** The pages this person is limited to, from their roles (null = no limit). */
   menu: string[] | null
+  menuUnavailable: boolean
   viewAs: ViewAs | null
   setViewAs: (role: ViewAs | null) => void
 }
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [grants, setGrants] = useState<PermissionGrant[]>([])
   const [loading, setLoading] = useState(true)
   const [mustChangePassword, setMustChange] = useState(false)
-  const [ownMenu, setOwnMenu] = useState<string[] | null>(null)
+  const [ownMenu, setOwnMenu] = useState<string[] | null | undefined>(undefined)
   const [viewAsPick, setViewAsPick] = useState<ViewAs | null>(readViewAs)
   const setViewAs = useCallback((role: ViewAs | null) => {
     setViewAsPick(role)
@@ -89,7 +90,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (!current) {
       setGrants([])
       setMustChange(false)
-      setOwnMenu(null)
+      setOwnMenu(undefined)
       return
     }
     const [{ data, error }, prof] = await Promise.all([
@@ -100,7 +101,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (prof.error) throw prof.error
     setMustChange(Boolean((prof.data as { must_change_password?: boolean } | null)?.must_change_password))
     setGrants((data ?? []) as PermissionGrant[])
-    setOwnMenu(await menuApi.mine().catch(() => null))
+    setOwnMenu(await menuApi.mine().catch(() => undefined))
   }, [])
 
   useEffect(() => {
@@ -117,7 +118,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (event === 'PASSWORD_RECOVERY') markRecovery(true)
       if (event === 'SIGNED_OUT') markRecovery(false)
       setSession(next)
-      if (!next) setGrants([])
+      if (!next) {
+        setGrants([])
+        setOwnMenu(undefined)
+      }
       else queueMicrotask(() => { void refreshGrants().catch(() => setGrants([])) })
     })
     return () => {
@@ -168,7 +172,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(() => ({
     session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword: mustChangePassword || (recovering && !!session), recovering: recovering && !!session, endRecovery, isSuperAdmin, viewAs, setViewAs,
-    menu: viewAs ? (viewAs.is_super ? null : viewAs.menu ?? null) : ownMenu,
+    menu: viewAs ? (viewAs.is_super ? null : viewAs.menu ?? null) : (ownMenu === undefined ? [] : ownMenu),
+    menuUnavailable: !viewAs && ownMenu === undefined,
   }), [ownMenu, session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, viewAs, setViewAs])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
