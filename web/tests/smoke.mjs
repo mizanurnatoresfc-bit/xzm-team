@@ -924,6 +924,29 @@ try {
         check(await dl.count() === 1 && await dl.locator('input').count() === 0 && await dl.locator('button').count() === 4,
           `${size}: the dashboard ends with the Android app card (download, WhatsApp, share, copy link)`)
         if (process.env.SHOTS) await dl.screenshot({ path: `${process.env.SHOTS}/${size}-app-download.png` }) }
+      if (size === 'phone') {
+        const hubTab = page.locator('.bottom-nav a[href="/app/workforce/hub"]')
+        await hubTab.click()
+        await page.waitForURL('**/app/workforce/hub')
+        await page.waitForSelector('.bottom-nav a[href="/app/workforce/hub"].on')
+        check(await page.locator('.bottom-nav a.on').count() === 1, 'phone: only the Hub tab is active on attendance')
+
+        menuNow = ['/app/workforce/hub']
+        await page.goto(`${BASE}/app/hub/attendance?from=bookmark#today`)
+        await page.waitForURL('**/app/workforce/hub?from=bookmark#today')
+        await page.waitForSelector('.bottom-nav a[href="/app/workforce/hub"].on')
+        check(await page.locator('.center-screen .notice').count() === 0, 'phone: restricted menu accepts old Hub bookmark with query and hash')
+        menuNow = null
+
+        permsNow = ['hr.employee.view', 'ops.pickup.view', 'hr.attendance.create']
+        await page.goto(`${BASE}/app`)
+        await page.waitForSelector('.bottom-nav a[href="/app"]')
+        check(await hubTab.count() === 0 && await page.locator('.side a.nl[href="/app/workforce/hub"]').count() === 0,
+          'phone: pickup, employee and attendance-create grants alone do not show the Hub destination')
+        await page.goto(`${BASE}/app/workforce/hub`)
+        await page.waitForSelector('.center-screen .notice')
+        check(await hubTab.count() === 0, 'phone: direct Hub access requires an attendance read grant')
+      }
       permsNow = ['ops.pickup_as_rider.create', 'ops.route.view', 'org.hub.view', 'nodi.assistant.view']
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       await page.waitForSelector('.sp-hero')

@@ -46,6 +46,44 @@ export function pageAllowed(menu: string[] | null, pathname: string): boolean {
   return open.some(p => p !== '/app' && (here === p || here.startsWith(p + '/')))
 }
 
+export const HUB_ATTENDANCE_PERMISSIONS = ['hr.attendance.view', 'ops.staff_daily.view'] as const
+
+export const LEGACY_DESTINATIONS: Readonly<Record<string, string>> = {
+  '/app/zonal/staff': '/app/staff/list',
+  '/app/manager/staff': '/app/staff/list',
+  '/app/hub': '/app/workforce/hub',
+  '/app/hub/team': '/app/staff/list',
+  '/app/hub/attendance': '/app/workforce/hub',
+  '/app/hub/late': '/app/workforce/hub',
+  '/app/sorting': '/app/sorting/dashboard',
+  '/app/office': '/app/office/overview',
+  '/app/office/residential': '/app/office/residential/overview',
+  '/app/vehicles/mine': '/app/fleet/mine',
+  '/app/vehicles/*': '/app/fleet',
+  '/app/hr/employees': '/app/staff/list',
+  '/app/hr/attendance': '/app/workforce/hub',
+  '/app/workforce': '/app/workforce/attendance',
+}
+
+export function routeEligibility(
+  menu: string[] | null,
+  to: string,
+  can: (permission: string) => boolean,
+  permissions?: readonly string[] | null,
+): 'menu' | 'permission' | 'allowed' {
+  const path = bare(to)
+  const legacy = Object.prototype.hasOwnProperty.call(LEGACY_DESTINATIONS, path) ? LEGACY_DESTINATIONS[path]
+    : /^\/app\/vehicles(?:\/|$)/.test(path) ? LEGACY_DESTINATIONS['/app/vehicles/*'] : path
+  if (!pageAllowed(menu, legacy)) return 'menu'
+  return permissions && !permissions.some(can) ? 'permission' : 'allowed'
+}
+
+export function tabIsActive(pathname: string, destination: string, includeChildren = false): boolean {
+  const current = bare(pathname)
+  const target = bare(destination)
+  return current === target || (includeChildren && current.startsWith(target + '/'))
+}
+
 export type RoleMenu = { role_id: string; code: string; name: string; name_bn: string | null; is_super: boolean; menu: string[] | null; user_count: number }
 export const menuApi = {
   mine: async (): Promise<string[] | null> => { const { data, error } = await supabase.rpc('my_menu'); if (error) return null; return (data as string[] | null) ?? null },

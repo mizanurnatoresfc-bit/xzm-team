@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
-import { panelLevel } from './lib/menu'
+import { HUB_ATTENDANCE_PERMISSIONS, LEGACY_DESTINATIONS, panelLevel } from './lib/menu'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import './styles.css'
@@ -179,11 +179,9 @@ function OldRolePage() {
   if (!advancedAccessHere()) return id ? <RoleEditor /> : <Roles />
   return <Navigate to={id ? `/app/access/role/${id}` : '/app/access/roles'} replace />
 }
-/** A page open to anyone who holds at least one of the permissions (ProtectedRoute takes a single one). The database re-checks every call. */
-function AnyOf({ perms }: { perms: string[] }) {
-  const { can } = useAuth()
-  return perms.some(can) ? <Outlet /> : <main className="center-screen">
-    <section className="notice"><h1>অনুমতি নেই</h1><p>এই পেজ ব্যবহারের প্রয়োজনীয় অনুমতি আপনার অ্যাকাউন্টে নেই।</p></section></main>
+function LegacyRedirect({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={{ pathname: to, search, hash }} replace />
 }
 
 /** The home page: a staff member gets the staff panel, everyone else the dashboard. */
@@ -213,50 +211,50 @@ export default function App() {
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />
       <Route path="/app/staff/list" element={<StaffList />} />
-      <Route path="/app/zonal/staff" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/zonal/staff" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/zonal/staff']} />} />
       <Route path="/app/zonal/hub-ops" element={<HubOps />} />
       <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       {/* Staff lifecycle: the hub manager asks, the zonal manager decides, every approval leaves a file */}
-      <Route element={<AnyOf perms={['hr.request.create']} />}>
-        <Route path="/app/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
+      <Route element={<ProtectedRoute permissions={['hr.request.create']} />}>
+        <Route path="/app/manager/staff" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/manager/staff']} />} />
       </Route>
-      <Route element={<AnyOf perms={['hr.request.approve']} />}>
+      <Route element={<ProtectedRoute permissions={['hr.request.approve']} />}>
         <Route path="/app/zonal/requests" element={<ZonalRequests />} />
         <Route path="/app/zonal/hr-records" element={<HrRecords />} />
       </Route>
-      <Route element={<AnyOf perms={['ops.route_setting.view', 'ops.route_setting.edit']} />}>
+      <Route element={<ProtectedRoute permissions={['ops.route_setting.view', 'ops.route_setting.edit']} />}>
         <Route path="/app/zonal/routes" element={<RouteSettings />} />
       </Route>
-      <Route element={<AnyOf perms={['ops.route_plan.view']} />}>
+      <Route element={<ProtectedRoute permissions={['ops.route_plan.view']} />}>
         <Route path="/app/routes/plan" element={<RoutePlanPage />} />
       </Route>
       <Route path="/app/manpower" element={<Manpower />} />
-      <Route path="/app/hub" element={<Navigate to="/app/workforce/hub" replace />} />
-      <Route path="/app/hub/team" element={<Navigate to="/app/staff/list" replace />} />
-      <Route path="/app/hub/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
-      <Route path="/app/hub/late" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hub" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/hub']} />} />
+      <Route path="/app/hub/team" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/hub/team']} />} />
+      <Route path="/app/hub/attendance" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/hub/attendance']} />} />
+      <Route path="/app/hub/late" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/hub/late']} />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
-      <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
+      <Route path="/app/sorting" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/sorting']} />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
       <Route path="/app/hr/requests" element={<Requests />} />
       <Route path="/app/hr/duties" element={<Duties />} />
       <Route path="/app/hr/profile-gaps" element={<ProfileGaps />} />
-      <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
+      <Route path="/app/office" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/office']} />} />
       <Route path="/app/office/:section" element={<Office />} />
-      <Route path="/app/office/residential" element={<Navigate to="/app/office/residential/overview" replace />} />
+      <Route path="/app/office/residential" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/office/residential']} />} />
       <Route path="/app/office/residential/:section" element={<Office key="residential" scope="residential" />} />
       <Route path="/app/issues" element={<Issues />} />
       <Route path="/app/fleet" element={<Fleet />} />
       <Route path="/app/fleet/mine" element={<FleetMine />} />
       {/* the old vehicle pages were replaced by /app/fleet (owner, 16 Nov) */}
-      <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
-      <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
+      <Route path="/app/vehicles/mine" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/vehicles/mine']} />} />
+      <Route path="/app/vehicles/*" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/vehicles/*']} />} />
       <Route path="/app/hr" element={<HrDashboard />} />
-      <Route path="/app/hr/employees" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/hr/employees" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/hr/employees']} />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
       <Route path="/app/hr/applications" element={<Applications />} />
-      <Route path="/app/hr/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hr/attendance" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/hr/attendance']} />} />
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />
@@ -271,8 +269,8 @@ export default function App() {
       <Route path="/app/zonal/assistant" element={<ZonalAssistant />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
       {/* My Workforce & Attendance: my own three pages, the hub book and the zone report ('hub' and 'zone' come before ':tab') */}
-      <Route path="/app/workforce" element={<Navigate to="/app/workforce/attendance" replace />} />
-      <Route element={<AnyOf perms={['hr.attendance.view', 'ops.staff_daily.view']} />}>
+      <Route path="/app/workforce" element={<LegacyRedirect to={LEGACY_DESTINATIONS['/app/workforce']} />} />
+      <Route element={<ProtectedRoute permissions={HUB_ATTENDANCE_PERMISSIONS} />}>
         <Route path="/app/workforce/hub" element={<WorkforceHub />} />
       </Route>
       <Route path="/app/workforce/:tab" element={<MyWorkforce />} />
@@ -303,7 +301,7 @@ export default function App() {
     </Route>
     {/* Nodi AI and branding open by the same permission their menu links use (not the role-page permission). */}
     <Route element={<ProtectedRoute />}>
-      <Route element={<AnyOf perms={['nodi.assistant.view', 'nodi.settings.configure']} />}>
+      <Route element={<ProtectedRoute permissions={['nodi.assistant.view', 'nodi.settings.configure']} />}>
         <Route path="/app/nodi/chat" element={<NodiChat />} />
       </Route>
     </Route>
@@ -326,9 +324,9 @@ export default function App() {
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     {/* short addresses of the staff lifecycle pages */}
-    <Route path="/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
-    <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
-    <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
+    <Route path="/manager/staff" element={<LegacyRedirect to="/app/staff/list" />} />
+    <Route path="/zonal/requests" element={<LegacyRedirect to="/app/zonal/requests" />} />
+    <Route path="/zonal/hr-records" element={<LegacyRedirect to="/app/zonal/hr-records" />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
   </Routes></Suspense></BrowserRouter></AuthProvider></PrefsProvider>
 }
