@@ -871,6 +871,7 @@ begin
         select s.work_date from public.att_day_sheets s where s.hub_id = h.id and s.status = 'draft' and s.work_date < private.wf_today()) d
      where h.archived_at is null and h.status = 'active' and (p_hub is null or h.id = p_hub)
        and not exists (select 1 from public.att_day_sheets s where s.hub_id = h.id and s.work_date = d.work_date and s.status = 'submitted')
+       and d.work_date >= private.wf_auto_from()                                   -- before the start date: never (setting workforce.auto_submit_from)
        and exists (select 1 from private.att_sheet_people(h.id, d.work_date))
        and private.att_open_window(h.id, d.work_date) is null
        and now() >= private.wf_day_due(h.zone_id, d.work_date)

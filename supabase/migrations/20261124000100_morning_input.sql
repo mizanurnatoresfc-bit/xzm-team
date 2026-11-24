@@ -32,7 +32,10 @@ insert into public.system_settings (key, value, description) values
   ('workforce.morning_cutoff',    '"08:00"', 'Morning input: the time (Asia/Dhaka) after which the server submits what is typed'),
   ('workforce.morning_extra_min', '15',      'Morning input: extra minutes after the cut-off'),
   ('workforce.day_close_time',    '"00:00"', 'Daily register: the time of the next day (Asia/Dhaka) at which an open register is submitted'),
-  ('workforce.day_close_extra_min', '0',     'Daily register: extra minutes after that time')
+  ('workforce.day_close_extra_min', '0',     'Daily register: extra minutes after that time'),
+  -- The first work day (Asia/Dhaka) the server may submit for. Days before it are never touched by the two server jobs, so switching this on does not
+  -- create registers or morning inputs for the days just before it. Set once, on the day this migration first runs; running it again keeps the date.
+  ('workforce.auto_submit_from', to_jsonb(((now() at time zone 'Asia/Dhaka')::date)::text), 'Server auto-submit (morning input and daily register): the first work day it may submit for, YYYY-MM-DD, Asia/Dhaka')
 on conflict (key) do nothing;
 
 create table if not exists public.wf_att_policy (
@@ -212,6 +215,17 @@ language sql stable security definer set search_path = '' as $$
        from public.wf_absence_applications w where w.employee_id = p_employee and w.status = 'approved' and p_date = any(w.dates)
       order by w.created_at limit 1))
 $$;
+
+-- The first work day the server jobs may submit for (see the setting above). Missing or unreadable: the date is far away, so the jobs do nothing.
+create or replace function private.wf_auto_from() returns date
+language plpgsql stable security definer set search_path = '' as $$
+declare v text;
+begin
+  select s.value #>> '{}' into v from public.system_settings s where s.key = 'workforce.auto_submit_from';
+  return v::date;
+exception when others then
+  return date '9999-12-31';
+end $$;
 
 -- The people a hub counts every morning: its active staff.
 create or replace function private.wf_morning_people(p_hub uuid) returns table (id uuid, code text, name text, post text)
@@ -501,6 +515,7 @@ begin
   for h in select hb.id, hb.zone_id from public.hubs hb where hb.archived_at is null and hb.status = 'active'
             and exists (select 1 from private.wf_morning_people(hb.id)) loop
     for d in select g::date from generate_series(current_date - 2, current_date, interval '1 day') g loop
+      continue when d < private.wf_auto_from();                                  -- before the start date: never
       continue when now() < private.wf_morning_due(h.zone_id, d);
       continue when exists (select 1 from public.wf_morning_subs s where s.hub_id = h.id and s.work_date = d and (s.revision > 1 or s.status <> 'open'));
       v_id := private.wf_morning_close(h.id, d, null, 'auto', null);
@@ -765,6 +780,6 @@ grant execute on function public.wf_morning_get(uuid, date), public.wf_morning_s
   public.wf_morning_zone(uuid, date), public.wf_morning_return(uuid, date, text), public.wf_att_policy_get(uuid), public.wf_att_policy_save(uuid, jsonb),
   public.route_plan_morning(uuid, date), public.route_plan_decide(uuid, boolean, text), public.route_plan_resend(uuid),
   public.route_plan_published(uuid, date), public.route_plan_mine() to authenticated;
-revoke all on function private.wf_morning_close(uuid, date, jsonb, text, uuid), private.wf_morning_autosubmit(), private.route_plan_notify(uuid, text), private.route_plan_backfill(),
+revoke all on function private.wf_morning_close(uuid, date, jsonb, text, uuid), private.wf_morning_autosubmit(), private.route_plan_notify(uuid, text), private.route_plan_backfill(), private.wf_auto_from(),
   private.wf_leave_on(uuid, date), private.wf_morning_people(uuid), private.wf_hub_managers(uuid), private.wf_zone_managers(uuid),
   private.wf_morning_due(uuid, date), private.wf_setting_text(text, text), private.wf_morning_date(date) from public, anon, authenticated;

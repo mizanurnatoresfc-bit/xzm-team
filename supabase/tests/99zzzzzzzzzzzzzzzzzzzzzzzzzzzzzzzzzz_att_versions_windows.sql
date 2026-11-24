@@ -2,6 +2,7 @@
 begin;
 select tests.fixture();
 select tests.hr_fixture();
+update public.system_settings set value = to_jsonb(((now() at time zone 'Asia/Dhaka')::date - 10)::text) where key = 'workforce.auto_submit_from';   -- this test is about the jobs themselves: start well before
 select (now() at time zone 'Asia/Dhaka')::date as t, (now() at time zone 'Asia/Dhaka')::date - 1 as y, (now() at time zone 'Asia/Dhaka')::date - 2 as y2,
        date_trunc('month', (now() at time zone 'Asia/Dhaka')::date - 1)::date as m \gset
 insert into public.positions (department_id, code, name, name_bn) values (tests.id('dept_ops'), 'MANAGER', 'Manager', 'ম্যানেজার');

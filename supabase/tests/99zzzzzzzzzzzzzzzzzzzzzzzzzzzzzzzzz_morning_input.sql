@@ -2,6 +2,7 @@
 begin;
 select tests.fixture();
 select tests.hr_fixture();
+update public.system_settings set value = to_jsonb(((now() at time zone 'Asia/Dhaka')::date - 10)::text) where key = 'workforce.auto_submit_from';   -- this test is about the jobs themselves: start well before
 insert into tests.ids values
   ('r1', tests.active_employee('Route Rider', '881', tests.id('hub_a1'), '01711000881', '8810000000', 15000, tests.id('rider_login'))),
   ('r2', tests.active_employee('Leave Rider', '882', tests.id('hub_a1'), '01711000882', '8820000000')),
