@@ -157,6 +157,9 @@ test('phone tabs: the right tab is on for nested pages and deep links; never two
   for (const [tabs, path, bn, search] of cases) assert.deepEqual(on(tabs, path, search), [bn], `${path}${search ?? ''}`)
   // pages that no tab owns light none (never a wrong one)
   for (const path of ['/app/notifications', '/app/settings', '/app/training', '/app/zonal']) for (const tabs of [hub, zone, self]) assert.deepEqual(on(tabs, path), [], path)
+  // the staff list is not the panel, whatever home view the person picked
+  assert.deepEqual(on(self, '/app/staff/list'), [])
+  assert.deepEqual(on(tabsFor('self', 1), '/app/staff/list'), [])
   // "/app/staffx" is not the panel (segment match, not a prefix of letters)
   assert.deepEqual(on(self, '/app/staffx'), [])
   // a tab can be limited to one view of its page

@@ -1100,8 +1100,10 @@ try {
         ['/manager/staff?tab=pending', '/app/staff/list', 'tab=pending', 'work', '/app/staff/list'],
         ['/app/hr/employees/e01', '/app/hr/employees/e01', '', 'all', '/app/staff/list'],   // the profile page has no page grant on purpose (a referrer or draft owner opens one); the database decides what it returns
       ]
+      // the phone's tabs follow the home view a person picked (kept in the browser); a hub manager's own view is "hub"
+      const setHomeView = async v => page.evaluate(x => { try { if (x) { localStorage.setItem('xzm_view', x); sessionStorage.setItem('xzm_view', x) } else { localStorage.removeItem('xzm_view'); sessionStorage.removeItem('xzm_view') } } catch { /* ignore */ } }, v)
       for (const [role, grants] of Object.entries(ROLE)) {
-        permsNow = grants
+        permsNow = grants; await setHomeView(role === 'manager' ? 'hub' : null)
         for (const [from, path, keep, who, tab] of OLD) {
           const open = who === 'all' || role !== 'staff'   // the staff list is a work page: a plain staff member gets "no permission", never a wrong page
           await page.goto(`${BASE}${from}`); await settle()
@@ -1113,13 +1115,13 @@ try {
         }
       }
       // notification links that did not move: still the same page, and a staff member's home tab stays on at the panel
-      permsNow = ROLE.staff
+      permsNow = ROLE.staff; await setHomeView(null)
       for (const ok of ['/app/staff', '/app/me', '/app/hr/requests?id=r1', '/app/notices', '/app/fleet/mine']) {
         await page.goto(`${BASE}${ok}`); await settle()
         check(new URL(page.url()).pathname === ok.split('?')[0] && await page.locator('.center-screen .notice').count() === 0, `${size}: staff opens ${ok} (${new URL(page.url()).pathname})`) }
       if (phone) { await page.goto(`${BASE}/app/staff`); await settle(); check(JSON.stringify(await lit()) === '["/app"]', `${size}: a staff member's panel address lights the home tab (${await lit()})`)
         await page.goto(`${BASE}/app/me/permissions`); await settle(); check(JSON.stringify(await lit()) === '["/app/me"]', `${size}: my permissions lights the profile tab (${await lit()})`) }
-      menuNow = keepMenu; permsNow = keepPerms }
+      await setHomeView(null); menuNow = keepMenu; permsNow = keepPerms }
     // Office / Residential split: a page list saved before the split still opens the residential twin of its office page;
     // once Super Admin names a residential page, the list is followed exactly (Office shown, the rest of Residential hidden).
     { const blocked = async path => { await page.goto(`${BASE}${path}`); await page.waitForSelector('.center-screen .notice, .hub-tabs', { timeout: 8000 }).catch(() => {})
