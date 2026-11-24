@@ -13,6 +13,7 @@ import { FinalSheetTab, MonthSheetTab } from './FinalSheet'
 import { AppsTab, OpsTab } from './HubTabs'
 import { MorningPolicy, MorningTab, PublishedPlanTab, ZoneMorningTab } from './Morning'
 import { MyExplanations } from './MyExplanations'
+import { ReopenPanel } from './Reopen'
 import { ZoneFinal } from './ZoneFinal'
 import { ZoneOps } from './ZoneOps'
 import { ZoneWindows } from './ZoneWindows'
@@ -168,7 +169,7 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
     <ChipTabs<ZoneTab> tabs={tabs} value={tab} onChange={t => put({ tab: t })} label={L('জোনের বিভাগ', 'Zone sections')} />
     <div key={`${zone}-${tab}`}>
       {tab === 'morning' && <ZoneMorningTab zone={zone} />}
-      {tab === 'final' && <ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />}
+      {tab === 'final' && <><ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />{canSet && <ReopenPanel zone={zone} />}</>}
       {tab === 'ops' && <ZoneOps zone={zone} />}
       {tab === 'setting' && <><MorningPolicy zone={zone || zones[0]?.id || ''} /><ZoneWindows zone={zone} /></>}
     </div>

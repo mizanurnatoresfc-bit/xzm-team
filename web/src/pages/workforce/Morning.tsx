@@ -194,22 +194,24 @@ export function MorningPolicy({ zone }: { zone: string }) {
   const { toast, node } = useToast()
   const q = useLoad<AttPolicy | null>(() => zone ? morning.policy(zone) : Promise.resolve(null), [zone])
   const p = q.data
-  const [cut, setCut] = useState(''); const [extra, setExtra] = useState('')
-  useEffect(() => { if (p) { setCut(p.morning_cutoff); setExtra(String(p.morning_extra)) } }, [p])
+  const [cut, setCut] = useState(''); const [extra, setExtra] = useState(''); const [day, setDay] = useState(''); const [dayExtra, setDayExtra] = useState('')
+  useEffect(() => { if (p) { setCut(p.morning_cutoff); setExtra(String(p.morning_extra)); setDay(p.day_time); setDayExtra(String(p.day_extra)) } }, [p])
   if (!zone) return <Section title={L('সকালের ইনপুটের সময়', 'Morning input time')}><Empty>{L('উপরে একটি জোন বেছে নিন।', 'Pick a zone above.')}</Empty></Section>
   if (q.error) return <p className="da-error" role="alert">{wfFriendly(q.error)}</p>
   if (!p) return <Loading />
   async function save() {
-    try { await morning.savePolicy(zone, { morning_cutoff: cut, morning_extra: Number(extra) }); toast(L('সময় সেভ হয়েছে।', 'Times saved.')); await q.reload() }
+    try { await morning.savePolicy(zone, { morning_cutoff: cut, morning_extra: Number(extra), day_time: day, day_extra: Number(dayExtra) }); toast(L('সময় সেভ হয়েছে।', 'Times saved.')); await q.reload() }
     catch (e) { toast(wfFriendly(e)) }
   }
-  return <Section title={L('সকালের ইনপুটের সময়', 'Morning input time')}
-    hint={L(`এই জোনের হাবগুলোর সকালের ইনপুট কাট-অফ ও অতিরিক্ত মিনিটের পর সার্ভার নিজে জমা করে (ঢাকার সময়)। আজকের অটো জমা: ${fmtTime(p.today_due, lang)}।`,
-      `The server submits a hub’s morning input after the cut-off plus the extra minutes (Dhaka time). Today: ${fmtTime(p.today_due, lang)}.`)}>
+  return <Section title={L('অটো সাবমিটের সময়', 'Auto-submit times')}
+    hint={L(`সকালের ইনপুট কাট-অফ ও অতিরিক্ত মিনিটের পর, আর ঢাকার তারিখ বদলালে দৈনিক খাতা পরদিনের নির্ধারিত সময়ের পর সার্ভার নিজে জমা করে (ঢাকার সময়)। আজকের সকালের অটো জমা: ${fmtTime(p.today_due, lang)}।`,
+      `The server submits the morning input after the cut-off plus the extra minutes, and a daily register after the set time of the next day (Dhaka time). Today’s morning: ${fmtTime(p.today_due, lang)}.`)}>
     {node}
     <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
       <Field label={L('সকালের কাট-অফ', 'Morning cut-off')}><input type="time" value={cut} disabled={!p.can_edit} onChange={e => setCut(e.target.value)} /></Field>
       <Field label={L('অতিরিক্ত মিনিট (০–৩৬০)', 'Extra minutes (0–360)')}><input type="number" min={0} max={360} value={extra} disabled={!p.can_edit} onChange={e => setExtra(e.target.value)} /></Field>
+      <Field label={L('পরদিন দৈনিক খাতা বন্ধের সময়', 'Daily register closes (next day)')}><input type="time" value={day} disabled={!p.can_edit} onChange={e => setDay(e.target.value)} /></Field>
+      <Field label={L('খাতায় অতিরিক্ত মিনিট (০–৩৬০)', 'Register extra minutes (0–360)')}><input type="number" min={0} max={360} value={dayExtra} disabled={!p.can_edit} onChange={e => setDayExtra(e.target.value)} /></Field>
     </div>
     {p.can_edit ? <p><button type="button" onClick={() => void save()}>{L('সময় সেভ করুন', 'Save the times')}</button></p> : <p className="muted small">{L('সময় বদলানোর অনুমতি আপনার নেই।', 'You may not change the times.')}</p>}
   </Section>
