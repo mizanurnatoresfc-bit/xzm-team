@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { LIVE_SHEET, REASON_META, att, type ZoneDay, type ZoneDayHub } from '../../lib/attSheet'
 import { todayDhaka } from '../../lib/dailyAccounts'
 import { usePrefs } from '../../lib/prefs'
@@ -14,14 +13,13 @@ import '../../att-sheet.css'
  * plus the explanations asked and the replies. A tap on a hub opens its register, where the zonal manager can see the
  * preview, send it to the hub's managers for checking, or unlock it.
  */
-export function ZoneFinal({ zone }: { zone: string }) {
+export function ZoneFinal({ zone, onOpenHub }: { zone: string; onOpenHub: (hubId: string, date: string) => void }) {
   const { L, n, lang } = usePrefs()
-  const nav = useNavigate()
   const today = todayDhaka()
   const [date, setDate] = useState(today)
   const q = useLiveLoad<ZoneDay>(() => att.zoneDay(zone || null, date), [zone, date], LIVE_SHEET)
   const d = q.data && q.data.date === date ? q.data : null
-  const open = (h: ZoneDayHub) => nav(`/app/workforce/hub?hub=${h.hub_id}&tab=final&date=${date}`)
+  const open = (h: ZoneDayHub) => onOpenHub(h.hub_id, date)
   const v = (x: number, tone?: 'warn' | 'bad') => <span className={x ? (tone ? `wm-v ${tone}` : 'wm-v') : 'wm-v zero'}>{n(x)}</span>
 
   const cols: Array<WCol<ZoneDayHub>> = [
@@ -29,14 +27,15 @@ export function ZoneFinal({ zone }: { zone: string }) {
     { key: 'staff', label: L('স্টাফ', 'Staff'), num: true, text: h => h.staff, cell: h => n(h.staff) },
     { key: 'given', label: L('নিজে দিয়েছেন', 'Gave themself'), num: true, text: h => h.given, cell: h => v(h.given) },
     { key: 'st', label: L('ফাইনাল খাতা', 'Final register'), sort: true, text: h => h.status === 'submitted' ? 'সাবমিট' : h.status === 'draft' ? 'খসড়া' : 'শুরু হয়নি',
-      cell: h => h.status === 'submitted' ? <Badge tone="ok">{L('সাবমিট', 'Submitted')} · {fmtTime(h.submitted_at!, lang)}</Badge>
+      cell: h => h.held ? <Badge tone="bad">{L('জমা আটকে আছে', 'Held — not submitted')}</Badge> : h.status === 'submitted' ? <Badge tone="ok">{h.mode === 'auto' ? L('সার্ভার সাবমিট', 'Server-submitted') : L('সাবমিট', 'Submitted')} · {fmtTime(h.submitted_at!, lang)} · {L('সং', 'v')}{n(h.version ?? 1)}</Badge>
         : h.status === 'draft' ? <Badge tone="warn">{L('খসড়া', 'Draft')}</Badge> : <Badge tone="bad">{L('শুরু হয়নি', 'Not started')}</Badge> },
     { key: 'p', label: L('উপস্থিত', 'Present'), num: true, text: h => h.present, cell: h => v(h.present) },
     { key: 'l', label: L('দেরি', 'Late'), num: true, text: h => h.late, cell: h => v(h.late, 'warn') },
     { key: 'a', label: L('অনুপস্থিত', 'Absent'), num: true, text: h => h.absent, cell: h => v(h.absent, 'bad') },
     { key: 'u', label: L('না জানিয়ে', 'Without telling'), num: true, text: h => h.unauthorized, cell: h => v(h.unauthorized, 'bad') },
+    { key: 'ub', label: L('যাচাই বাকি', 'Not checked'), num: true, text: h => h.unchecked ?? 0, cell: h => v(h.unchecked ?? 0, 'warn') },
     { key: 'ck', label: L('ম্যানেজারদের যাচাই', 'Managers’ check'), text: h => h.checks ? `${h.checks_ok}/${h.checks}` : '—',
-      cell: h => h.checks ? <Badge tone={h.checks_ok === h.checks ? 'ok' : 'warn'}>{n(h.checks_ok)}/{n(h.checks)} {L('ঠিক আছে', 'OK')}</Badge> : h.status === 'submitted' ? <span className="muted small">{L('পাঠানো হয়নি', 'Not sent')}</span> : '—' },
+      cell: h => h.checks ? <Badge tone={h.checks_returned ? 'bad' : h.checks_ok === h.checks ? 'ok' : 'warn'}>{n(h.checks_ok)}/{n(h.checks)} {L('ঠিক আছে', 'OK')}{h.checks_returned ? ` · ${n(h.checks_returned)} ${L('সংশোধন চেয়েছেন', 'want a correction')}` : ''}</Badge> : h.status === 'submitted' ? <span className="muted small">{L('পাঠানো হয়নি', 'Not sent')}</span> : '—' },
   ]
 
   return <Section title={L('দৈনিক হাজিরার তথ্য (ফাইনাল খাতা)', 'Daily attendance data (final register)')}

@@ -887,9 +887,10 @@ select tests.ok(not exists (select 1 from public.notifications where kind = 'wor
 -- + 2 from 20261121000400_book_full_month (wf_book_mode, wf_book_full_month_set)
 -- + 2 from 20261122001000_workforce_ops_add (wf_ops_add, wf_ops_taps)
 -- (the 13 of 20261122001100_workforce_manager_book were removed again by 20261122001200)
-select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 27 and count(*) = 27
+-- + 7 from 20261124000100_morning_input (wf_morning_get/save/submit/zone/return, wf_att_policy_get/save)
+select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 34 and count(*) = 34
                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'),
-  'all twenty-seven public functions are security definer with an empty search path');
+  'all thirty-four public functions are security definer with an empty search path');
 select tests.ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'
                               and (has_function_privilege('anon', p.oid, 'execute') or not has_function_privilege('authenticated', p.oid, 'execute'))), 'anon cannot run any of them; signed-in users can');
 rollback;

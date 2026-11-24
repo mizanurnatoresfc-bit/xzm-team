@@ -34,8 +34,10 @@ export type PlanData = {
 }
 export type PlanHub = { id: string; code: string; name: string; zone_id: string; zone_name: string
   plan: { id: string; status: PlanStatus; arrived: number | null; carried: number | null; sent: number | null; cancelled: number | null; pickups: number | null; unassigned: number; given: number; people: number } | null }
-export type MyParcels = { date: string; hub: string; parcels: number; pickups: number; kind: 'rider' | 'helper'; note: string | null
-  detail: Array<{ parcels: number; route: string | null; for: string | null }> }
+export type MyParcels = { date: string; hub: string | null; parcels: number; pickups: number; kind: 'rider' | 'helper'; note: string | null
+  version: number | null; published_at: string | null
+  detail: Array<{ parcels: number; route: string | null; for: string | null }>
+  cancelled: Array<{ version: number; at: string; hub?: string }> }
 
 async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T> {
   const { data, error } = await supabase.rpc(fn, args)

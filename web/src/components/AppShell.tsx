@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Link, NavLink, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import { inMenu, panelLevel, ZONE_ONLY } from '../lib/menu'
+import { HUB_SECTION_PERMS, linkAllowed, panelLevel, tabActive } from '../lib/menu'
+import { QUICK, tabsFor } from '../lib/navTabs'
 import { PulsePopup } from './PulsePopup'
 import { UpdateBar } from './UpdateBar'
 import { supabase } from '../lib/supabase'
@@ -30,7 +31,7 @@ type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; i
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 /** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
 export const NEW_UNTIL: Record<string, string> = {
-  '/app/manpower': '2026-11-30', '/app/workforce/attendance': '2026-11-30', '/app/workforce/hub': '2026-11-30',
+  '/app/manpower': '2026-11-30', '/app/attendance': '2026-11-30',
   '/app/staff/list': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
   '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
 }
@@ -80,24 +81,23 @@ export const GROUPS: Group[] = [
   ]),
   panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
     { bn: 'প্রতিদিনের কাজ', en: 'Every day', items: [
-      { to: '/app/workforce/hub', icon: 'table', bn: 'হাজিরা বই ও দৈনিক রিপোর্ট', en: 'Attendance book & daily report', hint: { bn: 'আজকের হাজিরা, দেরি, অনুমোদন, মাসিক খাতা — সব এক জায়গায়', en: 'Today, late, approvals, monthly — all in one' }, perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view'] },
-      { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
-      { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
-      { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
+      { to: '/app/attendance', icon: 'table', bn: 'হাজিরা খাতা', en: 'Attendance register', hint: { bn: 'দিনের ফাইনাল খাতা, মাসিক খাতা, আবেদন ও দৈনিক রিপোর্ট — সব এক পেজে', en: 'Daily final register, monthly register, applications and daily report — one page' }, perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view', 'zonal.dashboard.view'] },
+      { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: [...HUB_SECTION_PERMS.pickup] },
+      { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: [...HUB_SECTION_PERMS.tasks] },
+      { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: [...HUB_SECTION_PERMS.ops] },
     ] },
     { bn: 'গাড়ি', en: 'Vehicles', items: [
       { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি ব্যবস্থাপনা', en: 'Vehicles', hint: { bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals' }, perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view'] },
     ] },
     { bn: 'হাবের টিম', en: 'Hub team', items: [
-      { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
-      { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট (হাব)', en: 'Rider routes (hub)', hint: { bn: 'হাবের রুট বানান ও রাইডারদের রুট দিন', en: 'Make the hub’s routes and give riders their route' }, perms: ['ops.route.view', 'ops.route.edit'] },
+      { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: [...HUB_SECTION_PERMS.logins] },
+      { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট (হাব)', en: 'Rider routes (hub)', hint: { bn: 'হাবের রুট বানান ও রাইডারদের রুট দিন', en: 'Make the hub’s routes and give riders their route' }, perms: [...HUB_SECTION_PERMS.routes] },
       { to: '/app/routes/plan', icon: 'box', bn: 'আজকের পার্সেল পরিকল্পনা', en: "Today's parcel plan", perms: ['ops.route_plan.view'] },
     ] },
   ]),
   panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
     { bn: 'জোন ও হাব', en: 'Zone & hubs', items: [
       { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
-      { to: '/app/workforce/zone', icon: 'chart', bn: 'জোনাল ওয়ার্কফোর্স রিপোর্ট', en: 'Zonal workforce report', perms: ['zonal.dashboard.view'] },
       { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'হাব অপারেশন ড্যাশবোর্ড', en: 'Hub Operations Dashboard', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
       { to: '/app/zonal/routes', icon: 'map', bn: 'রুট ম্যাপ (জোন)', en: 'Route map (zone)', hint: { bn: 'রুট সেটিং — জোনের সব হাবের রাইডার রুট ম্যাপ', en: 'Route settings — rider route map of every hub in the zone' }, perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
@@ -161,7 +161,6 @@ export const HR: Group = panel('hr', 'users', 'এইচআর বিভাগ',
       { to: '/app/zonal/requests', icon: 'form', bn: 'এইচআর অনুরোধ', en: 'HR requests', perms: ['hr.request.approve'], count: 'hrreq' },
   ] },
   { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
-      { to: '/app/workforce/hub', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/zonal/assistant', icon: 'cal', bn: 'হাজিরার ফাঁকা দিন', en: 'Attendance gaps', hint: { bn: 'জোনাল অ্যাসিস্ট্যান্ট — যেদিনের হাজিরা ওঠেনি', en: 'Zonal assistant — days with no attendance' }, perms: ['hr.attendance_gap.view'] },
       { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
   ] },
@@ -235,9 +234,9 @@ export const OFFICE: Group = panel('office', 'home', 'আমার অফিস'
  *   /app/hub/accounts        -> /app/accounts/daily (the hub's sheets for today)
  *   /app/hr                  -> the home page's staff panels
  *   /app/issues?tab=orders   -> a tab inside /app/issues
- *   /app/hub/days            -> nothing: never used (no rows on 21 Nov 2026); the attendance book shows each day's state
+ *   /app/hub/days            -> removed (never used); attendance is one page, /app/attendance
  */
-export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders', '/app/hub/days']
+export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders']
 
 // ---- small caches so the frame does not refetch on every page ----
 type MyRole = { code: string; name: string; scope_type: string; zone: string | null; hub: string | null }
@@ -283,49 +282,6 @@ export function refreshShellCounts() { countCache = null }
 
 export { refreshMyPhoto, useMyPhoto } from '../lib/myPhoto'
 
-// Mobile: bottom tabs (first four the role may open) and the quick-add sheet.
-const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }> = [
-  { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', perms: null, match: '/app$' },
-  { to: '/app/workforce/hub', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub' },
-  { to: '/app/sorting/parcels', icon: 'truck', bn: 'ট্রিপ', en: 'Trips', perms: ['sorting.parcel.view', 'sorting.parcel.create', 'sorting.center.view'], match: '/app/sorting' },
-  { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: DA, match: '/app/accounts/daily' },
-  { to: '/app/staff/list', icon: 'users', bn: 'কর্মী', en: 'Staff', perms: ['hr.employee.view'], match: '/app/staff' },
-]
-// The tab bar follows the home view: a staff member's own app, a hub manager's hub app, or the full zone app.
-type Tab = { to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }
-const HOME_TAB: Tab = { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', perms: null, match: '/app$' }
-/** A staff member's home already is the staff panel, so their tab bar has the profile in its place. */
-const PROFILE_TAB: Tab = { to: '/app/me', icon: 'user', bn: 'প্রোফাইল', en: 'Profile', perms: null, match: '/app/me' }
-const VIEW_TABS: Record<DashView, Tab[]> = {
-  self: [HOME_TAB,
-    { to: '/app/staff', icon: 'user', bn: 'প্যানেল', en: 'Panel', perms: null, match: '/app/staff' },
-    { to: '/app/accounts/mine', icon: 'wallet', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' },
-    { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' },
-  ],
-  hub: [HOME_TAB,
-    { to: '/app/workforce/hub', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub/(?!team)' },
-    { to: '/app/staff/list', icon: 'users', bn: 'টিম', en: 'Team', perms: ['hr.employee.view'], match: '/app/staff' },
-    { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: DA, match: '/app/accounts/daily' },
-    { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' }],
-  zone: TABS,
-}
-const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; tone: string }> = [
-  { to: '/app/manpower?new=1', icon: 'users', bn: 'লোক চাই', en: 'Need people', perms: ['hr.request.create'], tone: 'g' },
-  { to: '/app/issues?new=1', icon: 'scan', bn: 'লেবেল দিয়ে ইস্যু', en: 'Issue from label', perms: null, tone: 'r' },
-  { to: '/app/issues?order=store', icon: 'box', bn: 'স্টোর / আইটি অর্ডার', en: 'Store / IT order', perms: null, tone: 'b' },
-  { to: '/app/workforce/hub', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
-  { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'], tone: 'b' },
-  { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },
-  { to: '/app/hub/tasks', icon: 'tasks', bn: 'নতুন কাজ', en: 'New task', perms: ['zonal.task.create'], tone: 'p' },
-  { to: '/app/accounts/khata', icon: 'ledger', bn: 'আজকের খাতা', en: 'My sheet today', perms: ['da.sheet.create'], tone: 'g' },
-  { to: '/app/fleet?tab=approve', icon: 'truck', bn: 'গাড়ির অনুমোদন', en: 'Vehicle approvals', perms: ['vehicle.log.approve'], tone: 'o' },
-  { to: '/app/accounts/mine?bill=1', icon: 'receipt', bn: 'আমার বিল', en: 'My bill', perms: null, tone: 'o' },
-  { to: '/app/sorting/parcels', icon: 'truck', bn: 'পার্সেল এন্ট্রি', en: 'Parcels', perms: ['sorting.parcel.create'], tone: 'b' },
-  { to: '/app/sorting/fuel', icon: 'cash', bn: 'তেলের রিকুয়েস্ট', en: 'Fuel request', perms: ['sorting.fuel.create'], tone: 'r' },
-  { to: '/app/staff/list', icon: 'user', bn: 'নতুন কর্মী', en: 'New staff', perms: ['hr.application.create'], tone: 'p' },
-  { to: '/app/office/assets', icon: 'grid', bn: 'অফিস রিসোর্স', en: 'Office item', perms: ['office.asset.edit'], tone: 'b' },
-]
-
 function roleClass(code: string) {
   if (code === 'super_admin' || code === 'admin') return 'rb-super'
   if (/zonal|zone|head_office|operations/.test(code)) return 'rb-zone'
@@ -336,7 +292,7 @@ function roleClass(code: string) {
 
 /** Page frame for every signed-in screen: grouped icon menu, top bar (search, alerts, language, theme, profile), title row. */
 export function AppShell({ title, subtitle, actions, children }: { title: string; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
-  const { can, signOut, session, isSuperAdmin, menu } = useAuth()
+  const { can, signOut, session, isSuperAdmin, menu, menuUnavailable } = useAuth()
   const layout = useMenuLayout()
   const nodiOn = useNodiFeatures()
   const { L, n, lang, setLang, theme, setTheme, nodiFab } = usePrefs()
@@ -419,8 +375,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const h1Ref = useRef<HTMLHeadingElement>(null)
   const quickRef = useRef<HTMLDivElement>(null)
   usePageFocus(loc.pathname, title, h1Ref)
-  const allowed = (p: string[] | null) => !p || p.some(x => can(x))
-  const forMe = (i: Item) => allowed(i.perms) && inMenu(menu, i.to) && (panelLevel(can) === 2 || !ZONE_ONLY.includes(i.to)) && (!i.only || (i.only === 'web') === advancedAccessHere())
+  // One rule for every link (sidebar row, phone tab, quick action, alert, shortcut) — the same one the page routes use (lib/navAccess.ts).
+  const access = { can, menu, menuUnavailable }
+  const canOpen = (to: string) => linkAllowed(to, access)
+  const forMe = (i: Item) => linkAllowed(i.to, access, i.perms) && (!i.only || (i.only === 'web') === advancedAccessHere())
   const here = typeof location !== 'undefined' ? location.pathname : ''
   const mq = menuQ.trim().toLowerCase()
   const hit = (i: Item) => !mq || `${i.bn} ${i.en}`.toLowerCase().includes(mq)
@@ -431,7 +389,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     ['/app/hr/leave', cnt.leave, L('ছুটির অনুরোধ অপেক্ষমাণ', 'Leave requests waiting'), 'log'],
     ['/app/accounts/daily', cnt.sheets, L('হিসাব খাতা যাচাইয়ের অপেক্ষায়', 'Daily sheets waiting for verification'), 'ledger'],
     ['/app/hr/requests?tab=list', cnt.hrreq, L('এইচআর রিকুয়েস্ট অপেক্ষমাণ', 'HR requests waiting'), 'form'],
-  ] as Array<[string, number, string, string]>).filter(a => a[1] > 0)
+  ] as Array<[string, number, string, string]>).filter(([to, count]) => count > 0 && canOpen(to))
   const unreadN = nt.unread
   const totalAlerts = alerts.reduce((a, x) => a + x[1], 0) + unreadN
   function openNotice(x: LiveNotice) {
@@ -443,7 +401,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const level = panelLevel(can)
   const defaultOpenGroup = level === 2 ? 'zone' : level === 1 ? 'hub' : 'self'
   // Only show what this person can use: + needs at least one quick action, search needs the staff list.
-  const quickItems = QUICK.filter(x => allowed(x.perms) && inMenu(menu, x.to))
+  const quickItems = QUICK.filter(x => linkAllowed(x.to, access, x.perms, x.also))
   const canSearch = can('hr.employee.view')
   // A role's saved menu list also defines page order; keep the existing category headings and sort within each section.
   const orderMenuItems = (items: Item[]) => {
@@ -479,9 +437,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     {tagOf(i)}</NavLink>
 
   // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
-  const navTabs = (dview ? VIEW_TABS[dview] : TABS).map(t => level === 0 && t.to === '/app/staff' ? PROFILE_TAB : t).filter(t => allowed(t.perms) && inMenu(menu, t.to)).slice(0, quickItems.length ? 3 : 4)
+  const navTabs = tabsFor(dview, level).filter(t => linkAllowed(t.to, access, t.perms)).slice(0, quickItems.length ? 3 : 4)
   // On লোক লাগবে the + is the page's own action (লোক চাই); everywhere else it opens the quick sheet.
-  const plusTap = () => quick ? setQuick(false) : /^\/app\/manpower/.test(here) && can('hr.request.create') ? nav('/app/manpower?new=1') : setQuick(true)
+  const plusTap = () => quick ? setQuick(false) : /^\/app\/manpower/.test(here) && can('hr.request.create') && canOpen('/app/manpower') ? nav('/app/manpower?new=1') : setQuick(true)
   const plusAt = Math.floor((navTabs.length + 1) / 2)   // tabs + আরও, the + in the middle
   const plusTab = <button key="plus" type="button" className={`bn-plus${quick ? ' on' : ''}`} aria-expanded={quick} aria-label={quick ? L('বন্ধ', 'Close') : L('দ্রুত যোগ করুন', 'Quick add')} onClick={plusTap}><span><Icon name="plus" size={26} /></span></button>
   return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
@@ -593,10 +551,10 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <span className="nt-toast-t"><b>{nt.fresh.title}</b>{nt.fresh.body && <small>{nt.fresh.body}</small>}</span>
         <span className="nt-x-space" aria-hidden="true" /></button>
       <button type="button" className="nt-x" aria-label={L('নোটিফিকেশন বন্ধ করুন', 'Dismiss notification')} onClick={() => clearFresh()}><Icon name="x" size={14} /></button></div>}
-    {nodiFab && can('nodi.assistant.view') && nodiOn?.chat && level === 2 && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
+    {nodiFab && can('nodi.assistant.view') && nodiOn?.chat && canOpen('/app/nodi/chat') && !/^\/app\/nodi\/chat/.test(here) && <NavLink to="/app/nodi/chat" className="nodi-fab no-print" aria-label="নদী AI" title="নদী AI"><NodiAvatar size={52} /></NavLink>}
     <nav className="bottom-nav no-print" aria-label={L('প্রধান মেনু', 'Main tabs')}>
       {navTabs.flatMap((t, i) => [...(i === plusAt && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
-        className={() => new RegExp('^' + t.match).test(here) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}
+        className={() => tabActive(t, loc.pathname, loc.search) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}
       {quickItems.length > 0 && plusAt >= navTabs.length && plusTab}
       <button type="button" className={`bn-item${open ? ' on' : ''}`} aria-expanded={open} onClick={() => { setQuick(false); setOpen(true) }}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span>{totalAlerts > 0 && <span className="sr-only">{L(`, ${n(totalAlerts)}টি অপেক্ষায়`, `, ${totalAlerts} waiting`)}</span>}</button>
     </nav>

@@ -74,7 +74,7 @@ export function ZonalDashboard() {
     subtitle={L('পুরো জোন এক পাতায়: কর্মী, হাবের পারফরম্যান্স, সতর্কতা, কাজ, পরিকল্পনা, ভিজিট ও ক্লেইম।', 'The whole zone on one page: staff, hub performance, alerts, tasks, planning, visits and claims.')}
     actions={<>
       {(can('zonal.hub_ops.view') || can('zonal.hub_ops.create')) && <Link to="/app/zonal/hub-ops" className="btn-ghost"><Icon name="chart" size={16} />{L('হাব অপারেশন ড্যাশবোর্ড', 'Hub Operations Dashboard')}</Link>}
-      {can('hr.attendance.configure') && <Link to="/app/workforce/zone?tab=setting" className="btn-ghost"><Icon name="cal" size={16} />{L('হাজিরা: আগের তারিখ খোলা', 'Attendance: open earlier dates')}</Link>}
+      {can('hr.attendance.configure') && <Link to="/app/attendance?view=zone&tab=setting" className="btn-ghost"><Icon name="cal" size={16} />{L('হাজিরা: আগের তারিখ খোলা', 'Attendance: open earlier dates')}</Link>}
       <Link to="/app/accounts/report-import" className="btn-ghost"><Icon name="upload" size={16} />{L('রিপোর্ট আপলোড', 'Report upload')}</Link>
       <Link to="/app/staff/list" className="btn-ghost"><Icon name="users" size={16} />{L('হাব অনুযায়ী কর্মী ও বদলি', 'Staff by hub & transfers')}</Link>
       <button className="secondary no-print" onClick={() => window.print()}><Icon name="print" size={16} />{L('প্রিন্ট', 'Print')}</button></>}>

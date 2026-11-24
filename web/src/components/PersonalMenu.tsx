@@ -85,7 +85,7 @@ const rememberCount = (user: string, n: number) => { try { localStorage.setItem(
 const ITEMS = [
   { key: 'given', to: '/app/workforce/given', icon: 'userplus', tone: 'g', bn: 'আমার লোক দেওয়া', en: 'People I brought' },
   { key: 'hand', to: '/app/workforce/hand', icon: 'users', tone: 'b', bn: 'আমার হাতে লোক আছে', en: 'People in my hand' },
-  { key: 'attendance', to: '/app/workforce/attendance', icon: 'cal', tone: 'o', bn: 'আমার উপস্থিতি', en: 'My attendance' },
+  { key: 'attendance', to: '/app/attendance', icon: 'cal', tone: 'o', bn: 'আমার উপস্থিতি', en: 'My attendance' },
 ] as const
 
 /**

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -65,6 +65,7 @@ const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: 
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
 const RouteSettings = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RouteSettings })))
 const RoutePlanPage = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RoutePlanPage })))
+const StaffWorkProfilePage = lazy(() => import('./pages/zonal/StaffWorkProfile').then(m => ({ default: m.StaffWorkProfilePage })))
 const ZonalAssistant = lazy(() => import('./pages/zonal/ZonalAssistant').then(m => ({ default: m.ZonalAssistant })))
 const Training = lazy(() => import('./pages/Training').then(m => ({ default: m.Training })))
 const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default: m.Rollout })))
@@ -82,12 +83,11 @@ const References = lazy(() => import('./pages/References').then(m => ({ default:
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
 const MyWorkforce = lazy(() => import('./pages/workforce/MyWorkforce').then(m => ({ default: m.MyWorkforce })))
-const WorkforceHub = lazy(() => import('./pages/workforce/WorkforceHub').then(m => ({ default: m.WorkforceHub })))
-const WorkforceZone = lazy(() => import('./pages/workforce/WorkforceZone').then(m => ({ default: m.WorkforceZone })))
+const AttendancePage = lazy(() => import('./pages/workforce/AttendancePage').then(m => ({ default: m.AttendancePage })))
 
 // After the first screen is shown, quietly fetch the pages so later taps open at once (an app does not wait on each tap).
 // The most-used ones come first; on a phone with "data saver" on, nothing is fetched ahead.
-const FIRST = ['./pages/hub/HubManagement', './pages/workforce/WorkforceHub', './pages/hr/Requests', './pages/workforce/MyWorkforce',
+const FIRST = ['./pages/hub/HubManagement', './pages/workforce/AttendancePage', './pages/hr/Requests', './pages/workforce/MyWorkforce',
   './pages/staff/StaffList', './pages/accounts/DailyDashboard', './pages/accounts/DailySheet', './pages/MyProfile']
 const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/accounts/DailyDashboard', () => import('./pages/accounts/DailyDashboard')],
@@ -152,8 +152,7 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/Notifications', () => import('./pages/Notifications')],
   ['./pages/ChangePassword', () => import('./pages/ChangePassword')],
   ['./pages/workforce/MyWorkforce', () => import('./pages/workforce/MyWorkforce')],
-  ['./pages/workforce/WorkforceHub', () => import('./pages/workforce/WorkforceHub')],
-  ['./pages/workforce/WorkforceZone', () => import('./pages/workforce/WorkforceZone')],
+  ['./pages/workforce/AttendancePage', () => import('./pages/workforce/AttendancePage')],
 ]
 const WARM = [...ALL.filter(([m]) => FIRST.includes(m)), ...ALL.filter(([m]) => !FIRST.includes(m))].map(([, f]) => f)
 if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
@@ -179,11 +178,19 @@ function OldRolePage() {
   if (!advancedAccessHere()) return id ? <RoleEditor /> : <Roles />
   return <Navigate to={id ? `/app/access/role/${id}` : '/app/access/roles'} replace />
 }
-/** A page open to anyone who holds at least one of the permissions (ProtectedRoute takes a single one). The database re-checks every call. */
-function AnyOf({ perms }: { perms: string[] }) {
-  const { can } = useAuth()
-  return perms.some(can) ? <Outlet /> : <main className="center-screen">
-    <section className="notice"><h1>অনুমতি নেই</h1><p>এই পেজ ব্যবহারের প্রয়োজনীয় অনুমতি আপনার অ্যাকাউন্টে নেই।</p></section></main>
+/** An old attendance address (/app/workforce/hub, /zone, /attendance) -> the one attendance page, keeping the rest of the address (hub, date, give=today …). */
+/** An old address that now lives on another page: go there and keep what was asked (…?tab=pending, ?id=…, #part), so a saved bookmark or notification still lands on the same thing. */
+function RedirectKeep({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
+}
+function LegacyAttendanceRedirect({ view }: { view: 'me' | 'hub' | 'zone' }) {
+  const q = new URLSearchParams(useLocation().search)
+  q.set('view', view)
+  const tab = q.get('tab')
+  const ok = view === 'hub' ? ['final', 'month', 'apps', 'ops'] : view === 'zone' ? ['final', 'ops', 'setting'] : []
+  if (tab && !ok.includes(tab)) { if (view === 'hub' && tab === 'approve') q.set('tab', 'final'); else q.delete('tab') }
+  return <Navigate to={`/app/attendance?${q.toString()}`} replace />
 }
 
 /** The home page: a staff member gets the staff panel, everyone else the dashboard. */
@@ -213,29 +220,23 @@ export default function App() {
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />
       <Route path="/app/staff/list" element={<StaffList />} />
-      <Route path="/app/zonal/staff" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/zonal/staff" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/zonal/hub-ops" element={<HubOps />} />
       <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       {/* Staff lifecycle: the hub manager asks, the zonal manager decides, every approval leaves a file */}
-      <Route element={<AnyOf perms={['hr.request.create']} />}>
-        <Route path="/app/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
-      </Route>
-      <Route element={<AnyOf perms={['hr.request.approve']} />}>
-        <Route path="/app/zonal/requests" element={<ZonalRequests />} />
-        <Route path="/app/zonal/hr-records" element={<HrRecords />} />
-      </Route>
-      <Route element={<AnyOf perms={['ops.route_setting.view', 'ops.route_setting.edit']} />}>
-        <Route path="/app/zonal/routes" element={<RouteSettings />} />
-      </Route>
-      <Route element={<AnyOf perms={['ops.route_plan.view']} />}>
-        <Route path="/app/routes/plan" element={<RoutePlanPage />} />
-      </Route>
+      <Route path="/app/manager/staff" element={<RedirectKeep to="/app/staff/list" />} />
+      <Route path="/app/zonal/requests" element={<ZonalRequests />} />
+      <Route path="/app/zonal/hr-records" element={<HrRecords />} />
+      <Route path="/app/zonal/routes" element={<RouteSettings />} />
+      <Route path="/app/routes/plan" element={<RoutePlanPage />} />
+      <Route path="/app/zonal/profile" element={<StaffWorkProfilePage />} />
       <Route path="/app/manpower" element={<Manpower />} />
-      <Route path="/app/hub" element={<Navigate to="/app/workforce/hub" replace />} />
-      <Route path="/app/hub/team" element={<Navigate to="/app/staff/list" replace />} />
-      <Route path="/app/hub/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
-      <Route path="/app/hub/late" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hub" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/hub/team" element={<RedirectKeep to="/app/staff/list" />} />
+      <Route path="/app/hub/attendance" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/hub/late" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/hub/days" element={<LegacyAttendanceRedirect view="hub" />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
@@ -253,10 +254,10 @@ export default function App() {
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
       <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
       <Route path="/app/hr" element={<HrDashboard />} />
-      <Route path="/app/hr/employees" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/hr/employees" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
       <Route path="/app/hr/applications" element={<Applications />} />
-      <Route path="/app/hr/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hr/attendance" element={<LegacyAttendanceRedirect view="hub" />} />
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />
@@ -270,63 +271,39 @@ export default function App() {
       <Route path="/app/training" element={<Training />} />
       <Route path="/app/zonal/assistant" element={<ZonalAssistant />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
-      {/* My Workforce & Attendance: my own three pages, the hub book and the zone report ('hub' and 'zone' come before ':tab') */}
-      <Route path="/app/workforce" element={<Navigate to="/app/workforce/attendance" replace />} />
-      <Route element={<AnyOf perms={['hr.attendance.view', 'ops.staff_daily.view']} />}>
-        <Route path="/app/workforce/hub" element={<WorkforceHub />} />
-      </Route>
+      {/* হাজিরা খাতা: one page for staff, hub manager and zonal manager; what it shows follows the person's permissions.
+          The old addresses (also inside saved notifications) lead here. */}
+      <Route path="/app/attendance" element={<AttendancePage />} />
+      <Route path="/app/workforce" element={<Navigate to="/app/attendance" replace />} />
+      <Route path="/app/workforce/attendance" element={<LegacyAttendanceRedirect view="me" />} />
+      <Route path="/app/workforce/hub" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/workforce/zone" element={<LegacyAttendanceRedirect view="zone" />} />
+      {/* My Workforce: the two people lists (people I brought, people in my hand) */}
       <Route path="/app/workforce/:tab" element={<MyWorkforce />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="zonal.dashboard.view" />}>
-      <Route path="/app/workforce/zone" element={<WorkforceZone />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.user.view" />}>
+      {/* What each of these needs is in lib/navAccess.ts (pagePermissions): the menus and these routes read the same table. */}
       <Route path="/app/users" element={<Users />} />
       <Route path="/app/users/:id" element={<UserDetail />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="hr.referral.view" />}>
       <Route path="/app/hr/referrals" element={<Referrals />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="hr.import.create" />}>
       <Route path="/app/hr/import" element={<ImportEmployees />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.role.view" />}>
       <Route path="/app/roles" element={<OldRolePage />} />
       <Route path="/app/roles/:id" element={<OldRolePage />} />
       <Route path="/app/access" element={<AccessPage><AccessCenter /></AccessPage>} />
       <Route path="/app/access/role/:id" element={<AccessPage><RoleBuilder /></AccessPage>} />
       <Route path="/app/access/user/:id" element={<AccessPage><UserAccess /></AccessPage>} />
       <Route path="/app/access/:section" element={<AccessPage><AccessCenter /></AccessPage>} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.role.edit" />}>
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
-    </Route>
-    {/* Nodi AI and branding open by the same permission their menu links use (not the role-page permission). */}
-    <Route element={<ProtectedRoute />}>
-      <Route element={<AnyOf perms={['nodi.assistant.view', 'nodi.settings.configure']} />}>
-        <Route path="/app/nodi/chat" element={<NodiChat />} />
-      </Route>
-    </Route>
-    <Route element={<ProtectedRoute permission="nodi.settings.configure" />}>
+      <Route path="/app/nodi/chat" element={<NodiChat />} />
       <Route path="/app/nodi" element={<NodiSettings />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.settings.configure" />}>
       <Route path="/app/branding" element={<BrandingSettings />} />
       <Route path="/app/menu" element={<MenuEditor />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="da.report.view" />}>
       <Route path="/app/accounts/reports" element={<AccountsReports />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="da.settings.configure" />}>
       <Route path="/app/accounts/settings" element={<AccountsSettings />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.admin_portal.view" />}>
       <Route path="/secure-control" element={<Dashboard />} />
     </Route>
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     {/* short addresses of the staff lifecycle pages */}
-    <Route path="/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
+    <Route path="/manager/staff" element={<RedirectKeep to="/app/staff/list" />} />
     <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
     <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />

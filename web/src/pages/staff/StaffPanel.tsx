@@ -199,7 +199,7 @@ export function StaffPanel() {
       {/* Book open (days 1-17): today is given in the attendance book, like every other day. Book closed: this one tap is the only way to give today. */}
       {!rec && <div className="nv-rows">
         {wfOpen && v?.me
-          ? row('/app/workforce/attendance?give=today', 'g', 'check', L('আজকের হাজিরা দিন — হাজিরা বইয়ে', "Give today's attendance — in the book"),
+          ? row('/app/attendance?give=today', 'g', 'check', L('আজকের হাজিরা দিন — হাজিরা বইয়ে', "Give today's attendance — in the book"),
             L('এসেছি, না আসব না — দুটোই হাজিরা বই থেকে', 'Came or not coming — both from the attendance book'))
           : <>
             {act('g', 'check', waiting?.kind === 'present' ? L('হাজিরা আবার দিন', 'Give it again') : L('হাবে এসেছি — হাজিরা দিই', 'I am at the hub — mark me'),
@@ -286,7 +286,7 @@ export function StaffPanel() {
         <Link to="/app/me" className="tx"><small>{day}</small><b>{name}</b>{who && <span>{who}</span>}</Link>
         {attPending
           ? wfOpen
-            ? <Link to="/app/workforce/attendance?give=today" className={`sp-att go t-${attTone}`}><Icon name="clock" size={15} />{L('হাজিরা দিন', 'Mark attendance')}<Icon name="chev" size={14} /></Link>
+            ? <Link to="/app/attendance?give=today" className={`sp-att go t-${attTone}`}><Icon name="clock" size={15} />{L('হাজিরা দিন', 'Mark attendance')}<Icon name="chev" size={14} /></Link>
             : <a href="#sp-att" className={`sp-att go t-${attTone}`} onClick={toAtt}><Icon name="clock" size={15} />{returned ? L('হাজিরা আবার দিন', 'Give it again') : L('হাজিরা দিন', 'Mark attendance')}<Icon name="chev" size={14} /></a>
           : <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>}
       </div>

@@ -1,0 +1,30 @@
+/* সকালের জনবল — the morning input, the zone's morning and the published route plan */
+.mo-state{min-height:38px;border-radius:8px;font-weight:600;padding:0 10px}
+.mo-state.s-present{border-color:var(--ok,#15803d);color:var(--ok,#15803d)}
+.mo-state.s-absent{border-color:var(--bad,#b91c1c);color:var(--bad,#b91c1c)}
+.mo-state.s-unknown{border-color:var(--warn,#b45309);color:var(--warn,#b45309)}
+.mo-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+.mo-receipt{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:12px;background:var(--primary-50,#ecfdf3);border:1px solid var(--primary,#15803d)}
+.mo-receipt p{margin:2px 0 0}
+.mo-hubs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:14px;margin-top:14px}
+.mo-hub{display:flex;flex-direction:column;gap:10px;margin:0}
+.mo-hub header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.mo-hub h3{margin:0;font-size:1.05rem}
+.mo-counts{display:flex;gap:14px;flex-wrap:wrap;font-size:.92rem}
+.mo-counts .ok b{color:var(--ok,#15803d)}.mo-counts .bad b{color:var(--bad,#b91c1c)}.mo-counts .warn b{color:var(--warn,#b45309)}
+.mo-cover{padding:10px 12px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca}
+.mo-cover ul{margin:6px 0 0;padding-left:20px}
+.mo-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:auto}
+.mo-banner{display:flex;flex-direction:column;gap:8px;margin:0 0 12px}
+.mo-banner p{margin:0;display:flex;gap:8px;align-items:flex-start}
+.mo-cancel{display:flex;gap:6px;align-items:center;color:var(--bad,#b91c1c);margin:10px 0 0}
+.mo-history{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+html[data-theme="dark"] .mo-cover{background:#3b1d1d;border-color:#7f1d1d}
+html[data-theme="dark"] .mo-receipt{background:#12301f}
+/* কর্মীর কাজের প্রোফাইল */
+.swp-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin:0 0 12px}
+.swp-head h2{margin:0;font-size:1.25rem}.swp-head p{margin:2px 0 0}
+.swp-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.swp-dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0}
+.swp-dl dt{font-size:.8rem;color:var(--muted)}.swp-dl dd{margin:2px 0 0;font-weight:600}
+.swp-duties{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}
