@@ -103,10 +103,10 @@ test('direct routes follow the same table as the menus (formerly separate route 
 
 test('every staff / manager / zonal view stays inside the existing modules: old addresses are redirects, not pages', () => {
   const app = src('App.tsx')
-  for (const old of ['/app/workforce/hub', '/app/workforce/zone', '/app/workforce/attendance', '/app/hub/attendance', '/app/hub/late', '/app/hr/attendance'])
-    assert.match(app, new RegExp(`path="${old}" element=\\{<(Navigate|LegacyAttendanceRedirect)`), old)
+  for (const old of ['/app/workforce/hub', '/app/workforce/zone', '/app/workforce/attendance', '/app/hub/attendance', '/app/hub/late', '/app/hub/days', '/app/hr/attendance'])
+    assert.match(app, new RegExp(`path="${old}" element=\\{<(Navigate|LegacyAttendanceRedirect|RedirectKeep)`), old)
   for (const old of ['/app/hub/team', '/app/hr/employees', '/app/zonal/staff', '/app/manager/staff', '/manager/staff'])
-    assert.match(app, new RegExp(`path="${old}" element=\\{<Navigate to="/app/staff/list"`), old)
+    assert.match(app, new RegExp(`path="${old}" element=\\{<RedirectKeep to="/app/staff/list"`), old)
   // no second attendance page and no second staff page
   for (const f of ['pages/workforce/WorkforceHub.tsx', 'pages/workforce/WorkforceZone.tsx', 'pages/hub/AttendanceDays.tsx', 'pages/hub/HubTeam.tsx'])
     assert.throws(() => src(f), /ENOENT/, `${f} must not come back`)
@@ -176,4 +176,33 @@ test('hasPageAccess and pageLinkAllowed agree for a page under a listed page (re
   assert.equal(pageLinkAllowed('/app/accounts/report-import', a), true)
   assert.equal(pageLinkAllowed('/app/accounts/report-import', acc('staff', ['/app/accounts/daily'])), false, 'needs da.import.create or da.sheet.view')
   assert.equal(hasPageAccess('/app/accounts/report-import', ROLES.zonalManager), true)
+})
+
+test('every menu row, tab and quick action opens a real page, not a redirect or a missing route', () => {
+  const app = src('App.tsx')
+  const routes = [...app.matchAll(/<Route path="([^"]+)" element=\{(.*)\} \/>/g)].map(m => ({ path: m[1], el: m[2] }))
+  const re = p => new RegExp('^' + p.replace(/:[^/]+/g, '[^/]+').replace(/\*/g, '.*') + '$')
+  const rank = r => (r.path.match(/:|\*/g) ?? []).length
+  const find = to => routes.filter(r => re(r.path).test(to)).sort((a, b) => rank(a) - rank(b))[0]
+  const shell = src('components/AppShell.tsx')
+  const targets = new Set([...shell.matchAll(/\{ to: '([^']+)'/g)].map(m => m[1]))
+  for (const t of [...TABS, ...Object.values(VIEW_TABS).flat()]) targets.add(t.to)
+  for (const q of QUICK) targets.add(q.to)
+  assert.ok(targets.size > 60)
+  const bad = []
+  for (const to of targets) {
+    const path = to.split('?')[0], r = find(path)
+    if (!r) bad.push(`${to}: no route`)
+    else if (/<Navigate|Redirect/.test(r.el)) bad.push(`${to}: is only a redirect (${r.el.slice(0, 50)})`)
+  }
+  assert.deepEqual(bad, [])
+})
+
+test('old addresses keep their query and hash when they redirect', () => {
+  const app = src('App.tsx')
+  assert.match(app, /function RedirectKeep[\s\S]*search[\s\S]*hash/)
+  assert.match(app, /function LegacyAttendanceRedirect[\s\S]*useLocation\(\)\.search/)
+  // a bare <Navigate to="/app/staff/list"> or "/app/attendance?view=hub" would drop ?tab=pending, ?hub=, ?date= …
+  assert.doesNotMatch(app, /<Navigate to="\/app\/staff\/list"/)
+  assert.doesNotMatch(app, /<Navigate to="\/app\/attendance\?view=hub"/)
 })

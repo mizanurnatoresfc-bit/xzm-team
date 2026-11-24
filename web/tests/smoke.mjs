@@ -1078,6 +1078,48 @@ try {
       menuFail = false; await page.locator('.center-screen .notice button').click().catch(() => {}); await page.waitForSelector('.eb-chips .chip-toggle, .app-frame', { timeout: 10000 }).catch(() => {})
       check(await noticeOf() === 0, `${size}: the retry button opens the page once the list loads`)
       menuNow = keepMenu; permsNow = keepPerms }
+    // Old bookmarks and notification links: each lands on the one page that took over, keeps what was asked, and on a phone lights that page's tab.
+    { const keepMenu = menuNow, keepPerms = permsNow; menuNow = null
+      const settle = async () => { await page.waitForSelector('.center-screen, .app-frame', { timeout: 10000 }).catch(() => {}); await page.waitForTimeout(500) }
+      const ROLE = { staff: ['hr.attendance.self'], manager: ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'org.hub.view'],
+        zonal: ['zonal.dashboard.view', 'hr.attendance.view', 'hr.employee.view', 'org.hub.view', 'nodi.assistant.view'] }
+      const lit = async () => page.locator('.bottom-nav a.bn-item.on').evaluateAll(a => a.map(x => x.getAttribute('href')))
+      // [old address, where it lands (path), query parts that must survive, who may open it, the tab that is on for a manager on a phone]
+      const OLD = [
+        ['/app/workforce/attendance', '/app/attendance', 'view=me', 'all', null],
+        ['/app/workforce/hub?tab=final&hub=h2', '/app/attendance', 'view=hub&tab=final&hub=h2', 'all', '/app/attendance?view=hub'],
+        ['/app/workforce/zone?tab=final', '/app/attendance', 'view=zone&tab=final', 'all', '/app/attendance?view=hub'],
+        ['/app/hub/attendance', '/app/attendance', 'view=hub', 'all', '/app/attendance?view=hub'],
+        ['/app/hub/days', '/app/attendance', 'view=hub', 'all', '/app/attendance?view=hub'],
+        ['/app/hub/late', '/app/attendance', 'view=hub', 'all', '/app/attendance?view=hub'],
+        ['/app/hr/attendance', '/app/attendance', 'view=hub', 'all', '/app/attendance?view=hub'],
+        ['/app/hub/team', '/app/staff/list', '', 'work', '/app/staff/list'],
+        ['/app/hr/employees', '/app/staff/list', '', 'work', '/app/staff/list'],
+        ['/app/manager/staff?tab=pending', '/app/staff/list', 'tab=pending', 'work', '/app/staff/list'],
+        ['/app/zonal/staff', '/app/staff/list', '', 'work', '/app/staff/list'],
+        ['/manager/staff?tab=pending', '/app/staff/list', 'tab=pending', 'work', '/app/staff/list'],
+        ['/app/hr/employees/e01', '/app/hr/employees/e01', '', 'work', '/app/staff/list'],
+      ]
+      for (const [role, grants] of Object.entries(ROLE)) {
+        permsNow = grants
+        for (const [from, path, keep, who, tab] of OLD) {
+          const open = who === 'all' || role !== 'staff'   // the staff list is a work page: a plain staff member gets "no permission", never a wrong page
+          await page.goto(`${BASE}${from}`); await settle()
+          const u = new URL(page.url()), notice = await page.locator('.center-screen .notice').count()
+          const keeps = keep.split('&').filter(Boolean).every(kv => u.searchParams.get(kv.split('=')[0]) === kv.split('=')[1] || (role === 'staff' && /^(view|tab|hub)$/.test(kv.split('=')[0]) && who === 'all'))
+          check(open ? u.pathname === path && keeps && notice === 0 : notice === 1,
+            `${size}: ${role} opens the old address ${from} -> ${u.pathname}${u.search}${open ? '' : ' (no permission, as it should)'}`)
+          if (phone && open && role === 'manager' && tab) check(JSON.stringify(await lit()) === JSON.stringify([tab]), `${size}: ${role} on ${from}: the tab that is on is ${await lit()}`)
+        }
+      }
+      // notification links that did not move: still the same page, and a staff member's home tab stays on at the panel
+      permsNow = ROLE.staff
+      for (const ok of ['/app/staff', '/app/me', '/app/hr/requests?id=r1', '/app/notices', '/app/fleet/mine']) {
+        await page.goto(`${BASE}${ok}`); await settle()
+        check(new URL(page.url()).pathname === ok.split('?')[0] && await page.locator('.center-screen .notice').count() === 0, `${size}: staff opens ${ok} (${new URL(page.url()).pathname})`) }
+      if (phone) { await page.goto(`${BASE}/app/staff`); await settle(); check(JSON.stringify(await lit()) === '["/app"]', `${size}: a staff member's panel address lights the home tab (${await lit()})`)
+        await page.goto(`${BASE}/app/me/permissions`); await settle(); check(JSON.stringify(await lit()) === '["/app/me"]', `${size}: my permissions lights the profile tab (${await lit()})`) }
+      menuNow = keepMenu; permsNow = keepPerms }
     // Office / Residential split: a page list saved before the split still opens the residential twin of its office page;
     // once Super Admin names a residential page, the list is followed exactly (Office shown, the rest of Residential hidden).
     { const blocked = async path => { await page.goto(`${BASE}${path}`); await page.waitForSelector('.center-screen .notice, .hub-tabs', { timeout: 8000 }).catch(() => {})

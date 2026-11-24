@@ -178,6 +178,11 @@ function OldRolePage() {
   return <Navigate to={id ? `/app/access/role/${id}` : '/app/access/roles'} replace />
 }
 /** An old attendance address (/app/workforce/hub, /zone, /attendance) -> the one attendance page, keeping the rest of the address (hub, date, give=today …). */
+/** An old address that now lives on another page: go there and keep what was asked (…?tab=pending, ?id=…, #part), so a saved bookmark or notification still lands on the same thing. */
+function RedirectKeep({ to }: { to: string }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={`${to}${search}${hash}`} replace />
+}
 function LegacyAttendanceRedirect({ view }: { view: 'me' | 'hub' | 'zone' }) {
   const q = new URLSearchParams(useLocation().search)
   q.set('view', view)
@@ -214,21 +219,22 @@ export default function App() {
       <Route path="/app/org/hubs" element={<Hubs />} />
       <Route path="/app/zonal" element={<ZonalDashboard />} />
       <Route path="/app/staff/list" element={<StaffList />} />
-      <Route path="/app/zonal/staff" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/zonal/staff" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/zonal/hub-ops" element={<HubOps />} />
       <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       {/* Staff lifecycle: the hub manager asks, the zonal manager decides, every approval leaves a file */}
-      <Route path="/app/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/manager/staff" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/zonal/requests" element={<ZonalRequests />} />
       <Route path="/app/zonal/hr-records" element={<HrRecords />} />
       <Route path="/app/zonal/routes" element={<RouteSettings />} />
       <Route path="/app/routes/plan" element={<RoutePlanPage />} />
       <Route path="/app/manpower" element={<Manpower />} />
-      <Route path="/app/hub" element={<Navigate to="/app/attendance?view=hub" replace />} />
-      <Route path="/app/hub/team" element={<Navigate to="/app/staff/list" replace />} />
-      <Route path="/app/hub/attendance" element={<Navigate to="/app/attendance?view=hub" replace />} />
-      <Route path="/app/hub/late" element={<Navigate to="/app/attendance?view=hub" replace />} />
+      <Route path="/app/hub" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/hub/team" element={<RedirectKeep to="/app/staff/list" />} />
+      <Route path="/app/hub/attendance" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/hub/late" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/hub/days" element={<LegacyAttendanceRedirect view="hub" />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
@@ -246,10 +252,10 @@ export default function App() {
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
       <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
       <Route path="/app/hr" element={<HrDashboard />} />
-      <Route path="/app/hr/employees" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/hr/employees" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
       <Route path="/app/hr/applications" element={<Applications />} />
-      <Route path="/app/hr/attendance" element={<Navigate to="/app/attendance?view=hub" replace />} />
+      <Route path="/app/hr/attendance" element={<LegacyAttendanceRedirect view="hub" />} />
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />
@@ -295,7 +301,7 @@ export default function App() {
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     {/* short addresses of the staff lifecycle pages */}
-    <Route path="/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
+    <Route path="/manager/staff" element={<RedirectKeep to="/app/staff/list" />} />
     <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
     <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
