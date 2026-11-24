@@ -89,7 +89,7 @@ export function ZonalDashboard() {
         <Field label={L('পর্যন্ত', 'To')}><input type="date" value={custom.to} min={custom.from} max={dhaka()} onChange={e => setCustom({ ...custom, to: e.target.value })} /></Field></>}
       {dash.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
     </section>
-    {hubs.error && <p className="da-error">{hrFriendly(hubs.error)}</p>}
+    {hubs.error ? <p className="da-error">{hrFriendly(hubs.error)}</p> : null}
     {dash.error ? <p className="da-error">{hrFriendly(dash.error)}</p> : null}
     {can('zonal.pulse.manage') && <PulsePanel zone={zone || (o.data?.zones.length === 1 ? o.data.zones[0].id : '')} />}
 
