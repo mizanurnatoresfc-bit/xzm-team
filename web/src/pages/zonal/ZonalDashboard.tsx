@@ -44,7 +44,7 @@ export function ZonalDashboard() {
   // A manager of one zone may not ask for "all zones": wait until the zone list has loaded and their zone is picked.
   const ready = !!o.data && (zone !== '' || o.data.zones.length !== 1)
   const dash = useLoad(() => ready ? zonal.dashboard(z, from, to) : Promise.resolve(null), [z, from, to, ready])
-  const hubs = useLoad(() => ready ? zonal.hubs(z, from, to).catch(() => [] as HubPerf[]) : Promise.resolve([] as HubPerf[]), [z, from, to, ready])
+  const hubs = useLoad(() => ready ? zonal.hubs(z, from, to) : Promise.resolve([] as HubPerf[]), [z, from, to, ready])
   const [detail, setDetail] = useState<{ stat: WorkStat; title: string } | null>(null)
   const [tab, setTab] = useState<'hubs' | 'reports' | 'tasks' | 'plan' | 'visits'>('hubs')
   const d = dash.data
@@ -89,6 +89,7 @@ export function ZonalDashboard() {
         <Field label={L('পর্যন্ত', 'To')}><input type="date" value={custom.to} min={custom.from} max={dhaka()} onChange={e => setCustom({ ...custom, to: e.target.value })} /></Field></>}
       {dash.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
     </section>
+    {hubs.error && <p className="da-error">{hrFriendly(hubs.error)}</p>}
     {dash.error ? <p className="da-error">{hrFriendly(dash.error)}</p> : null}
     {can('zonal.pulse.manage') && <PulsePanel zone={zone || (o.data?.zones.length === 1 ? o.data.zones[0].id : '')} />}
 
@@ -102,7 +103,9 @@ export function ZonalDashboard() {
         <Stat label={L('পেন্ডিং পার্সেল', 'Pending parcels')} value={n(d.hubs.pending_parcels)} />
       </div>
       <Link to="/app/zonal/hub-ops" className="btn-ghost">{L('হাব অপারেশন ও রিপোর্ট দেখুন', 'Open hub operations and reports')}</Link>
-      <button type="button" className="secondary" onClick={() => setTab('plan')}>{L('বিদ্যমান জনবল পরিকল্পনা দেখুন', 'View existing workforce planning')}</button>
+      {can('zonal.planning.view') && <button type="button" className="secondary" onClick={() => setTab('plan')}>{L('বিদ্যমান জনবল পরিকল্পনা দেখুন', 'View existing workforce planning')}</button>}
+      {can('ops.route_plan.view') && <Link to="/app/routes/plan" className="btn-ghost">{L('রাইডার ও পার্সেল পরিকল্পনা', 'Rider and parcel planning')}</Link>}
+      <button type="button" className="secondary" onClick={() => setTab('tasks')}>{L('ম্যানেজারের কাজের অবস্থা', 'Manager task status')}</button>
     </section>}
 
     {d && <>
