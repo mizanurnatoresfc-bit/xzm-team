@@ -206,3 +206,10 @@ test('old addresses keep their query and hash when they redirect', () => {
   assert.doesNotMatch(app, /<Navigate to="\/app\/staff\/list"/)
   assert.doesNotMatch(app, /<Navigate to="\/app\/attendance\?view=hub"/)
 })
+
+test('a redirect has no gate of its own: the page it leads to decides', () => {
+  // an old notification link must not say "no permission" to someone who may open the page it now leads to
+  assert.equal(pageNeeds('/app/manager/staff'), null)
+  assert.equal(pageState('/app/manager/staff', acc('zonalManager')), 'open')
+  assert.equal(pageState('/app/staff/list', acc('staff')), 'no-permission')
+})

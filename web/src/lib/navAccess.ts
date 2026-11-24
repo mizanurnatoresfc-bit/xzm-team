@@ -96,7 +96,6 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/hr/import': ['hr.import.create'],
   '/app/hr/profile-gaps': ['hr.employee.view'],
   '/app/hr/referrals': ['hr.referral.view'],
-  '/app/manager/staff': ['hr.request.create'],
   '/app/manpower': ['hr.employee.view', 'hr.request.create', 'hr.request.approve'],
   '/app/nodi': ['nodi.settings.configure'],
   '/app/nodi/chat': ['nodi.assistant.view', 'nodi.settings.configure'],
