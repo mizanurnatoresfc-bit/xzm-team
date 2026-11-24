@@ -18,7 +18,7 @@ const ATTENDANCE = '/app/attendance'
 const ATTENDANCE_OLD = ['/app/workforce/hub', '/app/workforce/zone']
 /** Pages that belong to a listed page (opened from it, not from the menu). */
 const WITH: Record<string, string[]> = {
-  '/app/staff/list': ['/app/hr/applications', '/app/hub/team', '/app/hr/employees'],   // a person's profile opens from the staff list
+  '/app/staff/list': ['/app/hr/applications', '/app/hub/team', '/app/hr/employees', '/app/zonal/profile'],   // a person's profile opens from the staff list
   '/app/roles': ['/app/access'],
   '/app/access': ['/app/roles'],
   // the report upload page comes with the accounts and zonal pages it is opened from
@@ -111,6 +111,7 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/zonal': ['zonal.dashboard.view'],
   '/app/zonal/files': ['hr.request.create', 'hr.request.approve'],
   '/app/zonal/hr-records': ['hr.request.approve'],
+  '/app/zonal/profile': ['hr.employee.view'],
   '/app/zonal/hub-ops': ['zonal.hub_ops.view', 'zonal.hub_ops.create'],
   '/app/zonal/requests': ['hr.request.approve'],
   '/app/zonal/routes': ['ops.route_setting.view', 'ops.route_setting.edit'],
