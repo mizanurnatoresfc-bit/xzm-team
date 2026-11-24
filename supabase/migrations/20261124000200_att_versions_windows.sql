@@ -156,8 +156,8 @@ create or replace function private.att_edit_open(p_hub uuid, p_date date) return
 language sql stable security definer set search_path = '' as $$
   select p_date = private.wf_today()
       or (p_date < private.wf_today() and (private.att_open_window(p_hub, p_date) is not null or now() < private.wf_day_due(private.hub_zone(p_hub), p_date)
-          -- the server did not submit it because it was empty or unfinished (wf_auto_holds): it stays open for the hub manager until it is submitted
-          or exists (select 1 from public.wf_auto_holds a where a.kind = 'day' and a.hub_id = p_hub and a.work_date = p_date and a.released_at is null)))
+          -- a register the server refused to submit (empty or unfinished) stays open for the manager to finish
+          or exists (select 1 from public.wf_auto_holds k where k.kind = 'daily' and k.hub_id = p_hub and k.work_date = p_date and k.resolved_at is null)))
 $$;
 
 -- Leave of a person on a date: approved (with its reference and the date it was applied for), else waiting.
@@ -278,73 +278,86 @@ end $$;
 -- ---------------------------------------------------------------------
 -- 3. Closing a register (by the manager, or by the server): one place, one version
 -- ---------------------------------------------------------------------
--- p_strict: an unfinished line stops the submit (the manager's, and the server's too: the server never guesses, see att_day_autosubmit). Not strict: an unfinished
--- line becomes "unchecked" (no caller uses this any more; kept for a manual repair).
 -- Returns null when the register was already submitted (the other caller got there first).
-create or replace function private.att_sheet_close(p_hub uuid, p_date date, p_by uuid, p_mode text, p_strict boolean, p_window uuid default null)
+-- The register's draft is made ready: everyone of the hub has a line, approved leave puts itself on its line, "marked online" and its time come from the person's own mark.
+create or replace function private.att_sheet_prepare(p_sheet uuid, p_hub uuid, p_date date, p_by uuid) returns void
+language plpgsql security definer set search_path = '' as $$
+declare ln record; v_leave jsonb;
+begin
+  -- everyone of the hub is on the register
+  insert into public.att_day_lines (sheet_id, employee_id, position_id, updated_by)
+  select p_sheet, pp, e.position_id, p_by from private.att_sheet_people(p_hub, p_date) pp join public.employees e on e.id = pp
+  on conflict (sheet_id, employee_id) do nothing;
+  -- approved leave puts itself on the line (a line already right is not touched: the job calls this every minute for a held register)
+  for ln in select x.id, x.employee_id from public.att_day_lines x where x.sheet_id = p_sheet loop
+    v_leave := private.wf_leave_on(ln.employee_id, p_date);
+    if v_leave is not null then
+      update public.att_day_lines set final_status = 'leave', late_time = null, unauthorized = false, absence_reason = null, online_marked = null, online_at = null, online_reason = null,
+             absence_app_date = (v_leave ->> 'applied_on')::date, absence_app_ref = v_leave ->> 'ref', leave_ref = v_leave ->> 'ref', leave_applied_on = (v_leave ->> 'applied_on')::date
+       where id = ln.id and (final_status, leave_ref, leave_applied_on) is distinct from ('leave', v_leave ->> 'ref', (v_leave ->> 'applied_on')::date);
+    end if;
+  end loop;
+  -- "marked online" and its time come from the person's own mark
+  update public.att_day_lines l set
+         online_marked = coalesce((select m.kind = 'present' from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date), false),
+         online_at = (select m.marked_at from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date and m.kind = 'present'),
+         online_reason = case when exists (select 1 from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date and m.kind = 'present')
+                              then null else l.online_reason end
+   where l.sheet_id = p_sheet and l.final_status in ('present', 'late', 'half_day')
+     and (l.online_marked, l.online_at, l.online_reason) is distinct from (
+           coalesce((select m.kind = 'present' from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date), false),
+           (select m.marked_at from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date and m.kind = 'present'),
+           case when exists (select 1 from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date and m.kind = 'present') then null else l.online_reason end);
+end $$;
+
+create or replace function private.att_sheet_close(p_hub uuid, p_date date, p_by uuid, p_mode text, p_window uuid default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   s public.att_day_sheets; ln record; v_rec uuid; v_bad text; v_asked integer := 0; v_written integer := 0; v_reasons text[]; v_r text; v_prof uuid;
-  v_hub text := private.hub_name(p_hub); v_name text; v_leave jsonb; v_no integer; v_zone uuid := private.hub_zone(p_hub); v_left integer;
+  v_hub text := private.hub_name(p_hub); v_name text; v_no integer; v_zone uuid := private.hub_zone(p_hub); v_left integer; v_in timestamptz; v_self boolean := false;
 begin
   perform pg_advisory_xact_lock(hashtextextended('att_sheet:' || p_hub::text || p_date::text, 0));
   insert into public.att_day_sheets (hub_id, zone_id, work_date) values (p_hub, v_zone, p_date) on conflict (hub_id, work_date) do nothing;
   select * into s from public.att_day_sheets where hub_id = p_hub and work_date = p_date for update;
   if s.status = 'submitted' then return null; end if;
 
-  -- everyone of the hub is on the register
-  insert into public.att_day_lines (sheet_id, employee_id, position_id, updated_by)
-  select s.id, pp, e.position_id, p_by from private.att_sheet_people(p_hub, p_date) pp join public.employees e on e.id = pp
-  on conflict (sheet_id, employee_id) do nothing;
-  -- approved leave puts itself on the line; "marked online" and its time come from the person's own mark
-  for ln in select x.id, x.employee_id from public.att_day_lines x where x.sheet_id = s.id loop
-    v_leave := private.wf_leave_on(ln.employee_id, p_date);
-    if v_leave is not null then
-      update public.att_day_lines set final_status = 'leave', late_time = null, unauthorized = false, absence_reason = null, online_marked = null, online_at = null, online_reason = null,
-             absence_app_date = (v_leave ->> 'applied_on')::date, absence_app_ref = v_leave ->> 'ref', leave_ref = v_leave ->> 'ref', leave_applied_on = (v_leave ->> 'applied_on')::date
-       where id = ln.id;
-    end if;
-  end loop;
-  update public.att_day_lines l set
-         online_marked = coalesce((select m.kind = 'present' from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date), false),
-         online_at = (select m.marked_at from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date and m.kind = 'present'),
-         online_reason = case when exists (select 1 from public.attendance_self_marks m where m.employee_id = l.employee_id and m.work_date = p_date and m.kind = 'present')
-                              then null else l.online_reason end
-   where l.sheet_id = s.id and l.final_status in ('present', 'late', 'half_day');
-
-  if p_strict then
-    select string_agg(e.full_name || ': ' || w, '; ' order by e.full_name) into v_bad
-      from (select l.employee_id, private.att_line_gap(l) w from public.att_day_lines l where l.sheet_id = s.id) z join public.employees e on e.id = z.employee_id
-     where w is not null;
-    if v_bad is not null then
-      raise exception 'Some lines are not complete — কিছু সারি অসম্পূর্ণ: %', v_bad using errcode = '22023',
-        detail = (select count(*) from public.att_day_lines l where l.sheet_id = s.id and private.att_line_gap(l) is not null)::text;
-    end if;
-  else
-    -- the server never guesses: an unfinished line is "unchecked" (or "leave request waiting")
-    for ln in select l.*, private.att_line_gap(l) as gap from public.att_day_lines l where l.sheet_id = s.id loop
-      continue when ln.gap is null;
-      update public.att_day_lines set final_status = case when private.att_leave_state(ln.employee_id, p_date) ->> 'state' = 'pending' then 'pending_leave' else 'unchecked' end,
-             late_time = null, unauthorized = false, absence_reason = null, online_marked = null, online_at = null, online_reason = null
-       where id = ln.id;
-    end loop;
-  end if;
+  perform private.att_sheet_prepare(s.id, p_hub, p_date, p_by);
+  select string_agg(e.full_name || ': ' || w, '; ' order by e.full_name) into v_bad
+    from (select l.employee_id, private.att_line_gap(l) w from public.att_day_lines l where l.sheet_id = s.id) z join public.employees e on e.id = z.employee_id
+   where w is not null;
+  -- an empty or unfinished register is never submitted, by anybody
+  if v_bad is not null then raise exception 'Some lines are not complete — কিছু সারি অসম্পূর্ণ: %', v_bad using errcode = '22023'; end if;
 
   perform set_config('app.wf_action', 'approved', true);
-  for ln in select x.*, e.profile_id, e.full_name from public.att_day_lines x join public.employees e on e.id = x.employee_id where x.sheet_id = s.id loop
+  for ln in select x.*, e.profile_id, e.full_name, e.status as emp_status from public.att_day_lines x join public.employees e on e.id = x.employee_id where x.sheet_id = s.id loop
     continue when ln.final_status in ('unchecked', 'pending_leave');          -- nothing goes on the register for a line nobody has checked
-    insert into public.attendance_records as r (employee_id, work_date, status, check_in, source, note, created_by, updated_by)
-    values (ln.employee_id, p_date, ln.final_status,
-            case when ln.late_time is not null then ((p_date + ln.late_time) at time zone 'Asia/Dhaka') when ln.final_status in ('present', 'half_day') then null end,
-            'manual', coalesce(ln.note, 'দৈনিক ফাইনাল খাতা'), p_by, p_by)
-    on conflict (employee_id, work_date) do update set status = excluded.status, check_in = coalesce(excluded.check_in, case when excluded.status in ('present', 'late', 'half_day') then r.check_in end),
-      note = excluded.note, updated_by = p_by
+    -- The submitter's own line is not theirs to settle: it stays on the sheet as what they say, and the zonal manager makes it final (att_sheet_confirm_self).
+    if p_by is not null and ln.profile_id = p_by then
+      update public.att_day_lines set self_pending = true, confirmed_by = null, confirmed_at = null where id = ln.id;
+      v_self := true;
+      continue;
+    end if;
+    update public.att_day_lines set self_pending = false where id = ln.id and self_pending;
+    -- An existing register row is updated; a new one is written only for someone still active. A person who left after
+    -- the line was put on the register keeps the line, but gets no new register row (the register refuses leavers).
+    v_in := case when ln.late_time is not null then ((p_date + ln.late_time) at time zone 'Asia/Dhaka') end;
+    v_rec := null;
+    update public.attendance_records r
+       set status = ln.final_status, check_in = coalesce(v_in, case when ln.final_status in ('present', 'late', 'half_day') then r.check_in end),
+           note = coalesce(ln.note, 'দৈনিক ফাইনাল খাতা'), updated_by = p_by
+     where r.employee_id = ln.employee_id and r.work_date = p_date
     returning r.id into v_rec;
-    v_written := v_written + 1;
+    if v_rec is null and ln.emp_status = 'active' then
+      insert into public.attendance_records as r (employee_id, work_date, status, check_in, source, note, created_by, updated_by)
+      values (ln.employee_id, p_date, ln.final_status, v_in, 'manual', coalesce(ln.note, 'দৈনিক ফাইনাল খাতা'), p_by, p_by)
+      on conflict (employee_id, work_date) do update set status = excluded.status, note = excluded.note, updated_by = p_by
+      returning r.id into v_rec;
+    end if;
+    if v_rec is not null then v_written := v_written + 1; end if;
     update public.attendance_self_marks m set status = 'approved',
            decided_as = case when ln.final_status in ('present', 'late', 'half_day', 'absent') then ln.final_status end,
            decided_by = p_by, decided_at = now(), attendance_id = v_rec, decide_note = 'দৈনিক ফাইনাল খাতা'
-     where m.id = ln.self_mark_id and m.status = 'waiting';
+     where m.id = ln.self_mark_id and m.status = 'waiting' and v_rec is not null;
 
     v_reasons := array_remove(array[case when ln.manager_ok is false then 'not_ok' end, case when ln.final_status = 'late' then 'late' end,
                                     case when ln.unauthorized then 'unauthorized' end], null);
@@ -367,22 +380,23 @@ begin
   select coalesce(pr.full_name, case when p_by is null then 'সার্ভার (অটো)' else 'user' end) into v_name from (select 1) one left join public.profiles pr on pr.id = p_by;
   update public.att_day_sheets set status = 'submitted', submitted_by = p_by, submitted_at = now(), version = v_no, submit_mode = p_mode, window_id = p_window,
          updated_at = now() where id = s.id;
-  perform private.wf_hold_release('day', p_hub, p_date);
   insert into public.att_sheet_versions (sheet_id, hub_id, work_date, version_no, mode, window_id, lines, submitted_by, submitted_by_name)
     select s.id, p_hub, p_date, v_no, p_mode, p_window, coalesce(jsonb_agg(to_jsonb(l) - 'updated_by' order by l.employee_id), '[]'::jsonb), p_by, v_name
       from public.att_day_lines l where l.sheet_id = s.id;
 
+  perform private.wf_hold_resolve('daily', p_hub, p_date);
   select count(*) into v_left from public.att_day_lines where sheet_id = s.id and final_status in ('unchecked', 'pending_leave');
   -- the zonal managers hear that the register came in; when the server did it, the hub's managers hear it too
   for v_prof in select distinct ur.user_id from public.user_roles ur join public.roles ro on ro.id = ur.role_id
-                 where ro.code = 'zonal_manager' and ur.revoked_at is null and (ur.valid_to is null or ur.valid_to >= current_date)
+                 where ro.code = 'zonal_manager' and ur.revoked_at is null and (ur.valid_to is null or ur.valid_to >= private.wf_today())
                    and (ur.zone_id = s.zone_id or ur.scope_type = 'global') loop
     perform private.notify(v_prof, case when p_mode = 'auto' then 'দৈনিক হাজিরা খাতা সার্ভার সাবমিট করেছে' else 'দৈনিক ফাইনাল হাজিরা খাতা সাবমিট হয়েছে' end,
-      coalesce(v_hub, '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') || case when v_left > 0 then ' · ' || v_left || ' জনের হাজিরা যাচাই বাকি' else '' end,
-      '/app/attendance?view=zone&tab=final', 'attendance_gap');
+      coalesce(v_hub, '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') || case when v_left > 0 then ' · ' || v_left || ' জনের হাজিরা যাচাই বাকি' else '' end
+        || case when v_self then ' — ম্যানেজারের নিজের হাজিরা আপনি চূড়ান্ত করবেন' else '' end,
+      case when v_self then '/app/attendance?view=hub&tab=final&hub=' || p_hub::text || '&date=' || p_date::text else '/app/attendance?view=zone&tab=final' end, 'attendance_gap');
   end loop;
   if p_mode = 'auto' then
-    for v_prof in select * from private.wf_hub_managers(p_hub) loop
+    for v_prof in select * from private.wf_role_hub_managers(p_hub) loop
       perform private.notify(v_prof, 'দৈনিক হাজিরা খাতা সার্ভার সাবমিট করেছে', coalesce(v_hub, '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') || case when v_left > 0 then ' · ' || v_left || ' জনের হাজিরা যাচাই বাকি' else '' end,
         '/app/attendance?view=hub&tab=final&hub=' || p_hub::text || '&date=' || p_date::text, 'attendance_gap');
     end loop;
@@ -409,7 +423,7 @@ begin
       left join public.positions po on po.id = coalesce((select l.position_id from public.att_day_lines l where l.sheet_id = s.id and l.employee_id = e.id), e.position_id)
   ), rows as (
     select p.*, m.id mark_id, m.kind, m.note mnote, m.status mstatus, m.marked_at, m.applied_on_site, m.site_applied_on, m.site_ref, a.application_no,
-           l.id line_id, r.status rec,
+           l.id line_id, coalesce(l.self_pending, false) self_pending, l.confirmed_at, r.status rec,
            case when l.id is not null then jsonb_build_object('manager_ok', l.manager_ok, 'final_status', l.final_status,
                   'late_time', to_char(l.late_time, 'HH24:MI'), 'online_marked', l.online_marked, 'online_reason', l.online_reason,
                   'absence_app_date', l.absence_app_date, 'absence_app_ref', l.absence_app_ref, 'unauthorized', l.unauthorized, 'note', l.note,
@@ -427,7 +441,7 @@ begin
            'mark', case when x.mark_id is null then null else jsonb_build_object('id', x.mark_id, 'kind', x.kind, 'note', x.mnote, 'status', x.mstatus,
                     'marked_at', x.marked_at, 'applied_on_site', x.applied_on_site, 'site_applied_on', x.site_applied_on, 'site_ref', x.site_ref,
                     'application_no', x.application_no) end,
-           'saved', x.line_id is not null, 'value', x.val, 'record_status', x.rec,
+           'saved', x.line_id is not null, 'line_id', x.line_id, 'self_pending', x.self_pending, 'confirmed_at', x.confirmed_at, 'value', x.val, 'record_status', x.rec,
            'explanations', coalesce((select jsonb_agg(jsonb_build_object('id', q.id, 'reason', q.reason, 'asked_at', q.asked_at, 'reply', q.reply, 'replied_at', q.replied_at) order by q.asked_at)
                                      from public.att_explanations q where q.line_id = x.line_id), '[]'::jsonb))
          order by x.psort, x.full_name), '[]'::jsonb) into v_people
@@ -458,6 +472,8 @@ begin
                'unlocked_at', s.unlocked_at, 'unlock_note', s.unlock_note, 'sent_at', s.sent_at,
                'version', s.version, 'mode', s.submit_mode) end,
     'due', private.wf_day_due(v_zone, v_date),
+    'hold', (select jsonb_build_object('held_at', k.held_at, 'reason', k.reason, 'gap_count', k.gap_count, 'total', k.total, 'gaps', k.gaps)
+               from public.wf_auto_holds k where k.kind = 'daily' and k.hub_id = p_hub and k.work_date = v_date and k.resolved_at is null),
     'window', (select jsonb_build_object('id', w.id, 'from', w.from_date, 'to', w.to_date, 'expires_at', w.expires_at, 'reason', w.reason, 'by', w.approved_by_name)
                  from public.att_reopen_windows w where w.id = private.att_open_window(p_hub, v_date)),
     'versions', coalesce((select jsonb_agg(jsonb_build_object('no', v.version_no, 'mode', v.mode, 'at', v.submitted_at, 'by', v.submitted_by_name) order by v.version_no desc)
@@ -465,7 +481,8 @@ begin
     'can', jsonb_build_object(
       'edit', private.has_permission('hr.attendance.create', v_zone, p_hub) and coalesce(s.status, 'draft') = 'draft' and v_date <= private.wf_today() and private.att_edit_open(p_hub, v_date),
       'unlock', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted',
-      'send', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted'),
+      'send', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted',
+      'confirm_self', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted'),
     'my_check', (select jsonb_build_object('sent_at', c.sent_at, 'ok_at', c.ok_at, 'returned_at', c.returned_at, 'return_reason', c.return_reason, 'version_no', c.version_no)
                    from public.att_sheet_checks c where c.sheet_id = s.id and c.profile_id = auth.uid() and c.version_no = s.version),
     'people', v_people, 'by_position', v_pos, 'checks', v_checks);
@@ -490,6 +507,7 @@ begin
            'checks_ok', (select count(*) from public.att_sheet_checks c where c.sheet_id = s.id and c.version_no = s.version and c.ok_at is not null),
            'checks_returned', (select count(*) from public.att_sheet_checks c where c.sheet_id = s.id and c.version_no = s.version and c.returned_at is not null and c.ok_at is null),
            'version', s.version, 'mode', s.submit_mode,
+           'held', exists (select 1 from public.wf_auto_holds k where k.kind = 'daily' and k.hub_id = h.id and k.work_date = v_date and k.resolved_at is null),
            'unchecked', (select count(*) from public.att_day_lines l where l.sheet_id = s.id and l.final_status in ('unchecked', 'pending_leave')),
            'due', private.wf_day_due(h.zone_id, v_date),
            'can_manage', private.has_permission('hr.attendance.configure', h.zone_id, h.id))
@@ -570,7 +588,7 @@ returns jsonb language plpgsql security definer set search_path = '' as $$
 declare v jsonb;
 begin
   perform private.att_sheet_write(p_hub, p_date, p_lines);
-  v := private.att_sheet_close(p_hub, p_date, auth.uid(), 'manager', true, private.att_open_window(p_hub, p_date));
+  v := private.att_sheet_close(p_hub, p_date, auth.uid(), 'manager', private.att_open_window(p_hub, p_date));
   if v is null then raise exception 'This register is already submitted — খাতা আগেই সাবমিট হয়েছে' using errcode = 'P0001'; end if;
   return v;
 end $$;
@@ -589,7 +607,7 @@ begin
          window_id = v_id, updated_at = now()
    where hub_id = p_hub and work_date between p_from and p_to and status = 'submitted';
   get diagnostics v_n = row_count;
-  for m in select * from private.wf_hub_managers(p_hub) loop
+  for m in select e.profile_id from private.att_hub_managers(p_hub) e union select * from private.wf_role_hub_managers(p_hub) loop      -- live's unlock notice: role or position (att_hub_managers)
     perform private.notify(m, 'হাজিরা খাতা সংশোধনের জন্য খোলা হয়েছে',
       coalesce(private.hub_name(p_hub), '') || ' · ' || to_char(p_from, 'DD-MM-YYYY') || case when p_to <> p_from then ' থেকে ' || to_char(p_to, 'DD-MM-YYYY') else '' end
       || ' · ' || p_minutes || ' মিনিট — ' || p_reason, '/app/attendance?view=hub&tab=final&hub=' || p_hub::text || '&date=' || p_from::text, 'attendance_gap');
@@ -685,9 +703,7 @@ begin
   if not private.has_permission('hr.attendance.configure', s.zone_id, s.hub_id) then
     raise exception 'Only the zonal manager sends a register for checking — শুধু জোনাল ম্যানেজার যাচাইয়ে পাঠাতে পারেন' using errcode = '42501'; end if;
   if s.status <> 'submitted' then raise exception 'Only a submitted register is sent — আগে ম্যানেজার খাতা সাবমিট দিন' using errcode = 'P0001'; end if;
-  for r in select e.id, e.profile_id from public.employees e join public.positions po on po.id = e.position_id
-            where e.hub_id = s.hub_id and e.archived_at is null and e.status = 'active' and e.profile_id is not null
-              and po.code::text in ('MANAGER', 'ASSISTANTMAN') loop
+  for r in select e.id, e.profile_id from private.att_hub_managers(s.hub_id) e loop            -- by role or by position, as live (att_self_line_and_manager_roles)
     insert into public.att_sheet_checks (sheet_id, profile_id, employee_id, sent_by, version_no) values (s.id, r.profile_id, r.id, auth.uid(), s.version)
     on conflict (sheet_id, profile_id, version_no) do nothing;
     if found then
@@ -728,7 +744,7 @@ begin
   update public.att_sheet_checks set returned_at = now(), return_reason = v_reason, ok_at = null
    where sheet_id = p_sheet and profile_id = auth.uid() and version_no = s.version;
   if not found then raise exception 'This register was not sent to you — খাতাটি আপনাকে যাচাইয়ে পাঠানো হয়নি' using errcode = '42501'; end if;
-  for z in select * from private.wf_zone_managers(s.zone_id) loop
+  for z in select * from private.wf_role_zone_managers(s.zone_id) loop
     perform private.notify(z, 'হাজিরা খাতায় সংশোধনের অনুরোধ', coalesce(private.hub_name(s.hub_id), '') || ' · ' || to_char(s.work_date, 'DD-MM-YYYY') || ' · সংস্করণ ' || s.version || ' — ' || v_reason,
       '/app/attendance?view=hub&tab=final&hub=' || s.hub_id || '&date=' || s.work_date, 'attendance_gap');
   end loop;
@@ -804,7 +820,7 @@ begin
   select coalesce(pr.full_name, 'user') into v_name from public.profiles pr where pr.id = auth.uid();
   insert into public.att_month_subs (hub_id, zone_id, month, version_no, day_versions, submitted_by, submitted_by_name)
   values (p_hub, v_zone, v_m, v_no, v_scan -> 'days', auth.uid(), v_name) returning id into v_id;
-  for z in select * from private.wf_zone_managers(v_zone) loop
+  for z in select * from private.wf_role_zone_managers(v_zone) loop
     perform private.notify(z, 'মাসের হাজিরা খাতা জমা হয়েছে', coalesce(private.hub_name(p_hub), '') || ' · ' || to_char(v_m, 'MM-YYYY') || ' · সংস্করণ ' || v_no,
       '/app/attendance?view=hub&tab=month&hub=' || p_hub::text, 'attendance_gap');
   end loop;
@@ -823,8 +839,7 @@ begin
     raise exception 'Only the zonal manager sends a register for checking — শুধু জোনাল ম্যানেজার যাচাইয়ে পাঠাতে পারেন' using errcode = '42501'; end if;
   select max(version_no) into v_latest from public.att_month_subs where hub_id = s.hub_id and month = s.month;
   if s.version_no <> v_latest then raise exception 'A newer monthly version exists — মাসের খাতার নতুন সংস্করণ আছে' using errcode = 'P0001'; end if;
-  for r in select e.id, e.profile_id from public.employees e join public.positions po on po.id = e.position_id
-            where e.hub_id = s.hub_id and e.archived_at is null and e.status = 'active' and e.profile_id is not null and po.code::text in ('MANAGER', 'ASSISTANTMAN') loop
+  for r in select e.id, e.profile_id from private.att_hub_managers(s.hub_id) e loop
     insert into public.att_month_checks (sub_id, profile_id, employee_id, sent_by) values (s.id, r.profile_id, r.id, auth.uid()) on conflict (sub_id, profile_id) do nothing;
     if found then
       n := n + 1;
@@ -855,21 +870,20 @@ begin
   if v_reason is null or length(v_reason) < 3 then raise exception 'Write what must be corrected — কী সংশোধন করতে হবে লিখুন' using errcode = '22023'; end if;
   update public.att_month_checks set returned_at = now(), return_reason = v_reason, ok_at = null where sub_id = p_sub and profile_id = auth.uid();
   if not found then raise exception 'This register was not sent to you — খাতাটি আপনাকে যাচাইয়ে পাঠানো হয়নি' using errcode = '42501'; end if;
-  for z in select * from private.wf_zone_managers(s.zone_id) loop
+  for z in select * from private.wf_role_zone_managers(s.zone_id) loop
     perform private.notify(z, 'মাসের হাজিরা খাতায় সংশোধনের অনুরোধ', coalesce(private.hub_name(s.hub_id), '') || ' · ' || to_char(s.month, 'MM-YYYY') || ' · সংস্করণ ' || s.version_no || ' — ' || v_reason,
       '/app/attendance?view=hub&tab=month&hub=' || s.hub_id::text, 'attendance_gap');
   end loop;
 end $$;
 
 -- ---------------------------------------------------------------------
--- 7. The server job: when the Dhaka date has changed, submit the registers still open — only the complete ones (and end the reopenings whose time is over)
---    An empty or unfinished register is NOT submitted: it stays open (the hub manager may still write it), the hub's and the zone's managers are told once, and the job
---    looks again next minute. The server never turns a line into "unchecked" by itself.
+-- 7. The server job: when the Dhaka date has changed, submit the registers still open (and end the reopenings whose time is over)
 -- ---------------------------------------------------------------------
--- Returns how many registers it submitted. p_hub limits it to one hub (used when a reopening is ended by hand).
+-- Returns how many registers it submitted. A register that is empty or has an unfinished line is NOT submitted: it is held, and the hub's and
+-- the zone's managers are told (wf_auto_holds). p_hub limits it to one hub (used when a reopening is ended by hand).
 create or replace function private.att_day_autosubmit(p_hub uuid default null) returns integer
 language plpgsql security definer set search_path = '' as $$
-declare r record; v_n integer := 0; v jsonb; v_miss integer; v_det text;
+declare r record; v_n integer := 0; v jsonb; v_sheet uuid; v_total integer; v_gaps integer; v_names jsonb; v_held integer := 0;
 begin
   update public.att_reopen_windows set status = 'expired', closed_at = now() where status = 'open' and expires_at <= now() and (p_hub is null or hub_id = p_hub);
   for r in
@@ -880,21 +894,30 @@ begin
         select s.work_date from public.att_day_sheets s where s.hub_id = h.id and s.status = 'draft' and s.work_date < private.wf_today()) d
      where h.archived_at is null and h.status = 'active' and (p_hub is null or h.id = p_hub)
        and not exists (select 1 from public.att_day_sheets s where s.hub_id = h.id and s.work_date = d.work_date and s.status = 'submitted')
-       and d.work_date >= private.wf_auto_from()                                   -- before the start date (or no readable start date): never (setting workforce.auto_submit_from)
+       and d.work_date >= private.wf_auto_from()                                   -- before the start date: never (setting workforce.auto_submit_from)
        and exists (select 1 from private.att_sheet_people(h.id, d.work_date))
        and private.att_open_window(h.id, d.work_date) is null
        and now() >= private.wf_day_due(h.zone_id, d.work_date)
      order by d.work_date, h.id loop
-    begin
-      v := private.att_sheet_close(r.hub_id, r.work_date, null, 'auto', true, null);
-    exception when sqlstate '22023' then
-      -- empty or unfinished: the failed close is undone, the register stays as the manager left it (open) and the managers are told, once
-      get stacked diagnostics v_det = pg_exception_detail;
-      v_miss := coalesce(nullif(v_det, '')::integer, 0);
-      if private.wf_hold('day', r.hub_id, r.zone_id, r.work_date, v_miss) then perform private.wf_hold_notify('day', r.hub_id, r.zone_id, r.work_date, v_miss); end if;
-      continue;
-    end;
-    if v is not null then v_n := v_n + 1; end if;
+    perform pg_advisory_xact_lock(hashtextextended('att_sheet:' || r.hub_id::text || r.work_date::text, 0));
+    select id into v_sheet from public.att_day_sheets where hub_id = r.hub_id and work_date = r.work_date;
+    if v_sheet is null then
+      insert into public.att_day_sheets (hub_id, zone_id, work_date) values (r.hub_id, r.zone_id, r.work_date) on conflict (hub_id, work_date) do nothing;
+      select id into v_sheet from public.att_day_sheets where hub_id = r.hub_id and work_date = r.work_date;
+    end if;
+    perform private.att_sheet_prepare(v_sheet, r.hub_id, r.work_date, null);
+    select count(*), count(*) filter (where private.att_line_gap(l) is not null),
+           coalesce(jsonb_agg(jsonb_build_object('name', e.full_name, 'why', private.att_line_gap(l)) order by e.full_name) filter (where private.att_line_gap(l) is not null), '[]'::jsonb)
+      into v_total, v_gaps, v_names
+      from public.att_day_lines l join public.employees e on e.id = l.employee_id where l.sheet_id = v_sheet;
+    if v_gaps > 0 then
+      -- empty or unfinished: not submitted. The hub's and the zone's managers are told once; the register stays open for the hub manager.
+      perform private.wf_hold_set('daily', r.hub_id, r.work_date, case when v_gaps = v_total then 'empty' else 'incomplete' end, v_total, v_gaps, v_names);
+      v_held := v_held + 1;
+    else
+      v := private.att_sheet_close(r.hub_id, r.work_date, null, 'auto', null);
+      if v is not null then v_n := v_n + 1; end if;
+    end if;
   end loop;
   return v_n;
 end $$;
@@ -921,7 +944,7 @@ select s.id, s.hub_id, s.work_date, 1, 'manager', coalesce((select jsonb_agg(to_
 -- 9. Grants
 -- ---------------------------------------------------------------------
 revoke all on function private.wf_day_due(uuid, date), private.att_open_window(uuid, date), private.att_edit_open(uuid, date), private.att_leave_state(uuid, date),
-  private.att_line_gap(public.att_day_lines), private.att_sheet_close(uuid, date, uuid, text, boolean, uuid), private.att_reopen_do(uuid, date, date, integer, text, uuid),
+  private.att_line_gap(public.att_day_lines), private.att_sheet_prepare(uuid, uuid, date, uuid), private.att_sheet_close(uuid, date, uuid, text, uuid), private.att_reopen_do(uuid, date, date, integer, text, uuid),
   private.att_month_scan(uuid, date), private.att_day_autosubmit(uuid) from public, anon, authenticated;
 revoke all on function public.att_sheet_submit(uuid, date, jsonb), public.att_sheet_unlock(uuid, text), public.att_sheet_send(uuid), public.att_sheet_check_ok(uuid),
   public.att_sheet_check_return(uuid, text), public.att_sheet_version_get(uuid, integer), public.att_reopen_open(uuid, date, date, integer, text),

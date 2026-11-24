@@ -190,7 +190,7 @@ create trigger sorting_driver_reports_swe after insert or update on public.sorti
 -- ---------------------------------------------------------------------
 create or replace function private.swe_backfill(p_days integer default 120) returns integer
 language plpgsql security definer set search_path = '' as $$
-declare v_from date := current_date - greatest(p_days, 1); v_before integer; x record;
+declare v_from date := private.wf_today() - greatest(p_days, 1); v_before integer; x record;
 begin
   select count(*) into v_before from public.staff_work_events;
   for x in select s.*, l.employee_id as emp, l.state, l.leave_ref from public.wf_morning_subs s join public.wf_morning_lines l on l.sub_id = s.id where s.status in ('submitted', 'returned') and s.work_date >= v_from loop
@@ -307,7 +307,7 @@ begin
         from public.leave_requests l where l.employee_id = p_employee and l.to_date >= v_from and l.from_date <= v_to), '[]'::jsonb) end,
     'routes', coalesce((select jsonb_agg(jsonb_build_object('route_id', r.id, 'code', r.code, 'name', r.name, 'hub', private.hub_name(r.hub_id), 'from', rr.effective_from, 'to', rr.effective_to) order by r.code)
         from public.rider_routes rr join public.hub_routes r on r.id = rr.route_id
-       where rr.employee_id = p_employee and (rr.effective_to is null or rr.effective_to >= current_date) and r.archived_at is null
+       where rr.employee_id = p_employee and (rr.effective_to is null or rr.effective_to >= private.wf_today()) and r.archived_at is null
          and (v_self or private.has_permission('hr.employee.view', r.zone_id, r.hub_id))), '[]'::jsonb),
     'backup', coalesce((select sl.helper from public.route_staff_load sl where sl.employee_id = p_employee), false),
     'modules', v_mods, 'events', v_events,

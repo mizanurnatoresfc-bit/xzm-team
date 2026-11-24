@@ -27,7 +27,7 @@ export function ZoneFinal({ zone, onOpenHub }: { zone: string; onOpenHub: (hubId
     { key: 'staff', label: L('স্টাফ', 'Staff'), num: true, text: h => h.staff, cell: h => n(h.staff) },
     { key: 'given', label: L('নিজে দিয়েছেন', 'Gave themself'), num: true, text: h => h.given, cell: h => v(h.given) },
     { key: 'st', label: L('ফাইনাল খাতা', 'Final register'), sort: true, text: h => h.status === 'submitted' ? 'সাবমিট' : h.status === 'draft' ? 'খসড়া' : 'শুরু হয়নি',
-      cell: h => h.status === 'submitted' ? <Badge tone="ok">{h.mode === 'auto' ? L('সার্ভার সাবমিট', 'Server-submitted') : L('সাবমিট', 'Submitted')} · {fmtTime(h.submitted_at!, lang)} · {L('সং', 'v')}{n(h.version ?? 1)}</Badge>
+      cell: h => h.held ? <Badge tone="bad">{L('জমা আটকে আছে', 'Held — not submitted')}</Badge> : h.status === 'submitted' ? <Badge tone="ok">{h.mode === 'auto' ? L('সার্ভার সাবমিট', 'Server-submitted') : L('সাবমিট', 'Submitted')} · {fmtTime(h.submitted_at!, lang)} · {L('সং', 'v')}{n(h.version ?? 1)}</Badge>
         : h.status === 'draft' ? <Badge tone="warn">{L('খসড়া', 'Draft')}</Badge> : <Badge tone="bad">{L('শুরু হয়নি', 'Not started')}</Badge> },
     { key: 'p', label: L('উপস্থিত', 'Present'), num: true, text: h => h.present, cell: h => v(h.present) },
     { key: 'l', label: L('দেরি', 'Late'), num: true, text: h => h.late, cell: h => v(h.late, 'warn') },

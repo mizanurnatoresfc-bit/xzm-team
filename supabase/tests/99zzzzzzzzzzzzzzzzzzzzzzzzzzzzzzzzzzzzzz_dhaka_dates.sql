@@ -67,9 +67,9 @@ insert into public.wf_morning_subs (hub_id, zone_id, work_date, revision, status
 insert into public.wf_morning_lines (sub_id, employee_id, state)
   select s.id, tests.id('b'), 'present' from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2');
 insert into public.att_day_sheets (hub_id, zone_id, work_date)
-  select tests.id('hub_a2'), tests.id('zone_a'), d from (values (:'y3'::date), (:'y'::date), (:'t'::date)) x(d);
+  select tests.id('hub_a2'), tests.id('zone_a'), d from (values (:'y3'::date), (:'y'::date), (:'t'::date)) x(d) on conflict (hub_id, work_date) do nothing;
 insert into public.att_day_lines (sheet_id, employee_id, final_status, unauthorized)
-  select s.id, tests.id('b'), 'absent', true from public.att_day_sheets s where s.hub_id = tests.id('hub_a2');
+  select s.id, tests.id('b'), 'absent', true from public.att_day_sheets s where s.hub_id = tests.id('hub_a2') and s.work_date in (:'y3'::date, :'y'::date, :'t'::date) on conflict (sheet_id, employee_id) do update set final_status = 'absent', unauthorized = true;
 set local timezone to 'Pacific/Pago_Pago';
 select private.wf_morning_autosubmit();
 select private.att_day_autosubmit();
@@ -87,9 +87,9 @@ insert into public.wf_morning_subs (hub_id, zone_id, work_date, revision, status
 insert into public.wf_morning_lines (sub_id, employee_id, state)
   select s.id, tests.id('c'), 'present' from public.wf_morning_subs s where s.hub_id = tests.id('hub_b1');
 insert into public.att_day_sheets (hub_id, zone_id, work_date)
-  select tests.id('hub_b1'), tests.id('zone_b'), d from (values (:'y3'::date), (:'y'::date), (:'t'::date)) x(d);
+  select tests.id('hub_b1'), tests.id('zone_b'), d from (values (:'y3'::date), (:'y'::date), (:'t'::date)) x(d) on conflict (hub_id, work_date) do nothing;
 insert into public.att_day_lines (sheet_id, employee_id, final_status, unauthorized)
-  select s.id, tests.id('c'), 'absent', true from public.att_day_sheets s where s.hub_id = tests.id('hub_b1');
+  select s.id, tests.id('c'), 'absent', true from public.att_day_sheets s where s.hub_id = tests.id('hub_b1') and s.work_date in (:'y3'::date, :'y'::date, :'t'::date) on conflict (sheet_id, employee_id) do update set final_status = 'absent', unauthorized = true;
 set local timezone to 'Pacific/Kiritimati';
 select private.wf_morning_autosubmit();
 select private.att_day_autosubmit();

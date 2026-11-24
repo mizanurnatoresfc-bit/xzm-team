@@ -16,7 +16,7 @@ select public.route_riders_set(tests.id('route1'), array[tests.id('r1'), tests.i
 select tests.logout();
 -- r2 has approved leave today (a leave request)
 insert into public.leave_requests (employee_id, leave_type_id, from_date, to_date, reason, status)
-  select tests.id('r2'), id, (now() at time zone 'Asia/Dhaka')::date, (now() at time zone 'Asia/Dhaka')::date, 'family', 'approved' from public.leave_types where code = 'casual';
+  select tests.id('r2'), id, current_date, current_date, 'family', 'approved' from public.leave_types where code = 'casual';
 
 -- ---------------------------------------------------------------- the form
 select tests.login(tests.id('hub_mgr'));
@@ -29,8 +29,8 @@ select tests.ok((select x ->> 'state' = 'leave' and x -> 'leave' ->> 'source' = 
                    from public.wf_morning_get(tests.id('hub_a1')) g, jsonb_array_elements(g -> 'people') x where x ->> 'id' = tests.id('r2')::text),
   'approved leave sits in by itself, with its reference');
 select tests.throws(format($$select public.wf_morning_get(%L)$$, tests.id('hub_a2')), 'not the form of another hub', '42501');
-select tests.throws(format($$select public.wf_morning_get(%L, (now() at time zone 'Asia/Dhaka')::date + 1)$$, tests.id('hub_a1')), 'not a day in the future', '22023');
-select tests.throws(format($$select public.wf_morning_get(%L, (now() at time zone 'Asia/Dhaka')::date - 5)$$, tests.id('hub_a1')), 'nor a day long gone', '22023');
+select tests.throws(format($$select public.wf_morning_get(%L, current_date + 1)$$, tests.id('hub_a1')), 'not a day in the future', '22023');
+select tests.throws(format($$select public.wf_morning_get(%L, current_date - 5)$$, tests.id('hub_a1')), 'nor a day long gone', '22023');
 select tests.throws(format($$select public.wf_morning_save(%L, null, %L::jsonb)$$, tests.id('hub_a1'), '[{"employee_id":"' || tests.id('r1') || '","state":"leave"}]'),
   'leave cannot be typed by hand', '22023');
 select tests.throws(format($$select public.wf_morning_save(%L, null, %L::jsonb)$$, tests.id('hub_a1'), '[{"employee_id":"' || tests.id('other') || '","state":"present"}]'),
@@ -51,10 +51,10 @@ select tests.ok((select (s ->> 'revision')::int = 1 and s ->> 'mode' = 'manager'
   'submitted by the manager as revision one');
 select tests.ok((select (s ->> 'already')::boolean from public.wf_morning_submit(tests.id('hub_a1'), null, '[]') s), 'a second submit is the same submission, nothing changes');
 select tests.logout();
-select tests.ok((select count(*) = 1 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = (now() at time zone 'Asia/Dhaka')::date), 'one submission for the hub and day');
+select tests.ok((select count(*) = 1 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = current_date), 'one submission for the hub and day');
 select tests.ok((select string_agg(e.employee_code || ':' || l.state, ',' order by e.employee_code) = '881:absent,882:leave,883:present,884:unknown'
                    from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id join public.employees e on e.id = l.employee_id
-                  where s.hub_id = tests.id('hub_a1') and s.work_date = (now() at time zone 'Asia/Dhaka')::date and e.employee_code ~ '^88[0-9]$'),
+                  where s.hub_id = tests.id('hub_a1') and s.work_date = current_date and e.employee_code ~ '^88[0-9]$'),
   'present, absent, leave from the record and unchecked for who was left blank');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select g ->> 'status' = 'submitted' and not (g -> 'can' ->> 'fill')::boolean and g -> 'people' = 'null'::jsonb and g -> 'receipt' ->> 'mode' = 'manager'
@@ -78,13 +78,13 @@ select tests.ok((select h ->> 'state' = 'none' from public.wf_morning_zone(tests
 select tests.ok((select jsonb_array_length(z -> 'hubs') = 2 from public.wf_morning_zone(null) z), 'the zonal manager sees the hubs of the zone only (two)');
 
 -- ---------------------------------------------------------------- the plan stands on the morning input
-select tests.ok((select p ->> 'state' = 'absent' and p ->> 'source' = 'morning' from (select private.route_presence(tests.id('r1'), (now() at time zone 'Asia/Dhaka')::date) p) q),
+select tests.ok((select p ->> 'state' = 'absent' and p ->> 'source' = 'morning' from (select private.route_presence(tests.id('r1'), current_date) p) q),
   'the route plan reads presence from the morning input');
 select tests.logout();
-select tests.ok((select p ->> 'state' = 'off' and p ->> 'source' = 'morning' from (select private.route_presence(tests.id('r2'), (now() at time zone 'Asia/Dhaka')::date) p) q), 'leave reads as off');
-select tests.ok((select p ->> 'state' is null from (select private.route_presence(tests.id('r3'), (now() at time zone 'Asia/Dhaka')::date) p) q), 'unchecked reads as not known');
+select tests.ok((select p ->> 'state' = 'off' and p ->> 'source' = 'morning' from (select private.route_presence(tests.id('r2'), current_date) p) q), 'leave reads as off');
+select tests.ok((select p ->> 'state' is null from (select private.route_presence(tests.id('r3'), current_date) p) q), 'unchecked reads as not known');
 select tests.login(tests.id('hub_mgr'));
-insert into tests.ids select 'plan', public.route_plan_save(tests.id('hub_a1'), (now() at time zone 'Asia/Dhaka')::date, jsonb_build_object('arrived', 100, 'people', jsonb_build_array(
+insert into tests.ids select 'plan', public.route_plan_save(tests.id('hub_a1'), current_date, jsonb_build_object('arrived', 100, 'people', jsonb_build_array(
   jsonb_build_object('employee_id', tests.id('r1'), 'parcels', 40, 'detail', jsonb_build_array(jsonb_build_object('route_id', tests.id('route1'), 'parcels', 40))),
   jsonb_build_object('employee_id', tests.id('cc'), 'parcels', 50))), true);
 select tests.ok((select (m -> 'morning' ->> 'revision')::int = 1 and not (m ->> 'plan_stale')::boolean and (m ->> 'required')::boolean from public.route_plan_morning(tests.id('hub_a1')) m),
@@ -102,11 +102,11 @@ select tests.throws(format($$select public.wf_morning_return(%L, null, 'please c
 select tests.login(tests.id('zonal_a'));
 select tests.ok(public.wf_morning_return(tests.id('hub_a1'), null, 'Route Rider is here, please check') = 2, 'the zonal manager sends it back: revision two opens');
 select tests.logout();
-select tests.ok((select status = 'returned' and return_reason like 'Route Rider%' from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = (now() at time zone 'Asia/Dhaka')::date and revision = 1)
-            and (select status = 'open' from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = (now() at time zone 'Asia/Dhaka')::date and revision = 2)
-            and (select count(*) = 4 from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.id = (select id from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = (now() at time zone 'Asia/Dhaka')::date and revision = 2)
+select tests.ok((select status = 'returned' and return_reason like 'Route Rider%' from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = current_date and revision = 1)
+            and (select status = 'open' from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = current_date and revision = 2)
+            and (select count(*) = 4 from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.id = (select id from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = current_date and revision = 2)
                    and l.employee_id in (tests.id('r1'), tests.id('r2'), tests.id('cc'), tests.id('r3'))), 'the old revision is kept; the new one starts from the same lines');
-select tests.ok((select p ->> 'state' is null or p ->> 'source' <> 'morning' from (select private.route_presence(tests.id('r1'), (now() at time zone 'Asia/Dhaka')::date) p) q), 'while it is open the plan no longer stands on it');
+select tests.ok((select p ->> 'state' is null or p ->> 'source' <> 'morning' from (select private.route_presence(tests.id('r1'), current_date) p) q), 'while it is open the plan no longer stands on it');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select g ->> 'status' = 'open' and (g -> 'can' ->> 'fill')::boolean and g -> 'returned' ->> 'reason' like 'Route Rider%' and (g ->> 'revision')::int = 2
                    from public.wf_morning_get(tests.id('hub_a1')) g), 'the hub manager opens the returned form with the reason');
@@ -155,7 +155,7 @@ select tests.ok((select (m ->> 'parcels')::int = 40 and (m ->> 'version')::int =
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select (p ->> 'reopened')::boolean from public.route_plan_published(tests.id('hub_a1')) p), 'the published view says it is being changed');
 select tests.ok((m ->> 'published_stale')::boolean, 'and that the morning input changed after it was published') from public.route_plan_morning(tests.id('hub_a1')) m;
-select public.route_plan_save(tests.id('hub_a1'), (now() at time zone 'Asia/Dhaka')::date, jsonb_build_object('people', jsonb_build_array(
+select public.route_plan_save(tests.id('hub_a1'), current_date, jsonb_build_object('people', jsonb_build_array(
   jsonb_build_object('employee_id', tests.id('r3'), 'parcels', 40), jsonb_build_object('employee_id', tests.id('cc'), 'parcels', 50))), true);
 select tests.login(tests.id('zonal_a'));
 select public.route_plan_decide(tests.id('plan'), true);
@@ -182,32 +182,36 @@ select tests.ok((select p ->> 'morning_cutoff' = '00:00' and (p ->> 'morning_ext
                    from public.wf_att_policy_save(tests.id('zone_a'), '{"morning_cutoff":"00:00","morning_extra":0}') p), 'the zone''s times are saved');
 select tests.ok((select (public.wf_att_policy_get(tests.id('zone_a')) ->> 'morning_cutoff') = '00:00'), 'and read back');
 select tests.logout();
--- the cut-off (00:00 + 0) has passed. Hub A2 typed nothing: the job does not submit an empty form, it leaves it open (details: the auto_submit_hold test)
-select tests.ok(private.wf_morning_autosubmit() = 0, 'the job does not submit an empty form');
-select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date = (now() at time zone 'Asia/Dhaka')::date and status = 'submitted')
-            and exists (select 1 from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a2') and work_date = (now() at time zone 'Asia/Dhaka')::date and released_at is null), 'it stays open and is on the list of held forms');
--- once the one person of hub A2 has an answer, the next run submits it
-insert into public.wf_morning_subs (hub_id, zone_id, work_date, revision, status) values (tests.id('hub_a2'), tests.id('zone_a'), (now() at time zone 'Asia/Dhaka')::date, 1, 'open');
-insert into public.wf_morning_lines (sub_id, employee_id, state) select id, tests.id('other'), 'present' from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date = (now() at time zone 'Asia/Dhaka')::date;
-select tests.ok(private.wf_morning_autosubmit() >= 1, 'the job closes the open mornings whose time has passed and that are complete');
-select tests.ok((select s.submit_mode = 'auto' and s.submitted_by is null and s.revision = 1 from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = (now() at time zone 'Asia/Dhaka')::date)
-            and (select l.state = 'present' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a2') and s.work_date = (now() at time zone 'Asia/Dhaka')::date and l.employee_id = tests.id('other'))
-            and exists (select 1 from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a2') and released_at is not null),
-  'what was typed is submitted by the server, and the hold is released');
+-- the cut-off (00:00 + 0) has passed. Hub A2 typed nothing: the job does NOT submit an empty morning input, it holds it and tells the managers once
+select tests.ok(private.wf_morning_autosubmit() = 0, 'the job does not submit an empty morning input');
+select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date = current_date and status = 'submitted')
+            and (select reason = 'empty' and resolved_at is null and gap_count = 1 from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a2') and work_date = current_date),
+  'it is held: the reason is "empty" and one person is unmarked');
+select tests.ok((select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A2 · ' || to_char((now() at time zone 'Asia/Dhaka')::date, 'DD-MM-YYYY') || '%'), 'the zonal manager is told');
+select tests.ok(private.wf_morning_autosubmit() = 0 and (select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A2 · ' || to_char((now() at time zone 'Asia/Dhaka')::date, 'DD-MM-YYYY') || '%'),
+  'and only once, however often the job runs');
+-- once everybody is marked, the next run submits it by itself
+select tests.login(tests.id('super'));
+select public.wf_morning_save(tests.id('hub_a2'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('other'), 'state', 'present')));
+select tests.logout();
+select tests.ok(private.wf_morning_autosubmit() >= 1, 'a complete morning input is submitted by the server at the cut-off');
+select tests.ok((select s.submit_mode = 'auto' and s.submitted_by is null and s.revision = 1 from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date)
+            and (select l.state = 'present' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a2') and s.work_date = current_date and l.employee_id = tests.id('other'))
+            and (select resolved_at is not null from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a2') and work_date = current_date), 'submitted by the server, and the hold is over');
 select tests.ok(private.wf_morning_autosubmit() = 0, 'running the job again changes nothing');
-select tests.ok((select count(*) = 3 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = (now() at time zone 'Asia/Dhaka')::date), 'a morning that was sent back (and submitted by hand) is not touched by the job');
+select tests.ok((select count(*) = 3 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = current_date), 'a morning that was sent back (and submitted by hand) is not touched by the job');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select g ->> 'status' = 'submitted' from public.wf_morning_get(tests.id('hub_a1')) g), 'hub A1 is still submitted');
 select tests.logout();
 -- a manual submit that arrives after the job is the same submission
-select tests.ok(private.wf_morning_close(tests.id('hub_a2'), (now() at time zone 'Asia/Dhaka')::date, null, 'manager', null) is null, 'a manual close after the job is a no-op (one final submission)');
-select tests.ok((select count(*) = 1 from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date = (now() at time zone 'Asia/Dhaka')::date), 'one submission for the hub and day');
+select tests.ok(private.wf_morning_close(tests.id('hub_a2'), current_date, null, 'manager', null) is null, 'a manual close after the job is a no-op (one final submission)');
+select tests.ok((select count(*) = 1 from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date = current_date), 'one submission for the hub and day');
 -- ---------------------------------------------------------------- plans approved before this migration keep showing to their riders
 select tests.logout();
 insert into public.route_day_plans (hub_id, zone_id, plan_date, arrived, status, decided_at, decided_by_name)
-  values (tests.id('hub_a2'), tests.id('zone_a'), (now() at time zone 'Asia/Dhaka')::date + 1, 10, 'approved', now(), 'Old Approver') returning id \gset old_
+  values (tests.id('hub_a2'), tests.id('zone_a'), current_date + 1, 10, 'approved', now(), 'Old Approver') returning id \gset old_
 insert into tests.ids values ('oldplan', :'old_id');
-insert into public.route_day_riders (plan_id, hub_id, zone_id, plan_date, employee_id, parcels) values (tests.id('oldplan'), tests.id('hub_a2'), tests.id('zone_a'), (now() at time zone 'Asia/Dhaka')::date + 1, tests.id('other'), 10);
+insert into public.route_day_riders (plan_id, hub_id, zone_id, plan_date, employee_id, parcels) values (tests.id('oldplan'), tests.id('hub_a2'), tests.id('zone_a'), current_date + 1, tests.id('other'), 10);
 select tests.ok(private.route_plan_backfill() >= 1, 'an old approved plan is given a silent version one');
 select tests.ok((select published_version = 1 from public.route_day_plans where id = tests.id('oldplan')) and (select count(*) = 1 from public.route_plan_versions where plan_id = tests.id('oldplan'))
             and (select count(*) = 1 and bool_and(parcels = 10) from public.route_plan_recipients where plan_id = tests.id('oldplan')), 'with its rider as recipient');
