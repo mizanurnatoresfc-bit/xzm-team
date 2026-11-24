@@ -1042,6 +1042,22 @@ try {
       check(await attLinks() > 0, `${size}: a hub manager gets an attendance link in the navigation`)
       await page.goto(`${BASE}/app/training`); await settle()
       check(await noticeOf() === 1, `${size}: a hub manager cannot open the zonal-only Training page by its address`)
+      // phone tabs: a deep link lights its own tab (a profile opened from the staff list -> the team tab, a hub sub-page -> the hub tab)
+      if (phone) {
+        const lit = async () => page.locator('.bottom-nav a.bn-item.on').evaluateAll(a => a.map(x => x.getAttribute('href')))
+        await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head, .center-screen', { timeout: 10000 }).catch(() => {}); await page.waitForTimeout(300)
+        check(JSON.stringify(await lit()) === '["/app/staff/list"]', `${size}: a person's profile lights the team tab (${await lit()})`)
+        await page.goto(`${BASE}/app/attendance?view=hub&tab=month`); await settle()
+        check(JSON.stringify(await lit()) === '["/app/attendance?view=hub"]', `${size}: the hub part of attendance lights the hub tab (${await lit()})`)
+      }
+      // the quick action "হাজিরা দিন" leads to the hub part, so it is offered only with a hub attendance grant (create alone would land on the own page)
+      { const quickLinks = async () => { await page.goto(`${BASE}/app`); await settle()
+          await page.locator(phone ? '.bn-plus' : '.quick-btn').click().catch(() => {}); await page.waitForSelector('.quick-grid', { timeout: 5000 }).catch(() => {})
+          const n = await page.locator('.quick-grid a[href^="/app/attendance"]').count(); await page.keyboard.press('Escape'); return n }
+        check(await quickLinks() === 1, `${size}: a hub manager is offered the attendance quick action`)
+        permsNow = ['hr.attendance.create', 'hr.employee.view', 'org.hub.view']
+        check(await quickLinks() === 0, `${size}: attendance create alone is not offered a quick action that leads to the own page`)
+        permsNow = ['hr.employee.view', 'hr.attendance.view', 'hr.attendance.create', 'org.hub.view'] }
       // pickup / employee grants alone: no Hub tab that leads nowhere, yet the own attendance page still opens
       permsNow = ['ops.pickup.view', 'hr.employee.view']
       await page.goto(`${BASE}/app`); await settle()

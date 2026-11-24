@@ -1,6 +1,6 @@
 import { askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
-import { inMenu } from '../../lib/menu'
+import { HUB_SECTION_PERMS, hasPageAccess, linkAllowed } from '../../lib/menu'
 import { HubLogins } from './HubLogins'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -20,13 +20,13 @@ import { useOrg } from '../hr/common'
 export type HubSection = 'pickup' | 'tasks' | 'ops' | 'accounts' | 'logins' | 'routes'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
-export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
-  { key: 'pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
-  { key: 'tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
-  { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
-  { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
-  { key: 'logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
-  { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
+export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: readonly string[] }> = [
+  { key: 'pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: HUB_SECTION_PERMS.pickup },
+  { key: 'tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: HUB_SECTION_PERMS.tasks },
+  { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: HUB_SECTION_PERMS.ops },
+  { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: HUB_SECTION_PERMS.accounts },
+  { key: 'logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: HUB_SECTION_PERMS.logins },
+  { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: HUB_SECTION_PERMS.routes },
 ]
 
 const HUB_KEY = 'xzm_hub'
@@ -50,11 +50,11 @@ export function HubManagement() {
   if (section === 'attendance' || section === 'late' || section === 'days') return <Navigate to="/app/attendance?view=hub" replace />
   const sec = HUB_SECTIONS.find(s => s.key === section)
   if (!sec) return <Navigate to="/app/attendance?view=hub" replace />
-  const allowed = sec.perms.some(p => can(p))
+  const allowed = sec.perms.some(p => can(p)) && hasPageAccess(`/app/hub/${sec.key}`, can)
   const current = hubs.find(h => h.id === hub) ?? null
   // "আজকের হিসাব" is off the strip (see HIDDEN_PAGES in AppShell); it still opens by address.
   const offStrip = (k: HubSection) => k === 'accounts' && section !== k
-  const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`) && !offStrip(s.key))
+  const tabs = HUB_SECTIONS.filter(s => linkAllowed(`/app/hub/${s.key}`, { can, menu }, s.perms) && !offStrip(s.key))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
     <section className="da-filters panel no-print hub-top">

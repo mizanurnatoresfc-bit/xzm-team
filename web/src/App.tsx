@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -177,7 +177,6 @@ function OldRolePage() {
   if (!advancedAccessHere()) return id ? <RoleEditor /> : <Roles />
   return <Navigate to={id ? `/app/access/role/${id}` : '/app/access/roles'} replace />
 }
-/** A page open to anyone who holds at least one of the permissions (ProtectedRoute takes a single one). The database re-checks every call. */
 /** An old attendance address (/app/workforce/hub, /zone, /attendance) -> the one attendance page, keeping the rest of the address (hub, date, give=today …). */
 function LegacyAttendanceRedirect({ view }: { view: 'me' | 'hub' | 'zone' }) {
   const q = new URLSearchParams(useLocation().search)
@@ -186,12 +185,6 @@ function LegacyAttendanceRedirect({ view }: { view: 'me' | 'hub' | 'zone' }) {
   const ok = view === 'hub' ? ['final', 'month', 'apps', 'ops'] : view === 'zone' ? ['final', 'ops', 'setting'] : []
   if (tab && !ok.includes(tab)) { if (view === 'hub' && tab === 'approve') q.set('tab', 'final'); else q.delete('tab') }
   return <Navigate to={`/app/attendance?${q.toString()}`} replace />
-}
-
-function AnyOf({ perms }: { perms: string[] }) {
-  const { can } = useAuth()
-  return perms.some(can) ? <Outlet /> : <main className="center-screen">
-    <section className="notice"><h1>অনুমতি নেই</h1><p>এই পেজ ব্যবহারের প্রয়োজনীয় অনুমতি আপনার অ্যাকাউন্টে নেই।</p></section></main>
 }
 
 /** The home page: a staff member gets the staff panel, everyone else the dashboard. */
@@ -226,19 +219,11 @@ export default function App() {
       <Route path="/app/zonal/hub-ops/hub/:hubId" element={<HubOpsPanel />} />
       <Route path="/app/zonal/files" element={<ZonalFiles />} />
       {/* Staff lifecycle: the hub manager asks, the zonal manager decides, every approval leaves a file */}
-      <Route element={<AnyOf perms={['hr.request.create']} />}>
-        <Route path="/app/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
-      </Route>
-      <Route element={<AnyOf perms={['hr.request.approve']} />}>
-        <Route path="/app/zonal/requests" element={<ZonalRequests />} />
-        <Route path="/app/zonal/hr-records" element={<HrRecords />} />
-      </Route>
-      <Route element={<AnyOf perms={['ops.route_setting.view', 'ops.route_setting.edit']} />}>
-        <Route path="/app/zonal/routes" element={<RouteSettings />} />
-      </Route>
-      <Route element={<AnyOf perms={['ops.route_plan.view']} />}>
-        <Route path="/app/routes/plan" element={<RoutePlanPage />} />
-      </Route>
+      <Route path="/app/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/zonal/requests" element={<ZonalRequests />} />
+      <Route path="/app/zonal/hr-records" element={<HrRecords />} />
+      <Route path="/app/zonal/routes" element={<RouteSettings />} />
+      <Route path="/app/routes/plan" element={<RoutePlanPage />} />
       <Route path="/app/manpower" element={<Manpower />} />
       <Route path="/app/hub" element={<Navigate to="/app/attendance?view=hub" replace />} />
       <Route path="/app/hub/team" element={<Navigate to="/app/staff/list" replace />} />
@@ -287,48 +272,24 @@ export default function App() {
       <Route path="/app/workforce/zone" element={<LegacyAttendanceRedirect view="zone" />} />
       {/* My Workforce: the two people lists (people I brought, people in my hand) */}
       <Route path="/app/workforce/:tab" element={<MyWorkforce />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.user.view" />}>
+      {/* What each of these needs is in lib/navAccess.ts (pagePermissions): the menus and these routes read the same table. */}
       <Route path="/app/users" element={<Users />} />
       <Route path="/app/users/:id" element={<UserDetail />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="hr.referral.view" />}>
       <Route path="/app/hr/referrals" element={<Referrals />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="hr.import.create" />}>
       <Route path="/app/hr/import" element={<ImportEmployees />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.role.view" />}>
       <Route path="/app/roles" element={<OldRolePage />} />
       <Route path="/app/roles/:id" element={<OldRolePage />} />
       <Route path="/app/access" element={<AccessPage><AccessCenter /></AccessPage>} />
       <Route path="/app/access/role/:id" element={<AccessPage><RoleBuilder /></AccessPage>} />
       <Route path="/app/access/user/:id" element={<AccessPage><UserAccess /></AccessPage>} />
       <Route path="/app/access/:section" element={<AccessPage><AccessCenter /></AccessPage>} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.role.edit" />}>
       <Route path="/app/role-dashboards" element={<RoleDashboards />} />
-    </Route>
-    {/* Nodi AI and branding open by the same permission their menu links use (not the role-page permission). */}
-    <Route element={<ProtectedRoute />}>
-      <Route element={<AnyOf perms={['nodi.assistant.view', 'nodi.settings.configure']} />}>
-        <Route path="/app/nodi/chat" element={<NodiChat />} />
-      </Route>
-    </Route>
-    <Route element={<ProtectedRoute permission="nodi.settings.configure" />}>
+      <Route path="/app/nodi/chat" element={<NodiChat />} />
       <Route path="/app/nodi" element={<NodiSettings />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.settings.configure" />}>
       <Route path="/app/branding" element={<BrandingSettings />} />
       <Route path="/app/menu" element={<MenuEditor />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="da.report.view" />}>
       <Route path="/app/accounts/reports" element={<AccountsReports />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="da.settings.configure" />}>
       <Route path="/app/accounts/settings" element={<AccountsSettings />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="system.admin_portal.view" />}>
       <Route path="/secure-control" element={<Dashboard />} />
     </Route>
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />

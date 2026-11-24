@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { todayDhaka } from '../../lib/dailyAccounts'
+import { ATTENDANCE_HUB, ATTENDANCE_ZONE } from '../../lib/menu'
 import { usePrefs } from '../../lib/prefs'
 import { LIVE, useLiveLoad, wf, wfFriendly, type HubOverview, type Mark } from '../../lib/workforce'
 import { Field } from '../accounts/ui'
@@ -34,8 +35,8 @@ export function AttendancePage() {
   const { L } = usePrefs()
   const { can } = useAuth()
   const [sp, setSp] = useSearchParams()
-  const canHub = can('hr.attendance.view') || can('ops.staff_daily.view')
-  const canZone = can('zonal.dashboard.view')
+  const canHub = ATTENDANCE_HUB.some(can)   // the same lists the Hub tab and the quick action use (lib/navAccess.ts)
+  const canZone = ATTENDANCE_ZONE.some(can)
   const views = useMemo(() => [
     { key: 'me' as View, label: L('আমার হাজিরা', 'My attendance') },
     ...(canHub ? [{ key: 'hub' as View, label: L('হাব', 'Hub') }] : []),
