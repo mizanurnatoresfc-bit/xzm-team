@@ -314,7 +314,7 @@ create or replace function private.att_sheet_close(p_hub uuid, p_date date, p_by
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
   s public.att_day_sheets; ln record; v_rec uuid; v_bad text; v_asked integer := 0; v_written integer := 0; v_reasons text[]; v_r text; v_prof uuid;
-  v_hub text := private.hub_name(p_hub); v_name text; v_no integer; v_zone uuid := private.hub_zone(p_hub); v_left integer;
+  v_hub text := private.hub_name(p_hub); v_name text; v_no integer; v_zone uuid := private.hub_zone(p_hub); v_left integer; v_in timestamptz; v_self boolean := false;
 begin
   perform pg_advisory_xact_lock(hashtextextended('att_sheet:' || p_hub::text || p_date::text, 0));
   insert into public.att_day_sheets (hub_id, zone_id, work_date) values (p_hub, v_zone, p_date) on conflict (hub_id, work_date) do nothing;
@@ -329,20 +329,35 @@ begin
   if v_bad is not null then raise exception 'Some lines are not complete — কিছু সারি অসম্পূর্ণ: %', v_bad using errcode = '22023'; end if;
 
   perform set_config('app.wf_action', 'approved', true);
-  for ln in select x.*, e.profile_id, e.full_name from public.att_day_lines x join public.employees e on e.id = x.employee_id where x.sheet_id = s.id loop
+  for ln in select x.*, e.profile_id, e.full_name, e.status as emp_status from public.att_day_lines x join public.employees e on e.id = x.employee_id where x.sheet_id = s.id loop
     continue when ln.final_status in ('unchecked', 'pending_leave');          -- nothing goes on the register for a line nobody has checked
-    insert into public.attendance_records as r (employee_id, work_date, status, check_in, source, note, created_by, updated_by)
-    values (ln.employee_id, p_date, ln.final_status,
-            case when ln.late_time is not null then ((p_date + ln.late_time) at time zone 'Asia/Dhaka') when ln.final_status in ('present', 'half_day') then null end,
-            'manual', coalesce(ln.note, 'দৈনিক ফাইনাল খাতা'), p_by, p_by)
-    on conflict (employee_id, work_date) do update set status = excluded.status, check_in = coalesce(excluded.check_in, case when excluded.status in ('present', 'late', 'half_day') then r.check_in end),
-      note = excluded.note, updated_by = p_by
+    -- The submitter's own line is not theirs to settle: it stays on the sheet as what they say, and the zonal manager makes it final (att_sheet_confirm_self).
+    if p_by is not null and ln.profile_id = p_by then
+      update public.att_day_lines set self_pending = true, confirmed_by = null, confirmed_at = null where id = ln.id;
+      v_self := true;
+      continue;
+    end if;
+    update public.att_day_lines set self_pending = false where id = ln.id and self_pending;
+    -- An existing register row is updated; a new one is written only for someone still active. A person who left after
+    -- the line was put on the register keeps the line, but gets no new register row (the register refuses leavers).
+    v_in := case when ln.late_time is not null then ((p_date + ln.late_time) at time zone 'Asia/Dhaka') end;
+    v_rec := null;
+    update public.attendance_records r
+       set status = ln.final_status, check_in = coalesce(v_in, case when ln.final_status in ('present', 'late', 'half_day') then r.check_in end),
+           note = coalesce(ln.note, 'দৈনিক ফাইনাল খাতা'), updated_by = p_by
+     where r.employee_id = ln.employee_id and r.work_date = p_date
     returning r.id into v_rec;
-    v_written := v_written + 1;
+    if v_rec is null and ln.emp_status = 'active' then
+      insert into public.attendance_records as r (employee_id, work_date, status, check_in, source, note, created_by, updated_by)
+      values (ln.employee_id, p_date, ln.final_status, v_in, 'manual', coalesce(ln.note, 'দৈনিক ফাইনাল খাতা'), p_by, p_by)
+      on conflict (employee_id, work_date) do update set status = excluded.status, note = excluded.note, updated_by = p_by
+      returning r.id into v_rec;
+    end if;
+    if v_rec is not null then v_written := v_written + 1; end if;
     update public.attendance_self_marks m set status = 'approved',
            decided_as = case when ln.final_status in ('present', 'late', 'half_day', 'absent') then ln.final_status end,
            decided_by = p_by, decided_at = now(), attendance_id = v_rec, decide_note = 'দৈনিক ফাইনাল খাতা'
-     where m.id = ln.self_mark_id and m.status = 'waiting';
+     where m.id = ln.self_mark_id and m.status = 'waiting' and v_rec is not null;
 
     v_reasons := array_remove(array[case when ln.manager_ok is false then 'not_ok' end, case when ln.final_status = 'late' then 'late' end,
                                     case when ln.unauthorized then 'unauthorized' end], null);
@@ -376,8 +391,9 @@ begin
                  where ro.code = 'zonal_manager' and ur.revoked_at is null and (ur.valid_to is null or ur.valid_to >= private.wf_today())
                    and (ur.zone_id = s.zone_id or ur.scope_type = 'global') loop
     perform private.notify(v_prof, case when p_mode = 'auto' then 'দৈনিক হাজিরা খাতা সার্ভার সাবমিট করেছে' else 'দৈনিক ফাইনাল হাজিরা খাতা সাবমিট হয়েছে' end,
-      coalesce(v_hub, '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') || case when v_left > 0 then ' · ' || v_left || ' জনের হাজিরা যাচাই বাকি' else '' end,
-      '/app/attendance?view=zone&tab=final', 'attendance_gap');
+      coalesce(v_hub, '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') || case when v_left > 0 then ' · ' || v_left || ' জনের হাজিরা যাচাই বাকি' else '' end
+        || case when v_self then ' — ম্যানেজারের নিজের হাজিরা আপনি চূড়ান্ত করবেন' else '' end,
+      case when v_self then '/app/attendance?view=hub&tab=final&hub=' || p_hub::text || '&date=' || p_date::text else '/app/attendance?view=zone&tab=final' end, 'attendance_gap');
   end loop;
   if p_mode = 'auto' then
     for v_prof in select * from private.wf_role_hub_managers(p_hub) loop
@@ -407,7 +423,7 @@ begin
       left join public.positions po on po.id = coalesce((select l.position_id from public.att_day_lines l where l.sheet_id = s.id and l.employee_id = e.id), e.position_id)
   ), rows as (
     select p.*, m.id mark_id, m.kind, m.note mnote, m.status mstatus, m.marked_at, m.applied_on_site, m.site_applied_on, m.site_ref, a.application_no,
-           l.id line_id, r.status rec,
+           l.id line_id, coalesce(l.self_pending, false) self_pending, l.confirmed_at, r.status rec,
            case when l.id is not null then jsonb_build_object('manager_ok', l.manager_ok, 'final_status', l.final_status,
                   'late_time', to_char(l.late_time, 'HH24:MI'), 'online_marked', l.online_marked, 'online_reason', l.online_reason,
                   'absence_app_date', l.absence_app_date, 'absence_app_ref', l.absence_app_ref, 'unauthorized', l.unauthorized, 'note', l.note,
@@ -425,7 +441,7 @@ begin
            'mark', case when x.mark_id is null then null else jsonb_build_object('id', x.mark_id, 'kind', x.kind, 'note', x.mnote, 'status', x.mstatus,
                     'marked_at', x.marked_at, 'applied_on_site', x.applied_on_site, 'site_applied_on', x.site_applied_on, 'site_ref', x.site_ref,
                     'application_no', x.application_no) end,
-           'saved', x.line_id is not null, 'value', x.val, 'record_status', x.rec,
+           'saved', x.line_id is not null, 'line_id', x.line_id, 'self_pending', x.self_pending, 'confirmed_at', x.confirmed_at, 'value', x.val, 'record_status', x.rec,
            'explanations', coalesce((select jsonb_agg(jsonb_build_object('id', q.id, 'reason', q.reason, 'asked_at', q.asked_at, 'reply', q.reply, 'replied_at', q.replied_at) order by q.asked_at)
                                      from public.att_explanations q where q.line_id = x.line_id), '[]'::jsonb))
          order by x.psort, x.full_name), '[]'::jsonb) into v_people
@@ -465,7 +481,8 @@ begin
     'can', jsonb_build_object(
       'edit', private.has_permission('hr.attendance.create', v_zone, p_hub) and coalesce(s.status, 'draft') = 'draft' and v_date <= private.wf_today() and private.att_edit_open(p_hub, v_date),
       'unlock', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted',
-      'send', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted'),
+      'send', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted',
+      'confirm_self', private.has_permission('hr.attendance.configure', v_zone, p_hub) and s.status = 'submitted'),
     'my_check', (select jsonb_build_object('sent_at', c.sent_at, 'ok_at', c.ok_at, 'returned_at', c.returned_at, 'return_reason', c.return_reason, 'version_no', c.version_no)
                    from public.att_sheet_checks c where c.sheet_id = s.id and c.profile_id = auth.uid() and c.version_no = s.version),
     'people', v_people, 'by_position', v_pos, 'checks', v_checks);
@@ -590,7 +607,7 @@ begin
          window_id = v_id, updated_at = now()
    where hub_id = p_hub and work_date between p_from and p_to and status = 'submitted';
   get diagnostics v_n = row_count;
-  for m in select * from private.wf_role_hub_managers(p_hub) loop
+  for m in select e.profile_id from private.att_hub_managers(p_hub) e union select * from private.wf_role_hub_managers(p_hub) loop      -- live's unlock notice: role or position (att_hub_managers)
     perform private.notify(m, 'হাজিরা খাতা সংশোধনের জন্য খোলা হয়েছে',
       coalesce(private.hub_name(p_hub), '') || ' · ' || to_char(p_from, 'DD-MM-YYYY') || case when p_to <> p_from then ' থেকে ' || to_char(p_to, 'DD-MM-YYYY') else '' end
       || ' · ' || p_minutes || ' মিনিট — ' || p_reason, '/app/attendance?view=hub&tab=final&hub=' || p_hub::text || '&date=' || p_from::text, 'attendance_gap');
@@ -686,9 +703,7 @@ begin
   if not private.has_permission('hr.attendance.configure', s.zone_id, s.hub_id) then
     raise exception 'Only the zonal manager sends a register for checking — শুধু জোনাল ম্যানেজার যাচাইয়ে পাঠাতে পারেন' using errcode = '42501'; end if;
   if s.status <> 'submitted' then raise exception 'Only a submitted register is sent — আগে ম্যানেজার খাতা সাবমিট দিন' using errcode = 'P0001'; end if;
-  for r in select e.id, e.profile_id from public.employees e join public.positions po on po.id = e.position_id
-            where e.hub_id = s.hub_id and e.archived_at is null and e.status = 'active' and e.profile_id is not null
-              and po.code::text in ('MANAGER', 'ASSISTANTMAN') loop
+  for r in select e.id, e.profile_id from private.att_hub_managers(s.hub_id) e loop            -- by role or by position, as live (att_self_line_and_manager_roles)
     insert into public.att_sheet_checks (sheet_id, profile_id, employee_id, sent_by, version_no) values (s.id, r.profile_id, r.id, auth.uid(), s.version)
     on conflict (sheet_id, profile_id, version_no) do nothing;
     if found then
@@ -824,8 +839,7 @@ begin
     raise exception 'Only the zonal manager sends a register for checking — শুধু জোনাল ম্যানেজার যাচাইয়ে পাঠাতে পারেন' using errcode = '42501'; end if;
   select max(version_no) into v_latest from public.att_month_subs where hub_id = s.hub_id and month = s.month;
   if s.version_no <> v_latest then raise exception 'A newer monthly version exists — মাসের খাতার নতুন সংস্করণ আছে' using errcode = 'P0001'; end if;
-  for r in select e.id, e.profile_id from public.employees e join public.positions po on po.id = e.position_id
-            where e.hub_id = s.hub_id and e.archived_at is null and e.status = 'active' and e.profile_id is not null and po.code::text in ('MANAGER', 'ASSISTANTMAN') loop
+  for r in select e.id, e.profile_id from private.att_hub_managers(s.hub_id) e loop
     insert into public.att_month_checks (sub_id, profile_id, employee_id, sent_by) values (s.id, r.profile_id, r.id, auth.uid()) on conflict (sub_id, profile_id) do nothing;
     if found then
       n := n + 1;

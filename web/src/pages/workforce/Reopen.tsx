@@ -32,7 +32,7 @@ export function ReopenPanel({ zone }: { zone: string }) {
   async function open() {
     setErr('')
     const ok = await askConfirm(L(`${hubs.find(h => h.id === hubId)?.name} — ${fmtDay(from, lang)}${to !== from ? ` থেকে ${fmtDay(to, lang)}` : ''} ${n(Number(minutes))} মিনিটের জন্য খুলবেন?`, `Open ${hubs.find(h => h.id === hubId)?.name} for ${minutes} minutes?`),
-      { ok: L('খুলুন', 'Open'), detail: L('জমা হওয়া দিনগুলো খসড়া হবে (আগের সংস্করণ রাখা থাকবে)। সময় পেরোলে সার্ভার যা আছে সাবমিট করবে।', 'Submitted days become drafts (the earlier version is kept). When the time is over the server submits what is left.') })
+      { ok: L('খুলুন', 'Open'), detail: L('জমা হওয়া দিনগুলো খসড়া হবে (আগের সংস্করণ রাখা থাকবে)। সময় পেরোলে সার্ভার সম্পূর্ণ খাতা সাবমিট করবে; অসম্পূর্ণ খাতা খোলা রেখে ম্যানেজারদের জানাবে।', 'Submitted days become drafts (the earlier version is kept). When the time is over the server submits a complete register; an unfinished one stays open and the managers are told.') })
     if (!ok) return
     setBusy(true)
     try { const r = await att.reopen(hubId, from, to, Number(minutes), reason); toast(L(`খোলা হয়েছে — ${n(r.opened)}টি জমা-দেওয়া খাতা খসড়া হয়েছে`, `Opened — ${r.opened} submitted registers are drafts again`)); setReason(''); announceWfChange(); await q.reload() }

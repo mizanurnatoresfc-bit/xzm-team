@@ -271,10 +271,15 @@ $$;
 -- The first work day the server jobs may submit for (see the setting above). Missing or unreadable: the date is far away, so the jobs do nothing.
 create or replace function private.wf_auto_from() returns date
 language plpgsql stable security definer set search_path = '' as $$
-declare v text;
+declare v jsonb; t text; d date;
 begin
-  select s.value #>> '{}' into v from public.system_settings s where s.key = 'workforce.auto_submit_from';
-  return v::date;
+  select s.value into v from public.system_settings s where s.key = 'workforce.auto_submit_from';
+  if v is null or jsonb_typeof(v) <> 'string' then return date '9999-12-31'; end if;
+  t := v #>> '{}';
+  if t !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then return date '9999-12-31'; end if;
+  d := t::date;                                                  -- 2026-13-45 and 2026-02-30 raise here
+  if to_char(d, 'YYYY-MM-DD') <> t then return date '9999-12-31'; end if;
+  return d;
 exception when others then
   return date '9999-12-31';
 end $$;
