@@ -13,7 +13,9 @@ import './home-md3.css'
 import './a11y.css'
 import './app-feel.css'
 import './nav-pro.css'
-import { PrefsProvider } from './lib/prefs'
+import './foundation.css'
+import { PrefsProvider, usePrefs } from './lib/prefs'
+import { supabase } from './lib/supabase'
 import { Home } from './pages/Home'
 import { Terms } from './pages/Terms'
 import { advancedAccessHere, isNativeApp } from './lib/native'
@@ -196,23 +198,33 @@ function HomeOrPanel() {
 const foundationPreview = import.meta.env.VITE_RELEASE_01_PREVIEW === 'true'
 
 function SuperAdminFoundation() {
-  const { hasGlobalSuperGrant, loading, mustChangePassword, session, signOut } = useAuth()
+  const { grantsReady, hasGlobalSuperGrant, loading, mustChangePassword, session, signOut } = useAuth()
+  const { L } = usePrefs()
+  const [leaving, setLeaving] = useState(false)
 
   if (loading) return <Loading />
   if (!session) return <Login afterSignIn="/" />
+  if (!grantsReady) return <Loading />
   if (mustChangePassword) return <Navigate to="/app/password" replace />
 
-  return <main className="center-screen">
-    <section className="notice" aria-labelledby="foundation-title">
+  // If the network call fails the person must still end up signed out on this device (shared phones), so fall back to a local sign out.
+  async function leave() {
+    setLeaving(true)
+    try { await signOut() } catch { await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined) }
+    setLeaving(false)
+  }
+
+  return <main className="fd-screen">
+    <section className="fd-card" aria-labelledby="foundation-title" role={hasGlobalSuperGrant ? undefined : 'alert'}>
       {hasGlobalSuperGrant ? <>
-        <h1 id="foundation-title">Super Admin Control Center</h1>
-        <p>Release 01 · Foundation preview</p>
-        <p>কর্মীদের জন্য কোনো মডিউল এখনো চালু হয়নি।</p>
+        <p className="fd-tag">{L('রিলিজ ০১ · ফাউন্ডেশন প্রিভিউ', 'Release 01 · Foundation preview')}</p>
+        <h1 id="foundation-title">{L('সুপার অ্যাডমিন কন্ট্রোল সেন্টার', 'Super Admin Control Center')}</h1>
+        <p>{L('কর্মীদের জন্য কোনো মডিউল এখনো চালু হয়নি।', 'No staff modules are switched on yet.')}</p>
       </> : <>
-        <h1 id="foundation-title">প্রবেশের অনুমতি নেই</h1>
-        <p>এই পাতাটি শুধু সুপার অ্যাডমিনের জন্য।</p>
+        <h1 id="foundation-title" className="fd-deny">{L('প্রবেশের অনুমতি নেই', 'No permission to enter')}</h1>
+        <p>{L('এই পাতাটি শুধু সুপার অ্যাডমিনের জন্য।', 'This page is for the Super Admin only.')}</p>
       </>}
-      <button type="button" onClick={() => void signOut()}>সাইন আউট</button>
+      <button type="button" className="secondary" disabled={leaving} onClick={() => void leave()}>{leaving ? L('সাইন আউট হচ্ছে…', 'Signing out…') : L('সাইন আউট', 'Sign out')}</button>
     </section>
   </main>
 }

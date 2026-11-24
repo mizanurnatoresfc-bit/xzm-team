@@ -46,6 +46,8 @@ type AuthContextValue = {
   /** True for a real Super Admin, also while previewing another role. */
   isSuperAdmin: boolean
   hasGlobalSuperGrant: boolean
+  /** False from the moment a session exists until its permissions have been fetched (so a screen can wait instead of showing "no access"). */
+  grantsReady: boolean
   /** The role being previewed, or null. */
   /** The pages this person is limited to, from their roles (null = no limit). */
   menu: string[] | null
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null)
   const [grants, setGrants] = useState<PermissionGrant[]>([])
   const [loading, setLoading] = useState(true)
+  const [grantsReady, setGrantsReady] = useState(false)
   const [mustChangePassword, setMustChange] = useState(false)
   const [ownMenu, setOwnMenu] = useState<string[] | null>(null)
   const [viewAsPick, setViewAsPick] = useState<ViewAs | null>(readViewAs)
@@ -91,17 +94,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setGrants([])
       setMustChange(false)
       setOwnMenu(null)
+      setGrantsReady(false)
       return
     }
-    const [{ data, error }, prof] = await Promise.all([
-      supabase.rpc('my_permissions'),
-      supabase.from('profiles').select('must_change_password').eq('id', current.user.id).maybeSingle(),
-    ])
-    if (error) throw error
-    if (prof.error) throw prof.error
-    setMustChange(Boolean((prof.data as { must_change_password?: boolean } | null)?.must_change_password))
-    setGrants((data ?? []) as PermissionGrant[])
-    setOwnMenu(await menuApi.mine().catch(() => null))
+    try {
+      const [{ data, error }, prof] = await Promise.all([
+        supabase.rpc('my_permissions'),
+        supabase.from('profiles').select('must_change_password').eq('id', current.user.id).maybeSingle(),
+      ])
+      if (error) throw error
+      if (prof.error) throw prof.error
+      setMustChange(Boolean((prof.data as { must_change_password?: boolean } | null)?.must_change_password))
+      setGrants((data ?? []) as PermissionGrant[])
+      setOwnMenu(await menuApi.mine().catch(() => null))
+    } finally { setGrantsReady(true) }
   }, [])
 
   useEffect(() => {
@@ -118,7 +124,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (event === 'PASSWORD_RECOVERY') markRecovery(true)
       if (event === 'SIGNED_OUT') markRecovery(false)
       setSession(next)
-      if (!next) setGrants([])
+      if (!next) { setGrants([]); setGrantsReady(false) }
       else queueMicrotask(() => { void refreshGrants().catch(() => setGrants([])) })
     })
     return () => {
@@ -169,9 +175,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     shown.some(g => g.is_super || g.permission_code === permission), [shown])
 
   const value = useMemo(() => ({
-    session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword: mustChangePassword || (recovering && !!session), recovering: recovering && !!session, endRecovery, isSuperAdmin, hasGlobalSuperGrant, viewAs, setViewAs,
+    session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword: mustChangePassword || (recovering && !!session), recovering: recovering && !!session, endRecovery, isSuperAdmin, hasGlobalSuperGrant, grantsReady, viewAs, setViewAs,
     menu: viewAs ? (viewAs.is_super ? null : viewAs.menu ?? null) : ownMenu,
-  }), [ownMenu, session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, hasGlobalSuperGrant, viewAs, setViewAs])
+  }), [ownMenu, session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, hasGlobalSuperGrant, grantsReady, viewAs, setViewAs])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
