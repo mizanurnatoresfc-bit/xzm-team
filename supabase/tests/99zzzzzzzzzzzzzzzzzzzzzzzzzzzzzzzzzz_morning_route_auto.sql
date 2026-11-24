@@ -84,6 +84,26 @@ select tests.ok(public.route_plan_published(tests.id('hub_a1')) ->> 'morning_rev
 select tests.login(tests.id('zonal_a'));
 select public.route_plan_reopen(tests.id('morning_plan'), 'Review tomorrow''s load');
 select tests.ok(public.route_plan_published(tests.id('hub_a1')) ->> 'version' = '1', 'approved version remains published during edits');
+select public.wf_morning_return(tests.id('hub_a1'), (now() at time zone 'Asia/Dhaka')::date, 1, 'Check the replacement rider');
+select tests.login(tests.id('hub_mgr'));
+select public.wf_morning_save(tests.id('hub_a1'), (now() at time zone 'Asia/Dhaka')::date, 2, '{}', true);
+select public.route_plan_save(tests.id('hub_a1'), (now() at time zone 'Asia/Dhaka')::date,
+  jsonb_build_object('people', jsonb_build_array(jsonb_build_object('employee_id', tests.id('pending_worker'), 'parcels', 7))), true);
+select tests.login(tests.id('zonal_a'));
+select tests.throws(format('select public.route_plan_publish(%L,3,2)', tests.id('morning_plan')),
+  'a rider with unknown morning presence cannot be assigned', '22023');
+select public.wf_morning_return(tests.id('hub_a1'), (now() at time zone 'Asia/Dhaka')::date, 2, 'Confirm the replacement is here');
+select tests.login(tests.id('hub_mgr'));
+select public.wf_morning_save(tests.id('hub_a1'), (now() at time zone 'Asia/Dhaka')::date, 3,
+  jsonb_build_object(tests.id('pending_worker'), 'present'), true);
+select tests.login(tests.id('zonal_a'));
+select tests.ok((public.route_plan_publish(tests.id('morning_plan'), 3, 3) ->> 'notifications')::integer = 2,
+  'replacement notifies the manager and cancels the old rider assignment');
+select tests.login(tests.id('rider_login'));
+select tests.ok(public.route_plan_mine() is null and
+  (select count(*) = 3 from public.notifications where kind = 'route_plan'),
+  'replaced rider sees the cancellation and no longer sees the assignment');
+select tests.login(tests.id('zonal_a'));
 select public.att_sheet_unlock((select id from public.att_day_sheets where hub_id = tests.id('hub_a1')), 'Check the missing late time');
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select x -> 'value' ->> 'final_status' = 'late' from jsonb_array_elements(public.att_sheet_get(tests.id('hub_a1'),

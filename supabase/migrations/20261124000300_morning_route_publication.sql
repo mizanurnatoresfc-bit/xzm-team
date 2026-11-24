@@ -143,7 +143,14 @@ begin
     select 1 from public.route_day_riders l
     left join private.wf_morning_roster(p.hub_id, p.plan_date) e on e.id = l.employee_id
     where l.plan_id = p.id and l.removed_at is null and (l.parcels > 0 or l.pickups > 0)
-      and (e.id is null or e.on_leave or m.marks ->> l.employee_id::text is distinct from 'present'
+      and (e.id is null or e.on_leave
+        or (l.kind = 'rider' and not coalesce((
+          select private.is_rider_post(staff.position_id) from public.employees staff where staff.id = l.employee_id
+        ), false))
+        or (l.kind = 'helper' and not exists (
+          select 1 from public.route_staff_load ls where ls.employee_id = l.employee_id and ls.hub_id = p.hub_id and ls.helper
+        ))
+        or m.marks ->> l.employee_id::text is distinct from 'present'
         or exists (
           select 1 from public.route_day_plans q
           join lateral (select x.riders from private.route_plan_publications x where x.plan_id = q.id
@@ -151,7 +158,7 @@ begin
           where q.id <> p.id and q.plan_date = p.plan_date and q.archived_at is null and pub_other.riders ? l.employee_id::text
         ))
   ) then
-    raise exception 'An assigned employee is unavailable or already allocated on another published plan' using errcode = '22023';
+    raise exception 'An assigned employee is unavailable, ineligible, or already allocated on another published plan' using errcode = '22023';
   end if;
 
   perform private.route_plan_decide_base(p.id, true, p_note);
