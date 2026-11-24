@@ -63,6 +63,7 @@ export function EmployeeProfile() {
         {can('hr.employee_profile.edit') && !e.archived_at && <button type="button" className="nv-qa" onClick={() => setFill(true)}><i><Icon name="form" size={22} /></i>প্রোফাইল পূর্ণ</button>}
         {can('hr.request.create') && e.status === 'active' && !e.archived_at && <button type="button" className="nv-qa" onClick={() => setLeft(true)}><i><Icon name="out" size={22} /></i>চাকরি ছেড়েছেন</button>}
         <Link to="/app/attendance?view=hub" className="nv-qa"><i><Icon name="cal" size={22} /></i>হাজিরা</Link>
+        {can('hr.employee.view') && <Link to={`/app/zonal/profile?emp=${e.id}`} className="nv-qa"><i><Icon name="chart" size={22} /></i>কাজের প্রোফাইল</Link>}
         <Link to="/app/accounts/daily" className="nv-qa"><i><Icon name="ledger" size={22} /></i>হিসাব খাতা</Link>
         <button type="button" className="nv-qa" onClick={() => setTab('docs')}><i><Icon name="file" size={22} /></i>ডকুমেন্ট</button>
       </div>
