@@ -29,15 +29,6 @@ begin
   return v_n;
 end $;
 
-do $$
-begin
-  if exists (select 1 from pg_namespace where nspname = 'cron') then
-    begin perform cron.unschedule('wf-morning-autosubmit'); exception when others then null; end;
-    perform cron.schedule('wf-morning-autosubmit', '* * * * *', $c$select private.wf_morning_autosubmit()$c$);
-  end if;
-end $$;
-
-
 create or replace function public.route_plan_decide(p_plan uuid, p_ok boolean, p_note text default null) returns void
 language plpgsql security definer set search_path = '' as $
 declare v public.route_day_plans; v_name text; v_sub public.wf_morning_subs; l record; v_state text; v_ver uuid; v_no integer; v_prev public.route_plan_versions;
@@ -113,23 +104,6 @@ begin
       decide_note = trim(p_note) where id = v.id;
   end if;
 end $;
-
--- The same approved version again (nothing new is published).
-create or replace function public.route_plan_resend(p_plan uuid) returns integer
-language plpgsql security definer set search_path = '' as $$
-declare v public.route_day_plans; v_ver public.route_plan_versions; v_n integer; v_name text;
-begin
-  if auth.uid() is null then raise exception 'Sign in first.' using errcode = '42501'; end if;
-  select * into v from public.route_day_plans where id = p_plan and archived_at is null;
-  if v.id is null or not private.has_permission('ops.route_plan.approve', v.zone_id, v.hub_id) then raise exception 'Not authorised to send this plan.' using errcode = '42501'; end if;
-  select * into v_ver from public.route_plan_versions where plan_id = v.id and superseded_at is null order by version_no desc limit 1;
-  if v_ver.id is null then raise exception 'No approved version of this plan has been published.' using errcode = '22023'; end if;
-  select coalesce(pr.full_name, 'user') into v_name from public.profiles pr where pr.id = auth.uid();
-  v_n := private.route_plan_notify(v_ver.id, 'resent');
-  insert into public.route_plan_events (plan_id, hub_id, plan_date, version_no, kind, actor, actor_name) values (v.id, v.hub_id, v.plan_date, v_ver.version_no, 'resent', auth.uid(), v_name);
-  return v_n;
-end $$;
-
 
 alter table public.wf_att_policy add column day_auto_since date;
 alter table public.att_day_sheets add column auto_submitted boolean not null default false;
