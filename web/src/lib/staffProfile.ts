@@ -48,6 +48,13 @@ export const STATUS_LABEL: Record<WorkStatus, [string, string]> = {
   draft: ['খসড়া', 'Draft'], submitted: ['জমা', 'Submitted'], approved: ['অনুমোদিত', 'Approved'], cancelled: ['বাতিল', 'Cancelled'],
 }
 export const ACTIVITY_LABEL: Record<string, [string, string]> = {
+  issue_assignment: ['অর্পিত সমস্যা', 'Assigned issue'],
+  fleet_fuel: ['জ্বালানি লগ', 'Fuel log'],
+  fleet_charge: ['চার্জিং লগ', 'Charging log'],
+  fleet_log: ['গাড়ির কাজের লগ', 'Vehicle work log'],
+  fleet_day_log: ['গাড়ির দৈনিক ট্রিপ', 'Daily vehicle trips'],
+  accounts_expense_claim: ['খরচের আবেদন', 'Expense claim'],
+  accounts_rider_sheet: ['রাইডারের হিসাব শিট', 'Rider accounts sheet'],
   morning_present: ['সকালে এসেছে', 'Came in the morning'], morning_absent: ['সকালে আসেনি', 'Did not come'], morning_leave: ['অনুমোদিত ছুটি', 'On approved leave'], morning_unknown: ['সকালে যাচাই বাকি', 'Not checked'],
   present: ['উপস্থিত', 'Present'], late: ['দেরিতে', 'Late'], half_day: ['অর্ধদিবস', 'Half day'], absent: ['অনুপস্থিত', 'Absent'], leave: ['ছুটি', 'Leave'], holiday: ['সরকারি ছুটি', 'Holiday'],
   weekly_off: ['সাপ্তাহিক ছুটি', 'Weekly off'], pending_leave: ['ছুটির আবেদন বিচারাধীন', 'Leave request waiting'], unchecked: ['যাচাই বাকি', 'Not checked'],
