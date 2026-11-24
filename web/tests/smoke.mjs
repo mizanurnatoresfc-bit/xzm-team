@@ -1115,7 +1115,7 @@ try {
         }
       }
       // notification links that did not move: still the same page, and a staff member's home tab stays on at the panel
-      permsNow = ROLE.staff; await setHomeView(null)
+      permsNow = ROLE.staff; await setHomeView('self')   // a staff member's home view is their own app
       for (const ok of ['/app/staff', '/app/me', '/app/hr/requests?id=r1', '/app/notices', '/app/fleet/mine']) {
         await page.goto(`${BASE}${ok}`); await settle()
         check(new URL(page.url()).pathname === ok.split('?')[0] && await page.locator('.center-screen .notice').count() === 0, `${size}: staff opens ${ok} (${new URL(page.url()).pathname})`) }
