@@ -18,21 +18,21 @@ export function WorkforceAlerts() {
   const { data } = useWfCounts()
   const mine = data?.mine ?? null, manage = data?.manage ?? null
   const rows: Row[] = []
-  if (mine && mine.missing_days > 0) rows.push({ key: 'missing', to: '/app/workforce/attendance', tone: 'warn', icon: 'clock',
+  if (mine && mine.missing_days > 0) rows.push({ key: 'missing', to: '/app/attendance', tone: 'warn', icon: 'clock',
     title: L(`${n(mine.missing_days)} দিনের হাজিরা বাকি`, `${mine.missing_days} day${mine.missing_days === 1 ? '' : 's'} of attendance not given`),
     sub: mine.catch_up_until
       ? L(`আগের তারিখগুলো খোলা আছে — ${dayBn(mine.catch_up_until)} পর্যন্ত, হাজিরা বইয়ে একসাথে দিন`, `Earlier dates are open until ${mine.catch_up_until} — give them all at once in the book`)
       : L('হাজিরা বইয়ে প্রতিটি তারিখ আলাদা করে দিন', 'Give each date in the attendance book') })
-  if (mine && mine.returned_days > 0) rows.push({ key: 'returned', to: '/app/workforce/attendance', tone: 'bad', icon: 'alert',
+  if (mine && mine.returned_days > 0) rows.push({ key: 'returned', to: '/app/attendance', tone: 'bad', icon: 'alert',
     title: L(`${n(mine.returned_days)} দিনের হাজিরা ফেরত এসেছে`, `${mine.returned_days} day${mine.returned_days === 1 ? '' : 's'} of attendance returned`),
     sub: L('কারণ দেখে আবার দিন', 'See the reason and give it again') })
   if (mine && mine.ops_expected && !mine.ops_submitted_today) rows.push({ key: 'ops', to: '/app/staff#wf-ops', tone: 'warn', icon: 'box', scrollTo: 'wf-ops',
     title: L('আজকের পিকআপ ও ডেলিভারি এখনো দেননি', "Today's pickup and delivery are not given yet"),
     sub: L('চারটি সংখ্যা লিখে জমা দিন', 'Write the four numbers and submit') })
-  if (manage && manage.marks_waiting + manage.applications_pending > 0) rows.push({ key: 'manage', to: '/app/workforce/hub', tone: 'info', icon: 'checkall',
-    title: L(`${n(manage.marks_waiting)}টি হাজিরা অনুমোদন বাকি · ${n(manage.applications_pending)}টি আবেদন`,
-      `${manage.marks_waiting} attendance to approve · ${manage.applications_pending} application${manage.applications_pending === 1 ? '' : 's'}`),
-    sub: L('হাজিরা বই খুলে দেখুন', 'Open the attendance book') })
+  if (manage && manage.marks_waiting + manage.applications_pending > 0) rows.push({ key: 'manage', to: '/app/attendance?view=hub', tone: 'info', icon: 'checkall',
+    title: L(`${n(manage.marks_waiting)}টি হাজিরা খাতায় ওঠার অপেক্ষায় · ${n(manage.applications_pending)}টি আবেদন`,
+      `${manage.marks_waiting} attendance waiting for the register · ${manage.applications_pending} application${manage.applications_pending === 1 ? '' : 's'}`),
+    sub: L('হাজিরা খাতা খুলে ফাইনাল খাতা সাবমিট করুন', 'Open the attendance register and submit the final register') })
   if (!rows.length) return null
 
   // On the staff panel the "numbers" card scrolls to the section instead of reloading the page.

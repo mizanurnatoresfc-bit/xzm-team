@@ -9,6 +9,10 @@ const ALWAYS = ['/app', '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '
   '/app/workforce', '/app/workforce/given', '/app/workforce/hand', '/app/workforce/attendance']
 /** The same list, for pages that explain which pages a role can be limited to. */
 export const ALWAYS_OPEN: readonly string[] = ALWAYS
+/** The one attendance page. It opens for everybody (a person's own book; its hub and zone parts follow the person's permissions),
+ *  but its menu entry follows the role's page list: a list saved before the pages were joined names the old hub or zone page. */
+const ATTENDANCE = '/app/attendance'
+const ATTENDANCE_OLD = ['/app/workforce/hub', '/app/workforce/zone']
 /** Pages that belong to a listed page (opened from it, not from the menu). */
 const WITH: Record<string, string[]> = {
   '/app/staff/list': ['/app/hr/applications', '/app/hub/team', '/app/hr/employees'],   // a person's profile opens from the staff list
@@ -34,13 +38,14 @@ const beforeSplit = (menu: string[]) => !menu.some(p => (bare(p) + '/').startsWi
 /** A menu entry is shown when it is on the list. */
 export const inMenu = (menu: string[] | null, to: string): boolean => {
   if (!menu || ALWAYS.includes(bare(to)) || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))) return true
+  if (bare(to) === ATTENDANCE && menu.some(p => ATTENDANCE_OLD.includes(bare(p)))) return true
   const twin = beforeSplit(menu) ? officeTwin(bare(to)) : null; return !!twin && inMenu(menu, twin)
 }
 /** A page may be opened when it is on the list, under a listed page, or belongs to one. */
 export function pageAllowed(menu: string[] | null, pathname: string): boolean {
   if (!menu) return true
   const here = bare(pathname)
-  if (ALWAYS.includes(here)) return true
+  if (ALWAYS.includes(here) || here === ATTENDANCE) return true
   const twin = beforeSplit(menu) ? officeTwin(here) : null; if (twin && pageAllowed(menu, twin)) return true
   const open = menu.map(bare).flatMap(p => [p, ...(WITH[p] ?? [])])
   return open.some(p => p !== '/app' && (here === p || here.startsWith(p + '/')))
@@ -77,7 +82,6 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/nodi/chat': ['nodi.assistant.view', 'nodi.settings.configure'],
   '/app/rollout': ['hr.employee.view'],
   '/app/staff/list': ['hr.employee.view', 'hr.application.create', 'hr.request.create'],
-  '/app/workforce/hub': ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view'],
   '/app/zonal': ['zonal.dashboard.view'],
   '/app/zonal/files': ['hr.request.create', 'hr.request.approve'],
   '/app/zonal/hub-ops': ['zonal.hub_ops.view', 'zonal.hub_ops.create'],

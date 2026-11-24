@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { LIVE_SHEET, REASON_META, att, type ZoneDay, type ZoneDayHub } from '../../lib/attSheet'
 import { todayDhaka } from '../../lib/dailyAccounts'
 import { usePrefs } from '../../lib/prefs'
@@ -14,14 +13,13 @@ import '../../att-sheet.css'
  * plus the explanations asked and the replies. A tap on a hub opens its register, where the zonal manager can see the
  * preview, send it to the hub's managers for checking, or unlock it.
  */
-export function ZoneFinal({ zone }: { zone: string }) {
+export function ZoneFinal({ zone, onOpenHub }: { zone: string; onOpenHub: (hubId: string, date: string) => void }) {
   const { L, n, lang } = usePrefs()
-  const nav = useNavigate()
   const today = todayDhaka()
   const [date, setDate] = useState(today)
   const q = useLiveLoad<ZoneDay>(() => att.zoneDay(zone || null, date), [zone, date], LIVE_SHEET)
   const d = q.data && q.data.date === date ? q.data : null
-  const open = (h: ZoneDayHub) => nav(`/app/workforce/hub?hub=${h.hub_id}&tab=final&date=${date}`)
+  const open = (h: ZoneDayHub) => onOpenHub(h.hub_id, date)
   const v = (x: number, tone?: 'warn' | 'bad') => <span className={x ? (tone ? `wm-v ${tone}` : 'wm-v') : 'wm-v zero'}>{n(x)}</span>
 
   const cols: Array<WCol<ZoneDayHub>> = [

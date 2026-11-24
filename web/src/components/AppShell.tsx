@@ -30,7 +30,7 @@ type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; i
 type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
 /** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
 export const NEW_UNTIL: Record<string, string> = {
-  '/app/manpower': '2026-11-30', '/app/workforce/attendance': '2026-11-30', '/app/workforce/hub': '2026-11-30',
+  '/app/manpower': '2026-11-30', '/app/attendance': '2026-11-30',
   '/app/staff/list': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
   '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
 }
@@ -80,7 +80,7 @@ export const GROUPS: Group[] = [
   ]),
   panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
     { bn: 'প্রতিদিনের কাজ', en: 'Every day', items: [
-      { to: '/app/workforce/hub', icon: 'table', bn: 'হাজিরা বই ও দৈনিক রিপোর্ট', en: 'Attendance book & daily report', hint: { bn: 'আজকের হাজিরা, দেরি, অনুমোদন, মাসিক খাতা — সব এক জায়গায়', en: 'Today, late, approvals, monthly — all in one' }, perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view'] },
+      { to: '/app/attendance', icon: 'table', bn: 'হাজিরা খাতা', en: 'Attendance register', hint: { bn: 'দিনের ফাইনাল খাতা, মাসিক খাতা, আবেদন ও দৈনিক রিপোর্ট — সব এক পেজে', en: 'Daily final register, monthly register, applications and daily report — one page' }, perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view', 'zonal.dashboard.view'] },
       { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: ['ops.pickup.view', 'ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'] },
       { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
       { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
@@ -97,7 +97,6 @@ export const GROUPS: Group[] = [
   panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
     { bn: 'জোন ও হাব', en: 'Zone & hubs', items: [
       { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
-      { to: '/app/workforce/zone', icon: 'chart', bn: 'জোনাল ওয়ার্কফোর্স রিপোর্ট', en: 'Zonal workforce report', perms: ['zonal.dashboard.view'] },
       { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'হাব অপারেশন ড্যাশবোর্ড', en: 'Hub Operations Dashboard', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
       { to: '/app/zonal/routes', icon: 'map', bn: 'রুট ম্যাপ (জোন)', en: 'Route map (zone)', hint: { bn: 'রুট সেটিং — জোনের সব হাবের রাইডার রুট ম্যাপ', en: 'Route settings — rider route map of every hub in the zone' }, perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
@@ -161,7 +160,6 @@ export const HR: Group = panel('hr', 'users', 'এইচআর বিভাগ',
       { to: '/app/zonal/requests', icon: 'form', bn: 'এইচআর অনুরোধ', en: 'HR requests', perms: ['hr.request.approve'], count: 'hrreq' },
   ] },
   { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
-      { to: '/app/workforce/hub', icon: 'cal', bn: 'হাজিরা', en: 'Attendance', perms: ['hr.attendance.view', 'hr.attendance.create'] },
       { to: '/app/zonal/assistant', icon: 'cal', bn: 'হাজিরার ফাঁকা দিন', en: 'Attendance gaps', hint: { bn: 'জোনাল অ্যাসিস্ট্যান্ট — যেদিনের হাজিরা ওঠেনি', en: 'Zonal assistant — days with no attendance' }, perms: ['hr.attendance_gap.view'] },
       { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
   ] },
@@ -235,9 +233,9 @@ export const OFFICE: Group = panel('office', 'home', 'আমার অফিস'
  *   /app/hub/accounts        -> /app/accounts/daily (the hub's sheets for today)
  *   /app/hr                  -> the home page's staff panels
  *   /app/issues?tab=orders   -> a tab inside /app/issues
- *   /app/hub/days            -> nothing: never used (no rows on 21 Nov 2026); the attendance book shows each day's state
+ *   /app/hub/days            -> removed (never used); attendance is one page, /app/attendance
  */
-export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders', '/app/hub/days']
+export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=orders']
 
 // ---- small caches so the frame does not refetch on every page ----
 type MyRole = { code: string; name: string; scope_type: string; zone: string | null; hub: string | null }
@@ -286,7 +284,7 @@ export { refreshMyPhoto, useMyPhoto } from '../lib/myPhoto'
 // Mobile: bottom tabs (first four the role may open) and the quick-add sheet.
 const TABS: Array<{ to: string; icon: string; bn: string; en: string; perms: string[] | null; match: string }> = [
   { to: '/app', icon: 'grid', bn: 'হোম', en: 'Home', perms: null, match: '/app$' },
-  { to: '/app/workforce/hub', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub' },
+  { to: '/app/attendance?view=hub', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'ops.staff_daily.view', 'zonal.dashboard.view'], match: '/app/(hub|attendance)' },
   { to: '/app/sorting/parcels', icon: 'truck', bn: 'ট্রিপ', en: 'Trips', perms: ['sorting.parcel.view', 'sorting.parcel.create', 'sorting.center.view'], match: '/app/sorting' },
   { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: DA, match: '/app/accounts/daily' },
   { to: '/app/staff/list', icon: 'users', bn: 'কর্মী', en: 'Staff', perms: ['hr.employee.view'], match: '/app/staff' },
@@ -303,7 +301,7 @@ const VIEW_TABS: Record<DashView, Tab[]> = {
     { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' },
   ],
   hub: [HOME_TAB,
-    { to: '/app/workforce/hub', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.pickup.view', 'hr.employee.view'], match: '/app/hub/(?!team)' },
+    { to: '/app/attendance?view=hub', icon: 'hub', bn: 'হাব', en: 'Hub', perms: ['hr.attendance.view', 'ops.staff_daily.view', 'zonal.dashboard.view'], match: '/app/(hub/(?!team)|attendance)' },
     { to: '/app/staff/list', icon: 'users', bn: 'টিম', en: 'Team', perms: ['hr.employee.view'], match: '/app/staff' },
     { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: DA, match: '/app/accounts/daily' },
     { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/hr/requests' }],
@@ -313,7 +311,7 @@ const QUICK: Array<{ to: string; icon: string; bn: string; en: string; perms: st
   { to: '/app/manpower?new=1', icon: 'users', bn: 'লোক চাই', en: 'Need people', perms: ['hr.request.create'], tone: 'g' },
   { to: '/app/issues?new=1', icon: 'scan', bn: 'লেবেল দিয়ে ইস্যু', en: 'Issue from label', perms: null, tone: 'r' },
   { to: '/app/issues?order=store', icon: 'box', bn: 'স্টোর / আইটি অর্ডার', en: 'Store / IT order', perms: null, tone: 'b' },
-  { to: '/app/workforce/hub', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
+  { to: '/app/attendance?view=hub', icon: 'cal', bn: 'হাজিরা দিন', en: 'Attendance', perms: ['hr.attendance.create'], tone: 'g' },
   { to: '/app/accounts/reports', icon: 'chart', bn: 'হিসাবের রিপোর্ট', en: 'Accounts reports', perms: ['da.report.view'], tone: 'b' },
   { to: '/app/hub/pickup', icon: 'box', bn: 'পিকআপ যোগ', en: 'Pickup', perms: ['ops.pickup_as_hub_manager.create', 'ops.pickup_as_pickup_manager.create', 'ops.pickup_as_rider.create'], tone: 'b' },
   { to: '/app/hub/tasks', icon: 'tasks', bn: 'নতুন কাজ', en: 'New task', perms: ['zonal.task.create'], tone: 'p' },
