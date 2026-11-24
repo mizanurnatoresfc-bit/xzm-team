@@ -33,6 +33,9 @@ Previously the route-level grants lived in four places (App.tsx `AnyOf` / `Prote
 7. **Real role accounts.** The frontend checks used the browser smoke test with faked grants (`web/tests/smoke.mjs`) and the pure rule tests. Nobody has signed in as a real Staff / Manager / Zonal Manager account yet.
 8. **Backlog (data, not code).** PR #144 reported 31 staff attendance inputs waiting since 1 Nov and no final register; this change does not clear it.
 
+9. **Staff profile by address.** `/app/hr/employees/:id` (`web/src/pages/hr/EmployeeProfile.tsx`) opens for any signed-in person: it is not in the page-permission table, because a referrer, a draft owner or a person opening their own profile legitimately reach it. What it shows is decided by RLS / RPC on `employees`, documents, pay and the like. Please confirm a plain Staff account gets nothing for another person's id (the frontend only hides the links).
+10. **Old links that lose their meaning.** `/app/vehicles/requests?id=…` and `/app/vehicles/logs?v=…` (stored in vehicle notifications) redirect to `/app/fleet` without the id, because the old vehicle pages were replaced earlier (not part of Phase 01). Decide whether the notification link should be rewritten at the source.
+
 ## Not decided here (owner)
 
 - No "approved Master Architecture" document is in the repo (`docs/ARCHITECTURE.md` is a Phase 0 draft); the permission contract above is read from the code on `main`.

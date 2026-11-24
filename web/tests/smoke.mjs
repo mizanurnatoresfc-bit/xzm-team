@@ -1098,7 +1098,7 @@ try {
         ['/app/manager/staff?tab=pending', '/app/staff/list', 'tab=pending', 'work', '/app/staff/list'],
         ['/app/zonal/staff', '/app/staff/list', '', 'work', '/app/staff/list'],
         ['/manager/staff?tab=pending', '/app/staff/list', 'tab=pending', 'work', '/app/staff/list'],
-        ['/app/hr/employees/e01', '/app/hr/employees/e01', '', 'work', '/app/staff/list'],
+        ['/app/hr/employees/e01', '/app/hr/employees/e01', '', 'all', '/app/staff/list'],   // the profile page has no page grant on purpose (a referrer or draft owner opens one); the database decides what it returns
       ]
       for (const [role, grants] of Object.entries(ROLE)) {
         permsNow = grants
