@@ -29,13 +29,19 @@ begin
     'start date ' || p_label || ': nothing was submitted');
 end $$;
 
--- the setting row is missing (a plain cast would have given null, and null does not stop a job)
-update public.system_settings set key = 'workforce.auto_submit_from_removed' where key = 'workforce.auto_submit_from';
-select tests.ok(not exists (select 1 from public.system_settings where key = 'workforce.auto_submit_from'), 'the setting is gone');
-select tests.ok(private.wf_auto_from() = date '9999-12-31', 'start date missing: reads as "never"');
-select tests.ok(private.wf_morning_autosubmit() = 0 and private.att_day_autosubmit() = 0, 'start date missing: neither job does anything');
-select tests.ok(not exists (select 1 from public.wf_morning_subs where status = 'submitted') and not exists (select 1 from public.att_day_sheets where status = 'submitted'), 'start date missing: nothing was submitted');
-update public.system_settings set key = 'workforce.auto_submit_from' where key = 'workforce.auto_submit_from_removed';
+-- the setting row is DELETED (a plain cast would have given null, and null does not stop a job)
+-- the table refuses an ordinary delete (a trigger); the row can only go the way the undo notes of the migrations do it, with triggers off
+select tests.throws($$delete from public.system_settings where key = 'workforce.auto_submit_from'$$, 'an ordinary delete of the setting is refused by the table');
+set local session_replication_role = replica;
+delete from public.system_settings where key = 'workforce.auto_submit_from';
+set local session_replication_role = origin;
+select tests.ok(not exists (select 1 from public.system_settings where key = 'workforce.auto_submit_from'), 'the setting row is deleted');
+select tests.ok(private.wf_auto_from() = date '9999-12-31', 'start date deleted: reads as "never"');
+select tests.ok(private.wf_morning_autosubmit() = 0 and private.att_day_autosubmit() = 0, 'start date deleted: neither job does anything (morning job and daily job)');
+select tests.ok(not exists (select 1 from public.wf_morning_subs where status = 'submitted') and not exists (select 1 from public.att_day_sheets where status = 'submitted'), 'start date deleted: nothing was submitted');
+select tests.ok(private.wf_morning_autosubmit() = 0 and private.att_day_autosubmit() = 0, 'start date deleted: and the next minute is the same');
+-- put the row back (the way the migration writes it) for the cases below
+insert into public.system_settings (key, value, description) values ('workforce.auto_submit_from', '"2026-11-10"', 'test');
 
 -- present but wrong
 select pg_temp.try_start('null', 'JSON null');
