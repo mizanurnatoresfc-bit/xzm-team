@@ -294,11 +294,16 @@ try {
         hub_id: 'h1', hub_name: 'Natore Sadar', zone_id: 'z1', work_date: d, kind: 'present', applied_on_site: null, note: null, site_applied_on: null, site_ref: null, status: 'waiting', via: 'book',
         marked_at: `${d}T04:00:00Z`, decided_as: null, decide_note: null, decided_at: null, decided_by_name: null, application_id: null, application_no: null, record_status: null })))
       if (u.includes('rpc/att_sheet_get')) { const d = r.request().postDataJSON()?.p_date ?? '2026-11-24'
-        return j({ hub: { id: 'h1', name: 'Natore Sadar' }, date: d, today: '2026-11-24', sheet: null, can: { edit: true, unlock: false, send: false }, my_check: null, by_position: [], checks: [],
+        return j({ hub: { id: 'h1', name: 'Natore Sadar' }, date: d, today: '2026-11-24', sheet: null, can: { edit: true, unlock: false, send: false }, my_check: null, by_position: [], checks: [], due: '2026-11-25T00:00:00+06:00', window: null, versions: [],
           people: [{ employee_id: 'e02', code: '7982', name: 'Alamin Sarker', position: 'Rider', position_code: 'rider', has_login: true, saved: false, record_status: null, explanations: [],
             mark: { id: 'm1', kind: 'present', note: null, status: 'waiting', marked_at: `${d}T04:00:00Z`, applied_on_site: null, site_applied_on: null, site_ref: null, application_no: null },
             value: { manager_ok: null, final_status: null, late_time: null, online_marked: null, online_reason: null, absence_app_date: null, absence_app_ref: null, unauthorized: false, note: null } }] }) }
       if (u.includes('rpc/wf_applications')) return j([])
+      // the monthly register's submission: a day still missing, nothing submitted yet; the reopening list and the opening
+      if (u.includes('rpc/att_month_get')) return j({ hub: { id: 'h1', name: 'Natore Sadar' }, month: r.request().postDataJSON().p_month, today: '2026-11-24', from: '2026-11-22', to: '2026-11-23', missing: ['2026-11-22'], days: { '2026-11-23': 1 },
+        sub: null, changed: false, changed_days: [], history: [], checks: [], my_check: null, can: { submit: true, send: false } })
+      if (u.includes('rpc/att_reopen_list')) return j([{ id: 'w1', from: '2026-11-22', to: '2026-11-22', expires_at: '2026-11-24T05:00:00Z', reason: 'ভুল স্ট্যাটাস', by: 'Zonal', status: 'open', created_at: '2026-11-24T04:00:00Z', closed_at: null, can_close: true }])
+      if (u.includes('rpc/att_reopen_open')) { flowCalls.push({ fn: 'att_reopen_open', ...r.request().postDataJSON() }); return j({ window: 'w2', opened: 1, expires_at: '2026-11-24T05:00:00Z' }) }
       // the morning input: a form with two people to mark and one on approved leave; after the submit only a receipt
       if (/rpc\/wf_morning_(get|save|submit|return)\b/.test(u)) {
         const body = r.request().postDataJSON() ?? {}, fn = u.split('rpc/')[1].split('?')[0]
@@ -313,7 +318,7 @@ try {
             { id: 'e02', code: '7982', name: 'Alamin Sarker', post: 'Rider', state: 'unknown', leave: null },
             { id: 'e03', code: '6799', name: 'Md Mahin', post: 'Rider', state: 'unknown', leave: null },
             { id: 'e04', code: '6800', name: 'Karim Uddin', post: 'Hub Staff', state: 'leave', leave: { ref: 'LR-1A2B3C4D', source: 'leave_request', applied_on: '2026-11-20' } }] }) }
-      if (u.includes('rpc/wf_morning_zone')) return j({ date: '2026-11-24', today: '2026-11-24', now: '2026-11-24T01:00:00Z', hubs: [
+      if (u.includes('rpc/wf_morning_zone')) return j({ date: r.request().postDataJSON().p_date, today: r.request().postDataJSON().p_date, now: '2026-11-24T01:00:00Z', hubs: [
         { id: 'h1', name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore Area', staff: 3, due: '2026-11-24T02:15:00Z', state: 'submitted', sub_id: 's1', revision: 1, mode: 'auto', submitted_at: '2026-11-24T02:15:00Z', returned: null,
           present: 1, absent: 1, leave: 1, unknown: 0, people: [{ id: 'e02', name: 'Alamin Sarker', code: '7982', state: 'absent', leave_ref: null }],
           cover: [{ id: 'rt1', code: 'R-1', name: 'Town East', regular: ['Alamin Sarker'] }], plan: { id: 'p1', status: 'approved', published_version: 2 } },
@@ -819,6 +824,25 @@ try {
       await page.waitForTimeout(600)
       const c = flowCalls.filter(x => x.fn === 'wf_att_policy_save').at(-1) ?? {}
       check(c.p_zone === 'z1' && c.p?.morning_cutoff === '09:00' && c.p?.morning_extra === 15, `${size}: the zone's morning cut-off and extra minutes are saved from the setting tab`) }
+    // the daily register shows when the server will submit it; the month names a missing day and cannot be submitted until it is there
+    await page.goto(`${BASE}/app/attendance?view=hub&tab=final`); await page.waitForSelector('.as-due', { timeout: 10000 }).catch(() => {})
+    check((await page.locator('.as-due').first().innerText().catch(() => '')).includes('সার্ভার'), `${size}: the daily register says when the server submits it`)
+    await page.goto(`${BASE}/app/attendance?view=hub&tab=month`); await page.waitForSelector('text=দৈনিক খাতা বাকি', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.wm-sec', { hasText: 'মাসের খাতা জমা' }).locator('text=২২ নভেম্বর').count() > 0 && await page.locator('.wm-sec', { hasText: 'মাসের খাতা জমা' }).locator('button[disabled]', { hasText: 'মাসের খাতা জমা দিন' }).count() === 1,
+      `${size}: the monthly register names the missing day and its submit button is off`)
+    await fits('monthly register')
+    // the zonal manager opens a hub for correction: a reason is needed, the call carries hub, days, minutes and reason
+    await page.goto(`${BASE}/app/attendance?view=zone&tab=final`); await page.waitForSelector('text=সংশোধনের জন্য খুলুন', { timeout: 10000 }).catch(() => {})
+    { const panel = page.locator('.wm-sec', { hasText: 'সংশোধনের জন্য খুলুন' }).last()
+      await panel.locator('.da-table').waitFor({ timeout: 8000 }).catch(() => {})
+      check((await panel.innerText()).includes('ভুল স্ট্যাটাস') && await panel.locator('button', { hasText: 'এখনই শেষ করুন' }).count() === 1, `${size}: the hub's earlier openings are listed with who, until when and why`)
+      check(await panel.locator('button', { hasText: 'খুলে দিন' }).isDisabled(), `${size}: it cannot be opened without a reason`)
+      await panel.locator('input[type=text]').fill('ভুল স্ট্যাটাস ঠিক করতে'); await panel.locator('button', { hasText: 'খুলে দিন' }).click()
+      await page.waitForSelector('.da-modal-acts button', { timeout: 8000 }).catch(() => {}); await page.locator('.da-modal-acts button').last().click()
+      await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'att_reopen_open').at(-1) ?? {}
+        check(c.p_hub === 'h1' && c.p_minutes === 60 && c.p_reason === 'ভুল স্ট্যাটাস ঠিক করতে' && /^\d{4}-\d{2}-\d{2}$/.test(c.p_from) && c.p_from === c.p_to, `${size}: the opening goes with the hub, the day, the minutes and the reason`) }
+      await fits('reopen panel') }
     // the published plan the hub manager received: its version, who got it, who was taken off
     await page.goto(`${BASE}/app/attendance?view=hub&tab=plan`); await page.waitForSelector('.da-table', { timeout: 10000 }).catch(() => {})
     { const t = await page.locator('.wm').last().innerText().catch(() => '')

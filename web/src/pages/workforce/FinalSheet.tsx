@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
-import { FINAL_OPTIONS, LIVE_SHEET, REASON_META, att, isPresentLike, lineProblem,
-  type DaySheet, type FinalStatus, type LineInput, type LineValue, type MonthCell, type MonthSheet, type SheetPerson } from '../../lib/attSheet'
+import { FINAL_OPTIONS, LIVE_MONTH, LIVE_SHEET, REASON_META, att, isPresentLike, lineProblem,
+  type DaySheet, type FinalStatus, type LineInput, type LineValue, type MonthCell, type MonthRegister, type MonthSheet, type SheetPerson, type VersionLines } from '../../lib/attSheet'
 import { addDays, todayDhaka } from '../../lib/dailyAccounts'
 import { usePrefs } from '../../lib/prefs'
 import { announceWfChange, monthOf, useLiveLoad, wfFriendly, type IsoDate } from '../../lib/workforce'
 import { Badge, Field, Modal, Stat, useToast } from '../accounts/ui'
+import { askReason } from '../../components/ask'
 import { Empty, KindBadge, Loading, NoteDialog, Notice, Section, Who, exportRows, fmtDay, fmtLong, fmtStamp, fmtTime, fmtWeekday, lastMonths, monthName } from './shared'
 import '../../att-sheet.css'
 
@@ -17,7 +18,14 @@ import '../../att-sheet.css'
  * who mark it ঠিক আছে here. Every rule is checked again in the database (att_sheet_* functions).
  */
 const EMPTY: LineValue = { manager_ok: null, final_status: null, late_time: null, online_marked: null, online_reason: null,
-  absence_app_date: null, absence_app_ref: null, unauthorized: false, note: null }
+  absence_app_date: null, absence_app_ref: null, unauthorized: false, note: null, online_at: null, absence_reason: null, leave_ref: null, leave_applied_on: null, leave_pending: null }
+
+const STATUS_EXTRA: Record<string, [string, string]> = { pending_leave: ['ছুটির আবেদন বিচারাধীন', 'Leave request waiting'], unchecked: ['যাচাই বাকি', 'Not checked'] }
+const statusLabel = (st: FinalStatus | null, lang: 'bn' | 'en') => {
+  if (!st) return '—'
+  const x = STATUS_EXTRA[st]; if (x) return lang === 'bn' ? x[0] : x[1]
+  const o = FINAL_OPTIONS.find(f => f.key === st); return o ? (lang === 'bn' ? o.bn : o.en) : st
+}
 
 export function FinalSheetTab({ hubId }: { hubId: string }) {
   const { L, n, lang } = usePrefs()
@@ -49,6 +57,7 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
   const [preview, setPreview] = useState(false)
   const [unlock, setUnlock] = useState(false)
   const [sendAsk, setSendAsk] = useState(false)
+  const [old, setOld] = useState<VersionLines | null>(null)
   const [filter, setFilter] = useState<'all' | 'todo' | 'gave' | 'notgave'>('all')
 
   const people = d?.people ?? []
@@ -86,7 +95,7 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
     try { const r = await fn(); setDirty(false); toast(typeof r === 'string' && r ? r : msg); announceWfChange(); await q.reload() }
     catch (e) { setErr(wfFriendly(e)) } finally { setBusy(false) }
   }
-  const restPresent = () => { for (const p of people) { const v = val(p); if (!v.final_status) set(p.employee_id, { final_status: 'present', ...(p.mark ? { manager_ok: v.manager_ok ?? true } : {}) }) } }
+  const restPresent = () => { for (const p of people) { const v = val(p); if (!v.final_status || v.final_status === 'unchecked') set(p.employee_id, { final_status: 'present', ...(p.mark ? { manager_ok: v.manager_ok ?? true } : {}) }) } }
 
   const dates = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, -i)), [today])
 
@@ -109,16 +118,27 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
         <div className={`as-state ${locked ? 'lock' : 'open'}`} role="status">
           <Icon name={locked ? 'shield' : 'edit'} size={18} />
           <span>{locked
-            ? <><b>{L('সাবমিট হয়েছে — খাতা লক', 'Submitted — locked')}</b> · {d.sheet?.submitted_by_name ?? ''} · {fmtStamp(d.sheet?.submitted_at, lang)}</>
+            ? <><b>{L('সাবমিট হয়েছে — খাতা লক', 'Submitted — locked')}</b> · {L('সংস্করণ', 'version')} {n(d.sheet?.version ?? 1)} · {d.sheet?.mode === 'auto' ? L('সার্ভার নিজে সাবমিট করেছে', 'submitted by the server') : d.sheet?.submitted_by_name ?? ''} · {fmtStamp(d.sheet?.submitted_at, lang)}</>
             : d.sheet ? <><b>{L('খসড়া — এখনো সাবমিট হয়নি', 'Draft — not submitted yet')}</b>{d.sheet.unlocked_at && <> · {L('জোনাল ম্যানেজার খুলে দিয়েছেন', 'Unlocked by the zonal manager')}: {d.sheet.unlock_note}</>}</>
               : <b>{L(`${fmtLong(date, lang)} — এখনো শুরু হয়নি`, `${fmtLong(date, lang)} — not started`)}</b>}</span>
         </div>
+        {!locked && date <= today && <p className="muted small as-due" role="note"><Icon name="clock" size={14} /> {date === today
+          ? L(`আজকের খাতা সারাদিন খোলা। তারিখ বদলালে সার্ভার ${fmtStamp(d.due, lang)}-এ যা লেখা আছে সাবমিট করবে — অসম্পূর্ণ সারি “যাচাই বাকি” থাকবে।`, `Today’s register stays open all day. After the date changes the server submits what is typed at ${fmtStamp(d.due, lang)} — unfinished lines stay “not checked”.`)
+          : d.window ? L(`জোনাল ম্যানেজার ${fmtStamp(d.window.expires_at, lang)} পর্যন্ত এই দিন খুলে রেখেছেন (${d.window.reason}) — সময় পেরোলে সার্ভার যা আছে সাবমিট করবে।`, `The zonal manager opened this day until ${fmtStamp(d.window.expires_at, lang)} (${d.window.reason}) — after that the server submits what is there.`)
+          : L(`এই দিনের খাতা সার্ভার ${fmtStamp(d.due, lang)}-এ সাবমিট করবে।`, `The server submits this day at ${fmtStamp(d.due, lang)}.`)}</p>}
+        {!edit && !locked && !d.window && date < today && <p className="notice wm-note" role="status">{L('এই দিনের খাতা বন্ধ। লিখতে হলে জোনাল ম্যানেজারকে সংশোধনের জন্য খুলে দিতে বলুন।', 'This day is closed. Ask the zonal manager to open it for correction.')}</p>}
+        {(d.versions ?? []).length > 0 && <details className="as-versions"><summary className="muted small">{L(`সংস্করণ (${n((d.versions ?? []).length)}টি)`, `Versions (${(d.versions ?? []).length})`)}</summary>
+          <ul>{(d.versions ?? []).map(v => <li key={v.no}><b>{L('সংস্করণ', 'v')} {n(v.no)}</b> · {v.mode === 'auto' ? L('সার্ভার', 'server') : v.by ?? ''} · {fmtStamp(v.at, lang)}
+            {d.sheet && <>{' '}<button type="button" className="secondary sm" onClick={() => void att.version(d.sheet!.id, v.no).then(setOld).catch(e => setErr(wfFriendly(e)))}>{L('দেখুন', 'View')}</button></>}</li>)}</ul></details>}
 
         {d.my_check && <div className="as-check" role="status">
-          {d.my_check.ok_at ? <span><Icon name="check" size={16} /> {L(`আপনি “ঠিক আছে” দিয়েছেন — ${fmtStamp(d.my_check.ok_at, lang)}`, `You marked it OK — ${fmtStamp(d.my_check.ok_at, lang)}`)}</span>
-            : <><span>{L('জোনাল ম্যানেজার এই খাতা আপনাকে যাচাইয়ে পাঠিয়েছেন। দেখে ঠিক থাকলে চাপুন:', 'The zonal manager sent this register for your check. If it is right:')}</span>
+          {d.my_check.ok_at ? <span><Icon name="check" size={16} /> {L(`আপনি সংস্করণ ${n(d.my_check.version_no)}-কে “ঠিক আছে” দিয়েছেন — ${fmtStamp(d.my_check.ok_at, lang)}`, `You marked version ${d.my_check.version_no} OK — ${fmtStamp(d.my_check.ok_at, lang)}`)}</span>
+            : d.my_check.returned_at ? <span><Icon name="alert" size={16} /> {L('আপনি সংশোধনের জন্য ফেরত পাঠিয়েছেন', 'You sent it back for correction')}: {d.my_check.return_reason} <small className="muted">({fmtStamp(d.my_check.returned_at, lang)})</small></span>
+            : <><span>{L(`জোনাল ম্যানেজার এই খাতার সংস্করণ ${n(d.my_check.version_no)} আপনাকে যাচাইয়ে পাঠিয়েছেন। দেখে ঠিক থাকলে চাপুন:`, `The zonal manager sent version ${d.my_check.version_no} for your check. If it is right:`)}</span>
               <button type="button" disabled={busy || !d.sheet} onClick={() => d.sheet && void run(() => att.checkOk(d.sheet!.id), L('“ঠিক আছে” দেওয়া হয়েছে', 'Marked OK'))}>
-                <Icon name="check" size={16} />{L('ঠিক আছে — হ্যাঁ', 'It is right — yes')}</button></>}
+                <Icon name="check" size={16} />{L('ঠিক আছে — হ্যাঁ', 'It is right — yes')}</button>
+              <button type="button" className="secondary" disabled={busy || !d.sheet} onClick={async () => { const why = await askReason(L('কী সংশোধন করতে হবে?', 'What must be corrected?')); if (why && d.sheet) await run(() => att.checkReturn(d.sheet!.id, why), L('সংশোধনের অনুরোধ গেছে', 'Sent back')) }}>
+                <Icon name="back" size={16} />{L('সংশোধন চাই', 'Needs correction')}</button></>}
         </div>}
 
         <h3 className="wm-sub">{L('পদবী অনুযায়ী', 'By position')}</h3>
@@ -165,8 +185,8 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
         </div>
 
         {d.checks.length > 0 && <div className="as-checks">
-          <b>{L('ম্যানেজারদের যাচাই', 'Managers’ check')}</b>
-          <ul>{d.checks.map(c => <li key={c.profile_id}>{c.name ?? '—'} — {c.ok_at ? <Badge tone="ok">{L('ঠিক আছে', 'OK')} · {fmtStamp(c.ok_at, lang)}</Badge> : <Badge tone="warn">{L('এখনো দেখেননি', 'Not yet')}</Badge>}</li>)}</ul>
+          <b>{L(`ম্যানেজারদের যাচাই (সংস্করণ ${n(d.sheet?.version ?? 1)})`, `Managers’ check (version ${d.sheet?.version ?? 1})`)}</b>
+          <ul>{d.checks.map(c => <li key={c.profile_id}>{c.name ?? '—'} — {c.ok_at ? <Badge tone="ok">{L('ঠিক আছে', 'OK')} · {fmtStamp(c.ok_at, lang)}</Badge> : c.returned_at ? <Badge tone="bad">{L('সংশোধন চেয়েছেন', 'Wants a correction')}</Badge> : <Badge tone="warn">{L('এখনো দেখেননি', 'Not yet')}</Badge>}{c.return_reason ? <span className="muted small"> — {c.return_reason}</span> : null}</li>)}</ul>
         </div>}
       </>}
     </Section>
@@ -186,6 +206,13 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
       </ul>
       <p className="muted small">{L('“না”, দেরি আর না জানিয়ে অনুপস্থিত — এঁদের কাছে স্টাফ প্যানেলে ব্যাখ্যা চাওয়া হবে। সাবমিটের পর খাতা লক হবে।', 'Those with “no”, late or absent without telling are asked to explain in the staff panel. The register locks after submitting.')}</p>
       {err ? <p className="da-error" role="alert">{err}</p> : null}
+    </Modal>}
+
+    {old && <Modal wide title={L(`সংস্করণ ${n(old.no)} — ${fmtLong(old.date, lang)}`, `Version ${old.no} — ${fmtLong(old.date, lang)}`)} onClose={() => setOld(null)} actions={<button type="button" onClick={() => setOld(null)}>{L('বন্ধ করুন', 'Close')}</button>}>
+      <p className="muted small">{old.mode === 'auto' ? L('সার্ভার সাবমিট করেছিল', 'Submitted by the server') : old.by} · {fmtStamp(old.at, lang)}</p>
+      <div className="da-table-wrap"><table className="da-table"><thead><tr><th>{L('কর্মী', 'Person')}</th><th>{L('হাজিরা', 'Status')}</th><th>{L('বিবরণ', 'Details')}</th></tr></thead>
+        <tbody>{old.lines.map(x => <tr key={x.employee_id}><td>{x.name}</td><td>{statusLabel(x.final_status, lang)}</td>
+          <td className="wm-wrap">{[x.late_time && `${L('আসা', 'at')} ${x.late_time}`, x.unauthorized ? L('না জানিয়ে', 'without telling') : null, x.absence_reason, x.leave_ref, x.absence_app_date && `${L('আবেদন', 'applied')} ${x.absence_app_date}`, x.note].filter(Boolean).join(' · ') || '—'}</td></tr>)}</tbody></table></div>
     </Modal>}
 
     {unlock && d?.sheet && <NoteDialog title={L('খাতা খুলে দিন', 'Unlock the register')} label={L('কেন খুলছেন?', 'Why?')} confirm={L('খুলে দিন', 'Unlock')} danger
@@ -210,8 +237,10 @@ function PersonLine({ p, v, edit, problem, onChange }: { p: SheetPerson; v: Line
   const yesNo = (cur: boolean | null, on: (b: boolean) => void, label: string) => <span className="as-yn" role="group" aria-label={label}>
     <button type="button" className={`wm-chip${cur === true ? ' on ok' : ''}`} aria-pressed={cur === true} disabled={!edit} onClick={() => on(true)}>{L('হ্যাঁ', 'Yes')}</button>
     <button type="button" className={`wm-chip${cur === false ? ' on bad' : ''}`} aria-pressed={cur === false} disabled={!edit} onClick={() => on(false)}>{L('না', 'No')}</button></span>
-  const pick = (s: FinalStatus) => onChange({ final_status: s, ...(s !== 'late' ? { late_time: null } : {}), ...(s !== 'absent' ? { unauthorized: false, absence_app_date: null, absence_app_ref: null } : {}),
+  const pick = (s: FinalStatus) => onChange({ final_status: s, ...(s !== 'late' ? { late_time: null } : {}), ...(s !== 'absent' ? { unauthorized: false, absence_app_date: null, absence_app_ref: null, absence_reason: null } : {}),
     ...(!isPresentLike(s) ? { online_marked: null, online_reason: null } : {}) })
+  const onLeave = v.final_status === 'leave' && !!v.leave_ref          // approved leave puts itself on the line and cannot be changed here
+  const markedOnline = p.mark?.kind === 'present'                      // "marked online" is the person's own mark, with the server time of it
 
   return <li className={`as-line${problem && edit ? ' todo' : ''}`}>
     <div className="as-head">
@@ -225,22 +254,31 @@ function PersonLine({ p, v, edit, problem, onChange }: { p: SheetPerson; v: Line
       {yesNo(v.manager_ok, b => onChange({ manager_ok: b }), L('ঠিক আছে কি না', 'Right or not'))}
       {v.manager_ok === false && <small className="muted">{L('সাবমিটের পর কর্মীর কাছে ব্যাখ্যা চাওয়া হবে', 'They are asked to explain after submitting')}</small>}</div>}
 
-    <div className="as-row"><span className="as-k">{L('হাজিরা', 'Attendance')}</span>
-      <span className="wm-chips">{FINAL_OPTIONS.map(o => <button key={o.key} type="button" className={`wm-chip${v.final_status === o.key ? ' on' : ''}`} aria-pressed={v.final_status === o.key}
-        disabled={!edit} onClick={() => pick(o.key)}>{L(o.bn, o.en)}</button>)}</span></div>
+    {onLeave && <div className="as-row"><span className="as-k">{L('হাজিরা', 'Attendance')}</span>
+      <Badge tone="info">{L('অনুমোদিত ছুটি', 'Approved leave')}</Badge>
+      <small className="muted">{v.leave_ref}{v.leave_applied_on ? ` · ${L('আবেদনের তারিখ', 'applied on')} ${fmtDay(v.leave_applied_on, lang)}` : ''}</small></div>}
+    {!onLeave && v.leave_pending && <div className="as-row"><span className="as-k">{L('ছুটির আবেদন', 'Leave request')}</span>
+      <Badge tone="warn">{L('বিচারাধীন', 'Waiting')}</Badge><small className="muted">{v.leave_pending.ref} · {L('আবেদনের তারিখ', 'applied on')} {fmtDay(v.leave_pending.applied_on, lang)} — {L('অনুমোদন না হওয়া পর্যন্ত নিজে হাজিরা বাছুন', 'choose the attendance yourself until it is decided')}</small></div>}
+    {v.final_status === 'unchecked' && <div className="as-row"><Badge tone="warn">{L('যাচাই বাকি', 'Not checked')}</Badge></div>}
+
+    {!onLeave && <div className="as-row"><span className="as-k">{L('হাজিরা', 'Attendance')}</span>
+      <span className="wm-chips">{FINAL_OPTIONS.filter(o => o.key !== 'leave' || v.final_status === 'leave').map(o => <button key={o.key} type="button" className={`wm-chip${v.final_status === o.key ? ' on' : ''}`} aria-pressed={v.final_status === o.key}
+        disabled={!edit} onClick={() => pick(o.key)}>{L(o.bn, o.en)}</button>)}</span></div>}
 
     {v.final_status === 'late' && <div className="as-row"><span className="as-k">{L('কখন এসেছেন', 'Arrived at')}</span>
       <input type="time" value={v.late_time ?? ''} disabled={!edit} onChange={e => onChange({ late_time: e.target.value || null })} aria-label={L('আসার সময়', 'Arrival time')} /></div>}
 
-    {isPresentLike(v.final_status) && <div className="as-row"><span className="as-k">{L('অনলাইনে হাজিরা দিয়েছেন?', 'Marked online?')}</span>
-      {yesNo(v.online_marked, b => onChange({ online_marked: b, ...(b ? { online_reason: null } : {}) }), L('অনলাইন হাজিরা', 'Online attendance'))}
-      {v.online_marked === false && <input type="text" className="as-in" value={v.online_reason ?? ''} disabled={!edit} maxLength={500}
-        placeholder={L('কেন দেননি — কারণ লিখুন', 'Why not — reason')} aria-label={L('অনলাইনে না দেওয়ার কারণ', 'Reason')} onChange={e => onChange({ online_reason: e.target.value })} />}</div>}
+    {isPresentLike(v.final_status) && <div className="as-row"><span className="as-k">{L('অনলাইন হাজিরা', 'Online attendance')}</span>
+      {markedOnline ? <><Badge tone="ok">{L('হ্যাঁ', 'Yes')}</Badge><small className="muted">{L('কর্মীর নিজের হাজিরা', 'their own mark')} · {fmtStamp(p.mark!.marked_at, lang)}</small></>
+        : <><Badge tone="warn">{L('না', 'No')}</Badge>
+          <input type="text" className="as-in" value={v.online_reason ?? ''} disabled={!edit} maxLength={500}
+            placeholder={L('অনলাইনে না দেওয়ার কারণ লিখুন', 'Why no online attendance — reason')} aria-label={L('অনলাইনে না দেওয়ার কারণ', 'Reason')} onChange={e => onChange({ online_reason: e.target.value })} /></>}</div>}
 
     {v.final_status === 'absent' && <div className="as-row as-abs">
-      <label className="wm-ck"><input type="checkbox" checked={v.unauthorized} disabled={!edit} onChange={e => onChange({ unauthorized: e.target.checked, ...(e.target.checked ? { absence_app_date: null, absence_app_ref: null } : {}) })} />
-        <span>{L('না জানিয়ে অনুপস্থিত', 'Absent without telling')}</span></label>
+      <label className="wm-ck"><input type="checkbox" checked={v.unauthorized} disabled={!edit} onChange={e => onChange({ unauthorized: e.target.checked, ...(e.target.checked ? { absence_app_date: null, absence_app_ref: null, absence_reason: null } : {}) })} />
+        <span>{L('না জানিয়ে অনুপস্থিত (কারণ অজানা)', 'Absent without telling (reason unknown)')}</span></label>
       {!v.unauthorized && <>
+        <Field label={L('কারণ (জানা থাকলে)', 'Reason (if known)')}><input type="text" value={v.absence_reason ?? ''} disabled={!edit} maxLength={500} onChange={e => onChange({ absence_reason: e.target.value || null })} /></Field>
         <Field label={L('অনলাইন আবেদনের তারিখ', 'Online application date')}><input type="date" value={v.absence_app_date ?? ''} disabled={!edit} max={todayDhaka()} onChange={e => onChange({ absence_app_date: e.target.value || null })} /></Field>
         <Field label={L('আবেদন নম্বর (থাকলে)', 'Application no. (if any)')}><input type="text" value={v.absence_app_ref ?? ''} disabled={!edit} maxLength={60} onChange={e => onChange({ absence_app_ref: e.target.value || null })} /></Field></>}
     </div>}
@@ -255,7 +293,7 @@ function PersonLine({ p, v, edit, problem, onChange }: { p: SheetPerson; v: Line
 
 // ====================================================================================== মাসিক খাতা
 const CELL: Record<MonthCell, { bn: string; en: string; cls: string }> = {
-  P: { bn: 'উ', en: 'P', cls: 't-ok' }, A: { bn: 'অ', en: 'A', cls: 't-bad' }, O: { bn: 'ছু', en: 'O', cls: 't-neutral' }, '': { bn: '', en: '', cls: 't-neutral f' },
+  P: { bn: 'উ', en: 'P', cls: 't-ok' }, A: { bn: 'অ', en: 'A', cls: 't-bad' }, U: { bn: 'বা', en: 'U', cls: 't-warn' }, O: { bn: 'ছু', en: 'O', cls: 't-neutral' }, '': { bn: '', en: '', cls: 't-neutral f' },
 }
 
 export function MonthSheetTab({ hubId }: { hubId: string }) {
@@ -270,11 +308,13 @@ export function MonthSheetTab({ hubId }: { hubId: string }) {
   function excel() {
     if (!b) return
     const heads = [L('আইডি', 'ID'), L('নাম', 'Name'), L('পদবী', 'Position'), ...b.dates.map(x => String(Number(x.slice(8)))), L('উপস্থিত', 'Present'), L('অনুপস্থিত', 'Absent'), L('ছুটি', 'Off')]
-    const rows = b.people.map(p => [p.code, p.name, p.position, ...p.cells.map(c => c === 'P' ? L('উপস্থিত', 'Present') : c === 'A' ? L('অনুপস্থিত', 'Absent') : c === 'O' ? L('ছুটি', 'Off') : ''), p.present, p.absent, p.off])
+    const rows = b.people.map(p => [p.code, p.name, p.position, ...p.cells.map(c => c === 'P' ? L('উপস্থিত', 'Present') : c === 'A' ? L('অনুপস্থিত', 'Absent') : c === 'O' ? L('ছুটি', 'Off') : c === 'U' ? L('যাচাই বাকি', 'Not checked') : ''), p.present, p.absent, p.off])
     exportRows(L('মাসিক হাজিরা খাতা', 'Monthly attendance register'), `${b.hub.name ?? ''} · ${monthName(b.month, lang)}`, heads, rows, `monthly-attendance-${b.month.slice(0, 7)}`)
   }
 
-  return <Section title={L('মাসিক হাজিরা খাতা', 'Monthly attendance register')}
+  return <>
+  <MonthSubmission hubId={hubId} month={month} />
+  <Section title={L('মাসিক হাজিরা খাতা', 'Monthly attendance register')}
     hint={L('প্রতিদিনের সাবমিট করা ফাইনাল খাতা থেকে — উপস্থিত (দেরি ও অর্ধদিবসসহ) আর অনুপস্থিত। যে দিনের খাতা সাবমিট হয়নি, সেই কলাম ফাঁকা।',
       'From the submitted daily registers — present (late and half day included) and absent. A day not submitted stays blank.')}
     tools={<>
@@ -296,7 +336,7 @@ export function MonthSheetTab({ hubId }: { hubId: string }) {
                 <b>{n(Number(x.slice(8)))}</b><small>{fmtWeekday(x, lang)}</small></th>)}
               <th scope="col" className="sum">{L('উ', 'P')}</th><th scope="col" className="sum">{L('অ', 'A')}</th></tr></thead>
             <tbody>{b.people.map(p => <tr key={p.employee_id}><th scope="row" className="pri"><Who name={p.name} code={p.code} position={p.position} /></th>
-              {p.cells.map((c, i) => <td key={i}><span className={`wm-cell ${CELL[c].cls}`} aria-label={c === 'P' ? L('উপস্থিত', 'Present') : c === 'A' ? L('অনুপস্থিত', 'Absent') : c === 'O' ? L('ছুটি', 'Off') : L('খাতা নেই', 'No register')}>
+              {p.cells.map((c, i) => <td key={i}><span className={`wm-cell ${CELL[c].cls}`} aria-label={c === 'P' ? L('উপস্থিত', 'Present') : c === 'A' ? L('অনুপস্থিত', 'Absent') : c === 'O' ? L('ছুটি', 'Off') : c === 'U' ? L('যাচাই বাকি', 'Not checked') : L('খাতা নেই', 'No register')}>
                 {lang === 'bn' ? CELL[c].bn : CELL[c].en}</span></td>)}
               <td className="sum">{n(p.present)}</td><td className="sum bad">{n(p.absent)}</td></tr>)}</tbody>
             <tfoot><tr><th scope="row" className="pri">{L('মোট উপস্থিত', 'Present, total')}</th>
@@ -305,5 +345,51 @@ export function MonthSheetTab({ hubId }: { hubId: string }) {
           </table>
         </div>}
     </>}
+  </Section>
+  </>
+}
+
+/** মাসের জমা — the month is submitted from the daily registers' versions. A missing day is named; after a day is corrected the month is submitted again. */
+function MonthSubmission({ hubId, month }: { hubId: string; month: IsoDate }) {
+  const { L, n, lang } = usePrefs()
+  const { toast, node } = useToast()
+  const q = useLiveLoad<MonthRegister>(() => att.monthGet(hubId, month), [hubId, month], LIVE_MONTH)
+  const r = q.data && q.data.hub.id === hubId && q.data.month === month ? q.data : null
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
+  if (q.error && !r) return <p className="da-error" role="alert">{wfFriendly(q.error)}</p>
+  if (!r) return null
+  async function run(fn: () => Promise<unknown>, msg: string) {
+    setBusy(true); setErr('')
+    try { const x = await fn(); toast(typeof x === 'string' && x ? x : msg); announceWfChange(); await q.reload() } catch (e) { setErr(wfFriendly(e)) } finally { setBusy(false) }
+  }
+  const missing = r.missing, sub = r.sub
+  const need = !sub || r.changed
+  return <Section title={L('মাসের খাতা জমা', 'Submit the month')}
+    hint={L('মাসের হিসাব দৈনিক খাতার সংস্করণ থেকে হয়। কোনো দিনের খাতা বাকি থাকলে সেই তারিখ দেখানো হয়। দিনের খাতা সংশোধন হলে মাস আবার জমা দিতে হয়; আগের মাসিক সংস্করণ রাখা থাকে।',
+      'The month is made from the daily registers’ versions. A day not submitted is named. After a day is corrected the month must be submitted again; the earlier monthly version is kept.')}>
+    {node}
+    {sub ? <p className="as-state lock"><Icon name="shield" size={18} /> <span><b>{L(`মাসের খাতা জমা — সংস্করণ ${n(sub.version_no)}`, `Month submitted — version ${sub.version_no}`)}</b> · {sub.by ?? ''} · {fmtStamp(sub.at, lang)} · {L(`${n(Object.keys(sub.days).length)} দিন`, `${Object.keys(sub.days).length} days`)}</span></p>
+      : <p className="muted">{L('এই মাসের খাতা এখনো জমা হয়নি।', 'This month has not been submitted yet.')}</p>}
+    {r.changed && <p className="da-error" role="alert">{L('দৈনিক খাতা বদলেছে — পুনঃসাবমিট দরকার', 'A daily register changed — submit again')}: {r.changed_days.map(x => fmtDay(x, lang)).join(', ')}</p>}
+    {missing.length > 0 && <p className="notice wm-note" role="status"><Icon name="alert" size={14} /> {L('দৈনিক খাতা বাকি', 'Daily register missing')}: <b>{missing.slice(0, 6).map(x => fmtDay(x, lang)).join(', ')}{missing.length > 6 ? ` +${n(missing.length - 6)}` : ''}</b></p>}
+    {err ? <p className="da-error" role="alert">{err}</p> : null}
+    <div className="as-bar no-print">
+      {r.can.submit && need && <button type="button" disabled={busy || missing.length > 0 || !Object.keys(r.days).length} onClick={() => void run(async () => (await att.monthSubmit(hubId, month)).already ? L('একই সংস্করণ আগেই জমা আছে', 'Already submitted') : '', sub ? L('পুনরায় জমা হয়েছে', 'Submitted again') : L('মাসের খাতা জমা হয়েছে', 'Month submitted'))}>
+        <Icon name="check" size={16} />{sub ? L('মাস আবার জমা দিন', 'Submit the month again') : L('মাসের খাতা জমা দিন', 'Submit the month')}</button>}
+      {r.can.send && sub && <button type="button" className="secondary" disabled={busy} onClick={() => void run(async () => { const k = await att.monthSend(sub.id); return k ? L(`${n(k)} জন ম্যানেজারকে পাঠানো হয়েছে`, `Sent to ${k} managers`) : L('সবাইকে আগেই পাঠানো হয়েছে', 'Already sent') }, L('পাঠানো হয়েছে', 'Sent'))}>
+        <Icon name="bell" size={16} />{L('এই সংস্করণ হাব ম্যানেজারদের যাচাইয়ে পাঠান', 'Send this version for checking')}</button>}
+    </div>
+    {r.my_check && sub && <div className="as-check" role="status">
+      {r.my_check.ok_at ? <span><Icon name="check" size={16} /> {L('আপনি “ঠিক আছে” দিয়েছেন', 'You marked it OK')} — {fmtStamp(r.my_check.ok_at, lang)}</span>
+        : r.my_check.returned_at ? <span><Icon name="alert" size={16} /> {L('আপনি সংশোধনের জন্য ফেরত পাঠিয়েছেন', 'You sent it back')}: {r.my_check.return_reason}</span>
+        : <><span>{L(`জোনাল ম্যানেজার মাসের খাতার সংস্করণ ${n(sub.version_no)} যাচাইয়ে পাঠিয়েছেন:`, `The zonal manager sent version ${sub.version_no} of the month for your check:`)}</span>
+          <button type="button" disabled={busy} onClick={() => void run(() => att.monthOk(sub.id), L('“ঠিক আছে” দেওয়া হয়েছে', 'Marked OK'))}><Icon name="check" size={16} />{L('ঠিক আছে — হ্যাঁ', 'It is right — yes')}</button>
+          <button type="button" className="secondary" disabled={busy} onClick={async () => { const why = await askReason(L('কী সংশোধন করতে হবে?', 'What must be corrected?')); if (why) await run(() => att.monthReturn(sub.id, why), L('সংশোধনের অনুরোধ গেছে', 'Sent back')) }}>
+            <Icon name="back" size={16} />{L('সংশোধন চাই', 'Needs correction')}</button></>}
+    </div>}
+    {r.checks.length > 0 && <div className="as-checks"><b>{L('ম্যানেজারদের যাচাই', 'Managers’ check')}</b>
+      <ul>{r.checks.map(c => <li key={c.profile_id}>{c.name ?? '—'} — {c.ok_at ? <Badge tone="ok">{L('ঠিক আছে', 'OK')} · {fmtStamp(c.ok_at, lang)}</Badge> : c.returned_at ? <Badge tone="bad">{L('সংশোধন চেয়েছেন', 'Wants a correction')}</Badge> : <Badge tone="warn">{L('এখনো দেখেননি', 'Not yet')}</Badge>}{c.return_reason ? <span className="muted small"> — {c.return_reason}</span> : null}</li>)}</ul></div>}
+    {r.history.length > 1 && <details className="as-versions"><summary className="muted small">{L(`মাসিক সংস্করণ (${n(r.history.length)}টি)`, `Monthly versions (${r.history.length})`)}</summary>
+      <ul>{r.history.map(h => <li key={h.version_no}><b>{L('সংস্করণ', 'v')} {n(h.version_no)}</b> · {h.by ?? ''} · {fmtStamp(h.at, lang)} · {L(`${n(h.days)} দিন`, `${h.days} days`)}</li>)}</ul></details>}
   </Section>
 }
