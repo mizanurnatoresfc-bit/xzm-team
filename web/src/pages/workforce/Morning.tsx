@@ -85,8 +85,8 @@ export function MorningTab({ hubId }: { hubId: string }) {
   return <>
     {node}
     <Section title={`${L('সকালের জনবল', 'Morning input')} — ${fmtLong(f.date, lang)}`}
-      hint={L(`কে এসেছে, কে আসেনি, কার তথ্য এখনও যাচাই বাকি — বেছে জোনাল ম্যানেজারের কাছে জমা দিন। ${due}-এর মধ্যে না দিলে যতটুকু লেখা আছে সার্ভার জমা করে নেবে।`,
-        `Say who came, who did not and who is still unchecked, then submit to the zonal manager. If nothing is submitted by ${due}, the server submits what is typed.`)}
+      hint={L(`কে এসেছে, কে আসেনি, কার তথ্য এখনও যাচাই বাকি — বেছে জোনাল ম্যানেজারের কাছে জমা দিন। ${due}-এর পর সবার অবস্থা বসানো থাকলে সার্ভার নিজে জমা করবে; খালি বা অসম্পূর্ণ থাকলে ফর্ম খোলা থাকবে এবং আপনাকে ও জোনাল ম্যানেজারকে জানানো হবে।`,
+        `Say who came, who did not and who is still unchecked, then submit to the zonal manager. After ${due} the server submits it only when everybody has an answer; if it is empty or unfinished it stays open and you and the zonal manager are told.`)}
       tools={f.can.fill ? <button type="button" className="secondary sm" onClick={allCame}><Icon name="checkall" size={14} />{L('সবাইকে "এসেছে" দিন', 'Mark everyone as came')}</button> : null}>
       {f.returned && <p className="notice wm-note" role="status"><b>{L('জোনাল ম্যানেজার ফেরত পাঠিয়েছেন', 'Sent back by the zonal manager')}:</b> {f.returned.reason} <span className="muted small">({fmtStamp(f.returned.at, lang)})</span></p>}
       <div className="da-stats">
@@ -204,8 +204,8 @@ export function MorningPolicy({ zone }: { zone: string }) {
     catch (e) { toast(wfFriendly(e)) }
   }
   return <Section title={L('অটো সাবমিটের সময়', 'Auto-submit times')}
-    hint={L(`সকালের ইনপুট কাট-অফ ও অতিরিক্ত মিনিটের পর, আর ঢাকার তারিখ বদলালে দৈনিক খাতা পরদিনের নির্ধারিত সময়ের পর সার্ভার নিজে জমা করে (ঢাকার সময়)। আজকের সকালের অটো জমা: ${fmtTime(p.today_due, lang)}।`,
-      `The server submits the morning input after the cut-off plus the extra minutes, and a daily register after the set time of the next day (Dhaka time). Today’s morning: ${fmtTime(p.today_due, lang)}.`)}>
+    hint={L(`সকালের ইনপুট কাট-অফ ও অতিরিক্ত মিনিটের পর, আর ঢাকার তারিখ বদলালে দৈনিক খাতা পরদিনের নির্ধারিত সময়ের পর সার্ভার নিজে জমা করে (ঢাকার সময়) — শুধু যদি প্রতিজনের অবস্থা বসানো থাকে; খালি বা অসম্পূর্ণ হলে খোলা রাখে এবং হাব ও জোনাল ম্যানেজারকে জানায়। আজকের সকালের অটো জমা: ${fmtTime(p.today_due, lang)}।`,
+      `The server submits the morning input after the cut-off plus the extra minutes, and a daily register after the set time of the next day (Dhaka time) — only when everybody has an answer; an empty or unfinished one stays open and the hub and zonal managers are told. Today’s morning: ${fmtTime(p.today_due, lang)}.`)}>
     {node}
     <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
       <Field label={L('সকালের কাট-অফ', 'Morning cut-off')}><input type="time" value={cut} disabled={!p.can_edit} onChange={e => setCut(e.target.value)} /></Field>

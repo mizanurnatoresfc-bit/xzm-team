@@ -155,7 +155,9 @@ $$;
 create or replace function private.att_edit_open(p_hub uuid, p_date date) returns boolean
 language sql stable security definer set search_path = '' as $$
   select p_date = private.wf_today()
-      or (p_date < private.wf_today() and (private.att_open_window(p_hub, p_date) is not null or now() < private.wf_day_due(private.hub_zone(p_hub), p_date)))
+      or (p_date < private.wf_today() and (private.att_open_window(p_hub, p_date) is not null or now() < private.wf_day_due(private.hub_zone(p_hub), p_date)
+          -- the server did not submit it because it was empty or unfinished (wf_auto_holds): it stays open for the hub manager until it is submitted
+          or exists (select 1 from public.wf_auto_holds a where a.kind = 'day' and a.hub_id = p_hub and a.work_date = p_date and a.released_at is null)))
 $$;
 
 -- Leave of a person on a date: approved (with its reference and the date it was applied for), else waiting.
@@ -276,7 +278,8 @@ end $$;
 -- ---------------------------------------------------------------------
 -- 3. Closing a register (by the manager, or by the server): one place, one version
 -- ---------------------------------------------------------------------
--- p_strict: the manager's submit — an unfinished line stops it. Not strict: the server's submit — an unfinished line becomes "unchecked".
+-- p_strict: an unfinished line stops the submit (the manager's, and the server's too: the server never guesses, see att_day_autosubmit). Not strict: an unfinished
+-- line becomes "unchecked" (no caller uses this any more; kept for a manual repair).
 -- Returns null when the register was already submitted (the other caller got there first).
 create or replace function private.att_sheet_close(p_hub uuid, p_date date, p_by uuid, p_mode text, p_strict boolean, p_window uuid default null)
 returns jsonb language plpgsql security definer set search_path = '' as $$
@@ -313,7 +316,10 @@ begin
     select string_agg(e.full_name || ': ' || w, '; ' order by e.full_name) into v_bad
       from (select l.employee_id, private.att_line_gap(l) w from public.att_day_lines l where l.sheet_id = s.id) z join public.employees e on e.id = z.employee_id
      where w is not null;
-    if v_bad is not null then raise exception 'Some lines are not complete — কিছু সারি অসম্পূর্ণ: %', v_bad using errcode = '22023'; end if;
+    if v_bad is not null then
+      raise exception 'Some lines are not complete — কিছু সারি অসম্পূর্ণ: %', v_bad using errcode = '22023',
+        detail = (select count(*) from public.att_day_lines l where l.sheet_id = s.id and private.att_line_gap(l) is not null)::text;
+    end if;
   else
     -- the server never guesses: an unfinished line is "unchecked" (or "leave request waiting")
     for ln in select l.*, private.att_line_gap(l) as gap from public.att_day_lines l where l.sheet_id = s.id loop
@@ -361,6 +367,7 @@ begin
   select coalesce(pr.full_name, case when p_by is null then 'সার্ভার (অটো)' else 'user' end) into v_name from (select 1) one left join public.profiles pr on pr.id = p_by;
   update public.att_day_sheets set status = 'submitted', submitted_by = p_by, submitted_at = now(), version = v_no, submit_mode = p_mode, window_id = p_window,
          updated_at = now() where id = s.id;
+  perform private.wf_hold_release('day', p_hub, p_date);
   insert into public.att_sheet_versions (sheet_id, hub_id, work_date, version_no, mode, window_id, lines, submitted_by, submitted_by_name)
     select s.id, p_hub, p_date, v_no, p_mode, p_window, coalesce(jsonb_agg(to_jsonb(l) - 'updated_by' order by l.employee_id), '[]'::jsonb), p_by, v_name
       from public.att_day_lines l where l.sheet_id = s.id;
@@ -855,12 +862,14 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
--- 7. The server job: when the Dhaka date has changed, submit the registers still open (and end the reopenings whose time is over)
+-- 7. The server job: when the Dhaka date has changed, submit the registers still open — only the complete ones (and end the reopenings whose time is over)
+--    An empty or unfinished register is NOT submitted: it stays open (the hub manager may still write it), the hub's and the zone's managers are told once, and the job
+--    looks again next minute. The server never turns a line into "unchecked" by itself.
 -- ---------------------------------------------------------------------
 -- Returns how many registers it submitted. p_hub limits it to one hub (used when a reopening is ended by hand).
 create or replace function private.att_day_autosubmit(p_hub uuid default null) returns integer
 language plpgsql security definer set search_path = '' as $$
-declare r record; v_n integer := 0; v jsonb;
+declare r record; v_n integer := 0; v jsonb; v_miss integer; v_det text;
 begin
   update public.att_reopen_windows set status = 'expired', closed_at = now() where status = 'open' and expires_at <= now() and (p_hub is null or hub_id = p_hub);
   for r in
@@ -871,12 +880,20 @@ begin
         select s.work_date from public.att_day_sheets s where s.hub_id = h.id and s.status = 'draft' and s.work_date < private.wf_today()) d
      where h.archived_at is null and h.status = 'active' and (p_hub is null or h.id = p_hub)
        and not exists (select 1 from public.att_day_sheets s where s.hub_id = h.id and s.work_date = d.work_date and s.status = 'submitted')
-       and d.work_date >= private.wf_auto_from()                                   -- before the start date: never (setting workforce.auto_submit_from)
+       and d.work_date >= private.wf_auto_from()                                   -- before the start date (or no readable start date): never (setting workforce.auto_submit_from)
        and exists (select 1 from private.att_sheet_people(h.id, d.work_date))
        and private.att_open_window(h.id, d.work_date) is null
        and now() >= private.wf_day_due(h.zone_id, d.work_date)
      order by d.work_date, h.id loop
-    v := private.att_sheet_close(r.hub_id, r.work_date, null, 'auto', false, null);
+    begin
+      v := private.att_sheet_close(r.hub_id, r.work_date, null, 'auto', true, null);
+    exception when sqlstate '22023' then
+      -- empty or unfinished: the failed close is undone, the register stays as the manager left it (open) and the managers are told, once
+      get stacked diagnostics v_det = pg_exception_detail;
+      v_miss := coalesce(nullif(v_det, '')::integer, 0);
+      if private.wf_hold('day', r.hub_id, r.zone_id, r.work_date, v_miss) then perform private.wf_hold_notify('day', r.hub_id, r.zone_id, r.work_date, v_miss); end if;
+      continue;
+    end;
     if v is not null then v_n := v_n + 1; end if;
   end loop;
   return v_n;
