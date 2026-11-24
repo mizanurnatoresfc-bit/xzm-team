@@ -27,14 +27,15 @@ export function ZoneFinal({ zone, onOpenHub }: { zone: string; onOpenHub: (hubId
     { key: 'staff', label: L('স্টাফ', 'Staff'), num: true, text: h => h.staff, cell: h => n(h.staff) },
     { key: 'given', label: L('নিজে দিয়েছেন', 'Gave themself'), num: true, text: h => h.given, cell: h => v(h.given) },
     { key: 'st', label: L('ফাইনাল খাতা', 'Final register'), sort: true, text: h => h.status === 'submitted' ? 'সাবমিট' : h.status === 'draft' ? 'খসড়া' : 'শুরু হয়নি',
-      cell: h => h.status === 'submitted' ? <Badge tone="ok">{L('সাবমিট', 'Submitted')} · {fmtTime(h.submitted_at!, lang)}</Badge>
+      cell: h => h.status === 'submitted' ? <Badge tone="ok">{h.mode === 'auto' ? L('সার্ভার সাবমিট', 'Server-submitted') : L('সাবমিট', 'Submitted')} · {fmtTime(h.submitted_at!, lang)} · {L('সং', 'v')}{n(h.version ?? 1)}</Badge>
         : h.status === 'draft' ? <Badge tone="warn">{L('খসড়া', 'Draft')}</Badge> : <Badge tone="bad">{L('শুরু হয়নি', 'Not started')}</Badge> },
     { key: 'p', label: L('উপস্থিত', 'Present'), num: true, text: h => h.present, cell: h => v(h.present) },
     { key: 'l', label: L('দেরি', 'Late'), num: true, text: h => h.late, cell: h => v(h.late, 'warn') },
     { key: 'a', label: L('অনুপস্থিত', 'Absent'), num: true, text: h => h.absent, cell: h => v(h.absent, 'bad') },
     { key: 'u', label: L('না জানিয়ে', 'Without telling'), num: true, text: h => h.unauthorized, cell: h => v(h.unauthorized, 'bad') },
+    { key: 'ub', label: L('যাচাই বাকি', 'Not checked'), num: true, text: h => h.unchecked ?? 0, cell: h => v(h.unchecked ?? 0, 'warn') },
     { key: 'ck', label: L('ম্যানেজারদের যাচাই', 'Managers’ check'), text: h => h.checks ? `${h.checks_ok}/${h.checks}` : '—',
-      cell: h => h.checks ? <Badge tone={h.checks_ok === h.checks ? 'ok' : 'warn'}>{n(h.checks_ok)}/{n(h.checks)} {L('ঠিক আছে', 'OK')}</Badge> : h.status === 'submitted' ? <span className="muted small">{L('পাঠানো হয়নি', 'Not sent')}</span> : '—' },
+      cell: h => h.checks ? <Badge tone={h.checks_returned ? 'bad' : h.checks_ok === h.checks ? 'ok' : 'warn'}>{n(h.checks_ok)}/{n(h.checks)} {L('ঠিক আছে', 'OK')}{h.checks_returned ? ` · ${n(h.checks_returned)} ${L('সংশোধন চেয়েছেন', 'want a correction')}` : ''}</Badge> : h.status === 'submitted' ? <span className="muted small">{L('পাঠানো হয়নি', 'Not sent')}</span> : '—' },
   ]
 
   return <Section title={L('দৈনিক হাজিরার তথ্য (ফাইনাল খাতা)', 'Daily attendance data (final register)')}

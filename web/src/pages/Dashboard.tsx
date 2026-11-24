@@ -20,7 +20,7 @@ import { WorkforceAlerts } from '../components/WorkforceAlerts'
 import { AppDownloadCard } from '../components/AppDownloadCard'
 import { reportImport } from '../lib/reportImport'
 import { todayDhaka } from '../lib/dailyAccounts'
-import { pageAllowed } from '../lib/menu'
+import { pageLinkAllowed } from '../lib/menu'
 
 export function Dashboard() {
   const { session, grants, can, viewAs, isSuperAdmin, menu } = useAuth()
@@ -81,7 +81,7 @@ export function Dashboard() {
     {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
     <MyApprovalCard />
     <RiderSendCard />
-    {(can('da.import.create') || can('da.sheet.view')) && pageAllowed(menu ?? null, '/app/accounts/report-import') && <ReportUploadCard />}
+    {pageLinkAllowed('/app/accounts/report-import', { can, menu: menu ?? null }) && <ReportUploadCard />}
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
     {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
     <AppDownloadCard />

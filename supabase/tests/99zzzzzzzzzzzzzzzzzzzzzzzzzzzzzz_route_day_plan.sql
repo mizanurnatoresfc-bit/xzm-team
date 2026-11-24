@@ -144,6 +144,12 @@ select tests.throws(format($$select public.route_plan_decide(%L, false, '')$$, t
 select public.route_plan_decide(tests.id('plan'), false, 'Give the helper some parcels');
 select tests.ok((select status = 'draft' and decide_note = 'Give the helper some parcels' from public.route_day_plans where id = tests.id('plan')), 'sent back with the reason');
 select tests.throws(format($$select public.route_plan_decide(%L, false, 'again')$$, tests.id('plan')), 'a draft cannot be sent back', '22023');
+-- (since 24 Nov a plan of today is approved on today's submitted morning input)
+select tests.login(tests.id('hub_mgr'));
+select public.wf_morning_submit(tests.id('hub_a1'), current_date, jsonb_build_array(
+  jsonb_build_object('employee_id', tests.id('r1'), 'state', 'present'), jsonb_build_object('employee_id', tests.id('r2'), 'state', 'absent'),
+  jsonb_build_object('employee_id', tests.id('cc'), 'state', 'present')));
+select tests.login(tests.id('zonal_a'));
 select public.route_plan_save(tests.id('hub_a1'), current_date, jsonb_build_object('unassigned', 5, 'people', jsonb_build_array(
   jsonb_build_object('employee_id', tests.id('r1'), 'present', true, 'parcels', 85, 'pickups', 8, 'detail', jsonb_build_array(
     jsonb_build_object('route_id', tests.id('route1'), 'parcels', 60), jsonb_build_object('route_id', tests.id('route1'), 'parcels', 25, 'for', tests.id('r2')))),
