@@ -196,7 +196,7 @@ function HomeOrPanel() {
 const foundationPreview = import.meta.env.VITE_RELEASE_01_PREVIEW === 'true'
 
 function SuperAdminFoundation() {
-  const { isSuperAdmin, loading, mustChangePassword, session, signOut } = useAuth()
+  const { hasGlobalSuperGrant, loading, mustChangePassword, session, signOut } = useAuth()
 
   if (loading) return <Loading />
   if (!session) return <Login afterSignIn="/" />
@@ -204,7 +204,7 @@ function SuperAdminFoundation() {
 
   return <main className="center-screen">
     <section className="notice" aria-labelledby="foundation-title">
-      {isSuperAdmin ? <>
+      {hasGlobalSuperGrant ? <>
         <h1 id="foundation-title">Super Admin Control Center</h1>
         <p>Release 01 · Foundation preview</p>
         <p>কর্মীদের জন্য কোনো মডিউল এখনো চালু হয়নি।</p>
