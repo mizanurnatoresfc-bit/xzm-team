@@ -45,6 +45,7 @@ type AuthContextValue = {
   endRecovery: () => void
   /** True for a real Super Admin, also while previewing another role. */
   isSuperAdmin: boolean
+  hasGlobalSuperGrant: boolean
   /** The role being previewed, or null. */
   /** The pages this person is limited to, from their roles (null = no limit). */
   menu: string[] | null
@@ -159,6 +160,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const isSuperAdmin = useMemo(() => grants.some(g => g.is_super), [grants])
   // The preview only ever narrows what a real Super Admin sees; nobody else can turn it on.
+  const hasGlobalSuperGrant = grants.some(g => g.is_super && g.scope_type === 'global')
   const viewAs = isSuperAdmin ? viewAsPick : null
   const shown = useMemo<PermissionGrant[]>(() => !viewAs ? grants
     : viewAs.is_super ? [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }]
@@ -167,9 +169,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     shown.some(g => g.is_super || g.permission_code === permission), [shown])
 
   const value = useMemo(() => ({
-    session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword: mustChangePassword || (recovering && !!session), recovering: recovering && !!session, endRecovery, isSuperAdmin, viewAs, setViewAs,
+    session, grants: shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword: mustChangePassword || (recovering && !!session), recovering: recovering && !!session, endRecovery, isSuperAdmin, hasGlobalSuperGrant, viewAs, setViewAs,
     menu: viewAs ? (viewAs.is_super ? null : viewAs.menu ?? null) : ownMenu,
-  }), [ownMenu, session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, viewAs, setViewAs])
+  }), [ownMenu, session, shown, loading, signIn, signOut, can, refreshGrants, mustChangePassword, recovering, endRecovery, isSuperAdmin, hasGlobalSuperGrant, viewAs, setViewAs])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
