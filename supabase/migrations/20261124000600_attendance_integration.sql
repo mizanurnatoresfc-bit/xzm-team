@@ -1,30 +1,85 @@
 begin;
 
+create table private.attendance_cutoff_alerts (
+  hub_id uuid not null references public.hubs(id),
+  work_date date not null,
+  form_kind text not null check (form_kind in ('morning', 'daily')),
+  created_at timestamptz not null default now(),
+  primary key (hub_id, work_date, form_kind)
+);
+alter table private.attendance_cutoff_alerts enable row level security;
+revoke all on private.attendance_cutoff_alerts from public, anon, authenticated, service_role;
+
+create function private.attendance_cutoff_alert(p_hub uuid, p_zone uuid, p_date date, p_kind text)
+returns void language plpgsql set search_path = '' as $$
+declare r record; title text; hub_tab text;
+begin
+  insert into private.attendance_cutoff_alerts (hub_id, work_date, form_kind)
+  values (p_hub, p_date, p_kind) on conflict do nothing;
+  if not found then return; end if;
+
+  title := case p_kind when 'morning' then 'সকালের জনবল জমা হয়নি' else 'দৈনিক হাজিরা খাতা জমা হয়নি' end;
+  hub_tab := case p_kind when 'morning' then 'morning' else 'final' end;
+  for r in
+    select ids.profile_id, bool_or(ids.is_zone) as is_zone
+    from (
+      select x as profile_id, false as is_zone from private.wf_hub_managers(p_hub) x
+      union all
+      select x as profile_id, true as is_zone from private.wf_zone_managers(p_zone) x
+    ) ids join public.profiles p on p.id = ids.profile_id and p.status = 'active' and p.archived_at is null
+    group by ids.profile_id
+  loop
+    perform private.notify(r.profile_id, title,
+      coalesce(private.hub_name(p_hub), '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') ||
+      '। সময় শেষ হয়েছে। খালি বা অসম্পূর্ণ তথ্য পূরণ করে জমা দিন।',
+      case when r.is_zone then '/app/attendance?view=zone&tab=' || hub_tab || '&zone=' || p_zone || '&date=' || p_date
+        else '/app/attendance?view=hub&tab=' || hub_tab || '&hub=' || p_hub || '&date=' || p_date end,
+      'attendance_cutoff');
+  end loop;
+end $$;
+revoke all on function private.attendance_cutoff_alert(uuid, uuid, date, text) from public, anon, authenticated, service_role;
+
 create or replace function private.wf_morning_autosubmit() returns integer
 language plpgsql security definer set search_path = '' as $$
-declare h record; v_id uuid; v_n integer := 0; v_left integer; m uuid;
+declare h record; v_id uuid; v_n integer := 0;
 begin
   for h in
-    select hb.id, hb.zone_id, s.work_date
-    from public.wf_morning_subs s join public.hubs hb on hb.id = s.hub_id
-    where s.status = 'open' and s.revision = 1
-      and s.work_date between private.wf_today() - 2 and private.wf_today()
-      and hb.archived_at is null and hb.status = 'active'
-      and now() >= private.wf_morning_due(hb.zone_id, s.work_date)
-    order by hb.id, s.work_date
+    select hb.id, hb.zone_id, days.work_date
+    from public.hubs hb
+    cross join lateral (
+      select private.wf_today() as work_date
+      union
+      select s.work_date from public.wf_morning_subs s
+      where s.hub_id = hb.id and s.status = 'open' and s.revision = 1
+        and s.work_date between private.wf_today() - 2 and private.wf_today() - 1
+    ) days
+    where hb.archived_at is null and hb.status = 'active'
+      and now() >= private.wf_morning_due(hb.zone_id, days.work_date)
+      and exists (select 1 from private.wf_morning_people(hb.id))
+      and not exists (select 1 from public.wf_morning_subs s
+        where s.hub_id = hb.id and s.work_date = days.work_date and (s.revision > 1 or s.status <> 'open'))
+    order by hb.id, days.work_date
   loop
-      perform pg_advisory_xact_lock(hashtextextended('wf_morning:' || h.id::text || h.work_date::text, 0));
-      continue when not exists (select 1 from public.wf_morning_subs s where s.hub_id = h.id and s.work_date = h.work_date
-        and s.status = 'open' and s.revision = 1);
-      v_id := private.wf_morning_close(h.id, h.work_date, null, 'auto', null);
-      if v_id is not null then
-        v_n := v_n + 1;
-        select count(*) into v_left from public.wf_morning_lines where sub_id = v_id and state = 'unknown';
-        for m in select * from private.wf_hub_managers(h.id) loop
-          perform private.notify(m, 'সকালের জনবল নিজে জমা হয়েছে',
-            case when v_left > 0 then v_left || ' জনের হাজিরা যাচাই বাকি আছে' else 'সবার অবস্থা বসানো ছিল' end, '/app/attendance?view=hub&tab=morning&hub=' || h.id::text, 'wf_morning');
-        end loop;
-      end if;
+    perform pg_advisory_xact_lock(hashtextextended('wf_morning:' || h.id::text || h.work_date::text, 0));
+    if exists (select 1 from public.wf_morning_subs s
+      where s.hub_id = h.id and s.work_date = h.work_date and (s.revision > 1 or s.status <> 'open')) then
+      continue;
+    end if;
+    if not exists (select 1 from public.wf_morning_subs s where s.hub_id = h.id and s.work_date = h.work_date)
+      or exists (
+        select 1 from private.wf_morning_people(h.id) e
+        where private.wf_leave_on(e.id, h.work_date) is null and not exists (
+          select 1 from public.wf_morning_subs s join public.wf_morning_lines l on l.sub_id = s.id
+          where s.hub_id = h.id and s.work_date = h.work_date and s.status = 'open'
+            and l.employee_id = e.id and l.state in ('present', 'absent')
+        )
+      )
+    then
+      perform private.attendance_cutoff_alert(h.id, h.zone_id, h.work_date, 'morning');
+      continue;
+    end if;
+    v_id := private.wf_morning_close(h.id, h.work_date, null, 'auto', null);
+    if v_id is not null then v_n := v_n + 1; end if;
   end loop;
   return v_n;
 end $$;
@@ -107,7 +162,6 @@ end $$;
 
 alter table public.wf_att_policy add column day_auto_since date;
 alter table public.att_day_sheets add column auto_submitted boolean not null default false;
-alter table public.att_day_lines add column auto_review_values jsonb;
 create index att_day_sheets_auto_drafts on public.att_day_sheets (hub_id, work_date) where status = 'draft';
 
 create or replace function public.wf_att_policy_save(p_zone uuid, p jsonb) returns jsonb
@@ -146,7 +200,7 @@ end $$;
 create function private.att_sheet_finish(p_hub uuid, p_date date, p_sheet uuid, p_auto boolean)
 returns jsonb language plpgsql security definer set search_path = '' as $$
 declare
-  s public.att_day_sheets; ln record; v_rec uuid; v_bad text; v_asked integer := 0; v_written integer := 0; v_pending integer := 0; v_pending_ids uuid[];
+  s public.att_day_sheets; ln record; v_rec uuid; v_bad text; v_asked integer := 0; v_written integer := 0;
   v_reasons text[]; v_r text; v_prof uuid; v_hub text := private.hub_name(p_hub);
 begin
   select * into s from public.att_day_sheets where id = p_sheet and hub_id = p_hub and work_date = p_date for update;
@@ -158,8 +212,7 @@ begin
   insert into public.att_day_lines (sheet_id, employee_id, position_id, updated_by)
   select s.id, pp, e.position_id, auth.uid() from private.att_sheet_people(p_hub, p_date) pp join public.employees e on e.id = pp
   on conflict (sheet_id, employee_id) do nothing;
-  select string_agg(e.full_name || ': ' || w, '; ' order by e.full_name), array_agg(z.employee_id)
-    into v_bad, v_pending_ids from (
+  select string_agg(e.full_name || ': ' || w, '; ' order by e.full_name) into v_bad from (
     select l.employee_id, case
       when p_auto and l.final_status = 'leave' and not exists (
         select 1 from public.attendance_records r where r.employee_id = l.employee_id and r.work_date = p_date and r.status = 'leave'
@@ -181,20 +234,15 @@ begin
       when l.final_status = 'absent' and not l.unauthorized and l.absence_app_date is null then 'অনলাইন আবেদনের তারিখ দিন, অথবা "না জানিয়ে অনুপস্থিত" দিন'
     end w from public.att_day_lines l where l.sheet_id = s.id) z join public.employees e on e.id = z.employee_id
    where w is not null;
-  if v_bad is not null and not p_auto then
+  if v_bad is not null and p_auto then
+    raise exception 'Attendance draft requires review' using errcode = 'P2201';
+  end if;
+  if v_bad is not null then
     raise exception 'Some lines are not complete — কিছু সারি অসম্পূর্ণ: %', v_bad using errcode = '22023';
   end if;
 
-  if p_auto and v_pending_ids is not null then
-    update public.att_day_lines l set
-      auto_review_values = jsonb_build_object('final_status', l.final_status, 'late_time', l.late_time, 'unauthorized', l.unauthorized),
-      final_status = null, late_time = null, unauthorized = false
-    where l.sheet_id = s.id and l.employee_id = any(v_pending_ids);
-    get diagnostics v_pending = row_count;
-  end if;
-
   perform set_config('app.wf_action', 'approved', true);
-  for ln in select x.*, e.profile_id, e.full_name from public.att_day_lines x join public.employees e on e.id = x.employee_id where x.sheet_id = s.id and x.auto_review_values is null loop
+  for ln in select x.*, e.profile_id, e.full_name from public.att_day_lines x join public.employees e on e.id = x.employee_id where x.sheet_id = s.id loop
     -- the final status goes on the register (every report reads attendance_records)
     insert into public.attendance_records as r (employee_id, work_date, status, check_in, source, note, created_by, updated_by)
     values (ln.employee_id, p_date, ln.final_status,
@@ -235,10 +283,10 @@ begin
   for v_prof in select distinct ur.user_id from public.user_roles ur join public.roles ro on ro.id = ur.role_id
                  where ro.code = 'zonal_manager' and ur.revoked_at is null and (ur.valid_to is null or ur.valid_to >= current_date)
                    and (ur.zone_id = s.zone_id or ur.scope_type = 'global') loop
-    perform private.notify(v_prof, 'দৈনিক ফাইনাল হাজিরা খাতা সাবমিট হয়েছে', coalesce(v_hub, '') || ' · ' || to_char(p_date, 'DD-MM-YYYY') || case when v_pending > 0 then ' · যাচাই বাকি ' || v_pending else '' end,
+    perform private.notify(v_prof, 'দৈনিক ফাইনাল হাজিরা খাতা সাবমিট হয়েছে', coalesce(v_hub, '') || ' · ' || to_char(p_date, 'DD-MM-YYYY'),
       '/app/workforce/zone?tab=final', 'attendance_gap');
   end loop;
-  return jsonb_build_object('sheet_id', s.id, 'lines', v_written, 'asked', v_asked, 'pending_review', v_pending);
+  return jsonb_build_object('sheet_id', s.id, 'lines', v_written, 'asked', v_asked);
 end $$;
 
 
@@ -249,22 +297,6 @@ begin
   id := private.att_sheet_write(p_hub, p_date, p_lines);
   return private.att_sheet_finish(p_hub, p_date, id, false);
 end $$;
-
-create function private.att_sheet_restore_review() returns trigger
-language plpgsql security definer set search_path = '' as $$
-begin
-  update public.att_day_lines l set
-    final_status = l.auto_review_values ->> 'final_status',
-    late_time = (l.auto_review_values ->> 'late_time')::time,
-    unauthorized = (l.auto_review_values ->> 'unauthorized')::boolean,
-    auto_review_values = null
-  where l.sheet_id = new.id and l.auto_review_values is not null;
-  return null;
-end $$;
-
-create trigger att_sheet_restore_review after update of status on public.att_day_sheets
-for each row when (old.auto_submitted and old.status = 'submitted' and new.status = 'draft')
-execute function private.att_sheet_restore_review();
 
 create or replace function public.att_sheet_get(p_hub uuid, p_date date default null)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
@@ -325,7 +357,7 @@ begin
     'hub', jsonb_build_object('id', p_hub, 'name', private.hub_name(p_hub)), 'date', v_date, 'today', private.wf_today(),
     'sheet', case when s.id is null then null else jsonb_build_object('id', s.id, 'status', s.status, 'submitted_at', s.submitted_at,
                'submitted_by_name', (select full_name from public.profiles where id = s.submitted_by),
-               'auto_submitted', s.auto_submitted, 'pending_review', (select count(*) from public.att_day_lines l where l.sheet_id = s.id and l.auto_review_values is not null),
+               'auto_submitted', s.auto_submitted,
                'unlocked_at', s.unlocked_at, 'unlock_note', s.unlock_note, 'sent_at', s.sent_at) end,
     'can', jsonb_build_object(
       'edit', private.has_permission('hr.attendance.create', v_zone, p_hub) and coalesce(s.status, 'draft') = 'draft' and v_date <= private.wf_today(),
@@ -344,6 +376,8 @@ declare
   policy public.wf_att_policy;
   d public.att_day_sheets;
   n_daily integer := 0;
+  v_hub record;
+  v_previous date := local_now::date - 1;
   n_errors integer := 0;
 begin
   if auth.uid() is not null then
@@ -363,16 +397,27 @@ begin
       begin
         perform private.att_sheet_finish(d.hub_id, d.work_date, d.id, true);
         n_daily := n_daily + 1;
-      exception when others then
+      exception when sqlstate 'P2201' then
+        perform private.attendance_cutoff_alert(d.hub_id, d.zone_id, d.work_date, 'daily');
+      when others then
         raise warning 'Attendance auto-submit failed for sheet % (SQLSTATE %)', d.id, sqlstate;
         n_errors := n_errors + 1;
       end;
     end if;
   end loop;
+  for v_hub in
+    select h.id, h.zone_id from public.hubs h join public.wf_att_policy a on a.zone_id = h.zone_id
+    where h.status = 'active' and h.archived_at is null and v_previous >= a.day_auto_since
+      and v_previous + 1 + a.day_time + make_interval(mins => a.day_extra) <= local_now
+      and exists (select 1 from private.att_sheet_people(h.id, v_previous))
+      and not exists (select 1 from public.att_day_sheets x where x.hub_id = h.id and x.work_date = v_previous)
+  loop
+    perform private.attendance_cutoff_alert(v_hub.id, v_hub.zone_id, v_previous, 'daily');
+  end loop;
   return jsonb_build_object('daily', n_daily, 'errors', n_errors);
 end $$;
 
-revoke all on function private.att_sheet_finish(uuid, date, uuid, boolean), private.att_sheet_restore_review(),
+revoke all on function private.att_sheet_finish(uuid, date, uuid, boolean),
   private.att_daily_auto_submit(timestamptz) from public, anon, authenticated, service_role;
 
 do $$

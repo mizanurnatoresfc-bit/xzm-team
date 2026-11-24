@@ -185,10 +185,16 @@ select tests.logout();
 insert into public.wf_morning_subs (hub_id, zone_id, work_date)
 values (tests.id('hub_a2'), tests.id('zone_a'), current_date);
 
-select tests.ok(private.wf_morning_autosubmit() >= 1, 'the job closes the open mornings whose time has passed');
-select tests.ok((select s.submit_mode = 'auto' and s.submitted_by is null and s.revision = 1 from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date)
-            and (select l.state = 'unknown' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a2') and s.work_date = current_date and l.employee_id = tests.id('other')),
-  'blank rows stay unchecked');
+select tests.ok(private.wf_morning_autosubmit() = 0, 'blank morning remains open at cutoff');
+select tests.ok((select count(*) >= 1 from public.notifications where kind = 'attendance_cutoff' and profile_id = tests.id('zonal_a')),
+  'the zonal manager gets a morning cutoff alert');
+select tests.ok((select s.status = 'open' from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date),
+  'the blank morning is not submitted');
+insert into public.wf_morning_lines (sub_id, employee_id, state)
+select s.id, tests.id('other'), 'present' from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date;
+select tests.ok(private.wf_morning_autosubmit() >= 1, 'a completed morning can now submit automatically');
+select tests.ok((select s.submit_mode = 'auto' and s.submitted_by is null from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date),
+  'the complete morning has an automatic receipt');
 select tests.ok(private.wf_morning_autosubmit() = 0, 'running the job again changes nothing');
 select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a2') and work_date < current_date),
   'the job does not create attendance forms for unopened dates');
