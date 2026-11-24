@@ -1,0 +1,10 @@
+/* Release 01 foundation preview (Control Center and "no permission"): a calm card, not a warning box. */
+.fd-screen{min-height:100vh;min-height:100dvh;display:grid;place-items:center;box-sizing:border-box;
+  padding:calc(24px + var(--sat,env(safe-area-inset-top,0px))) 16px calc(24px + var(--sab,env(safe-area-inset-bottom,0px)));background:var(--canvas)}
+.fd-card{width:100%;max-width:440px;box-sizing:border-box;background:var(--surface);color:var(--text);border:1px solid var(--border);
+  border-radius:20px;box-shadow:var(--shadow);padding:28px 24px;text-align:center}
+.fd-card h1{margin:0 0 10px;font-size:1.5rem;line-height:1.3;overflow-wrap:anywhere}
+.fd-card p{margin:0 0 20px;color:var(--muted)}
+.fd-card .fd-tag{display:inline-block;margin:0 0 14px;padding:4px 12px;border-radius:999px;background:var(--primary-50);color:var(--primary);font-size:.8125rem;font-weight:600}
+.fd-card h1.fd-deny{color:var(--bad-fg)}
+.fd-card button{min-height:44px;padding:0 24px}

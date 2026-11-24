@@ -11,7 +11,7 @@ import '../login.css'
 const REMEMBER_KEY = 'xzm_login_id'
 const readRemembered = () => { try { return localStorage.getItem(REMEMBER_KEY) ?? '' } catch { return '' } }
 
-export function Login() {
+export function Login({ afterSignIn = '/app' }: { afterSignIn?: string } = {}) {
   const { session, signIn } = useAuth()
   const { L, lang, setLang, theme, setTheme } = usePrefs()
   const { name, tagline } = useBrandText()
@@ -24,7 +24,7 @@ export function Login() {
   const [forgot, setForgot] = useState(false)
   const [sent, setSent] = useState('')
 
-  if (session) return <Navigate to="/app" replace />
+  if (session) return <Navigate to={afterSignIn} replace />
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

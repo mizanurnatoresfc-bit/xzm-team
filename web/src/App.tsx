@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -13,7 +13,9 @@ import './home-md3.css'
 import './a11y.css'
 import './app-feel.css'
 import './nav-pro.css'
-import { PrefsProvider } from './lib/prefs'
+import './foundation.css'
+import { PrefsProvider, usePrefs } from './lib/prefs'
+import { supabase } from './lib/supabase'
 import { Home } from './pages/Home'
 import { Terms } from './pages/Terms'
 import { advancedAccessHere, isNativeApp } from './lib/native'
@@ -192,11 +194,59 @@ function HomeOrPanel() {
   return grants.length > 0 && panelLevel(can) === 0 ? <StaffPanel /> : <Dashboard />
 }
 
+// This opt-in build is for isolated Release 01 review. Existing builds keep their current entry.
+const foundationPreview = import.meta.env.VITE_RELEASE_01_PREVIEW === 'true'
+
+function SuperAdminFoundation() {
+  const { grantsReady, hasGlobalSuperGrant, loading, mustChangePassword, session, signOut } = useAuth()
+  const { L } = usePrefs()
+  const [leaving, setLeaving] = useState(false)
+
+  if (loading) return <Loading />
+  if (!session) return <Login afterSignIn="/" />
+  if (!grantsReady) return <Loading />
+  if (mustChangePassword) return <Navigate to="/app/password" replace />
+
+  // If the network call fails the person must still end up signed out on this device (shared phones), so fall back to a local sign out.
+  async function leave() {
+    setLeaving(true)
+    try { await signOut() } catch { await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined) }
+    setLeaving(false)
+  }
+
+  return <main className="fd-screen">
+    <section className="fd-card" aria-labelledby="foundation-title" role={hasGlobalSuperGrant ? undefined : 'alert'}>
+      {hasGlobalSuperGrant ? <>
+        <p className="fd-tag">{L('রিলিজ ০১ · ফাউন্ডেশন প্রিভিউ', 'Release 01 · Foundation preview')}</p>
+        <h1 id="foundation-title">{L('সুপার অ্যাডমিন কন্ট্রোল সেন্টার', 'Super Admin Control Center')}</h1>
+        <p>{L('কর্মীদের জন্য কোনো মডিউল এখনো চালু হয়নি।', 'No staff modules are switched on yet.')}</p>
+      </> : <>
+        <h1 id="foundation-title" className="fd-deny">{L('প্রবেশের অনুমতি নেই', 'No permission to enter')}</h1>
+        <p>{L('এই পাতাটি শুধু সুপার অ্যাডমিনের জন্য।', 'This page is for the Super Admin only.')}</p>
+      </>}
+      <button type="button" className="secondary" disabled={leaving} onClick={() => void leave()}>{leaving ? L('সাইন আউট হচ্ছে…', 'Signing out…') : L('সাইন আউট', 'Sign out')}</button>
+    </section>
+  </main>
+}
+
+function FoundationLoginRedirect() {
+  const { search, hash } = useLocation()
+  return <Navigate to={{ pathname: '/', search, hash }} replace />
+}
+
 export default function App() {
   // Pull to refresh in the Android app (lib/nativeFeel.tsx): the page is mounted again, so it loads its data afresh.
   const [fresh, setFresh] = useState(0)
   useEffect(() => { const f = () => setFresh(k => k + 1); window.addEventListener('app:refresh', f); return () => window.removeEventListener('app:refresh', f) }, [])
-  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes key={fresh}>
+  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}>{foundationPreview ? <Routes key={fresh}>
+    <Route path="/" element={<SuperAdminFoundation />} />
+    <Route path="/staff/login" element={<FoundationLoginRedirect />} />
+    <Route path="/terms" element={<Terms />} />
+    <Route element={<ProtectedRoute />}>
+      <Route path="/app/password" element={<ChangePassword />} />
+    </Route>
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes> : <Routes key={fresh}>
     <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />
@@ -330,5 +380,5 @@ export default function App() {
     <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
     <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
-  </Routes></Suspense></BrowserRouter></AuthProvider></PrefsProvider>
+  </Routes>}</Suspense></BrowserRouter></AuthProvider></PrefsProvider>
 }
