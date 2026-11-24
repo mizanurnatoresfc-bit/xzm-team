@@ -68,7 +68,7 @@ select tests.ok((public.issue_detail((select v::uuid from t where k = 'i2')) -> 
 select tests.login(tests.id('hub_b_mgr'));
 select tests.ok(public.issue_detail((select v::uuid from t where k = 'i2')) is null,
   'a manager outside the zone cannot see the solved issue');
-select tests.throws(format($select public.issue_act(%L, 'approve')$, (select v from t where k = 'i2')),
+select tests.throws(format($$select public.issue_act(%L, 'approve')$$, (select v from t where k = 'i2')),
   'a manager outside the zone cannot approve the solved issue', '42501');
 
 -- ---------- the giver checks: sends back, then approves ----------
