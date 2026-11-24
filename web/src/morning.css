@@ -21,3 +21,10 @@
 .mo-history{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 html[data-theme="dark"] .mo-cover{background:#3b1d1d;border-color:#7f1d1d}
 html[data-theme="dark"] .mo-receipt{background:#12301f}
+/* কর্মীর কাজের প্রোফাইল */
+.swp-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin:0 0 12px}
+.swp-head h2{margin:0;font-size:1.25rem}.swp-head p{margin:2px 0 0}
+.swp-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.swp-dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:0}
+.swp-dl dt{font-size:.8rem;color:var(--muted)}.swp-dl dd{margin:2px 0 0;font-weight:600}
+.swp-duties{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px}

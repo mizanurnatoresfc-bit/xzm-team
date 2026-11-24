@@ -65,6 +65,7 @@ const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: 
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
 const RouteSettings = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RouteSettings })))
 const RoutePlanPage = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RoutePlanPage })))
+const StaffWorkProfilePage = lazy(() => import('./pages/zonal/StaffWorkProfile').then(m => ({ default: m.StaffWorkProfilePage })))
 const ZonalAssistant = lazy(() => import('./pages/zonal/ZonalAssistant').then(m => ({ default: m.ZonalAssistant })))
 const Training = lazy(() => import('./pages/Training').then(m => ({ default: m.Training })))
 const Rollout = lazy(() => import('./pages/users/Rollout').then(m => ({ default: m.Rollout })))
@@ -229,6 +230,7 @@ export default function App() {
       <Route path="/app/zonal/hr-records" element={<HrRecords />} />
       <Route path="/app/zonal/routes" element={<RouteSettings />} />
       <Route path="/app/routes/plan" element={<RoutePlanPage />} />
+      <Route path="/app/zonal/profile" element={<StaffWorkProfilePage />} />
       <Route path="/app/manpower" element={<Manpower />} />
       <Route path="/app/hub" element={<LegacyAttendanceRedirect view="hub" />} />
       <Route path="/app/hub/team" element={<RedirectKeep to="/app/staff/list" />} />
