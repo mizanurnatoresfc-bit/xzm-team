@@ -192,6 +192,31 @@ function HomeOrPanel() {
   return grants.length > 0 && panelLevel(can) === 0 ? <StaffPanel /> : <Dashboard />
 }
 
+// This opt-in build is for isolated Release 01 review. Existing builds keep their current entry.
+const foundationPreview = import.meta.env.VITE_RELEASE_01_PREVIEW === 'true'
+
+function SuperAdminFoundation() {
+  const { isSuperAdmin, loading, mustChangePassword, session, signOut } = useAuth()
+
+  if (loading) return <Loading />
+  if (!session) return <Login afterSignIn="/" />
+  if (mustChangePassword) return <Navigate to="/app/password" replace />
+
+  return <main className="center-screen">
+    <section className="notice" aria-labelledby="foundation-title">
+      {isSuperAdmin ? <>
+        <h1 id="foundation-title">Super Admin Control Center</h1>
+        <p>Release 01 · Foundation preview</p>
+        <p>কর্মীদের জন্য কোনো মডিউল এখনো চালু হয়নি।</p>
+      </> : <>
+        <h1 id="foundation-title">প্রবেশের অনুমতি নেই</h1>
+        <p>এই পাতাটি শুধু সুপার অ্যাডমিনের জন্য।</p>
+      </>}
+      <button type="button" onClick={() => void signOut()}>সাইন আউট</button>
+    </section>
+  </main>
+}
+
 export default function App() {
   // Pull to refresh in the Android app (lib/nativeFeel.tsx): the page is mounted again, so it loads its data afresh.
   const [fresh, setFresh] = useState(0)
@@ -323,7 +348,7 @@ export default function App() {
     <Route element={<ProtectedRoute permission="system.admin_portal.view" />}>
       <Route path="/secure-control" element={<Dashboard />} />
     </Route>
-    <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
+    <Route path="/" element={foundationPreview ? <SuperAdminFoundation /> : isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     {/* short addresses of the staff lifecycle pages */}
     <Route path="/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
