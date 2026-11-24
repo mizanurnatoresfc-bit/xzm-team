@@ -59,6 +59,18 @@ select tests.ok((select status = 'solved' from public.issues where id = (select 
 select tests.ok((select jsonb_array_length(public.issue_panels() -> 'mine') = 0 and jsonb_array_length(public.issue_panels() -> 'waiting_for_check_of_mine') = 1 from (select 1) x),
   'a solved job moves out of "my work" into "waiting for the check"');
 
+-- Scoped reviewers see another user's solved issue in the review queue.
+select tests.login(tests.id('zonal_a'));
+select tests.ok(exists (select 1 from jsonb_array_elements(public.issue_panels() -> 'to_check') as q(item)
+  where item ->> 'id' = (select v from t where k = 'i2')), 'the zonal manager can find a solved issue from their zone in the review queue');
+select tests.ok((public.issue_detail((select v::uuid from t where k = 'i2')) -> 'issue' ->> 'can_review')::boolean,
+  'the same zonal manager can review from the issue detail');
+select tests.login(tests.id('hub_b_mgr'));
+select tests.ok(public.issue_detail((select v::uuid from t where k = 'i2')) is null,
+  'a manager outside the zone cannot see the solved issue');
+select tests.throws(format($$select public.issue_act(%L, 'approve')$$, (select v from t where k = 'i2')),
+  'a manager outside the zone cannot approve the solved issue', '42501');
+
 -- ---------- the giver checks: sends back, then approves ----------
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select jsonb_array_length(public.issue_panels() -> 'to_check') = 1 from (select 1) x), 'the giver has one to check');
@@ -110,6 +122,40 @@ select tests.ok(public.issue_nudge_due(6) = 0, 'and not again straight away');
 select tests.ok((select count(*) >= 1 from public.hub_posts where kind = 'nodi' and author_profile is null), 'the reminder is a Nodi post in the group');
 select tests.login(tests.id('hub_mgr'));
 select tests.throws($$select public.issue_nudge_due(6)$$, 'a browser user cannot run the follow-up', '42501');
+
+-- Parcel status handoff using the same role-scoped RPCs as the application.
+select tests.login(tests.id('hub_mgr'));
+insert into t values ('parcel_status', public.issue_create(
+  tests.id('hub_a1'), 'পার্সেল স্ট্যাটাস আপডেট হয়নি', null, 'parcel',
+  'SF-90001', null, tests.id('r1'))::text);
+
+select tests.login(tests.id('rider_login'));
+select tests.ok(exists (
+  select 1 from jsonb_array_elements(public.issue_panels() -> 'mine') as items(item)
+  where item ->> 'id' = (select v from t where k = 'parcel_status')
+), 'the assigned rider sees the parcel status issue');
+select public.issue_act((select v::uuid from t where k = 'parcel_status'), 'start');
+select public.issue_act((select v::uuid from t where k = 'parcel_status'), 'solve', 'পার্সেলের স্ট্যাটাস আপডেট করেছি');
+
+select tests.login(tests.id('hub_b_mgr'));
+select tests.ok(not exists (
+  select 1 from jsonb_array_elements(public.issue_panels() -> 'to_check') as items(item)
+  where item ->> 'id' = (select v from t where k = 'parcel_status')
+), 'a hub manager from another zone cannot find the parcel issue in the review queue');
+
+select tests.login(tests.id('zonal_a'));
+select tests.ok(exists (
+  select 1 from jsonb_array_elements(public.issue_panels() -> 'to_check') as items(item)
+  where item ->> 'id' = (select v from t where k = 'parcel_status')
+), 'the zonal manager sees the solved parcel issue');
+select public.issue_act((select v::uuid from t where k = 'parcel_status'), 'approve', 'স্ট্যাটাস যাচাই করেছি');
+select tests.ok(
+  (public.issue_detail((select v::uuid from t where k = 'parcel_status')) -> 'issue' ->> 'status') = 'approved',
+  'the zonal manager approves the parcel issue raised by the hub manager');
+select tests.ok(not exists (
+  select 1 from jsonb_array_elements(public.issue_panels() -> 'to_check') as items(item)
+  where item ->> 'id' = (select v from t where k = 'parcel_status')
+), 'the approved parcel issue leaves the review queue');
 
 select 'done';
 rollback;

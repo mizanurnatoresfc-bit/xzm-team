@@ -28,7 +28,7 @@ const STATUS_BN = { open: 'নতুন', in_progress: 'কাজ চলছে',
 const statusText = (kind: string, status: keyof typeof STATUS_BN) => (isOrder(kind) ? ORDER_STATUS_BN : STATUS_BN)[status]
 const KIND_ICON: Record<IssueKind, string> = { parcel: '📦', vehicle: '🛵', staff: '👤', cash: '💵', other: '📝', store: '🧰', it: '💻' }
 /** True when the next step is this person's: their job to finish, or their turn to check. */
-const myTurn = (r: IssueRow) => (r.is_mine && (r.status === 'open' || r.status === 'in_progress')) || (r.is_giver && r.status === 'solved')
+const myTurn = (r: IssueRow) => (r.is_mine && (r.status === 'open' || r.status === 'in_progress')) || ((r.can_review ?? r.is_giver) && r.status === 'solved')
 
 // ------------------------------------------------------------------ each person's own settings (kept on this device)
 type Ui = { view: 'chat' | 'board'; first: Filter; dense: boolean; refresh: number; enterSends: boolean; groupsOnTop: boolean }
@@ -211,7 +211,7 @@ function Board({ rows, empty, open, onOpen, onChanged }: { rows: IssueRow[]; emp
           {r.reopen_count > 0 && <Badge tone="warn">ফেরত {r.reopen_count}</Badge>}<time>{short(r.created_at)}</time></span></button>
       {r.is_mine && r.status === 'open' && <button type="button" className="sm" disabled={busy === r.id} onClick={() => void quick(r, 'start')}>{isOrder(r.kind) ? '▶ প্রস্তুত করছি' : '▶ শুরু করলাম'}</button>}
       {r.is_mine && r.status === 'in_progress' && <button type="button" className="sm" onClick={() => onOpen(r.id)}>{isOrder(r.kind) ? '✔ পাঠিয়েছি' : '✔ সমাধান জানান'}</button>}
-      {r.is_giver && r.status === 'solved' && <button type="button" className="sm" disabled={busy === r.id} onClick={() => void quick(r, 'approve')}>{isOrder(r.kind) ? '✔ পেয়েছি' : '✔ অনুমোদন'}</button>}
+      {(r.can_review ?? r.is_giver) && r.status === 'solved' && <button type="button" className="sm" disabled={busy === r.id} onClick={() => void quick(r, 'approve')}>{isOrder(r.kind) ? '✔ পেয়েছি' : '✔ অনুমোদন'}</button>}
     </div>)}
     {!list.length && <p className="bd-none">কিছু নেই</p>}
   </section> })}</div></>
@@ -232,6 +232,7 @@ function IssueChat({ id, row, refresh, onBack, onChanged }: { id: string; row?: 
   const mine = !!row?.is_mine
   const giver = !!row?.is_giver
   const order = !!i && isOrder(i.kind)
+  const reviewer = i?.can_review ?? row?.can_review ?? giver
   const n = x?.events.length ?? 0
   useEvery(refresh, () => { if (!busy) void d.reload() })
   useEffect(() => { body.current?.scrollTo({ top: body.current.scrollHeight }) }, [n])
@@ -280,7 +281,7 @@ function IssueChat({ id, row, refresh, onBack, onChanged }: { id: string; row?: 
           <small>{e.by_name} · {when(e.at)}</small></div> })}
       {i && !live && <p className="mg-sys">{i.status === 'cancelled' ? 'এই ইস্যু বাতিল করা হয়েছে' : order ? 'অর্ডার শেষ — পাওয়া গেছে' : 'চেক শেষ — ইস্যু বন্ধ'}</p>}
     </div>
-    {live && (mine || giver) && <footer className="mg-foot">
+    {live && (mine || giver || (reviewer && i.status === 'solved')) && <footer className="mg-foot">
       {assign && <div className="mg-assign"><PersonPicker value={person} onChange={setPerson} /><button type="button" className="sm" disabled={busy} onClick={() => void doAssign()}>এই ব্যক্তিকে দিন</button></div>}
       {err && <p className="da-error" role="alert">{err}</p>}
       <div className="mg-in">
@@ -291,8 +292,8 @@ function IssueChat({ id, row, refresh, onBack, onChanged }: { id: string; row?: 
       <div className="mg-acts">
         {mine && i.status === 'open' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('start')}>{order ? '▶ প্রস্তুত করছি' : '▶ কাজ শুরু করলাম'}</button>}
         {mine && (i.status === 'open' || i.status === 'in_progress') && <button type="button" disabled={busy} onClick={() => void act('solve')}>{order ? '✔ পাঠিয়েছি' : '✔ সমাধান হয়েছে'}</button>}
-        {giver && i.status === 'solved' && <button type="button" disabled={busy} onClick={() => void act('approve')}>{order ? '✔ পেয়েছি' : '✔ ঠিক আছে — অনুমোদন'}</button>}
-        {giver && i.status === 'solved' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('reopen')}>{order ? '↩ পাইনি / ভুল এসেছে' : '↩ ঠিক হয়নি — ফেরত'}</button>}
+        {reviewer && i.status === 'solved' && <button type="button" disabled={busy} onClick={() => void act('approve')}>{order ? '✔ পেয়েছি' : '✔ ঠিক আছে — অনুমোদন'}</button>}
+        {reviewer && i.status === 'solved' && <button type="button" className="secondary" disabled={busy} onClick={() => void act('reopen')}>{order ? '↩ পাইনি / ভুল এসেছে' : '↩ ঠিক হয়নি — ফেরত'}</button>}
         {giver && <button type="button" className="secondary" onClick={() => setAssign(a => !a)}>অন্যকে দিন</button>}
         {giver && <button type="button" className="secondary" disabled={busy} onClick={() => void act('cancel')}>বাতিল</button>}
       </div>
