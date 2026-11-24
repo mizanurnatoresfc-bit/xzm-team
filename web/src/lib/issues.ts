@@ -13,7 +13,7 @@ export type IssueRow = {
   id: string; issue_no: string; title: string; kind: IssueKind; priority: Priority; status: IssueStatus; hub_id: string; hub: string | null
   parcel_ref: string | null; due_at: string | null; created_at: string; solved_at: string | null; reopen_count: number
   assigned_by_name: string | null; assigned_by_nodi: boolean; assignee: string | null; assignee_code: string | null
-  is_mine: boolean; is_giver: boolean; overdue: boolean
+  is_mine: boolean; is_giver: boolean; can_review?: boolean; overdue: boolean
 }
 export type Panels = { mine: IssueRow[]; to_check: IssueRow[]; given: IssueRow[]; waiting_for_check_of_mine: IssueRow[]; hub: IssueRow[] }
 export type IssueEvent = { id: string; action: string; note: string | null; by_name: string | null; at: string }

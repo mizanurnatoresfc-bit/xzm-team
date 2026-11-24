@@ -59,6 +59,18 @@ select tests.ok((select status = 'solved' from public.issues where id = (select 
 select tests.ok((select jsonb_array_length(public.issue_panels() -> 'mine') = 0 and jsonb_array_length(public.issue_panels() -> 'waiting_for_check_of_mine') = 1 from (select 1) x),
   'a solved job moves out of "my work" into "waiting for the check"');
 
+-- Scoped reviewers see another user's solved issue in the review queue.
+select tests.login(tests.id('zonal_a'));
+select tests.ok(exists (select 1 from jsonb_array_elements(public.issue_panels() -> 'to_check') as q(item)
+  where item ->> 'id' = (select v from t where k = 'i2')), 'the zonal manager can find a solved issue from their zone in the review queue');
+select tests.ok((public.issue_detail((select v::uuid from t where k = 'i2')) -> 'issue' ->> 'can_review')::boolean,
+  'the same zonal manager can review from the issue detail');
+select tests.login(tests.id('hub_b_mgr'));
+select tests.ok(public.issue_detail((select v::uuid from t where k = 'i2')) is null,
+  'a manager outside the zone cannot see the solved issue');
+select tests.throws(format($select public.issue_act(%L, 'approve')$, (select v from t where k = 'i2')),
+  'a manager outside the zone cannot approve the solved issue', '42501');
+
 -- ---------- the giver checks: sends back, then approves ----------
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((select jsonb_array_length(public.issue_panels() -> 'to_check') = 1 from (select 1) x), 'the giver has one to check');
