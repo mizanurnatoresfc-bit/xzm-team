@@ -233,7 +233,15 @@ export default function App() {
   // Pull to refresh in the Android app (lib/nativeFeel.tsx): the page is mounted again, so it loads its data afresh.
   const [fresh, setFresh] = useState(0)
   useEffect(() => { const f = () => setFresh(k => k + 1); window.addEventListener('app:refresh', f); return () => window.removeEventListener('app:refresh', f) }, [])
-  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes key={fresh}>
+  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}>{foundationPreview ? <Routes key={fresh}>
+    <Route path="/" element={<SuperAdminFoundation />} />
+    <Route path="/staff/login" element={<Navigate to="/" replace />} />
+    <Route path="/terms" element={<Terms />} />
+    <Route element={<ProtectedRoute />}>
+      <Route path="/app/password" element={<ChangePassword />} />
+    </Route>
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes> : <Routes key={fresh}>
     <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />
@@ -360,12 +368,12 @@ export default function App() {
     <Route element={<ProtectedRoute permission="system.admin_portal.view" />}>
       <Route path="/secure-control" element={<Dashboard />} />
     </Route>
-    <Route path="/" element={foundationPreview ? <SuperAdminFoundation /> : isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
+    <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
     <Route path="/terms" element={<Terms />} />
     {/* short addresses of the staff lifecycle pages */}
     <Route path="/manager/staff" element={<Navigate to="/app/staff/list" replace />} />
     <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
     <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
-  </Routes></Suspense></BrowserRouter></AuthProvider></PrefsProvider>
+  </Routes>}</Suspense></BrowserRouter></AuthProvider></PrefsProvider>
 }
