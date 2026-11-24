@@ -11,6 +11,7 @@ import { Field } from '../accounts/ui'
 import { AttendanceBook } from './AttendanceBook'
 import { FinalSheetTab, MonthSheetTab } from './FinalSheet'
 import { AppsTab, OpsTab } from './HubTabs'
+import { MorningPolicy, MorningTab, PublishedPlanTab, ZoneMorningTab } from './Morning'
 import { MyExplanations } from './MyExplanations'
 import { ZoneFinal } from './ZoneFinal'
 import { ZoneOps } from './ZoneOps'
@@ -28,8 +29,8 @@ import '../../workforce.css'
  * The old addresses (/app/workforce/hub, /zone, /attendance) lead here (see LegacyAttendanceRedirect in App.tsx).
  */
 type View = 'me' | 'hub' | 'zone'
-type HubTab = 'final' | 'month' | 'apps' | 'ops'
-type ZoneTab = 'final' | 'ops' | 'setting'
+type HubTab = 'morning' | 'plan' | 'final' | 'month' | 'apps' | 'ops'
+type ZoneTab = 'morning' | 'final' | 'ops' | 'setting'
 
 export function AttendancePage() {
   const { L } = usePrefs()
@@ -55,7 +56,7 @@ export function AttendancePage() {
   return <AppShell title={L('হাজিরা খাতা', 'Attendance register')}>
     {views.length > 1 && <div className="wm"><ChipTabs<View> tabs={views} value={view} onChange={v => put({ view: v, tab: null, date: null, give: null })} label={L('হাজিরা খাতার অংশ', 'Attendance sections')} /></div>}
     {view === 'me' && <div className="wf"><MyExplanations /><AttendanceBook /></div>}
-    {view === 'hub' && <HubView sp={sp} put={put} />}
+    {view === 'hub' && <HubView sp={sp} put={put} canResend={can('ops.route_plan.approve')} />}
     {view === 'zone' && <ZoneView sp={sp} put={put} canSet={can('hr.attendance.configure')} />}
   </AppShell>
 }
@@ -63,9 +64,9 @@ export function AttendancePage() {
 type Put = (patch: Record<string, string | null>) => void
 
 // ====================================================================================== হাব
-const HUB_TABS: HubTab[] = ['final', 'month', 'apps', 'ops']
+const HUB_TABS: HubTab[] = ['morning', 'plan', 'final', 'month', 'apps', 'ops']
 
-function HubView({ sp, put }: { sp: URLSearchParams; put: Put }) {
+function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canResend: boolean }) {
   const { L, n, lang } = usePrefs()
   const hubsQ = useHubList()
   const hubs = useMemo(() => hubsQ.data?.hubs ?? [], [hubsQ.data])
@@ -77,9 +78,9 @@ function HubView({ sp, put }: { sp: URLSearchParams; put: Put }) {
   const can = ov?.can
   const today = ov?.date ?? todayDhaka()
 
-  const visible: Record<HubTab, boolean> = { final: !!can?.attendance, month: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops }
+  const visible: Record<HubTab, boolean> = { morning: !!can?.attendance, plan: !!can?.attendance, final: !!can?.attendance, month: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops }
   const askedTab = sp.get('tab') as HubTab | null
-  const tab: HubTab = askedTab && HUB_TABS.includes(askedTab) && visible[askedTab] ? askedTab : can?.attendance ? 'final' : 'ops'
+  const tab: HubTab = askedTab && HUB_TABS.includes(askedTab) && visible[askedTab] ? askedTab : can?.attendance ? 'morning' : 'ops'
   const go = (t: HubTab) => put({ tab: t })
   const pickHub = (id: string) => { rememberHub(id); refreshShellCounts(); put({ hub: id, date: null }) }
 
@@ -92,6 +93,8 @@ function HubView({ sp, put }: { sp: URLSearchParams; put: Put }) {
   }, [waitingQ.data])
 
   const tabs: Array<{ key: HubTab; label: string; count?: number; tone?: 'warn' | 'bad' }> = [
+    { key: 'morning', label: L('সকালের জনবল', 'Morning input') },
+    { key: 'plan', label: L('পাওয়া রুট প্ল্যান', 'Route plan received') },
     { key: 'final', label: L('ফাইনাল খাতা', 'Final register'), count: backlog.length },
     { key: 'month', label: L('মাসিক খাতা', 'Monthly register') },
     { key: 'apps', label: L('আবেদন', 'Applications'), count: ov?.pending.applications },
@@ -127,6 +130,8 @@ function HubView({ sp, put }: { sp: URLSearchParams; put: Put }) {
       <ChipTabs<HubTab> tabs={tabs.filter(t => visible[t.key])} value={tab} onChange={go} label={L('হাবের বিভাগ', 'Hub sections')} />
 
       <div key={`${hubId}-${tab}`}>
+        {tab === 'morning' && <MorningTab hubId={hubId} />}
+        {tab === 'plan' && <PublishedPlanTab hubId={hubId} canResend={canResend} />}
         {tab === 'final' && <FinalSheetTab hubId={hubId} />}
         {tab === 'month' && <MonthSheetTab hubId={hubId} />}
         {tab === 'apps' && <AppsTab hubId={hubId} can={can} onChanged={() => { void ovQ.reload(); refreshShellCounts() }} />}
@@ -144,8 +149,9 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
   const zoneAsked = sp.get('zone') ?? ''
   const zone = zones.some(z => z.id === zoneAsked) ? zoneAsked : ''
   const tabAsked = sp.get('tab') as ZoneTab | null
-  const tab: ZoneTab = tabAsked === 'ops' || (tabAsked === 'setting' && canSet) ? tabAsked : 'final'
+  const tab: ZoneTab = tabAsked === 'ops' || tabAsked === 'final' || (tabAsked === 'setting' && canSet) ? tabAsked : 'morning'
   const tabs: Array<{ key: ZoneTab; label: string }> = [
+    { key: 'morning', label: L('জোনের সকাল', 'The zone’s morning') },
     { key: 'final', label: L('দৈনিক হাজিরা — হাব অনুযায়ী', 'Daily attendance — by hub') },
     { key: 'ops', label: L('পিকআপ · রিটার্ন · ডেলিভারি', 'Pickup · return · delivery') },
     ...(canSet ? [{ key: 'setting' as const, label: L('সেটিং: হাজিরা বই', 'Setting: attendance book') }] : []),
@@ -161,9 +167,10 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
 
     <ChipTabs<ZoneTab> tabs={tabs} value={tab} onChange={t => put({ tab: t })} label={L('জোনের বিভাগ', 'Zone sections')} />
     <div key={`${zone}-${tab}`}>
+      {tab === 'morning' && <ZoneMorningTab zone={zone} />}
       {tab === 'final' && <ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />}
       {tab === 'ops' && <ZoneOps zone={zone} />}
-      {tab === 'setting' && <ZoneWindows zone={zone} />}
+      {tab === 'setting' && <><MorningPolicy zone={zone || zones[0]?.id || ''} /><ZoneWindows zone={zone} /></>}
     </div>
   </div>
 }

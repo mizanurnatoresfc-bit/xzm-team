@@ -109,6 +109,7 @@ try {
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
+    let morningDone = false
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, menuFail = false, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false, staffSecs = null
     const prospects = []
@@ -298,6 +299,32 @@ try {
             mark: { id: 'm1', kind: 'present', note: null, status: 'waiting', marked_at: `${d}T04:00:00Z`, applied_on_site: null, site_applied_on: null, site_ref: null, application_no: null },
             value: { manager_ok: null, final_status: null, late_time: null, online_marked: null, online_reason: null, absence_app_date: null, absence_app_ref: null, unauthorized: false, note: null } }] }) }
       if (u.includes('rpc/wf_applications')) return j([])
+      // the morning input: a form with two people to mark and one on approved leave; after the submit only a receipt
+      if (/rpc\/wf_morning_(get|save|submit|return)\b/.test(u)) {
+        const body = r.request().postDataJSON() ?? {}, fn = u.split('rpc/')[1].split('?')[0]
+        if (fn !== 'wf_morning_get') flowCalls.push({ fn, ...body })
+        if (fn === 'wf_morning_submit') { morningDone = true; return j({ revision: 1, mode: 'manager', submitted_at: '2026-11-24T02:00:00Z', already: false }) }
+        if (fn === 'wf_morning_return') return j(2)
+        if (fn === 'wf_morning_save') return j(null)
+        return j({ hub: { id: 'h1', name: 'Natore Sadar', zone_id: 'z1' }, date: '2026-11-24', today: '2026-11-24', now: '2026-11-24T01:00:00Z', due: '2026-11-24T02:15:00Z',
+          status: morningDone ? 'submitted' : 'open', revision: 1, can: { fill: !morningDone, review: false },
+          receipt: morningDone ? { revision: 1, mode: 'manager', submitted_at: '2026-11-24T02:00:00Z', submitted_by_name: 'Owner' } : null, returned: null,
+          people: morningDone ? null : [
+            { id: 'e02', code: '7982', name: 'Alamin Sarker', post: 'Rider', state: 'unknown', leave: null },
+            { id: 'e03', code: '6799', name: 'Md Mahin', post: 'Rider', state: 'unknown', leave: null },
+            { id: 'e04', code: '6800', name: 'Karim Uddin', post: 'Hub Staff', state: 'leave', leave: { ref: 'LR-1A2B3C4D', source: 'leave_request', applied_on: '2026-11-20' } }] }) }
+      if (u.includes('rpc/wf_morning_zone')) return j({ date: '2026-11-24', today: '2026-11-24', now: '2026-11-24T01:00:00Z', hubs: [
+        { id: 'h1', name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore Area', staff: 3, due: '2026-11-24T02:15:00Z', state: 'submitted', sub_id: 's1', revision: 1, mode: 'auto', submitted_at: '2026-11-24T02:15:00Z', returned: null,
+          present: 1, absent: 1, leave: 1, unknown: 0, people: [{ id: 'e02', name: 'Alamin Sarker', code: '7982', state: 'absent', leave_ref: null }],
+          cover: [{ id: 'rt1', code: 'R-1', name: 'Town East', regular: ['Alamin Sarker'] }], plan: { id: 'p1', status: 'approved', published_version: 2 } },
+        { id: 'h2', name: 'Lalpur', zone_id: 'z1', zone_name: 'Natore Area', staff: 4, due: '2026-11-24T02:15:00Z', state: 'none', sub_id: null, revision: null, mode: null, submitted_at: null, returned: null,
+          present: 0, absent: 0, leave: 0, unknown: 0, people: null, cover: null, plan: null }] })
+      if (u.includes('rpc/wf_att_policy_get')) return j({ zone_id: 'z1', morning_cutoff: '08:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: false, today_due: '2026-11-24T02:15:00Z', can_edit: true })
+      if (u.includes('rpc/wf_att_policy_save')) { flowCalls.push({ fn: 'wf_att_policy_save', ...r.request().postDataJSON() }); return j({ zone_id: 'z1', morning_cutoff: '09:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: true, today_due: '2026-11-24T03:15:00Z', can_edit: true }) }
+      if (u.includes('rpc/route_plan_published')) return j({ date: r.request().postDataJSON().p_date, plan_id: 'p1', version: { no: 2, published_at: '2026-11-24T03:00:00Z', by: 'Zonal', morning_revision: 1 }, reopened: false,
+        lines: [{ employee_id: 'e03', name: 'Md Mahin', role: 'rider', parcels: 40, pickups: 0, routes: ['R-1 · Town East'], sent_count: 1, last_sent_at: '2026-11-24T03:00:00Z' }],
+        cancelled: [{ employee_id: 'e02', name: 'Alamin Sarker', cancelled_at: '2026-11-24T03:00:00Z', in_version: 2 }],
+        history: [{ kind: 'published', version: 2, note: null, by: 'Zonal', at: '2026-11-24T03:00:00Z' }, { kind: 'cancelled', version: 2, note: 'Alamin Sarker', by: 'Zonal', at: '2026-11-24T03:00:00Z' }] })
       // one tap: the rider's send card and the manager's accept box
       if (u.includes('rpc/da_rider_open_managers')) return j({ session_id: 's2', status: 'open', date: '2026-11-15', hub: 'Natore Sadar',
         is_rider: (permsNow ?? []).includes('ops.pickup_as_rider.create'), my_times: 1, max_times: 3,
@@ -430,6 +457,7 @@ try {
       if (u.includes('/rest/v1/employees') && u.includes('profile_id=is.null')) return j([...staffRows.map(e => ({ ...e, zone_id: 'z1' })),
         { id: 'e99', employee_code: null, full_name: 'No ID Yet', mobile: null, hub_id: 'h2', zone_id: 'z1', position_id: 'p1' }])
       if (u.includes('/rest/v1/employees') && u.includes('id=eq.e01')) return j([{ ...staffRows[1], mobile: null, full_name_bn: null, joining_date: '2026-01-01', department_id: 'd1', zone_id: 'z1' }])
+      if (u.includes('/rest/v1/zones')) return j([{ id: 'z1', name: 'Natore Area', code: 'NT', archived_at: null }])
       if (u.includes('/rest/v1/hubs')) return j(hubRows)
       if (u.includes('/rest/v1/positions')) return j([{ id: 'p1', department_id: 'd1', code: 'rider', name: 'Rider', name_bn: null, status: 'active', archived_at: null, default_role_id: 'r3' }])
       if (u.includes('/rest/v1/employees') && u.includes('mobile=eq.01711000000')) return j([{ id: 'e01', employee_code: '1001', full_name: 'Staff 01', status: 'active', hub_id: 'h2' }])
@@ -760,6 +788,41 @@ try {
       await page.locator('section[aria-label="ফাইনাল খাতা বাকি"] .wm-chip').first().click(); await page.waitForSelector('.as-state:has-text("৩ নভেম্বর") ~ .as-list .as-line, .as-state:has-text("৩ নভেম্বর")', { timeout: 10000 }).catch(() => {}); await page.waitForSelector('.as-line', { timeout: 10000 }).catch(() => {})
       check(/date=2026-11-03/.test(page.url()) && await page.locator('.as-line', { hasText: 'Alamin Sarker' }).count() === 1, `${size}: a waiting day opens that day's final register (${page.url()})`)
       await fits('final register') }
+    // the morning input: the first part of the hub's page. Approved leave is in by itself, what is typed is saved, the submit locks it to a receipt
+    await page.goto(`${BASE}/app/attendance?view=hub`); await page.waitForSelector('.mo-table', { timeout: 10000 }).catch(() => {})
+    { check(await page.locator('.mo-table tbody tr').count() === 3 && await page.locator('.mo-table select').count() === 2 && (await page.locator('.mo-table tbody tr').last().innerText()).includes('LR-1A2B3C4D'),
+        `${size}: the hub page opens on the morning input — two people to mark, the person on approved leave is already in`)
+      const before = flowCalls.length
+      await page.locator('.mo-table select').nth(0).selectOption('present'); await page.locator('.mo-table select').nth(1).selectOption('absent')
+      await page.waitForFunction(n => document.body.innerText.includes('খসড়া সেভ হয়েছে') && n >= 0, before, { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'wf_morning_save').at(-1) ?? {}
+        check(JSON.stringify(c.p_lines) === JSON.stringify([{ employee_id: 'e02', state: 'present' }, { employee_id: 'e03', state: 'absent' }]) && !JSON.stringify(c.p_lines).includes('leave'), `${size}: what is typed is saved as a draft, leave is never sent`) }
+      await fits('morning input')
+      await page.locator('.mo-bar button').first().click(); await page.waitForSelector('.da-modal-acts button', { timeout: 8000 }).catch(() => {}); await page.locator('.da-modal-acts button').last().click()
+      await page.waitForSelector('.mo-receipt', { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'wf_morning_submit').at(-1) ?? {}
+        check(c.p_hub === 'h1' && c.p_lines?.length === 2 && await page.locator('.mo-receipt').count() === 1 && await page.locator('.mo-table').count() === 0,
+          `${size}: the submit sends the lines once and the hub manager is left with a receipt, no lines`) } }
+    // the zone's morning: each hub's submission, the route that needs cover, send back with a reason
+    await page.goto(`${BASE}/app/attendance?view=zone`); await page.waitForSelector('.mo-hub', { timeout: 10000 }).catch(() => {})
+    { const cards = page.locator('.mo-hub')
+      check(await cards.count() === 2 && (await cards.first().innerText()).includes('R-1') && (await cards.first().innerText()).includes('অটো জমা') && (await cards.last().innerText()).includes('শুরু হয়নি'),
+        `${size}: the zone page opens on the zone's morning — a hub that auto-submitted shows the route to cover, another has not started`)
+      await fits('zone morning')
+      await cards.first().locator('button', { hasText: 'সংশোধনের জন্য ফেরত' }).click(); await page.waitForSelector('.da-modal textarea', { timeout: 8000 }).catch(() => {})
+      await page.locator('.da-modal textarea').fill('আলামিন এসেছে'); await page.locator('.da-modal-acts button').last().click()
+      await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'wf_morning_return').at(-1) ?? {}
+        check(c.p_hub === 'h1' && c.p_reason === 'আলামিন এসেছে', `${size}: sending back needs a written reason and goes with it`) } }
+    await page.goto(`${BASE}/app/attendance?view=zone&tab=setting`); await page.waitForSelector('input[type=time]', { timeout: 10000 }).catch(() => {})
+    { await page.locator('input[type=time]').first().fill('09:00'); await page.locator('button', { hasText: 'সময় সেভ করুন' }).first().click()
+      await page.waitForTimeout(600)
+      const c = flowCalls.filter(x => x.fn === 'wf_att_policy_save').at(-1) ?? {}
+      check(c.p_zone === 'z1' && c.p?.morning_cutoff === '09:00' && c.p?.morning_extra === 15, `${size}: the zone's morning cut-off and extra minutes are saved from the setting tab`) }
+    // the published plan the hub manager received: its version, who got it, who was taken off
+    await page.goto(`${BASE}/app/attendance?view=hub&tab=plan`); await page.waitForSelector('.da-table', { timeout: 10000 }).catch(() => {})
+    { const t = await page.locator('.wm').last().innerText().catch(() => '')
+      check(t.includes('সংস্করণ ২') && t.includes('Md Mahin') && t.includes('বাদ পড়েছেন') && t.includes('Alamin Sarker'), `${size}: the received route plan shows its version, the riders, who was taken off, and the history`) }
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-self-att.png`, fullPage: true })
     // the hub sets up its own people: logins for riders / plain staff, a new password, profile details, "has left"
     await page.goto(`${BASE}/app/hub/logins`); await page.waitForSelector('.hl .nv-row', { timeout: 10000 }).catch(() => {})
