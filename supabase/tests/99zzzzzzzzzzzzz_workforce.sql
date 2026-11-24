@@ -887,9 +887,55 @@ select tests.ok(not exists (select 1 from public.notifications where kind = 'wor
 -- + 2 from 20261121000400_book_full_month (wf_book_mode, wf_book_full_month_set)
 -- + 2 from 20261122001000_workforce_ops_add (wf_ops_add, wf_ops_taps)
 -- (the 13 of 20261122001100_workforce_manager_book were removed again by 20261122001200)
-select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 27 and count(*) = 27
+-- + 7 from 20261124000100_morning_input (wf_morning_get/save/submit/zone/return, wf_att_policy_get/save)
+select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 34 and count(*) = 34
                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'),
-  'all twenty-seven public functions are security definer with an empty search path');
+  'all thirty-four public functions are security definer with an empty search path');
 select tests.ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'
                               and (has_function_privilege('anon', p.oid, 'execute') or not has_function_privilege('authenticated', p.oid, 'execute'))), 'anon cannot run any of them; signed-in users can');
+-- The hub route also accepts a scoped daily-report grant on its own.
+select tests.login(tests.id('super'));
+select public.access_overrides_save(tests.id('noroles'), format(
+  '[{"permission":"ops.staff_daily.view","effect":"grant","scope_type":"hub","hub_id":"%1$s"},
+    {"permission":"org.hub.view","effect":"grant","scope_type":"hub","hub_id":"%1$s"}]',
+  tests.id('hub_a1'))::jsonb, 'Phase 01 daily report only');
+select tests.login(tests.id('noroles'));
+select tests.ok(tests.row_count('select * from public.hubs') = 1, 'daily-report viewer sees only the assigned hub in the picker');
+select tests.ok(public.wf_ops_report(null, tests.id('hub_a1'), tests.day(10), tests.day(10)) #>> '{totals,pickup}' = '47',
+                'daily-report viewer can read the assigned hub report');
+select tests.throws(format('select public.wf_hub_book(%L)', tests.id('hub_a1')),
+                    'daily-report viewer cannot read the hub attendance book', '42501');
+select tests.throws(format('select public.wf_hub_overview(%L)', tests.id('hub_a2')),
+                    'daily-report viewer cannot load another hub in the same zone', '42501');
+select tests.throws(format('select public.wf_hub_overview(%L)', tests.id('hub_b1')),
+                    'daily-report viewer cannot load a different zone hub', '42501');
+with overview as (select public.wf_hub_overview(tests.id('hub_a1')) as data)
+select tests.ok(data -> 'can' = '{"attendance":false,"decide":false,"correct":false,"ops":true,"ops_edit":false}'::jsonb
+                and data #>> '{ops,pickup}' = '47'
+                and data -> 'pending' = '{"marks":0,"applications":0}'::jsonb
+                and data #>> '{attendance,absent}' = '0'
+                and jsonb_array_length(data -> 'people') = 4
+                and exists (select 1 from jsonb_array_elements(data -> 'people') person where person ->> 'ops_submitted' = 'true')
+                and not exists (select 1 from jsonb_array_elements(data -> 'people') person
+                                where person ->> 'record_status' is not null or person ->> 'mark_status' is not null
+                                   or person ->> 'mark_kind' is not null or person ->> 'mobile' is not null),
+                'daily-report viewer can load hub overview with daily numbers and no attendance or contact fields')
+from overview;
+
+-- Use the plain Staff role as well as the workflow's Rider fixture.
+select tests.logout();
+insert into tests.ids values ('plain_staff', tests.make_user('plain.staff@test.local', 'Plain Staff'));
+insert into tests.ids values
+  ('plain_employee', tests.active_employee('Plain Staff', '889', tests.id('hub_a1'), '01711000889', '8890101010', 15000, tests.id('plain_staff')));
+select tests.grant_role(tests.id('plain_staff'), 'staff', 'hub', null, tests.id('hub_a1'));
+select tests.login(tests.id('plain_staff'));
+select tests.ok(public.wf_my_book() #>> '{employee,id}' = tests.id('plain_employee')::text,
+                'plain Staff sees their own attendance book');
+select tests.ok(tests.row_count('select * from public.wf_daily_ops') = 0,
+                'plain Staff cannot read other staff daily reports through RLS');
+select tests.throws(format('select public.wf_hub_overview(%L)', tests.id('hub_a1')),
+                    'plain Staff cannot load their hub overview', '42501');
+select tests.throws(format('select public.wf_zone_overview(%L)', tests.id('zone_a')),
+                    'plain Staff cannot load their zone overview', '42501');
+
 rollback;

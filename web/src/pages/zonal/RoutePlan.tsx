@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
+import { MorningBanner } from '../workforce/Morning'
 import {
   capacityOf, capacityToday, doesPickup, isHere, planApi, planFriendly, spreadRoutes, suggestPlan,
   type CapSource, type MyParcels, type PlanFile, type PlanFiles, type PickupMode, type PlanData, type PlanHub, type PlanPart, type PlanPerson, type PlanRules, type PlanSave, type PlanStatus, type PlanTip, type StaffSetup,
@@ -168,6 +169,7 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
   const outside = data.people.filter(p => p.active && !f.rows[p.id])
 
   return <>
+    <MorningBanner hub={hub} date={date} canResend={data.can.approve} planId={plan?.id} onChanged={() => void d.reload()} />
     <section className="panel">
       <div className="da-bar"><h2>{data.hub.name} · {date}</h2>
         {plan ? <Badge tone={STATUS[plan.status].tone}>{L(STATUS[plan.status].bn, STATUS[plan.status].en)}</Badge> : <Badge>{L('এখনো পরিকল্পনা হয়নি', 'No plan yet')}</Badge>}
@@ -468,7 +470,11 @@ export function MyParcelsCard() {
   const d = useLoad<MyParcels | null>(() => planApi.mine().catch(() => null), [])
   const m = d.data
   if (!m) return null
+  // an assignment taken off today (a new version gave the route to somebody else) is told plainly, and nothing else is shown
+  if (m.parcels === 0 && m.pickups === 0 && m.cancelled?.length) return <div className="sp-box" style={{ marginTop: 10 }}><h3><Icon name="alert" size={16} />{L('আজকের রুট বরাদ্দ বাতিল', 'Today’s route assignment cancelled')}</h3>
+    <p className="muted small">{L('আজকের রুট প্ল্যান বদলেছে — আপনার আগের বরাদ্দ আর কার্যকর নয়। নতুন কিছু বরাদ্দ হলে এখানে আসবে।', 'Today’s route plan changed — your earlier assignment no longer stands. A new one appears here if you get one.')}</p></div>
   return <div className="sp-box" style={{ marginTop: 10 }}><h3><Icon name="box" size={16} />{L('আজ আমার পার্সেল', 'My parcels today')}<span className="cnt">{n(m.parcels)}</span></h3>
+    {m.version ? <p className="muted small">{L('রুট প্ল্যান সংস্করণ', 'Route plan version')} {n(m.version)} · {L('কিছু গ্রহণ করতে হবে না — বরাদ্দ সরাসরি কার্যকর।', 'nothing to accept — it is in force.')}</p> : null}
     <ul>{m.detail.map((x, i) => <li key={i}>{x.route ?? L('রুট ছাড়া', 'No route')}: <b>{n(x.parcels)}</b>{x.for ? ` — ${x.for}-${L('এর ভাগ', "'s part")}` : ''}</li>)}
       {m.pickups > 0 && <li>{L('পিকআপ', 'Pickups')}: <b>{n(m.pickups)}</b></li>}</ul>
     {m.note && <p className="muted small">{m.note}</p>}

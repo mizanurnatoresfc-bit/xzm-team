@@ -20,7 +20,7 @@ import { WorkforceAlerts } from '../components/WorkforceAlerts'
 import { AppDownloadCard } from '../components/AppDownloadCard'
 import { reportImport } from '../lib/reportImport'
 import { todayDhaka } from '../lib/dailyAccounts'
-import { pageAllowed } from '../lib/menu'
+import { pageLinkAllowed } from '../lib/menu'
 
 export function Dashboard() {
   const { session, grants, can, viewAs, isSuperAdmin, menu } = useAuth()
@@ -71,7 +71,7 @@ export function Dashboard() {
     {views.length > 1 && <div className="view-switch" role="tablist" aria-label={L('ড্যাশবোর্ড', 'Dashboard')}>
       {views.map(([v, bn, en, ic]) => <button key={v} type="button" role="tab" aria-selected={cur === v} className={cur === v ? 'on' : ''} onClick={() => pickView(v)}>
         <Icon name={ic} size={17} />{L(bn, en)}</button>)}</div>}
-    {d?.my_work && !d.my_work.marked_today && !showsMyDay && !showsMyWork && <Link to="/app/workforce/hub" className="alert-card warn"><span className="ai"><Icon name="clock" size={20} /></span>
+    {d?.my_work && !d.my_work.marked_today && !showsMyDay && !showsMyWork && <Link to="/app/attendance?view=hub" className="alert-card warn"><span className="ai"><Icon name="clock" size={20} /></span>
       <span>{L('আজকের হাজিরা এখনো দেওয়া হয়নি', 'Your attendance for today is not marked yet')}</span></Link>}
     {d?.my_work && d.my_work.tasks_due > 0 && <Link to="/app/hub/tasks" className="alert-card bad"><span className="ai"><Icon name="alert" size={20} /></span>
       <span>{L(`${n(d.my_work.tasks_due)}টা কাজের সময় পেরিয়ে গেছে`, `${d.my_work.tasks_due} tasks are overdue`)}</span></Link>}
@@ -81,7 +81,7 @@ export function Dashboard() {
     {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
     <MyApprovalCard />
     <RiderSendCard />
-    {(can('da.import.create') || can('da.sheet.view')) && pageAllowed(menu ?? null, '/app/accounts/report-import') && <ReportUploadCard />}
+    {pageLinkAllowed('/app/accounts/report-import', { can, menu: menu ?? null }) && <ReportUploadCard />}
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
     {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
     <AppDownloadCard />

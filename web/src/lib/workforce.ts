@@ -138,15 +138,6 @@ export type HubOverview = {
   people: HubPerson[]
 }
 
-/** One cell of the month grid. s: P present · L late · H half day · A absent · V leave · O holiday / weekly off · w waiting · r returned · m missing · f future · c closed with nothing */
-export type CellCode = 'P' | 'L' | 'H' | 'A' | 'V' | 'O' | 'w' | 'r' | 'm' | 'f' | 'c'
-export type BookCell = { s: CellCode; k: Kind | null; a: boolean | null; id: string | null }   // k/a/id: the staff member's own input, when there is one
-export type HubBookPerson = { employee_id: string; code: string | null; name: string; position: string | null; cells: BookCell[]; summary: BookSummary }
-/** `wf_hub_book(p_hub, p_month)` — everyone of the hub across the month's window. `cells[i]` is date `dates[i]`. */
-export type HubBook = { hub: HubRef; month: IsoDate; today: IsoDate; window: { from_day: number; to_day: number }; open: boolean
-  catch_up?: BookWindow | null
-  can: Can; dates: IsoDate[]; people: HubBookPerson[]; totals: BookSummary }
-
 /** `wf_marks(...)` — the approval queue / list of staff inputs (rows of attendance_self_marks). */
 export type Mark = {
   id: string; employee_id: string; employee_code: string | null; full_name: string; position: string | null
@@ -181,19 +172,6 @@ export type OpsReport = {
 export type OpsHistory = {
   id: string; entry_id: string; work_date: IsoDate; employee_name: string; revision: number
   from: OpsTotals | null; to: OpsTotals; note: string | null; by_name: string | null; at: string
-}
-
-/** One hub's line in the zonal picture; `totals` has the same shape summed over the visible hubs. */
-export type ZoneHubRow = {
-  hub_id: string | null; code: string | null; name: string; zone_id: string | null; zone_name: string | null; staff_total: number
-  att: { present: number; late: number; half_day: number; absent: number; leave: number; other: number; not_given_today: number }
-  pending_marks: number; pending_applications: number; returned_marks: number
-  ops: null | { submitted_people: number; missing_today: number } & OpsTotals
-}
-/** `wf_zone_overview(p_zone, p_from, p_to)` — att counts are register rows (attendance_records) in the range. */
-export type ZoneOverview = {
-  from: IsoDate; to: IsoDate; today: IsoDate; zone: { id: string; name: string } | null
-  hubs: ZoneHubRow[]; totals: Omit<ZoneHubRow, 'hub_id' | 'code' | 'name' | 'zone_id' | 'zone_name'>
 }
 
 /** `wf_pending_counts()` — the small alert numbers for the personal menu, staff panel, dashboard and bell. */
@@ -251,27 +229,29 @@ export const wf = {
   counts: () => rpc<PendingCounts>('wf_pending_counts'),
   // manager / zonal manager — everything is limited to the hubs the caller may see
   hubOverview: (hub: string, date?: IsoDate | null) => rpc<HubOverview>('wf_hub_overview', { p_hub: hub, p_date: date ?? null }),
-  hubBook: (hub: string, month?: IsoDate | null) => rpc<HubBook>('wf_hub_book', { p_hub: hub, p_month: month ?? null }),
   marks: (r: Range, from: IsoDate, to: IsoDate, status?: MarkStatus | null) =>
     rpc<Mark[]>('wf_marks', { p_zone: r.zone ?? null, p_hub: r.hub ?? null, p_from: from, p_to: to, p_status: status ?? null }),
-  /** Approve / return inputs: the existing att_self_decide, except that a date already on the register is never overwritten. */
-  decideMarks: (ids: string[], ok: boolean, as?: Decided | null, note?: string | null) =>
-    rpc<number>('wf_marks_decide', { p_ids: ids, p_ok: ok, p_as: as ?? null, p_note: note || null }),
   applications: (r: Range, status?: AppStatus | null, month?: IsoDate | null) =>
     rpc<AbsenceApp[]>('wf_applications', { p_zone: r.zone ?? null, p_hub: r.hub ?? null, p_status: status ?? null, p_month: month ?? null }),
   decideApplication: (id: string, ok: boolean, note?: string | null) => rpc<number>('wf_absence_decide', { p_application: id, p_ok: ok, p_note: note || null }),
-  correct: (mark: string, as: Decided, note: string) => rpc<void>('wf_att_correct', { p_mark: mark, p_as: as, p_note: note }),
   history: (r: Range & { employee?: string | null }, month?: IsoDate | null, limit = 200) =>
     rpc<History[]>('wf_att_history', { p_zone: r.zone ?? null, p_hub: r.hub ?? null, p_employee: r.employee ?? null, p_month: month ?? null, p_limit: limit }),
   opsReport: (r: Range, from: IsoDate, to: IsoDate) => rpc<OpsReport>('wf_ops_report', { p_zone: r.zone ?? null, p_hub: r.hub ?? null, p_from: from, p_to: to }),
   correctOps: (id: string, v: OpsInput, note: string) =>
     rpc<void>('wf_ops_correct', { p_id: id, p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return, p_note: note }),
   opsHistory: (entry: string) => rpc<OpsHistory[]>('wf_ops_history', { p_entry: entry }),
-  zone: (zone: string | null, from: IsoDate, to: IsoDate) => rpc<ZoneOverview>('wf_zone_overview', { p_zone: zone, p_from: from, p_to: to }),
 }
 
 // ------------------------------------------------------------------ errors in plain Bangla
 const BN: Array<[RegExp, string]> = [
+  [/morning input is locked/i, 'সকালের ইনপুট জমা হয়ে লক হয়েছে — জোনাল ম্যানেজার ফেরত না দিলে বদলানো যায় না'],
+  [/morning input of this hub is not submitted/i, 'এই হাবের সকালের ইনপুট এখনো জমা হয়নি — আগে সেটা জমা হতে হবে'],
+  [/morning input is for today/i, 'সকালের ইনপুট শুধু আজ বা আগের দুই দিনের'],
+  [/no submitted morning input to send back/i, 'ফেরত পাঠানোর মতো জমা দেওয়া সকালের ইনপুট নেই'],
+  [/why the morning input goes back/i, 'সকালের ইনপুট কেন ফেরত যাচ্ছে তার কারণ লিখুন'],
+  [/is not available today/i, 'রুট প্ল্যানের একজন রাইডার আজ উপস্থিত নন বা ছুটিতে আছেন — রাইডার বদলে আবার অনুমোদন করুন'],
+  [/present, absent or unchecked/i, 'প্রত্যেকের অবস্থা এসেছে, আসেনি বা যাচাই বাকি — এই তিনটির একটি'],
+  [/cut-off and its extra minutes/i, 'সকালের কাট-অফ ও অতিরিক্ত মিনিট একই দিনে শেষ হতে হবে'],
   [/already on the register/i, 'এই তারিখের হাজিরা আগেই খাতায় উঠেছে'],
   [/already approved/i, 'এই তারিখের হাজিরা আগেই অনুমোদিত — বদলাতে ম্যানেজারকে বলুন'],
   [/book is closed/i, 'এই তারিখের হাজিরা বই বন্ধ — বই শুধু মাসের নির্দিষ্ট দিনগুলোতে চালু থাকে, আগের তারিখ শুধু জোনাল ম্যানেজার খুলে দিলে দেওয়া যায়'],
@@ -339,11 +319,6 @@ export const APP_META: Record<AppStatus, { bn: string; en: string; tone: 'ok' | 
 export const ACTION_META: Record<HistoryAction, { bn: string; en: string }> = {
   submitted: { bn: 'জমা দিয়েছেন', en: 'Submitted' }, edited: { bn: 'বদলেছেন', en: 'Edited' }, resubmitted: { bn: 'আবার দিয়েছেন', en: 'Resubmitted' },
   approved: { bn: 'অনুমোদন', en: 'Approved' }, returned: { bn: 'ফেরত', en: 'Returned' }, corrected: { bn: 'সংশোধন', en: 'Corrected' }, cancelled: { bn: 'তুলে নিয়েছেন', en: 'Withdrawn' },
-}
-export const CELL_META: Record<CellCode, { bn: string; en: string; tone: 'ok' | 'warn' | 'bad' | 'info' | 'neutral' }> = {
-  P: { bn: 'উ', en: 'P', tone: 'ok' }, L: { bn: 'দে', en: 'L', tone: 'warn' }, H: { bn: 'অর্ধ', en: 'H', tone: 'warn' }, A: { bn: 'অ', en: 'A', tone: 'bad' },
-  V: { bn: 'ছু', en: 'V', tone: 'info' }, O: { bn: 'বন্ধ', en: 'O', tone: 'neutral' }, w: { bn: '…', en: '…', tone: 'info' },
-  r: { bn: 'ফে', en: 'R', tone: 'bad' }, m: { bn: '?', en: '?', tone: 'warn' }, f: { bn: '·', en: '·', tone: 'neutral' }, c: { bn: '–', en: '–', tone: 'neutral' },
 }
 
 /** 'YYYY-MM-01' → "নভেম্বর ২০২৬" / "November 2026". */
