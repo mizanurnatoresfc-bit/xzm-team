@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
@@ -82,12 +82,11 @@ const References = lazy(() => import('./pages/References').then(m => ({ default:
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
 const MyWorkforce = lazy(() => import('./pages/workforce/MyWorkforce').then(m => ({ default: m.MyWorkforce })))
-const WorkforceHub = lazy(() => import('./pages/workforce/WorkforceHub').then(m => ({ default: m.WorkforceHub })))
-const WorkforceZone = lazy(() => import('./pages/workforce/WorkforceZone').then(m => ({ default: m.WorkforceZone })))
+const AttendancePage = lazy(() => import('./pages/workforce/AttendancePage').then(m => ({ default: m.AttendancePage })))
 
 // After the first screen is shown, quietly fetch the pages so later taps open at once (an app does not wait on each tap).
 // The most-used ones come first; on a phone with "data saver" on, nothing is fetched ahead.
-const FIRST = ['./pages/hub/HubManagement', './pages/workforce/WorkforceHub', './pages/hr/Requests', './pages/workforce/MyWorkforce',
+const FIRST = ['./pages/hub/HubManagement', './pages/workforce/AttendancePage', './pages/hr/Requests', './pages/workforce/MyWorkforce',
   './pages/staff/StaffList', './pages/accounts/DailyDashboard', './pages/accounts/DailySheet', './pages/MyProfile']
 const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/accounts/DailyDashboard', () => import('./pages/accounts/DailyDashboard')],
@@ -152,8 +151,7 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/Notifications', () => import('./pages/Notifications')],
   ['./pages/ChangePassword', () => import('./pages/ChangePassword')],
   ['./pages/workforce/MyWorkforce', () => import('./pages/workforce/MyWorkforce')],
-  ['./pages/workforce/WorkforceHub', () => import('./pages/workforce/WorkforceHub')],
-  ['./pages/workforce/WorkforceZone', () => import('./pages/workforce/WorkforceZone')],
+  ['./pages/workforce/AttendancePage', () => import('./pages/workforce/AttendancePage')],
 ]
 const WARM = [...ALL.filter(([m]) => FIRST.includes(m)), ...ALL.filter(([m]) => !FIRST.includes(m))].map(([, f]) => f)
 if (typeof window !== 'undefined' && location.pathname.startsWith('/app')
@@ -180,6 +178,16 @@ function OldRolePage() {
   return <Navigate to={id ? `/app/access/role/${id}` : '/app/access/roles'} replace />
 }
 /** A page open to anyone who holds at least one of the permissions (ProtectedRoute takes a single one). The database re-checks every call. */
+/** An old attendance address (/app/workforce/hub, /zone, /attendance) -> the one attendance page, keeping the rest of the address (hub, date, give=today …). */
+function LegacyAttendanceRedirect({ view }: { view: 'me' | 'hub' | 'zone' }) {
+  const q = new URLSearchParams(useLocation().search)
+  q.set('view', view)
+  const tab = q.get('tab')
+  const ok = view === 'hub' ? ['final', 'month', 'apps', 'ops'] : view === 'zone' ? ['final', 'ops', 'setting'] : []
+  if (tab && !ok.includes(tab)) { if (view === 'hub' && tab === 'approve') q.set('tab', 'final'); else q.delete('tab') }
+  return <Navigate to={`/app/attendance?${q.toString()}`} replace />
+}
+
 function AnyOf({ perms }: { perms: string[] }) {
   const { can } = useAuth()
   return perms.some(can) ? <Outlet /> : <main className="center-screen">
@@ -232,10 +240,10 @@ export default function App() {
         <Route path="/app/routes/plan" element={<RoutePlanPage />} />
       </Route>
       <Route path="/app/manpower" element={<Manpower />} />
-      <Route path="/app/hub" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hub" element={<Navigate to="/app/attendance?view=hub" replace />} />
       <Route path="/app/hub/team" element={<Navigate to="/app/staff/list" replace />} />
-      <Route path="/app/hub/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
-      <Route path="/app/hub/late" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hub/attendance" element={<Navigate to="/app/attendance?view=hub" replace />} />
+      <Route path="/app/hub/late" element={<Navigate to="/app/attendance?view=hub" replace />} />
       <Route path="/app/hub/:section" element={<HubManagement />} />
       <Route path="/app/sorting" element={<Navigate to="/app/sorting/dashboard" replace />} />
       <Route path="/app/sorting/:section" element={<Sorting />} />
@@ -256,7 +264,7 @@ export default function App() {
       <Route path="/app/hr/employees" element={<Navigate to="/app/staff/list" replace />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
       <Route path="/app/hr/applications" element={<Applications />} />
-      <Route path="/app/hr/attendance" element={<Navigate to="/app/workforce/hub" replace />} />
+      <Route path="/app/hr/attendance" element={<Navigate to="/app/attendance?view=hub" replace />} />
       <Route path="/app/hr/leave" element={<Leave />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />
@@ -270,15 +278,15 @@ export default function App() {
       <Route path="/app/training" element={<Training />} />
       <Route path="/app/zonal/assistant" element={<ZonalAssistant />} />
       <Route path="/app/hr/fields" element={<FieldSettings />} />
-      {/* My Workforce & Attendance: my own three pages, the hub book and the zone report ('hub' and 'zone' come before ':tab') */}
-      <Route path="/app/workforce" element={<Navigate to="/app/workforce/attendance" replace />} />
-      <Route element={<AnyOf perms={['hr.attendance.view', 'ops.staff_daily.view']} />}>
-        <Route path="/app/workforce/hub" element={<WorkforceHub />} />
-      </Route>
+      {/* হাজিরা খাতা: one page for staff, hub manager and zonal manager; what it shows follows the person's permissions.
+          The old addresses (also inside saved notifications) lead here. */}
+      <Route path="/app/attendance" element={<AttendancePage />} />
+      <Route path="/app/workforce" element={<Navigate to="/app/attendance" replace />} />
+      <Route path="/app/workforce/attendance" element={<LegacyAttendanceRedirect view="me" />} />
+      <Route path="/app/workforce/hub" element={<LegacyAttendanceRedirect view="hub" />} />
+      <Route path="/app/workforce/zone" element={<LegacyAttendanceRedirect view="zone" />} />
+      {/* My Workforce: the two people lists (people I brought, people in my hand) */}
       <Route path="/app/workforce/:tab" element={<MyWorkforce />} />
-    </Route>
-    <Route element={<ProtectedRoute permission="zonal.dashboard.view" />}>
-      <Route path="/app/workforce/zone" element={<WorkforceZone />} />
     </Route>
     <Route element={<ProtectedRoute permission="system.user.view" />}>
       <Route path="/app/users" element={<Users />} />

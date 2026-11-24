@@ -284,10 +284,19 @@ try {
       if (u.includes('rpc/att_self_list')) return j([
         { id: 'sm1', employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', kind: 'present', note: null, marked_at: '2026-11-16T03:05:00Z', status: 'waiting', decided_as: null, decide_note: null, decided_at: null, decided_by_name: null },
         { id: 'sm2', employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', kind: 'absent', note: 'জ্বর', marked_at: '2026-11-16T02:00:00Z', status: 'waiting', decided_as: null, decide_note: null, decided_at: null, decided_by_name: null }])
-      if (u.includes('rpc/att_days_save')) { flowCalls.push({ fn: 'att_days_save', ...r.request().postDataJSON() }); return j(2) }
-      if (u.includes('rpc/att_days_list')) return j([
-        { employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position_name: 'Commission Rider', site_days: 0, online_days: null, register_days: null, note: null, submitted_by_name: null, submitted_at: null },
-        { employee_id: 'e03', employee_code: '6799', full_name: 'Md Mahin', position_name: 'Commission Rider', site_days: 0, online_days: 15, register_days: 15, note: null, submitted_by_name: 'Owner', submitted_at: '2026-11-16T05:00:00Z' }])
+      // the one attendance page: a hub with two days of staff attendance waiting for their final register
+      if (u.includes('rpc/wf_hub_overview')) return j({ hub: { id: 'h1', code: '80', name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore Area' }, date: '2026-11-24', staff_total: 2,
+        can: { attendance: true, decide: true, correct: true, ops: true, ops_edit: true },
+        attendance: { present: 0, late: 0, half_day: 0, absent: 0, leave: 0, other: 0, not_given: 2, waiting_marks: 3, returned_marks: 0 }, pending: { marks: 3, applications: 1 }, ops: null, people: [] })
+      if (u.includes('rpc/wf_marks')) return j([['m1', '2026-11-03'], ['m2', '2026-11-03'], ['m3', '2026-11-05']].map(([id, d]) => ({ id, employee_id: 'e02', employee_code: '7982', full_name: 'Alamin Sarker', position: 'Rider',
+        hub_id: 'h1', hub_name: 'Natore Sadar', zone_id: 'z1', work_date: d, kind: 'present', applied_on_site: null, note: null, site_applied_on: null, site_ref: null, status: 'waiting', via: 'book',
+        marked_at: `${d}T04:00:00Z`, decided_as: null, decide_note: null, decided_at: null, decided_by_name: null, application_id: null, application_no: null, record_status: null })))
+      if (u.includes('rpc/att_sheet_get')) { const d = r.request().postDataJSON()?.p_date ?? '2026-11-24'
+        return j({ hub: { id: 'h1', name: 'Natore Sadar' }, date: d, today: '2026-11-24', sheet: null, can: { edit: true, unlock: false, send: false }, my_check: null, by_position: [], checks: [],
+          people: [{ employee_id: 'e02', code: '7982', name: 'Alamin Sarker', position: 'Rider', position_code: 'rider', has_login: true, saved: false, record_status: null, explanations: [],
+            mark: { id: 'm1', kind: 'present', note: null, status: 'waiting', marked_at: `${d}T04:00:00Z`, applied_on_site: null, site_applied_on: null, site_ref: null, application_no: null },
+            value: { manager_ok: null, final_status: null, late_time: null, online_marked: null, online_reason: null, absence_app_date: null, absence_app_ref: null, unauthorized: false, note: null } }] }) }
+      if (u.includes('rpc/wf_applications')) return j([])
       // one tap: the rider's send card and the manager's accept box
       if (u.includes('rpc/da_rider_open_managers')) return j({ session_id: 's2', status: 'open', date: '2026-11-15', hub: 'Natore Sadar',
         is_rider: (permsNow ?? []).includes('ops.pickup_as_rider.create'), my_times: 1, max_times: 3,
@@ -728,23 +737,29 @@ try {
     check(await page.locator('.upd-bar').count() === 0, `${size}: "পরে" hides the update bar`)
     await page.unroute('**/version.json*')
     await page.evaluate(() => sessionStorage.removeItem('xzm_upd_later'))
-    // attendance, late and the HR attendance view are one page now: the old addresses land on the workforce hub, which has the approval tab
-    for (const old of ['/app/hub/attendance', '/app/hub/late', '/app/hr/attendance']) {
-      await page.goto(`${BASE}${old}`); await page.waitForURL(/\/app\/workforce\/hub/, { timeout: 10000 }).catch(() => {})
-      check(/\/app\/workforce\/hub/.test(page.url()), `${size}: the old ${old} page opens the one workforce hub`)
+    // attendance, late, the HR attendance view, the attendance-days page and the old workforce pages are one page now: /app/attendance
+    for (const old of ['/app/hub/attendance', '/app/hub/late', '/app/hr/attendance', '/app/hub/days', '/app/workforce/hub', '/app/workforce/zone?tab=setting', '/app/workforce/attendance?give=today']) {
+      await page.goto(`${BASE}${old}`); await page.waitForURL(/\/app\/attendance/, { timeout: 10000 }).catch(() => {})
+      check(/\/app\/attendance/.test(page.url()), `${size}: the old ${old} address opens the one attendance page`)
     }
-    await fits('workforce hub')
+    check(/view=zone/.test((await (async () => { await page.goto(`${BASE}/app/workforce/zone?tab=setting`); await page.waitForURL(/\/app\/attendance/, { timeout: 10000 }).catch(() => {}); return page.url() })())), `${size}: the old zone address keeps its part of the page (view=zone)`)
+    await page.goto(`${BASE}/app/attendance`); await page.waitForSelector('.wm, .wf', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('.wm, .wf').count() > 0, `${size}: the attendance page opens`)
+    await fits('attendance page')
+    // the hub part of the page: the final register is the way attendance reaches the register; the old approval list and the hub book are gone
+    await page.goto(`${BASE}/app/attendance?view=hub`); await page.waitForSelector('.wm .wm-tabs', { timeout: 10000 }).catch(() => {})
+    { const parts = await page.locator('.wm .wm-tabs').first().innerText().catch(() => '')
+      const tabs = await page.locator('.wm .wm-tabs').last().innerText().catch(() => '')
+      check(['আমার হাজিরা', 'হাব', 'জোন'].every(x => parts.includes(x)), `${size}: the attendance page offers my attendance, hub and zone to a person who may see them (${parts.replace(/\s+/g, ' ')})`)
+      check(['ফাইনাল খাতা', 'মাসিক খাতা', 'আবেদন', 'দৈনিক রিপোর্ট'].every(x => tabs.includes(x)) && !tabs.includes('অনুমোদন') && !tabs.includes('হাজিরা বই') && !tabs.includes('ইতিহাস'),
+        `${size}: the hub part has the final register, monthly register, applications and daily report only (${tabs.replace(/\s+/g, ' ')})`)
+      await page.waitForSelector('.wm-chip b.plain', { timeout: 10000 }).catch(() => {})
+      const chips = await page.locator('section[aria-label="ফাইনাল খাতা বাকি"] .wm-chip').allInnerTexts().catch(() => [])
+      check(chips.length === 2 && chips[0].includes('৩ নভেম্বর') && chips[0].includes('২') && chips[1].includes('৫ নভেম্বর'), `${size}: days still waiting for a final register are listed, oldest first, with how many each (${chips.join(' | ').replace(/\s+/g, ' ')})`)
+      await page.locator('section[aria-label="ফাইনাল খাতা বাকি"] .wm-chip').first().click(); await page.waitForSelector('.as-state:has-text("৩ নভেম্বর") ~ .as-list .as-line, .as-state:has-text("৩ নভেম্বর")', { timeout: 10000 }).catch(() => {}); await page.waitForSelector('.as-line', { timeout: 10000 }).catch(() => {})
+      check(/date=2026-11-03/.test(page.url()) && await page.locator('.as-line', { hasText: 'Alamin Sarker' }).count() === 1, `${size}: a waiting day opens that day's final register (${page.url()})`)
+      await fits('final register') }
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-self-att.png`, fullPage: true })
-    // attendance days to compare: two numbers per person, a difference is pointed out, then submit
-    await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
-    const adRow = page.locator('.ad-rows .nv-row', { hasText: 'Alamin Sarker' })
-    await adRow.locator('.ad-in input').nth(0).fill('১৩'); await adRow.locator('.ad-in input').nth(1).fill('15')
-    check(await page.locator('.ad-rows .nv-row:not(.ad-head)').count() === 2 && (await adRow.innerText()).includes('পার্থক্য ২ দিন'), `${size}: attendance days take two numbers per person and point out a difference`)
-    await page.locator('.ad .da-actionbar button').click(); await page.waitForTimeout(300)
-    { const c = flowCalls.at(-1) ?? {}
-      check(c.fn === 'att_days_save' && c.p_rows?.length === 2 && c.p_rows[0].online_days === 13 && c.p_rows[0].register_days === 15 && /^\d{4}-\d\d-(01|16)$/.test(c.p_from), `${size}: the hub submits the attendance days for the half month`) }
-    await fits('attendance days')
-    if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-days.png` })
     // the hub sets up its own people: logins for riders / plain staff, a new password, profile details, "has left"
     await page.goto(`${BASE}/app/hub/logins`); await page.waitForSelector('.hl .nv-row', { timeout: 10000 }).catch(() => {})
     check(await page.locator('.hl .nv-row').count() === 3 && await page.locator('.hl .nv-row button', { hasText: 'লগইন বানান' }).count() === 1 && (await page.locator('.hl .nv-row').last().innerText()).includes('অ্যাডমিন'),
@@ -785,7 +800,7 @@ try {
       check(['accounts', 'hr', 'office', 'self', 'hub', 'zone', 'admin'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
         && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hr', 'কর্মী তালিকা') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
         `${size}: the Super Admin sees the accounts, HR and office groups plus staff, manager and zonal panels`)
-      check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/workforce/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
+      check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
       check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 21
         && await inPanel('office', 'কারা থাকেন') === 2 && await inPanel('office', 'আবাসিকের সারসংক্ষেপ') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
         `${size}: আমার অফিস is a menu of its own, in five headed parts plus আবাসিক`)
@@ -891,7 +906,7 @@ try {
       await page.goto(`${BASE}/app/accounts/learn?p=practice`); await page.waitForSelector('.lr-card')
       check(await page.locator('.lr-card').count() === 7, `${size}: the practice menu entry lists the lessons that have practice`)
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
-      check(!links.includes('/app/hub/accounts') && !links.includes('/app/hr') && !links.includes('/app/issues?tab=orders') && links.filter((l, i) => links.indexOf(l) !== i).every(l => l === '/app/workforce/hub'),   // attendance now has one page, shown in the manager panel and in the HR panel
+      check(!links.includes('/app/hub/accounts') && !links.includes('/app/hr') && !links.includes('/app/issues?tab=orders') && links.filter((l, i) => links.indexOf(l) !== i).length === 0,   // attendance has one page, listed once
         `${size}: pages that repeat another page are off the menu, and no page is listed twice`)
       check(await page.locator('.side .ngrp[data-panel=zone] .nsec').count() === 2 && await page.locator('.side .ngrp[data-panel=hr] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=self] .nsec').count() === 0, `${size}: the zonal panel and the HR department are split into headed parts`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-super.png` })
@@ -983,22 +998,20 @@ try {
     await page.locator('.da-modal .da-seg button').last().click()
     // "হাজিরার দিন মেলানো" is off the menu (HIDDEN_PAGES), so it is not offered here either
     check(await page.locator('.pg-pick label', { hasText: 'কর্মী তালিকা' }).count() === 1 && await page.locator('.pg-pick label', { hasText: 'হাজিরার দিন মেলানো' }).count() === 0, `${size}: a page taken off the menu is not offered when picking a role's pages`)
-    await page.locator('.pg-pick label', { hasText: 'কর্মী তালিকা' }).locator('input').check(); await page.locator('.pg-pick label', { hasText: 'হাজিরা বই ও দৈনিক রিপোর্ট' }).locator('input').check()
+    await page.locator('.pg-pick label', { hasText: 'কর্মী তালিকা' }).locator('input').check(); await page.locator('.pg-pick label', { hasText: 'হাজিরা খাতা' }).locator('input').check()
     await page.locator('.da-modal-acts button').last().click(); await page.waitForTimeout(300)
-    check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && [...(flowCalls.at(-1)?.p_menu ?? [])].sort().join() === '/app/staff/list,/app/workforce/hub', `${size}: the Super Admin picks the pages of a role (${flowCalls.at(-1)?.p_menu})`)
+    check(flowCalls.at(-1)?.fn === 'role_menu_save' && flowCalls.at(-1)?.p_role === 'r2' && [...(flowCalls.at(-1)?.p_menu ?? [])].sort().join() === '/app/attendance,/app/staff/list', `${size}: the Super Admin picks the pages of a role (${flowCalls.at(-1)?.p_menu})`)
     // a list saved before the days page was hidden still names it: it stays off the strip but opens by its address
-    menuNow = ['/app/staff/list', '/app/workforce/hub', '/app/hub/days', '/app/accounts/khata']
+    menuNow = ['/app/staff/list', '/app/attendance', '/app/hub/days', '/app/accounts/khata']
     await page.goto(`${BASE}/app/staff/list`); await page.waitForSelector('.eb-chips .chip-toggle', { timeout: 10000 }).catch(() => {})
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.eb-chips .chip-toggle').count() >= 2, `${size}: the staff list opens from a limited menu and shows a chip per post`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
     const hubTabs = await page.locator('.hub-tabs a').count(), ownPages = ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].filter(x => sideLinks.includes(x))
-    const limitedMenuOk = sideLinks.includes('/app/staff/list') && sideLinks.includes('/app/workforce/hub') && !sideLinks.includes('/app/hub/pickup') && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
+    const limitedMenuOk = sideLinks.includes('/app/staff/list') && sideLinks.includes('/app/attendance') && !sideLinks.includes('/app/hub/pickup') && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
     check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length}: ${sideLinks.join(' ')}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
-    { const stripOnTeam = await page.locator('.hub-tabs a').evaluateAll(a => a.map(x => x.getAttribute('href')).join())
-      await page.goto(`${BASE}/app/hub/days`); await page.waitForSelector('.ad-rows .nv-row:not(.ad-head)', { timeout: 10000 }).catch(() => {})
-      check(!stripOnTeam.includes('/app/hub/days') && await page.locator('.ad-rows .nv-row:not(.ad-head)').count() === 2 && await page.locator('.center-screen .notice').count() === 0,
-        `${size}: the attendance days page is off the hub strip but still opens by its address (${stripOnTeam})`) }
+    { await page.goto(`${BASE}/app/hub/days`); await page.waitForURL(/\/app\/attendance/, { timeout: 10000 }).catch(() => {})
+      check(/\/app\/attendance/.test(page.url()) && await page.locator('.center-screen .notice').count() === 0, `${size}: the old attendance days address opens the one attendance page (${page.url()})`) }
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
     check((await page.locator('.center-screen .notice').innerText().catch(() => '')).includes('চালু নেই'), `${size}: a page off the list does not open even by its address`)
     await page.goto(`${BASE}/app/hr/employees/e01`); await page.waitForSelector('.emp-head', { timeout: 8000 }).catch(() => {})
@@ -1374,7 +1387,7 @@ try {
         `${size}: a role is set by module and sub-menu, with a page column and the six kinds of access (modules=${roleModuleCount}; columns=${roleHead})`)
       await box('/app/hr/leave', 4).click()   // approve: gives hr.leave.approve + hr.leave.reject
       await page.getByRole('button', { name: 'শুধু টিক দেওয়া পাতা' }).click()
-      await page.locator('.ax-row[data-sub="/app/workforce/hub"] .ax-pg button').click()
+      await page.locator('.ax-row[data-sub="/app/attendance"] .ax-pg button').click()
       check((await page.locator('.ax-savebar .tx').innerText()).includes('+২') && await box('/app/hr/leave', 4).evaluate(e => e.classList.contains('m-plus')), `${size}: unsaved changes are counted and marked on the box`)
       await fits('role builder')
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-access-role.png` })
@@ -1383,7 +1396,7 @@ try {
       await page.locator('.da-modal-acts button').last().click(); await closed()
       { const save = flowCalls.filter(c => c.fn === 'role_admin_save').at(-1) ?? {}, menu = flowCalls.filter(c => c.fn === 'role_menu_save').at(-1) ?? {}
         const permissionsSaved = save.p_id === 'r2' && ['hr.leave.approve', 'hr.leave.reject', 'hr.attendance.view'].every(x => save.p_permissions?.includes(x)) && save.p_permissions?.length === 5
-        const pagesSaved = menu.p_role === 'r2' && menu.p_menu?.includes('/app/hr/leave') && !menu.p_menu?.includes('/app/workforce/hub') && menu.p_menu?.includes('/app/accounts/khata') && !menu.p_menu?.includes('/app/access') && !menu.p_menu?.includes('/app/roles')
+        const pagesSaved = menu.p_role === 'r2' && menu.p_menu?.includes('/app/hr/leave') && !menu.p_menu?.includes('/app/attendance') && menu.p_menu?.includes('/app/accounts/khata') && !menu.p_menu?.includes('/app/access') && !menu.p_menu?.includes('/app/roles')
         check(permissionsSaved && pagesSaved, `${size}: the role's permissions and its page list are saved (permissions=${JSON.stringify(save.p_permissions)}; role=${menu.p_role}; pages=${JSON.stringify(menu.p_menu)})`) }
       // one person: hub / zone limit and personal permissions
       await page.goto(`${BASE}/app/access/users`); await page.waitForSelector('main :text("Sohel Sardar")')
@@ -1402,7 +1415,7 @@ try {
       await page.goto(`${BASE}/app/access/user/u2`); await page.waitForSelector('[data-own-edit]')
       check(await page.locator('[data-own-list] .ax-ownchip.plus').count() === 1, `${size}: a personal extra shows as a chip with its place and end date`)
       await page.locator('[data-own-edit]').click(); await page.waitForSelector('.ax-ownedit')
-      await box('/app/workforce/hub', 1).click()   // the role gives "create": unticking switches it off for this person
+      await box('/app/attendance', 1).click()   // the role gives "create": unticking switches it off for this person
       await page.locator('.ax-savebar.inline input').fill('পরীক্ষা'); await page.locator('[data-own-save]').click()
       await page.waitForFunction(() => !document.querySelector('.ax-ownedit'), null, { timeout: 8000 }).catch(() => {})
       { const c = flowCalls.filter(x => x.fn === 'access_overrides_save').at(-1) ?? {}

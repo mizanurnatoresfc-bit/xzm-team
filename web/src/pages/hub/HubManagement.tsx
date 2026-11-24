@@ -1,7 +1,6 @@
 import { askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { inMenu } from '../../lib/menu'
-import { AttendanceDays } from './AttendanceDays'
 import { HubLogins } from './HubLogins'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -17,8 +16,8 @@ import { routesApi, type HubRoute } from '../../lib/hub'
 import { hubApi, hubToday, PICKUP_STATUS, PRIORITY, TASK_STATUS, type HubMetric, type HubTask, type Pickup } from '../../lib/hub'
 import { useOrg } from '../hr/common'
 
-// Team moved to /app/staff/list; attendance+late moved to /app/workforce/hub (role-aware).
-export type HubSection = 'pickup' | 'tasks' | 'ops' | 'accounts' | 'days' | 'logins' | 'routes'
+// Team moved to /app/staff/list; attendance, late and the attendance-days page moved into /app/attendance (role-aware).
+export type HubSection = 'pickup' | 'tasks' | 'ops' | 'accounts' | 'logins' | 'routes'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: string[] }> = [
@@ -26,7 +25,6 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: ['zonal.task.view', 'zonal.task.create'] },
   { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: ['zonal.hub_metric.view', 'zonal.hub_metric.create'] },
   { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: ['da.sheet.view', 'da.sheet.create'] },
-  { key: 'days', icon: 'cal', bn: 'হাজিরার দিন মেলানো', en: 'Attendance days', perms: ['hr.attendance.view', 'hr.attendance.create'] },
   { key: 'logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: ['system.user_hub.create'] },
   { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: ['ops.route.view', 'ops.route.edit'] },
 ]
@@ -49,13 +47,13 @@ export function HubManagement() {
   const setHub = (id: string) => { setHubS(id); storeHub(id); refreshShellCounts() }
   // Old sections moved to new master pages
   if (section === 'team') return <Navigate to="/app/staff/list" replace />
-  if (section === 'attendance' || section === 'late') return <Navigate to="/app/workforce/hub" replace />
+  if (section === 'attendance' || section === 'late' || section === 'days') return <Navigate to="/app/attendance?view=hub" replace />
   const sec = HUB_SECTIONS.find(s => s.key === section)
-  if (!sec) return <Navigate to="/app/workforce/hub" replace />
+  if (!sec) return <Navigate to="/app/attendance?view=hub" replace />
   const allowed = sec.perms.some(p => can(p))
   const current = hubs.find(h => h.id === hub) ?? null
-  // "আজকের হিসাব" and "হাজিরার দিন মেলানো" are off the strip (see HIDDEN_PAGES in AppShell); they still open by address.
-  const offStrip = (k: HubSection) => (k === 'accounts' || k === 'days') && section !== k
+  // "আজকের হিসাব" is off the strip (see HIDDEN_PAGES in AppShell); it still opens by address.
+  const offStrip = (k: HubSection) => k === 'accounts' && section !== k
   const tabs = HUB_SECTIONS.filter(s => s.perms.some(p => can(p)) && inMenu(menu, `/app/hub/${s.key}`) && !offStrip(s.key))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
@@ -79,7 +77,6 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
     case 'tasks': return <TasksToday hub={hub} />
     case 'ops': return <OpsToday hub={hub} />
     case 'accounts': return <AccountsToday hub={hub} />
-    case 'days': return <AttendanceDays hub={hub} />
     case 'logins': return <HubLogins hub={hub} />
     case 'routes': return <RiderRoutes hub={hub} />
   }

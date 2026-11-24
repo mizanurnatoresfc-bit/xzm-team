@@ -1,13 +1,13 @@
-// Small shared pieces of the two manager screens (WorkforceHub = one hub, WorkforceZone = all visible hubs).
+// Small shared pieces of the attendance page's hub and zone parts (AttendancePage).
 // Nothing here talks to the database except `useHubList` (the hubs / zones the person may see — the same call every hub page makes)
-// and `decideMarks` (the existing att_self_decide through wf.decideMarks). Every rule stays in the database.
+// Every rule stays in the database.
 import { useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Icon } from '../../components/Icon'
 import { addDays, todayDhaka } from '../../lib/dailyAccounts'
 import { hubLabel, org } from '../../lib/hr'
 import { usePrefs, type Lang } from '../../lib/prefs'
 import { download, xlsxBlob } from '../../lib/xlsx'
-import { RECORD_META, wf, wfFriendly, type Decided, type IsoDate, type Mark, type MarkStatus } from '../../lib/workforce'
+import { RECORD_META, wfFriendly, type IsoDate, type MarkStatus } from '../../lib/workforce'
 import { Badge, Field, Modal, useLoad } from '../accounts/ui'
 import '../../workforce-manager.css'
 
@@ -152,32 +152,8 @@ export const siteText = (a: boolean | null | undefined, lang: Lang) =>
 /** The website application of an absent "applied on the website" date: "নম্বর 12345 · 3 নভেম্বর" ('' when there is none). */
 export const siteDetail = (m: { site_ref?: string | null; site_applied_on?: string | null }, lang: Lang) =>
   m.site_ref ? `${lang === 'bn' ? 'নম্বর' : 'No.'} ${m.site_ref}${m.site_applied_on ? ` · ${fmtDay(m.site_applied_on, lang)}` : ''}` : ''
-export const AS_OPTIONS: Array<{ key: Decided; bn: string; en: string }> = [
-  { key: 'present', bn: 'উপস্থিত', en: 'Present' }, { key: 'late', bn: 'দেরি', en: 'Late' }, { key: 'half_day', bn: 'অর্ধদিবস', en: 'Half day' }, { key: 'absent', bn: 'অনুপস্থিত', en: 'Absent' },
-]
 
-export function MarkBadge({ s }: { s: MarkStatus }) { const { lang } = usePrefs(); const m = MARK_STATUS[s]; return <Badge tone={m.tone}>{lang === 'bn' ? m.bn : m.en}</Badge> }
 export function KindBadge({ k }: { k: 'present' | 'absent' }) { const { lang } = usePrefs(); return <Badge tone={k === 'present' ? 'ok' : 'bad'}>{KIND_LABEL[k][lang === 'bn' ? 0 : 1]}</Badge> }
-
-// ------------------------------------------------------------------ approve / return (the existing att_self_decide)
-export type DecideResult = { done: number; failed: string[] }
-/**
- * Approve (ok) the given inputs as `as`, or "given" = present stays present and absent stays absent; or return them (ok = false, note needed).
- * One call per kind of decision. If the database refuses a batch (for example because one of them is the caller's own input) the
- * inputs are tried one by one, so the rest still go through, and the refusals are returned as readable lines.
- */
-export async function decideMarks(ms: Mark[], as: Decided | 'given', ok = true, note?: string): Promise<DecideResult> {
-  const groups: Array<{ as: Decided | null; ids: string[] }> = !ok ? [{ as: null, ids: ms.map(m => m.id) }]
-    : as === 'given' ? [{ as: 'present', ids: ms.filter(m => m.kind === 'present').map(m => m.id) }, { as: 'absent', ids: ms.filter(m => m.kind === 'absent').map(m => m.id) }]
-      : [{ as, ids: ms.map(m => m.id) }]
-  let done = 0; const failed = new Set<string>()
-  for (const g of groups) {
-    if (!g.ids.length) continue
-    try { await wf.decideMarks(g.ids, ok, g.as, note); done += g.ids.length; continue } catch (e) { if (g.ids.length === 1) { failed.add(wfFriendly(e)); continue } }
-    for (const id of g.ids) { try { await wf.decideMarks([id], ok, g.as, note); done += 1 } catch (e) { failed.add(wfFriendly(e)) } }
-  }
-  return { done, failed: [...failed] }
-}
 
 /** Asks for a written reason (returning an input, rejecting an application, correcting a number). */
 export function NoteDialog({ title, label, hint, confirm, danger, onClose, onConfirm, children }: {

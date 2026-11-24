@@ -68,9 +68,9 @@ export function NetworkPanel() {
     <div className="net-kpis">
       <Link to="/app/org/hubs" className="nk"><span className="nk-i g"><Icon name="hub" size={20} /></span><b>{n(active.length)}</b><small>{L('চালু হাব', 'Active hubs')}{active.length !== d.hubs.length ? ` / ${n(d.hubs.length)}` : ''}</small></Link>
       {staff > 0 && <Link to="/app/staff/list" className="nk"><span className="nk-i b"><Icon name="users" size={20} /></span><b>{n(staff)}</b><small>{L('সক্রিয় কর্মী', 'Active staff')}</small></Link>}
-      {showAtt && <Link to="/app/workforce/hub" className="nk"><span className="nk-i g"><Icon name="check" size={20} /></span><b>{n(came)}</b><small>{L('আজ উপস্থিত', 'Present today')}</small></Link>}
-      {showAtt && <Link to="/app/workforce/hub" className="nk"><span className="nk-i o"><Icon name="clock" size={20} /></span><b>{n(late)}</b><small>{L('আজ দেরি', 'Late today')}</small></Link>}
-      {showAtt && <Link to="/app/workforce/hub" className={`nk${staff - marked > 0 ? ' warn' : ''}`}><span className="nk-i r"><Icon name="alert" size={20} /></span><b>{n(Math.max(staff - marked, 0))}</b><small>{L('হাজিরা বাকি', 'Not marked')}</small></Link>}
+      {showAtt && <Link to="/app/attendance?view=hub" className="nk"><span className="nk-i g"><Icon name="check" size={20} /></span><b>{n(came)}</b><small>{L('আজ উপস্থিত', 'Present today')}</small></Link>}
+      {showAtt && <Link to="/app/attendance?view=hub" className="nk"><span className="nk-i o"><Icon name="clock" size={20} /></span><b>{n(late)}</b><small>{L('আজ দেরি', 'Late today')}</small></Link>}
+      {showAtt && <Link to="/app/attendance?view=hub" className={`nk${staff - marked > 0 ? ' warn' : ''}`}><span className="nk-i r"><Icon name="alert" size={20} /></span><b>{n(Math.max(staff - marked, 0))}</b><small>{L('হাজিরা বাকি', 'Not marked')}</small></Link>}
     </div>
 
     <div className="net-grid">
