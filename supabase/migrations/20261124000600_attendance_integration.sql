@@ -1,7 +1,7 @@
 begin;
 
 create or replace function private.wf_morning_autosubmit() returns integer
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $$
 declare h record; v_id uuid; v_n integer := 0; v_left integer; m uuid;
 begin
   for h in
@@ -27,10 +27,10 @@ begin
       end if;
   end loop;
   return v_n;
-end $;
+end $$;
 
 create or replace function public.route_plan_decide(p_plan uuid, p_ok boolean, p_note text default null) returns void
-language plpgsql security definer set search_path = '' as $
+language plpgsql security definer set search_path = '' as $$
 declare v public.route_day_plans; v_name text; v_sub public.wf_morning_subs; l record; v_state text; v_ver uuid; v_no integer; v_prev public.route_plan_versions;
   m uuid; v_emp public.employees;
 begin
@@ -103,7 +103,7 @@ begin
     update public.route_day_plans set status = 'draft', decided_by = auth.uid(), decided_by_name = v_name, decided_at = now(),
       decide_note = trim(p_note) where id = v.id;
   end if;
-end $;
+end $$;
 
 alter table public.wf_att_policy add column day_auto_since date;
 alter table public.att_day_sheets add column auto_submitted boolean not null default false;
