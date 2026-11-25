@@ -62,13 +62,14 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/hub/team', codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.employee_profile.edit', 'hr.application.create'] },
     { to: '/app/staff/list', codes: ['hr.request.create', 'hr.application.create', 'hr.employee.view'] },
     { to: '/app/hub/logins', res: ['system.user_hub'] },
-    { to: '/app/hub/routes', res: ['ops.route'] },
-    { to: '/app/routes/plan', res: ['ops.route_plan', 'ops.route_plan_own'] },
   ] },
   { key: 'ops', icon: 'box', bn: 'কুরিয়ার অপারেশন', en: 'Courier operations', db: ['ops'], subs: [] },
   { key: 'zonal', icon: 'map', bn: 'জোনাল ম্যানেজমেন্ট', en: 'Zonal management', db: ['zonal'], subs: [
     { to: '/app/zonal', res: ['zonal.dashboard', 'zonal.claim', 'zonal.planning', 'zonal.visit', 'zonal.pulse', 'zonal.report'] },
-    { to: '/app/zonal/routes', res: ['ops.route_setting', 'ops.route_visit'] },
+    // the route module — every part of it on one page (lib/routeModule.ts): zone routes, check-ins, a hub's own routes and the day's parcel plan
+    { to: '/app/routes', res: ['ops.route_setting', 'ops.route_visit', 'ops.route', 'ops.route_plan', 'ops.route_plan_own'],
+      // sorting centre → hub routes, now a part of the same page
+      codes: ['sorting.center.view', 'sorting.center.create', 'sorting.center.edit', 'sorting.center.archive'] },
   ] },
   { key: 'org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', db: ['org'], subs: [
     { to: '/app/org/hubs', res: ['org.hub', 'org.region'] },
@@ -76,7 +77,6 @@ export const MODULES: ModuleDef[] = [
   ] },
   { key: 'sorting', icon: 'truck', bn: 'শটিং সেন্টার', en: 'Sorting centre', db: ['sorting'], subs: [
     { to: '/app/sorting/dashboard', codes: ['sorting.center.view', 'sorting.report.view'] },
-    { to: '/app/sorting/routes', res: ['sorting.center'] },
     { to: '/app/sorting/staff', res: ['sorting.staff'] },
     { to: '/app/sorting/fuel', res: ['sorting.fuel', 'sorting.hub_charge'] },
     { to: '/app/sorting/parcels', res: ['sorting.parcel'] },

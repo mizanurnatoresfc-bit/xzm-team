@@ -17,10 +17,9 @@ import {
   type Center, type DriverReport, type EmpLite, type Fuel, type Handover, type Route, type RouteHub, type RouteReport, type StaffRow,
 } from '../../lib/sorting'
 
-type Sec = 'dashboard' | 'routes' | 'staff' | 'fuel' | 'parcels' | 'drivers' | 'reports' | 'centers'
+type Sec = 'dashboard' | 'staff' | 'fuel' | 'parcels' | 'drivers' | 'reports' | 'centers'
 export const SORTING_SECTIONS: Array<{ key: Sec; icon: string; bn: string; en: string; perms: string[] }> = [
   { key: 'dashboard', icon: 'dash', bn: 'সোর্টিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
-  { key: 'routes', icon: 'map', bn: 'সোর্টিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
   { key: 'staff', icon: 'users', bn: 'সোর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
   { key: 'fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
   { key: 'parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
@@ -47,6 +46,7 @@ export function Sorting() {
   const list = centers.data ?? []
   useEffect(() => { if (list.length && !list.some(c => c.id === cid)) setCid(list[0].id) }, [list, cid])
   useEffect(() => { try { if (cid) sessionStorage.setItem(CKEY, cid) } catch { /* ignore */ } }, [cid])
+  if (section === 'routes') return <Navigate to="/app/routes?tab=sorting" replace />   // sorting-to-hub routes moved into the route module
   const sec = SORTING_SECTIONS.find(s => s.key === section)
   if (!sec) return <Navigate to="/app/sorting/dashboard" replace />
   const tabs = SORTING_SECTIONS.filter(s => s.perms.some(p => can(p)))
@@ -80,10 +80,31 @@ export function Sorting() {
   </AppShell>
 }
 
+/** The part of the route module for sorting-centre → hub routes: the centre picker and the routes (the same page content it had under the sorting menu). */
+export function SortingRoutesPane() {
+  const { L } = usePrefs()
+  const o = useOrg()
+  const centers = useLoad(() => sorting.centers(), [])
+  const [cid, setCid] = useState(() => { try { return sessionStorage.getItem(CKEY) || '' } catch { return '' } })
+  const list = centers.data ?? []
+  useEffect(() => { if (list.length && !list.some(c => c.id === cid)) setCid(list[0].id) }, [list, cid])
+  useEffect(() => { try { if (cid) sessionStorage.setItem(CKEY, cid) } catch { /* ignore */ } }, [cid])
+  const center = list.find(c => c.id === cid) ?? null
+  const zoneHubs = (o.data?.hubs ?? []).filter(h => !h.archived_at && (!center || h.zone_id === center.zone_id))
+  const assigned = center ? zoneHubs.filter(h => h.sorting_center_id === center.id) : []
+  return <>
+    {list.length > 1 && <section className="da-filters panel no-print"><Field label={L('সোর্টিং সেন্টার', 'Sorting center')}><select value={cid} onChange={e => setCid(e.target.value)}>
+      {list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field></section>}
+    {centers.error ? <p className="da-error">{hrFriendly(centers.error)}</p> : null}
+    {centers.data && !list.length ? <p className="notice">{L('এখনো কোনো সোর্টিং সেন্টার নেই।', 'No sorting center yet.')}</p>
+      : !center ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
+      : <Routes key={center.id} ctx={{ center, hubs: assigned.length ? assigned : zoneHubs, hubName: o.names.hub, from: today(), to: today() }} />}
+  </>
+}
+
 function Body({ sec, ctx }: { sec: Sec; ctx: Ctx }) {
   switch (sec) {
     case 'dashboard': return <Dashboard ctx={ctx} />
-    case 'routes': return <Routes ctx={ctx} />
     case 'staff': return <Staff ctx={ctx} />
     case 'fuel': return <FuelPage ctx={ctx} />
     case 'parcels': return <Parcels ctx={ctx} />

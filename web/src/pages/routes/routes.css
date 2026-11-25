@@ -1,0 +1,48 @@
+/* Route module: the location adder, the module tab bar, the bulk importer. Colours come from the app's theme variables, so dark mode follows. */
+.lc{display:flex;flex-direction:column;gap:8px;min-width:0}
+.lc-q{min-height:40px}
+.lc-num{flex:1;min-width:150px}
+.lc-recent{margin:0}
+.lc-results{display:flex;flex-direction:column;gap:4px;max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:12px;padding:4px;background:var(--surface)}
+.lc-head{display:flex;align-items:center;gap:6px;padding:6px 8px 2px;font-size:.78rem;font-weight:600;color:var(--muted);text-transform:none}
+.lc-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:9px}
+.lc-row:hover{background:color-mix(in srgb,var(--primary) 7%,transparent)}
+.lc-row.off .lc-main b{color:var(--muted)}
+.lc-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;text-align:left;align-items:flex-start;background:none;border:0;padding:2px 4px;min-height:0;font-weight:400;color:inherit;cursor:pointer}
+.lc-main b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.lc-sub{font-size:.8125rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.lc-main:hover:not(:disabled){background:none;border:0}
+.lc-acts{display:flex;gap:4px;flex:none}
+.lc-notes{display:flex;flex-direction:column;gap:4px}
+.lc-note{display:flex;gap:6px;align-items:flex-start;margin:0;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-size:.875rem}
+.lc-note svg{flex:none;margin-top:2px}
+.lc-note.warn{border-color:#fdba74;background:color-mix(in srgb,#f97316 8%,var(--surface))}
+.lc-note.info{border-color:var(--border)}
+.lc-picker{display:flex;flex-direction:column;gap:8px}
+.lc-undo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface)}
+.lc-undo span{flex:1;min-width:140px}
+/* bulk import */
+.lc-bulk{display:flex;flex-direction:column;gap:8px}
+.lc-bulk-rows{display:flex;flex-direction:column;gap:4px;max-height:44vh;overflow:auto}
+.lc-bulk-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid var(--border);border-radius:10px;padding:5px 8px;background:var(--surface)}
+.lc-bulk-row.missing{border-color:#fdba74}
+.lc-bulk-row input[type=text]{min-height:32px;padding:3px 8px}
+.lc-tag{font-size:.75rem;padding:1px 7px;border-radius:999px;border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.lc-tag.ok{color:#15803d;border-color:#86efac}.lc-tag.warn{color:#c2410c;border-color:#fdba74}
+/* module tab bar: the parts in groups, always on a row of their own above the zone / hub pickers */
+.rm-tabs{display:flex;flex-direction:column;gap:6px;min-width:0}
+.da-filters>.rm-tabs{flex:1 1 100%;order:-1;grid-column:1 / -1}
+.rm-group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rm-group>.t{font-size:.78rem;font-weight:600;color:var(--muted);min-width:110px}
+.rm-fix{display:flex;flex-direction:column;gap:6px}
+.rm-fix .rt-stop{grid-template-columns:minmax(0,1fr) auto}
+@media (max-width:640px){
+  /* phone: one strip that scrolls sideways, the open part scrolled into view (RouteModule) */
+  .rm-tabs{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .rm-group{display:contents}
+  .rm-group>.t{display:none}
+  .rm-tabs button{flex:none}
+  .lc-row{flex-wrap:wrap}
+  .lc-acts{width:100%}
+  .lc-acts button{flex:1}
+}

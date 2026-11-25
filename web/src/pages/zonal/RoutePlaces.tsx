@@ -6,8 +6,10 @@ import { Icon } from '../../components/Icon'
 import { OsmMap, type MapLine, type MapPin } from '../../components/OsmMap'
 import { Badge, Field, Modal, Stat, useLoad } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
+import { LocationPicker } from '../routes/LocationUI'
+import type { SourceEnv } from '../../lib/routeLocation'
 import {
-  direction, estimate, fmtDist, fmtKm, hasGps, lineKm, meters, nearAny, parseLocation, PLACE_KIND, PLACE_SOURCES, placeName, placesApi, ROUTE_COLORS,
+  direction, estimate, fmtDist, fmtKm, hasGps, lineKm, meters, nearAny, PLACE_KIND, PLACE_SOURCES, placeName, placesApi, ROUTE_COLORS,
   routeFriendly, stopKindOf, suggestRoutes, upazilaNear, type LatLng, type Place, type PlaceKind, type RouteHub, type RouteStop, type Upazila, type ZoneOverview,
 } from '../../lib/routes'
 
@@ -208,26 +210,27 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
         ]} />
       <p className="muted small">{PLACE_SOURCES}</p>
     </section>
-    {edit && <PlaceForm place={edit} upazilas={pl.upazilas} onClose={() => setEdit(null)} onSaved={async () => { setEdit(null); pl.setData(await placesApi.load(true)) }} />}
+    {edit && <PlaceForm place={edit} upazilas={pl.upazilas} places={pl.places} onClose={() => setEdit(null)} onSaved={async () => { setEdit(null); pl.setData(await placesApi.load(true)) }} />}
   </>
 }
 
-function PlaceForm({ place, upazilas, onClose, onSaved }: { place: Partial<Place>; upazilas: Upazila[]; onClose: () => void; onSaved: () => void }) {
+/** Add or fix one place of the library. The location is picked with the shared LocationPicker (tap the map, search, paste a link, phone GPS). */
+export function PlaceForm({ place, upazilas, places, onClose, onSaved }: { place: Partial<Place>; upazilas: Upazila[]; places: Place[]; onClose: () => void; onSaved: () => void }) {
   const { L, lang } = usePrefs()
   const [f, setF] = useState({ ...place })
-  const [loc, setLoc] = useState(hasGps({ lat: place.lat ?? null, lng: place.lng ?? null }) ? `${place.lat}, ${place.lng}` : '')
+  const [pt, setPt] = useState<LatLng | null>(hasGps({ lat: place.lat ?? null, lng: place.lng ?? null }) ? { lat: place.lat!, lng: place.lng! } : null)
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
   const u = upazilas.find(x => x.code === f.upazila_code)
+  const env = useMemo<SourceEnv>(() => ({ hub: null, hubs: [], places: places.filter(p => p.id !== place.id), routes: [], lang }), [places, place.id, lang])
   async function save() {
-    const ll = loc.trim() ? parseLocation(loc) : null
-    if (loc.trim() && !ll) return setErr(L('লোকেশন বোঝা যায়নি', 'Location not understood'))
     if (!(f.name_bn ?? '').trim()) return setErr(L('বাংলা নাম দিন', 'Give the Bangla name'))
     setBusy(true); setErr('')
-    try { await placesApi.save({ id: f.id, upazila_code: f.upazila_code!, name_bn: f.name_bn!.trim(), name: f.name ?? null, kind: f.kind ?? 'village', lat: ll?.lat ?? null, lng: ll?.lng ?? null, note: f.note ?? null, bn_checked: true }); onSaved() }
+    try { await placesApi.save({ id: f.id, upazila_code: f.upazila_code!, name_bn: f.name_bn!.trim(), name: f.name ?? null, kind: f.kind ?? 'village', lat: pt?.lat ?? null, lng: pt?.lng ?? null, note: f.note ?? null, bn_checked: true }); onSaved() }
     catch (e) { setErr(routeFriendly(e)) } finally { setBusy(false) }
   }
-  const ll = parseLocation(loc)
-  return <Modal title={f.id ? L('জায়গার নাম ঠিক করুন', 'Fix the place') : L('নতুন জায়গা', 'New place')} onClose={onClose}
+  // a place already in the library right here: the person may be adding it twice
+  const twin = pt ? places.find(p => p.id !== place.id && !p.hidden && hasGps(p) && meters(pt, p as LatLng) < 80) : undefined
+  return <Modal wide title={f.id ? L('জায়গার নাম ঠিক করুন', 'Fix the place') : L('নতুন জায়গা', 'New place')} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
       <Field label={L('বাংলা নাম', 'Bangla name')} required><input value={f.name_bn ?? ''} onChange={e => setF({ ...f, name_bn: e.target.value })} /></Field>
@@ -236,9 +239,10 @@ function PlaceForm({ place, upazilas, onClose, onSaved }: { place: Partial<Place
         {(Object.keys(PLACE_KIND) as PlaceKind[]).map(k => <option key={k} value={k}>{L(PLACE_KIND[k].bn, PLACE_KIND[k].en)}</option>)}</select></Field>
       <Field label={L('উপজেলা', 'Upazila')}><select value={f.upazila_code} onChange={e => setF({ ...f, upazila_code: Number(e.target.value) })}>
         {upazilas.map(x => <option key={x.code} value={x.code}>{lang === 'en' ? x.name : x.name_bn}</option>)}</select></Field>
-      <Field label={L('লোকেশন (ম্যাপে চাপুন, বা lat, lng / লিংক)', 'Location (tap the map, or lat, lng / link)')} wide><input value={loc} onChange={e => setLoc(e.target.value)} /></Field>
     </div>
-    <OsmMap height={260} pins={ll ? [{ id: 'p', lat: ll.lat, lng: ll.lng, label: f.name_bn || '' }] : []} lines={boundaryLine(u)} onPick={(lat, lng) => setLoc(`${lat}, ${lng}`)} tags="all" keepView fitKey={f.upazila_code} />
+    <LocationPicker env={env} value={pt} height={280} lines={boundaryLine(u)} fitKey={f.upazila_code}
+      onChange={(p, hint) => { setPt(p); if (hint && !(f.name_bn ?? '').trim()) setF(x => ({ ...x, name_bn: hint })) }} />
+    {twin && <p className="lc-note warn"><Icon name="alert" size={14} />{L(`কাছেই (${Math.round(meters(pt!, twin as LatLng))} মি.) তালিকায় "${placeName(twin, lang)}" আছে — একই জায়গা দুবার নয় তো?`, `"${placeName(twin, lang)}" is already in the library ${Math.round(meters(pt!, twin as LatLng))} m away.`)}</p>}
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }

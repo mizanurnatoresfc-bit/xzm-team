@@ -1,173 +1,20 @@
-import { askReason } from '../../components/ask'
-import { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { AppShell } from '../../components/AppShell'
+// The zone parts of the route module that show routes: the map with its route cards, the route table, the zone rules, the riders of a route and one day's
+// check-ins. The page that holds them (tabs, zone and hub pickers, the editor) is pages/routes/RouteModule.tsx.
+import { useEffect, useState } from 'react'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { OsmMap, gmapLink, type MapCircle, type MapLine, type MapPin } from '../../components/OsmMap'
-import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
-import { PlacePicker, PlacesTab, placeToStop } from './RoutePlaces'
-import { LoadTab } from './RouteLoad'
-import { CoverageTab } from './RouteCoverage'
-import { PlanTab } from './RoutePlan'
-import { useAuth } from '../../auth/AuthProvider'
+import { Badge, Field, Modal, useLoad } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import {
-  bestOrder, estimate, fmtDist, fmtKm, fmtMin, hasGps, lineKm, meters, myLocation, parseLocation, roadLine, routeApi, routeColor, routeFriendly,
-  ROUTE_COLORS, routeLine, searchPlace, SHIFT, STOP_KIND, type DayRoute, type Place, type RouteHub, type RouteRules, type RouteStop, type Shift, type StopKind, type ZoneOverview, type ZoneRoute,
+  estimate, fmtDist, fmtKm, fmtMin, hasGps, routeApi, routeColor, routeFriendly, routeLine, SHIFT, STOP_KIND,
+  type DayRoute, type RouteHub, type RouteRules, type ZoneOverview, type ZoneRoute,
 } from '../../lib/routes'
 
-type Tab = 'map' | 'cover' | 'places' | 'routes' | 'load' | 'plan' | 'day' | 'warn' | 'rules'
-type NewDraft = { hub_id: string; name?: string; color?: string; stops?: RouteStop[] }
 const dhaka = (d = new Date()) => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Dhaka' })
 
-/** /app/routes/plan — plan-only wrapper for users with route_plan perm but not route_setting. */
-export function RoutePlanPage() {
-  const { L } = usePrefs()
-  const [sp, setSp] = useSearchParams()
-  const [hub, setHub] = useState(sp.get('hub') ?? '')
-  useEffect(() => { const q = new URLSearchParams(); if (hub) q.set('hub', hub); setSp(q, { replace: true }) },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hub])
-  return <AppShell title={L('আজকের পার্সেল পরিকল্পনা', "Today's parcel plan")}
-    subtitle={L('হাবে কয়টা পার্সেল এল, কে উপস্থিত, কোন রাইডার কোন রুটে কয়টা নেবেন — কেউ না এলে কাকে দেওয়া যায় তার পরামর্শসহ।',
-      'How many parcels reached the hub, who is here, who takes how many on which route — with a suggestion when someone is away.')}>
-    <PlanTab hub={hub} onHub={setHub} />
-  </AppShell>
-}
-
-/** জোনাল ম্যানেজার প্যানেল → রুট সেটিং: every hub's rider routes on a real map, with stops, riders, rules and today's check-ins. */
-export function RouteSettings() {
-  const { L, n } = usePrefs()
-  const fmt = { L, n }
-  const { toast, node } = useToast()
-  const [sp, setSp] = useSearchParams()
-  const zones = useLoad(() => routeApi.zones(), [])
-  const [zone, setZone] = useState(sp.get('zone') ?? '')
-  useEffect(() => { if (!zone && zones.data?.length) setZone(zones.data[0].id) }, [zones.data, zone])
-  const ov = useLoad(() => zone ? routeApi.overview(zone) : Promise.resolve(null), [zone])
-  const [tab, setTab] = useState<Tab>((sp.get('tab') as Tab) || 'map')
-  const [hub, setHub] = useState(sp.get('hub') ?? '')
-  const [sel, setSel] = useState<string | null>(sp.get('route'))
-  const [edit, setEdit] = useState<ZoneRoute | NewDraft | null>(null)
-  const [riders, setRiders] = useState<ZoneRoute | null>(null)
-  const [err, setErr] = useState('')
-  const o = ov.data
-  const canPlan = useAuth().can('ops.route_plan.view')
-
-  useEffect(() => { const q = new URLSearchParams(); if (zone) q.set('zone', zone); if (tab !== 'map') q.set('tab', tab); if (hub) q.set('hub', hub); if (sel) q.set('route', sel); setSp(q, { replace: true }) },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [zone, tab, hub, sel])
-
-  const hubOf = useMemo(() => Object.fromEntries((o?.hubs ?? []).map(h => [h.id, h])) as Record<string, RouteHub>, [o])
-  const routes = useMemo(() => (o?.routes ?? []).filter(r => !hub || r.hub_id === hub), [o, hub])
-  const canEdit = (hubId: string) => !!o?.can.edit_hubs.includes(hubId)
-  const canArchive = (hubId: string) => !!o?.can.archive_hubs.includes(hubId)
-  const warns = useMemo(() => o ? problems(o, L, n) : [], [o, L, n])
-
-  async function archive(r: ZoneRoute) {
-    const why = (await askReason(L(`"${r.name}" রুট সরানোর কারণ`, `Why remove "${r.name}"?`), { ok: L('সরান', 'Remove') })) ?? ''
-    if (!why.trim()) return
-    try { await routeApi.archive(r.id, why.trim()); toast(L('রুট সরানো হয়েছে', 'Route removed')); if (sel === r.id) setSel(null); await ov.reload() } catch (e) { setErr(routeFriendly(e)) }
-  }
-
-  const stats = useMemo(() => {
-    if (!o) return null
-    const rs = o.routes.filter(r => !hub || r.hub_id === hub)
-    const staff = o.hubs.filter(h => !hub || h.id === hub).flatMap(h => h.staff)
-    const stops = rs.reduce((t, r) => t + r.stops.length, 0), gps = rs.reduce((t, r) => t + r.stops.filter(hasGps).length, 0)
-    return { routes: rs.length, stops, gps, km: rs.reduce((t, r) => t + (r.road_km ?? r.distance_km ?? 0), 0),
-      withRoute: staff.filter(s => s.routes > 0).length, noRoute: staff.filter(s => s.rider && s.routes === 0), noRider: rs.filter(r => !r.riders.length).length,
-      today: rs.reduce((t, r) => t + (o.visits_today[r.id] ?? 0), 0) }
-  }, [o, hub])
-
-  return <AppShell title={L('রুট ম্যাপ (জোন)', 'Route map (zone)')}
-    subtitle={L('জোনের সব হাবের রাইডার রুট আসল ম্যাপে: স্টপের লোকেশন, রাস্তা ধরে দূরত্ব, রাইডার, জোনের নিয়ম আর আজকের চেক-ইন।',
-      "Every hub's rider routes on a real map: stop locations, road distance, riders, zone rules and today's check-ins.")}
-    actions={o && (canEdit(hub) || (!hub && o.can.edit_hubs.length > 0)) ? <button onClick={() => { setErr(''); setEdit({ hub_id: hub || o.can.edit_hubs[0] }) }}><Icon name="plus" size={16} />{L('নতুন রুট', 'New route')}</button> : undefined}>
-    {node}
-    <section className="da-filters panel no-print">
-      {(zones.data?.length ?? 0) > 1 && <Field label={L('জোন', 'Zone')}><select value={zone} onChange={e => { setZone(e.target.value); setHub(''); setSel(null) }}>
-        {zones.data?.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>}
-      {o && <Field label={L('হাব', 'Hub')}><select value={hub} onChange={e => { setHub(e.target.value); setSel(null) }}>
-        <option value="">{L('সব হাব', 'All hubs')}</option>{o.hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>}
-      <div className="da-seg">{([['map', 'ম্যাপ', 'Map', 'map'], ['cover', 'কাভারেজ', 'Coverage', 'check'], ['places', 'এলাকা ও সাজেশন', 'Areas & suggestions', 'hub'], ['routes', 'রুট তালিকা', 'Routes', 'table'], ['load', 'পার্সেল ও পরামর্শ', 'Parcels & suggestions', 'chart'], ...(canPlan ? [['plan', 'আজকের পরিকল্পনা', "Today's plan", 'box']] : []), ...(o?.can.visits ? [['day', 'চেক-ইন', 'Check-ins', 'check']] : []),
-        ['warn', `সতর্কতা${warns.length ? ` (${n(warns.length)})` : ''}`, `Warnings${warns.length ? ` (${warns.length})` : ''}`, 'alert'], ['rules', 'জোনের নিয়ম', 'Zone rules', 'gear']] as Array<[Tab, string, string, string]>).map(([k, b, e, ic]) =>
-        <button key={k} className={tab === k ? '' : 'secondary'} onClick={() => setTab(k)}><Icon name={ic} size={14} />{L(b, e)}</button>)}</div>
-      {ov.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
-    </section>
-    {zones.data && !zones.data.length && <section className="panel"><p className="muted">{L('রুট সেটিং দেখার অনুমতি কোনো জোনে নেই।', 'You may not see route settings in any zone.')}</p></section>}
-    {(ov.error || zones.error) ? <p className="da-error">{routeFriendly(ov.error ?? zones.error)}</p> : null}
-    {err && <p className="da-error">{err}</p>}
-
-    {o && stats && <div className="da-stats">
-      <Stat icon="map" label={L('রুট', 'Routes')} value={n(stats.routes)} sub={stats.noRider ? L(`${n(stats.noRider)}টায় রাইডার নেই`, `${stats.noRider} without rider`) : undefined} tone={stats.noRider ? 'warn' : undefined} />
-      <Stat icon="hub" label={L('স্টপ (লোকেশনসহ)', 'Stops (with location)')} value={`${n(stats.gps)}/${n(stats.stops)}`} tone={stats.gps < stats.stops ? 'warn' : 'ok'} />
-      <Stat icon="truck" label={L('রুট পাওয়া স্টাফ', 'Staff with a route')} value={n(stats.withRoute)} />
-      <Stat icon="alert" label={L('রুট ছাড়া রাইডার', 'Riders without a route')} value={n(stats.noRoute.length)} tone={stats.noRoute.length ? 'warn' : undefined}
-        sub={stats.noRoute.slice(0, 3).map(s => s.name).join(', ')} />
-      <Stat icon="chart" label={L('মোট রুট দূরত্ব', 'Total route length')} value={fmtKm(stats.km, fmt)} />
-      {o.can.visits && <Stat icon="check" label={L('আজকের চেক-ইন', "Today's check-ins")} value={n(stats.today)} />}
-    </div>}
-
-    {o && tab === 'map' && <ZoneMap o={o} routes={routes} hubOf={hubOf} hub={hub} sel={sel} onSel={setSel}
-      onEdit={r => { setErr(''); setEdit(r) }} onRiders={setRiders} onArchive={archive} canEdit={canEdit} canArchive={canArchive} />}
-    {o && tab === 'cover' && <CoverageTab o={o} onPlan={h => { setHub(h); setSel(null); setTab('places') }} />}
-    {o && tab === 'places' && <PlacesTab o={o} hubOf={hubOf} initialHub={hub} onBuild={d => { setErr(''); setEdit(d) }} />}
-    {o && tab === 'routes' && <RouteTable routes={routes} hubOf={hubOf} rules={o.rules} onOpen={r => { setSel(r.id); setTab('map') }} />}
-    {o && tab === 'load' && <LoadTab zone={zone} o={o} hub={hub} canEdit={canEdit} onSaved={() => toast(L('সেভ হয়েছে', 'Saved'))} onOpen={id => { setSel(id); setTab('map') }} />}
-    {o && tab === 'plan' && canPlan && <PlanTab zone={zone} hub={hub} onHub={h => { setHub(h); setSel(null) }} />}
-    {o && tab === 'day' && o.can.visits && <DayView zone={zone} o={o} hub={hub} />}
-    {o && tab === 'warn' && <section className="panel"><h2>{L('যা ঠিক করা দরকার', 'What needs fixing')}</h2>
-      {warns.length ? <ul className="rt-warn">{warns.map((w, i) => <li key={i} className={w.tone}>{w.text}
-        {w.route && <> · <button className="secondary sm" onClick={() => { setSel(w.route!); setTab('map') }}>{L('ম্যাপে দেখুন', 'Show on map')}</button></>}</li>)}</ul>
-        : <p className="muted">{L('সব ঠিক আছে — কোনো সতর্কতা নেই।', 'All good — nothing to fix.')}</p>}</section>}
-    {o && tab === 'rules' && <RulesForm zone={zone} rules={o.rules} canEdit={o.can.configure} onSaved={() => { toast(L('জোনের নিয়ম সেভ হয়েছে', 'Zone rules saved')); void ov.reload() }} />}
-
-    {o && edit && <RouteEditor o={o} start={edit} hubOf={hubOf}
-      onClose={() => setEdit(null)} onSaved={id => { setEdit(null); setSel(id); setTab('map'); toast(L('রুট সেভ হয়েছে', 'Route saved')); void ov.reload() }} />}
-    {o && riders && <RiderPicker o={o} route={riders} onClose={() => setRiders(null)}
-      onSaved={() => { setRiders(null); toast(L('রাইডার সেভ হয়েছে', 'Riders saved')); void ov.reload() }} />}
-  </AppShell>
-}
-
-// ---------------------------------------------------------------- warnings
-function problems(o: ZoneOverview, L: (b: string, e: string) => string, n: (v: number | string) => string) {
-  const out: Array<{ tone: 'bad' | 'warn'; text: string; route?: string }> = []
-  for (const h of o.hubs) {
-    if (!hasGps(h)) out.push({ tone: 'warn', text: L(`${h.name}: হাবের GPS নেই — রুটের দূরত্ব হাব থেকে মাপা যাচ্ছে না (হাব তালিকা ও ম্যাপ থেকে বসান)`, `${h.name}: the hub has no GPS`) })
-    const none = h.staff.filter(s => s.rider && s.routes === 0)
-    if (none.length) out.push({ tone: 'warn', text: L(`${h.name}: ${n(none.length)} জন রাইডার রুট পাননি — ${none.slice(0, 5).map(s => s.name).join(', ')}`, `${h.name}: ${none.length} riders without a route`) })
-  }
-  const allStops: Array<{ r: ZoneRoute; lat: number; lng: number; name: string }> = []
-  for (const r of o.routes) {
-    const hn = o.hubs.find(h => h.id === r.hub_id)?.name ?? ''
-    if (!r.riders.length) out.push({ tone: 'bad', text: L(`${hn} · ${r.name}: কোনো রাইডার দেওয়া হয়নি`, `${hn} · ${r.name}: no rider`), route: r.id })
-    const noGps = r.stops.filter(s => !hasGps(s))
-    if (noGps.length) out.push({ tone: 'warn', text: L(`${hn} · ${r.name}: ${n(noGps.length)}টা স্টপের লোকেশন নেই — ${noGps.slice(0, 4).map(s => s.name).join(', ')}`, `${hn} · ${r.name}: ${noGps.length} stops without location`), route: r.id })
-    if (r.stops.length > o.rules.max_stops) out.push({ tone: 'bad', text: L(`${hn} · ${r.name}: স্টপ জোনের সীমার বেশি (${n(r.stops.length)}/${n(o.rules.max_stops)})`, `${r.name}: more stops than the zone allows`), route: r.id })
-    if (r.riders.length > o.rules.max_riders) out.push({ tone: 'bad', text: L(`${hn} · ${r.name}: রাইডার জোনের সীমার বেশি`, `${r.name}: more riders than the zone allows`), route: r.id })
-    const km = r.road_km ?? (r.distance_km !== null ? r.distance_km * 1.3 : null)
-    if (km !== null) { const min = estimate(km, r.stops.length, o.rules, r.road_minutes); if (min > 9 * 60) out.push({ tone: 'warn', text: L(`${hn} · ${r.name}: আনুমানিক সময় ${n(Math.round(min / 60))} ঘণ্টার বেশি — রুট ভাগ করার কথা ভাবুন`, `${r.name}: estimated over ${Math.round(min / 60)} hours`), route: r.id }) }
-    const seen = new Set<string>()
-    for (const s of r.stops) { const k = s.name.trim().toLowerCase(); if (seen.has(k)) out.push({ tone: 'warn', text: L(`${hn} · ${r.name}: "${s.name}" দুবার আছে`, `${r.name}: "${s.name}" twice`), route: r.id }); seen.add(k) }
-    for (const s of r.stops) if (hasGps(s)) allStops.push({ r, lat: s.lat, lng: s.lng, name: s.name })
-  }
-  // stops of two different routes of the same hub within 80 m of each other
-  const pairs = new Set<string>()
-  for (let i = 0; i < allStops.length; i++) for (let j = i + 1; j < allStops.length; j++) {
-    const a = allStops[i], b = allStops[j]
-    if (a.r.id === b.r.id || a.r.hub_id !== b.r.hub_id) continue
-    const key = [a.r.id, b.r.id].sort().join('|')
-    if (pairs.has(key) || meters(a, b) > 80) continue
-    pairs.add(key)
-    out.push({ tone: 'warn', text: L(`দুই রুটের স্টপ এক জায়গায়: ${a.r.name} (${a.name}) আর ${b.r.name} (${b.name}) — এলাকা দুজনকে দেওয়া হয়েছে কি?`, `Two routes share a place: ${a.r.name} / ${b.r.name}`), route: a.r.id })
-  }
-  return out.sort((x, y) => (x.tone === y.tone ? 0 : x.tone === 'bad' ? -1 : 1))
-}
-
 // ---------------------------------------------------------------- zone map
-function ZoneMap({ o, routes, hubOf, hub, sel, onSel, onEdit, onRiders, onArchive, canEdit, canArchive }: {
+export function ZoneMap({ o, routes, hubOf, hub, sel, onSel, onEdit, onRiders, onArchive, canEdit, canArchive }: {
   o: ZoneOverview; routes: ZoneRoute[]; hubOf: Record<string, RouteHub>; hub: string; sel: string | null; onSel: (id: string | null) => void
   onEdit: (r: ZoneRoute) => void; onRiders: (r: ZoneRoute) => void; onArchive: (r: ZoneRoute) => void; canEdit: (h: string) => boolean; canArchive: (h: string) => boolean
 }) {
@@ -221,7 +68,7 @@ function ZoneMap({ o, routes, hubOf, hub, sel, onSel, onEdit, onRiders, onArchiv
 }
 
 // ---------------------------------------------------------------- table (Excel / print)
-function RouteTable({ routes, hubOf, rules, onOpen }: { routes: ZoneRoute[]; hubOf: Record<string, RouteHub>; rules: RouteRules; onOpen: (r: ZoneRoute) => void }) {
+export function RouteTable({ routes, hubOf, rules, onOpen }: { routes: ZoneRoute[]; hubOf: Record<string, RouteHub>; rules: RouteRules; onOpen: (r: ZoneRoute) => void }) {
   const { L } = usePrefs()
   return <DataTable<ZoneRoute> title={L('রাইডার রুট', 'Rider routes')} file="rider-routes" rows={routes} rowKey={r => r.id} onRowClick={onOpen} prefKey="zone-routes"
     empty={<p className="muted">{L('কোনো রুট নেই', 'No routes')}</p>}
@@ -242,7 +89,7 @@ function RouteTable({ routes, hubOf, rules, onOpen }: { routes: ZoneRoute[]; hub
 }
 
 // ---------------------------------------------------------------- the zone rules
-function RulesForm({ zone, rules, canEdit, onSaved }: { zone: string; rules: RouteRules; canEdit: boolean; onSaved: () => void }) {
+export function RulesForm({ zone, rules, canEdit, onSaved }: { zone: string; rules: RouteRules; canEdit: boolean; onSaved: () => void }) {
   const { L, n } = usePrefs()
   const [f, setF] = useState(rules)
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
@@ -279,7 +126,7 @@ function RulesForm({ zone, rules, canEdit, onSaved }: { zone: string; rules: Rou
 }
 
 // ---------------------------------------------------------------- riders of a route
-function RiderPicker({ o, route, onClose, onSaved }: { o: ZoneOverview; route: ZoneRoute; onClose: () => void; onSaved: () => void }) {
+export function RiderPicker({ o, route, onClose, onSaved }: { o: ZoneOverview; route: ZoneRoute; onClose: () => void; onSaved: () => void }) {
   const { L, n } = usePrefs()
   const staff = o.hubs.find(h => h.id === route.hub_id)?.staff ?? []
   const [ids, setIds] = useState(route.riders.map(r => r.employee_id))
@@ -309,7 +156,7 @@ function RiderPicker({ o, route, onClose, onSaved }: { o: ZoneOverview; route: Z
 }
 
 // ---------------------------------------------------------------- one day's check-ins
-function DayView({ zone, o, hub }: { zone: string; o: ZoneOverview; hub: string }) {
+export function DayView({ zone, o, hub }: { zone: string; o: ZoneOverview; hub: string }) {
   const { L, n } = usePrefs()
   const fmt = { L, n }
   const [date, setDate] = useState(dhaka())
@@ -351,200 +198,3 @@ function DayView({ zone, o, hub }: { zone: string; o: ZoneOverview; hub: string 
   </section>
 }
 
-// ---------------------------------------------------------------- route editor (map + stops)
-type Draft = { id?: string; hub_id: string; code: string; name: string; note: string; color: string; shift: Shift; stops: RouteStop[] }
-const blank = (name: string): RouteStop => ({ name, kind: 'area', lat: null, lng: null, radius_m: null, minutes: null, note: null })
-const sig = (hub: { lat: number | null; lng: number | null } | undefined, stops: RouteStop[]) =>
-  [hub && hasGps(hub) ? `${hub.lat},${hub.lng}` : '', ...stops.filter(hasGps).map(s => `${s.lat},${s.lng}`)].join('|')
-
-export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
-  o: ZoneOverview; start: ZoneRoute | NewDraft; hubOf: Record<string, RouteHub>; onClose: () => void; onSaved: (id: string) => void
-}) {
-  const { L, n, lang } = usePrefs()
-  const fmt = { L, n }
-  const old = 'id' in start ? start : null
-  const [f, setF] = useState<Draft>(() => old
-    ? { id: old.id, hub_id: old.hub_id, code: old.code, name: old.name, note: old.note ?? '', color: old.color ?? routeColor(old, o.routes.indexOf(old)), shift: old.shift, stops: old.stops.map(s => ({ ...s })) }
-    : { hub_id: start.hub_id, code: '', name: (start as NewDraft).name ?? '', note: '', color: (start as NewDraft).color ?? ROUTE_COLORS[o.routes.filter(r => r.hub_id === start.hub_id).length % ROUTE_COLORS.length],
-        shift: 'day', stops: ((start as NewDraft).stops ?? []).map(x => ({ ...x })) })
-  const hub = hubOf[f.hub_id]
-  const [sel, setSel] = useState<number | null>(null)
-  const [mode, setMode] = useState<'add' | 'move'>('add')
-  const [open, setOpen] = useState<number | null>(null)
-  const [road, setRoad] = useState<{ km: number; minutes: number; path: Array<[number, number]>; sig: string } | null>(null)
-  const [q, setQ] = useState(''); const [found, setFound] = useState<Array<{ lat: number; lng: number; name: string }>>([])
-  const [bulk, setBulk] = useState<string | null>(null)
-  const [busy, setBusy] = useState(''); const [err, setErr] = useState('')
-  const [focus, setFocus] = useState<{ lat: number; lng: number } | null>(null)
-  const [side, setSide] = useState<'stops' | 'places'>('stops')
-  const [extra, setExtra] = useState<{ pins: MapPin[]; lines: MapLine[]; add: (id: string) => void }>({ pins: [], lines: [], add: () => {} })
-  const addPlace = (p: Place) => { setF(d => ({ ...d, stops: [...d.stops, placeToStop(p, lang)] })); if (hasGps(p)) setFocus(null) }
-
-  const now = sig(hub, f.stops)
-  const roadFresh = road && road.sig === now ? road : null
-  const savedRoadOk = old && old.road_path && sig(hub, old.stops) === now ? { km: old.road_km ?? 0, minutes: old.road_minutes ?? 0, path: old.road_path } : null
-  const shownRoad = roadFresh ?? savedRoadOk
-  const straight = lineKm(hub && hasGps(hub) ? hub : null, f.stops)
-  const est = estimate(shownRoad?.km ?? straight * 1.3, f.stops.length, o.rules, shownRoad?.minutes)
-  const gpsCount = f.stops.filter(hasGps).length
-
-  const setStop = (i: number, p: Partial<RouteStop>) => setF(d => ({ ...d, stops: d.stops.map((s, j) => j === i ? { ...s, ...p } : s) }))
-  const move = (i: number, by: number) => setF(d => { const s = [...d.stops]; const j = i + by; if (j < 0 || j >= s.length) return d; [s[i], s[j]] = [s[j], s[i]]; return { ...d, stops: s } })
-  const remove = (i: number) => { setF(d => ({ ...d, stops: d.stops.filter((_, j) => j !== i) })); setSel(null); setOpen(null) }
-  function addAt(lat: number | null, lng: number | null, name?: string) {
-    setF(d => ({ ...d, stops: [...d.stops, { ...blank(name ?? L(`স্টপ ${n(d.stops.length + 1)}`, `Stop ${d.stops.length + 1}`)), lat, lng }] }))
-    setSel(f.stops.length)
-  }
-  function pick(lat: number, lng: number) {
-    if (mode === 'move' && sel !== null) { setStop(sel, { lat, lng }); setMode('add'); return }
-    addAt(lat, lng)
-  }
-  async function here(i: number | null) {
-    setBusy('gps'); setErr('')
-    try { const p = await myLocation(); if (i === null) addAt(p.lat, p.lng); else setStop(i, { lat: p.lat, lng: p.lng }); setFocus({ lat: p.lat, lng: p.lng }) }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy('') }
-  }
-  async function find() {
-    if (q.trim().length < 2) return
-    const ll = parseLocation(q)
-    if (ll) { setFound([{ ...ll, name: L('লিংক / নম্বর থেকে পাওয়া লোকেশন', 'Location from the link / numbers') }]); return }
-    setBusy('find'); setErr('')
-    try { const r = await searchPlace(q.trim() + (hub ? '' : '')); setFound(r); if (!r.length) setErr(L('কিছু পাওয়া যায়নি — অন্য নামে বা Google Maps লিংক দিয়ে চেষ্টা করুন', 'Nothing found')) }
-    catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy('') }
-  }
-  function applyFound(x: { lat: number; lng: number; name: string }, asNew: boolean) {
-    const short = x.name.split(',')[0].trim()
-    if (!asNew && sel !== null) setStop(sel, { lat: x.lat, lng: x.lng }); else addAt(x.lat, x.lng, short)
-    setFocus({ lat: x.lat, lng: x.lng }); setFound([]); setQ('')
-  }
-  async function draw() {
-    const pts = [...(hub && hasGps(hub) ? [{ lat: hub.lat, lng: hub.lng }] : []), ...f.stops.filter(hasGps).map(s => ({ lat: s.lat!, lng: s.lng! }))]
-    setBusy('road'); setErr('')
-    try { const r = await roadLine(pts); setRoad({ ...r, sig: now }) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy('') }
-  }
-  function optimize() {
-    const s = bestOrder(hub && hasGps(hub) ? { lat: hub.lat, lng: hub.lng } : null, f.stops)
-    setF(d => ({ ...d, stops: s })); setSel(null)
-  }
-  function addBulk() {
-    const add: RouteStop[] = []
-    for (const line of (bulk ?? '').split('\n').map(x => x.trim()).filter(Boolean)) {
-      const parts = line.split(/[,\t;]/)
-      const name = parts[0].trim()
-      const ll = parseLocation(parts.slice(1).join(',').trim()) ?? parseLocation(line.slice(name.length + 1))
-      if (name) add.push({ ...blank(name), lat: ll?.lat ?? null, lng: ll?.lng ?? null })
-    }
-    setF(d => ({ ...d, stops: [...d.stops, ...add] })); setBulk(null)
-  }
-  async function save() {
-    if (f.name.trim().length < 2) return setErr(L('রুটের নাম দিন', 'Give the route a name'))
-    if (!f.stops.length) return setErr(L('অন্তত একটা স্টপ দিন — ম্যাপে চাপ দিন বা খুঁজুন', 'Add at least one stop'))
-    if (f.stops.length > o.rules.max_stops) return setErr(L(`এই জোনে এক রুটে সর্বোচ্চ ${n(o.rules.max_stops)}টা স্টপ`, `At most ${o.rules.max_stops} stops`))
-    if (o.rules.gps_required && gpsCount < f.stops.length) return setErr(L('এই জোনে প্রতিটি স্টপের লোকেশন দিতে হয়', 'Every stop needs a location in this zone'))
-    setBusy('save'); setErr('')
-    try {
-      const id = await routeApi.save({ id: f.id, hub_id: f.hub_id, code: f.code.trim() || undefined, name: f.name.trim(), note: f.note.trim() || null, color: f.color, shift: f.shift,
-        stops: f.stops.map(s => ({ ...s, name: s.name.trim() })), road: roadFresh ? { km: roadFresh.km, minutes: roadFresh.minutes, path: roadFresh.path } : null })
-      onSaved(id)
-    } catch (e) { setErr(routeFriendly(e)) } finally { setBusy('') }
-  }
-
-  const pins: MapPin[] = [
-    ...(hub && hasGps(hub) ? [{ id: 'hub', lat: hub.lat, lng: hub.lng, label: hub.name, num: 'H', square: true }] : []),
-    ...f.stops.map((s, i) => hasGps(s) ? { id: `s${i}`, lat: s.lat, lng: s.lng, label: `${n(i + 1)}. ${s.name}`, num: n(i + 1), color: f.color } : null).filter(Boolean) as MapPin[],
-    // other routes of the same hub, faded, so areas are not given twice
-    ...o.routes.filter(r => r.hub_id === f.hub_id && r.id !== f.id).flatMap(r => r.stops.filter(hasGps).map(s => ({ id: `o:${s.id}`, lat: s.lat!, lng: s.lng!, label: `${r.name}: ${s.name}`, num: '•', tone: 'off' as const }))),
-    ...(side === 'places' ? extra.pins : []),
-  ]
-  const straightPts: Array<[number, number]> = [...(hub && hasGps(hub) ? [[hub.lat, hub.lng] as [number, number]] : []), ...f.stops.filter(hasGps).map(s => [s.lat!, s.lng!] as [number, number])]
-  const lines: MapLine[] = [...(side === 'places' ? extra.lines : []), ...(shownRoad ? [{ id: 'road', color: f.color, points: shownRoad.path }] : [{ id: 'line', color: f.color, points: straightPts, dashed: true }])]
-  const circles: MapCircle[] = sel !== null && f.stops[sel] && hasGps(f.stops[sel]) ? [{ id: 'c', lat: f.stops[sel].lat!, lng: f.stops[sel].lng!, m: f.stops[sel].radius_m ?? o.rules.stop_radius_m, color: f.color }] : []
-  const editableHubs = o.hubs.filter(h => o.can.edit_hubs.includes(h.id))
-
-  return <Modal wide title={f.id ? `${L('রুট এডিট', 'Edit route')} — ${f.name}` : L('নতুন রাইডার রুট', 'New rider route')} onClose={onClose}
-    actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={!!busy} onClick={() => void save()}><Icon name="save" size={15} />{busy === 'save' ? L('সেভ হচ্ছে…', 'Saving…') : L('সেভ', 'Save')}</button></>}>
-    <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
-      <Field label={L('হাব', 'Hub')}><select value={f.hub_id} disabled={!!f.id} onChange={e => setF({ ...f, hub_id: e.target.value })}>
-        {(f.id ? o.hubs : editableHubs).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
-      <Field label={L('রুটের নাম', 'Route name')} required><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={L('যেমন শহর পূর্ব', 'e.g. Town east')} /></Field>
-      <Field label={L('কোড', 'Code')} hint={L('খালি রাখলে নিজে বসবে (R01…)', 'Empty = automatic')}><input value={f.code} onChange={e => setF({ ...f, code: e.target.value.toUpperCase() })} /></Field>
-      <Field label={L('শিফট', 'Shift')}><select value={f.shift} onChange={e => setF({ ...f, shift: e.target.value as Shift })}>
-        {(Object.keys(SHIFT) as Shift[]).map(k => <option key={k} value={k}>{L(SHIFT[k].bn, SHIFT[k].en)}</option>)}</select></Field>
-      <Field label={L('রঙ', 'Colour')}><div className="rt-bar">{ROUTE_COLORS.map(c => <button key={c} type="button" aria-label={c} onClick={() => setF({ ...f, color: c })}
-        style={{ width: 26, height: 26, minHeight: 0, padding: 0, borderRadius: 8, background: c, outline: f.color === c ? '3px solid var(--text)' : 'none', outlineOffset: 1 }} />)}</div></Field>
-      <Field label={L('নোট', 'Note')}><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Field>
-    </div>
-    {hub && !hasGps(hub) && <p className="da-error">{L('এই হাবের GPS বসানো নেই — দূরত্ব হাব থেকে মাপা যাবে না। হাব তালিকা ও ম্যাপ থেকে হাবের লোকেশন দিন।', 'This hub has no GPS yet.')}</p>}
-    <div className="rt-layout">
-      <div style={{ minWidth: 0 }}>
-        <div className="rt-bar" style={{ marginBottom: 6 }}>
-          <span className="da-seg"><button type="button" className={mode === 'add' ? 'sm' : 'secondary sm'} onClick={() => setMode('add')}><Icon name="plus" size={13} />{L('চাপ দিলে নতুন স্টপ', 'Tap = new stop')}</button>
-            <button type="button" className={mode === 'move' ? 'sm' : 'secondary sm'} disabled={sel === null} onClick={() => setMode('move')}><Icon name="map" size={13} />{L('চাপ দিলে বাছাই করা স্টপ সরবে', 'Tap = move picked stop')}</button></span>
-          <button type="button" className="secondary sm" disabled={busy === 'gps'} onClick={() => void here(null)}><Icon name="map" size={13} />{L('আমার লোকেশনে স্টপ', 'Stop at my location')}</button>
-        </div>
-        <OsmMap pins={pins} lines={lines} circles={circles} height={430} focus={focus} onPick={pick} tags="all" keepView
-          selected={sel !== null ? `s${sel}` : null} onSelect={id => { if (id.startsWith('p:')) { extra.add(id); return } if (id.startsWith('s')) { const i = Number(id.slice(1)); setSel(i); setOpen(i) } }} />
-        <div className="rt-search" style={{ marginTop: 8 }}>
-          <div className="rt-bar"><input style={{ flex: 1, minWidth: 0 }} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void find() }}
-            placeholder={L('জায়গার নাম, Google Maps লিংক বা "24.37, 88.60"', 'Place name, Google Maps link or "24.37, 88.60"')} />
-            <button type="button" className="secondary" disabled={busy === 'find'} onClick={() => void find()}><Icon name="search" size={14} />{L('খুঁজুন', 'Find')}</button></div>
-          {found.length > 0 && <div className="rt-results">{found.map((x, i) => <div key={i} className="rt-bar">
-            <button type="button" className="secondary sm" style={{ flex: 1 }} onClick={() => { setFocus({ lat: x.lat, lng: x.lng }) }}>{x.name}</button>
-            <button type="button" className="sm" onClick={() => applyFound(x, true)}>{L('নতুন স্টপ', 'New stop')}</button>
-            {sel !== null && <button type="button" className="secondary sm" onClick={() => applyFound(x, false)}>{L(`${n(sel + 1)} নম্বরে বসান`, `Set #${sel + 1}`)}</button>}</div>)}</div>}
-        </div>
-        <div className="da-stats" style={{ marginTop: 8 }}>
-          <Stat icon="hub" label={L('স্টপ', 'Stops')} value={`${n(gpsCount)}/${n(f.stops.length)}`} sub={L('লোকেশনসহ / মোট', 'with location / all')} tone={gpsCount < f.stops.length ? 'warn' : 'ok'} />
-          <Stat icon="chart" label={L('সোজা দূরত্ব', 'Straight')} value={fmtKm(straight || null, fmt)} />
-          <Stat icon="truck" label={L('রাস্তায় দূরত্ব', 'By road')} value={shownRoad ? fmtKm(shownRoad.km, fmt) : '—'} sub={shownRoad ? fmtMin(shownRoad.minutes, fmt) : roadFresh === null && road ? L('স্টপ বদলেছে — আবার আঁকুন', 'Stops changed — draw again') : undefined} />
-          <Stat icon="clock" label={L('আনুমানিক পুরো রুট', 'Estimated route')} value={fmtMin(est, fmt)} sub={L(`শুরু ${n(o.rules.start_time)}`, `start ${o.rules.start_time}`)} />
-        </div>
-      </div>
-      <div className="rt-side">
-        <span className="da-seg"><button type="button" className={side === 'stops' ? 'sm' : 'secondary sm'} onClick={() => setSide('stops')}><Icon name="map" size={13} />{L(`স্টপ (${n(f.stops.length)})`, `Stops (${f.stops.length})`)}</button>
-          <button type="button" className={side === 'places' ? 'sm' : 'secondary sm'} onClick={() => setSide('places')}><Icon name="hub" size={13} />{L('এলাকা থেকে বাছুন', 'Pick from areas')}</button></span>
-        {side === 'places' && <PlacePicker hub={hub} stops={f.stops} onAdd={addPlace}
-          others={o.routes.filter(r => r.hub_id === f.hub_id && r.id !== f.id).flatMap(r => r.stops.filter(hasGps).map(s => ({ route: r.name, lat: s.lat!, lng: s.lng! })))}
-          onShow={(pins, lines, add) => setExtra({ pins, lines, add })} />}
-        {side === 'stops' && <>
-        <div className="rt-bar">
-          <button type="button" className="secondary sm" disabled={gpsCount < 2} onClick={optimize} title={L('হাব থেকে সবচেয়ে কম দূরত্বের ক্রমে সাজায়', 'Shortest order from the hub')}><Icon name="swap" size={13} />{L('ছোট পথে সাজান', 'Shortest order')}</button>
-          <button type="button" className="secondary sm" disabled={f.stops.length < 2} onClick={() => setF({ ...f, stops: [...f.stops].reverse() })}><Icon name="swap" size={13} />{L('উল্টো ক্রম', 'Reverse')}</button>
-          <button type="button" className="secondary sm" disabled={busy === 'road' || gpsCount + (hub && hasGps(hub) ? 1 : 0) < 2} onClick={() => void draw()}><Icon name="truck" size={13} />{busy === 'road' ? L('আঁকা হচ্ছে…', 'Drawing…') : L('রাস্তা ধরে আঁকুন', 'Draw by road')}</button>
-          <button type="button" className="secondary sm" onClick={() => setBulk('')}><Icon name="note" size={13} />{L('একসাথে অনেক', 'Many at once')}</button>
-          <button type="button" className="secondary sm" onClick={() => addAt(null, null)}><Icon name="plus" size={13} />{L('লোকেশন ছাড়া স্টপ', 'Stop without location')}</button>
-        </div>
-        {bulk !== null && <div className="rt-card"><b className="small">{L('প্রতি লাইনে একটা স্টপ: নাম, তারপর চাইলে লোকেশন বা লিংক', 'One stop per line: name, then a location or link if you have it')}</b>
-          <textarea rows={5} value={bulk} onChange={e => setBulk(e.target.value)} placeholder={'কাজলা, 24.3640, 88.6290\nবিনোদপুর, https://maps.google.com/?q=24.369,88.641\nতালাইমারী'} />
-          <div className="rt-bar"><button type="button" className="sm" onClick={addBulk}>{L('যোগ করুন', 'Add')}</button><button type="button" className="secondary sm" onClick={() => setBulk(null)}>{L('বাতিল', 'Cancel')}</button></div></div>}
-        {!f.stops.length && <p className="rt-hint">{L('ম্যাপে চাপ দিয়ে স্টপ বসান, জায়গা খুঁজুন, অথবা "একসাথে অনেক" দিয়ে তালিকা দিন। ক্রম = রাইডার যে ক্রমে যাবেন।', 'Tap the map, search a place or paste a list. The order is the order the rider goes.')}</p>}
-        <div className="rt-stops">{f.stops.map((s, i) => <div key={i} className={`rt-stop${sel === i ? ' on' : ''}`} onClick={() => setSel(i)}>
-          <span className={`no${hasGps(s) ? '' : ' off'}`} style={hasGps(s) ? { background: f.color } : undefined}>{n(i + 1)}</span>
-          <input value={s.name} onChange={e => setStop(i, { name: e.target.value })} aria-label={L('স্টপের নাম', 'Stop name')} />
-          <span className="acts">
-            <button type="button" className="secondary" disabled={i === 0} onClick={e => { e.stopPropagation(); move(i, -1) }} aria-label="↑">↑</button>
-            <button type="button" className="secondary" disabled={i === f.stops.length - 1} onClick={e => { e.stopPropagation(); move(i, 1) }} aria-label="↓">↓</button>
-            <button type="button" className="secondary" onClick={e => { e.stopPropagation(); setOpen(open === i ? null : i) }} aria-label={L('আরও', 'More')}><Icon name="gear" size={13} /></button>
-            <button type="button" className="secondary" onClick={e => { e.stopPropagation(); remove(i) }} aria-label={L('সরান', 'Remove')}><Icon name="x" size={13} /></button></span>
-          {!hasGps(s) && open !== i && <span className="rt-hint" style={{ gridColumn: '2 / 4' }}>{L('লোকেশন নেই — বেছে নিয়ে "চাপ দিলে স্টপ সরবে" চেপে ম্যাপে চাপ দিন', 'No location — pick it, choose "Tap = move" and tap the map')}</span>}
-          {open === i && <div className="more" onClick={e => e.stopPropagation()}>
-            <Field label={L('ধরন', 'Kind')}><select value={s.kind} onChange={e => setStop(i, { kind: e.target.value as StopKind })}>
-              {(Object.keys(STOP_KIND) as StopKind[]).map(k => <option key={k} value={k}>{L(STOP_KIND[k].bn, STOP_KIND[k].en)}</option>)}</select></Field>
-            <Field label={L('লোকেশন (lat, lng বা লিংক)', 'Location (lat, lng or link)')}><input defaultValue={hasGps(s) ? `${s.lat}, ${s.lng}` : ''} key={`${s.lat},${s.lng}`}
-              onBlur={e => { const v = e.target.value.trim(); if (!v) { setStop(i, { lat: null, lng: null }); return } const ll = parseLocation(v); if (ll) setStop(i, ll); else setErr(L('লোকেশন বোঝা যায়নি', 'Location not understood')) }} /></Field>
-            <Field label={L('পৌঁছানোর সীমা (মি.)', 'Radius (m)')}><input type="number" min={20} max={2000} placeholder={n(o.rules.stop_radius_m)} value={s.radius_m ?? ''}
-              onChange={e => setStop(i, { radius_m: e.target.value ? Number(e.target.value) : null })} /></Field>
-            <Field label={L('এখানে মিনিট', 'Minutes here')}><input type="number" min={0} max={240} placeholder={n(o.rules.stop_minutes)} value={s.minutes ?? ''}
-              onChange={e => setStop(i, { minutes: e.target.value ? Number(e.target.value) : null })} /></Field>
-            <Field label={L('নোট', 'Note')}><input value={s.note ?? ''} onChange={e => setStop(i, { note: e.target.value || null })} /></Field>
-            <div className="rt-bar"><button type="button" className="secondary sm" disabled={busy === 'gps'} onClick={() => void here(i)}><Icon name="map" size={13} />{L('আমার লোকেশন', 'My location')}</button>
-              {hasGps(s) && <a className="btn-ghost small" href={gmapLink(s.lat, s.lng)} target="_blank" rel="noreferrer">Google Maps</a>}</div>
-          </div>}
-        </div>)}</div>
-        </>}
-        {f.stops.length > o.rules.max_stops && <p className="da-error">{L(`জোনের সীমা ${n(o.rules.max_stops)}টা স্টপ`, `Zone limit: ${o.rules.max_stops} stops`)}</p>}
-      </div>
-    </div>
-    {err && <p className="da-error">{err}</p>}
-  </Modal>
-}

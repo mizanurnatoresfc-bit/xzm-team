@@ -36,6 +36,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript check
         run: npm run typecheck
+      - name: Route module tests
+        run: npm run test:routes
       - name: Build app
         run: npm run build
       # The browser download is kept between runs (free cache); only its system packages are installed each time.

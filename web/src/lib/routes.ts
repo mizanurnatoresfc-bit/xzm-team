@@ -1,6 +1,9 @@
 // রাইডার রুট — আসল লোকেশন দিয়ে (zone route settings, stops with GPS, road line, rider check-in).
 // Every rule is checked again by the database (route_save, route_riders_set, route_checkin …).
 import { supabase } from './supabase'
+import { bestOrder, bearing, hasGps, meters, type LatLng } from './routeGeo.ts'
+
+export * from './routeGeo.ts'
 
 export type StopKind = 'area' | 'merchant' | 'landmark' | 'point'
 export type RouteStop = { id?: string; seq?: number; name: string; kind: StopKind; lat: number | null; lng: number | null; radius_m: number | null; minutes: number | null; note: string | null }
@@ -80,66 +83,6 @@ const BN: Array<[RegExp, string]> = [
 export const routeFriendly = (e: unknown) => {
   const m = e instanceof Error ? e.message : String(e)
   return BN.find(([re]) => re.test(m))?.[1] ?? m
-}
-
-// ---------------------------------------------------------------- geometry
-export type LatLng = { lat: number; lng: number }
-export const hasGps = (s: { lat: number | null; lng: number | null }): s is { lat: number; lng: number } => s.lat !== null && s.lng !== null
-export const inBd = (lat: number, lng: number) => lat >= 20.3 && lat <= 26.8 && lng >= 87.9 && lng <= 92.8
-export function meters(a: LatLng, b: LatLng) {
-  const R = 6371000, r = Math.PI / 180
-  const x = Math.sin(((b.lat - a.lat) * r) / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(((b.lng - a.lng) * r) / 2) ** 2
-  return 2 * R * Math.asin(Math.sqrt(x))
-}
-/** Straight-line km: start (hub) → each stop with GPS in order. */
-export function lineKm(start: LatLng | null, stops: Array<{ lat: number | null; lng: number | null }>) {
-  let m = 0, prev: LatLng | null = start
-  for (const s of stops) { if (!hasGps(s)) continue; if (prev) m += meters(prev, s); prev = { lat: s.lat, lng: s.lng } }
-  return m / 1000
-}
-/** Rough day plan: road km if known, else straight km × 1.3; minutes = travel at the zone speed + minutes at each stop. */
-export function estimate(km: number, stops: number, rules: Pick<RouteRules, 'speed_kmh' | 'stop_minutes'>, roadMinutes?: number | null) {
-  const travel = roadMinutes ?? (km / Math.max(rules.speed_kmh, 1)) * 60
-  return Math.round(travel + stops * rules.stop_minutes)
-}
-
-/** Shortest order (open path from the hub): nearest neighbour, then 2-opt. Stops without GPS keep their place at the end. */
-export function bestOrder<T extends { lat: number | null; lng: number | null }>(start: LatLng | null, stops: T[]): T[] {
-  const g = stops.filter(hasGps) as Array<T & LatLng>, rest = stops.filter(s => !hasGps(s))
-  if (g.length < 3 && !start) return stops
-  const d = (a: LatLng, b: LatLng) => meters(a, b)
-  const left = [...g]; const path: Array<T & LatLng> = []
-  let cur: LatLng | null = start
-  while (left.length) {
-    let bi = 0
-    if (cur) { let bd = Infinity; left.forEach((s, i) => { const x = d(cur!, s); if (x < bd) { bd = x; bi = i } }) }
-    cur = left[bi]; path.push(left.splice(bi, 1)[0])
-  }
-  const len = (p: LatLng[]) => p.reduce((t, s, i) => t + (i ? d(p[i - 1], s) : start ? d(start, s) : 0), 0)
-  let improved = true, best = path, bestLen = len(path), guard = 0
-  while (improved && guard++ < 60) {
-    improved = false
-    for (let i = 0; i < best.length - 1; i++) for (let k = i + 1; k < best.length; k++) {
-      const next = [...best.slice(0, i), ...best.slice(i, k + 1).reverse(), ...best.slice(k + 1)]
-      const l = len(next)
-      if (l + 0.5 < bestLen) { best = next; bestLen = l; improved = true }
-    }
-  }
-  return [...best, ...rest]
-}
-
-/** "24.37, 88.60", a Google Maps link (…@24.37,88.60… / ?q=24.37,88.60 / !3d24.37!4d88.60) or an OpenStreetMap link. Swapped numbers are put right. */
-export function parseLocation(text: string): LatLng | null {
-  const t = text.trim()
-  const pats = [/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/, /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/, /[?&](?:q|query|ll|center|destination)=(-?\d+(?:\.\d+)?)(?:,|%2C)\s*(-?\d+(?:\.\d+)?)/i,
-    /#map=\d+\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)/, /^(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)$/]
-  for (const re of pats) {
-    const m = t.match(re); if (!m) continue
-    let lat = Number(m[1]), lng = Number(m[2])
-    if (!inBd(lat, lng) && inBd(lng, lat)) [lat, lng] = [lng, lat]
-    if (isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat: +lat.toFixed(7), lng: +lng.toFixed(7) }
-  }
-  return null
 }
 
 /** The phone's own location (GPS). */
@@ -238,18 +181,6 @@ export function upazilaNear(pt: LatLng, places: Place[]): number | null {
   const c = new Map<number, number>(); near.forEach((x, i) => c.set(x.u, (c.get(x.u) ?? 0) + 7 - i))
   return [...c.entries()].sort((a, b) => b[1] - a[1])[0][0]
 }
-/** Compass direction from a to b, in Bangla. */
-export function direction(a: LatLng, b: LatLng) {
-  const deg = (bearing(a, b) + 360 + 22.5) % 360
-  return ['উত্তর', 'উত্তর-পূর্ব', 'পূর্ব', 'দক্ষিণ-পূর্ব', 'দক্ষিণ', 'দক্ষিণ-পশ্চিম', 'পশ্চিম', 'উত্তর-পশ্চিম'][Math.floor(deg / 45)]
-}
-function bearing(a: LatLng, b: LatLng) {
-  const r = Math.PI / 180, y = Math.sin((b.lng - a.lng) * r) * Math.cos(b.lat * r)
-  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos((b.lng - a.lng) * r)
-  return (Math.atan2(y, x) / r + 360) % 360
-}
-/** Is this place already a stop (within `m` metres of one)? */
-export const nearAny = (p: LatLng, stops: LatLng[], m = 250) => stops.some(s => meters(p, s) <= m)
 
 /**
  * Route suggestion: the places around the hub are cut into `n` slices by direction (like slices of a cake, starting at the widest

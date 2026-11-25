@@ -1,9 +1,10 @@
 // The one access rule for navigation: which pages a person may open, and which links the menus show.
 // The sidebar, the phone tabs, the quick actions and the page routes (ProtectedRoute) all ask the functions here, so a link is
 // never shown for a page that would say "no permission", and a page never opens that its link would have hidden.
-// Pure file (no imports): it is also run by tests/navAccess.test.mjs. This only hides and blocks pages; what data may be
+// Pure file (it imports only routeAccess.ts, which is constants): it is also run by tests/navAccess.test.mjs. This only hides and blocks pages; what data may be
 // read or changed is decided again by the database (RLS / RPC).
 // `menu` null = no limit. A role limited to "শুধু এই কয়টা পাতা" has a list.
+import { ROUTE_ANY, ROUTE_OLD_PAGES, ROUTE_PAGE } from './routeAccess.ts'
 
 /** Always open: the home page, the staff panel and one's own profile, accounts, vehicle, password and device settings.
  *  These show only the person's own things; a role's page list limits the work pages. */
@@ -25,6 +26,9 @@ const WITH: Record<string, string[]> = {
   '/app/accounts/daily': ['/app/accounts/report-import'],
   '/app/accounts/khata': ['/app/accounts/report-import'],
   '/app/zonal': ['/app/accounts/report-import'],
+  // the route module replaced four pages: a page list that names an old one still opens the module (its parts follow the old page, see panesFor)
+  ...Object.fromEntries(Object.keys(ROUTE_OLD_PAGES).map(p => [p, [ROUTE_PAGE]])),
+  [ROUTE_PAGE]: Object.keys(ROUTE_OLD_PAGES),   // and the page itself keeps the old addresses (notification links, bookmarks) open
 }
 /** "রোল ও অনুমতি" (inside the Android app) and "অ্যাডভান্সড রোল ও পারমিশন" (website) are one sub-menu: a list that has either has both. */
 const TWIN: Record<string, string> = { '/app/roles': '/app/access', '/app/access': '/app/roles' }
@@ -42,6 +46,7 @@ const beforeSplit = (menu: string[]) => !menu.some(p => (bare(p) + '/').startsWi
 export const inMenu = (menu: string[] | null, to: string): boolean => {
   if (!menu || ALWAYS.includes(bare(to)) || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))) return true
   if (bare(to) === ATTENDANCE && menu.some(p => ATTENDANCE_OLD.includes(bare(p)))) return true
+  if (bare(to) === ROUTE_PAGE && menu.some(p => bare(p) in ROUTE_OLD_PAGES)) return true
   const twin = beforeSplit(menu) ? officeTwin(bare(to)) : null; return !!twin && inMenu(menu, twin)
 }
 /** A page may be opened when it is on the list, under a listed page, or belongs to one. */
@@ -75,7 +80,6 @@ export const HUB_SECTION_PERMS = {
   ops: ['zonal.hub_metric.view', 'zonal.hub_metric.create'],
   accounts: ['da.sheet.view', 'da.sheet.create'],
   logins: ['system.user_hub.create'],
-  routes: ['ops.route.view', 'ops.route.edit'],
 } as const satisfies Record<string, readonly string[]>
 
 /** Daily-accounts pages: the sheet may be seen or made. */
@@ -105,7 +109,8 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/roles': ['system.role.view'],
   '/app/access': ['system.role.view'],
   '/app/users': ['system.user.view'],
-  '/app/routes/plan': ['ops.route_plan.view'],
+  // the route module: each part checks its own permission (lib/routeModule.ts); the page opens for anyone who may use one of them
+  [ROUTE_PAGE]: ROUTE_ANY,
   '/app/staff/list': ['hr.employee.view', 'hr.application.create', 'hr.request.create'],
   '/app/zonal': ['zonal.dashboard.view'],
   '/app/zonal/files': ['hr.request.create', 'hr.request.approve'],
@@ -113,7 +118,6 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/zonal/profile': ['hr.employee.view'],
   '/app/zonal/hub-ops': ['zonal.hub_ops.view', 'zonal.hub_ops.create'],
   '/app/zonal/requests': ['hr.request.approve'],
-  '/app/zonal/routes': ['ops.route_setting.view', 'ops.route_setting.edit'],
   '/secure-control': ['system.admin_portal.view'],
   ...Object.fromEntries(Object.entries(HUB_SECTION_PERMS).map(([k, v]) => [`/app/hub/${k}`, v])),
 }

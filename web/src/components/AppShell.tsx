@@ -23,6 +23,8 @@ import { myPhoto, onMyPhotoChange } from '../lib/myPhoto'
 import { MyFace } from './MyAvatar'
 import { menuKeys, useDialog, usePageFocus } from '../lib/a11y'
 import { secKey, useMenuLayout, type MenuLayout } from '../lib/menuLayout'
+import { ROUTE_ANY, ROUTE_PAGE } from '../lib/routeAccess'
+import { paneLink, ROUTE_MENU_PANES } from '../lib/routeModule'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey
   /** The longer description, shown when the mouse rests on the menu row (the row itself keeps a short name). */ hint?: { bn: string; en: string }
@@ -91,8 +93,6 @@ export const GROUPS: Group[] = [
     ] },
     { bn: 'হাবের টিম', en: 'Hub team', items: [
       { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: [...HUB_SECTION_PERMS.logins] },
-      { to: '/app/hub/routes', icon: 'map', bn: 'রাইডার রুট (হাব)', en: 'Rider routes (hub)', hint: { bn: 'হাবের রুট বানান ও রাইডারদের রুট দিন', en: 'Make the hub’s routes and give riders their route' }, perms: [...HUB_SECTION_PERMS.routes] },
-      { to: '/app/routes/plan', icon: 'box', bn: 'আজকের পার্সেল পরিকল্পনা', en: "Today's parcel plan", perms: ['ops.route_plan.view'] },
     ] },
   ]),
   panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
@@ -100,7 +100,6 @@ export const GROUPS: Group[] = [
       { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
       { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'হাব অপারেশন ড্যাশবোর্ড', en: 'Hub Operations Dashboard', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
-      { to: '/app/zonal/routes', icon: 'map', bn: 'রুট ম্যাপ (জোন)', en: 'Route map (zone)', hint: { bn: 'রুট সেটিং — জোনের সব হাবের রাইডার রুট ম্যাপ', en: 'Route settings — rider route map of every hub in the zone' }, perms: ['ops.route_setting.view', 'ops.route_setting.edit'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
     { bn: 'নোটিশ', en: 'Notices', items: [
@@ -131,7 +130,6 @@ export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অন�
 export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং সেন্টার', 'Sorting centre', [
   { bn: 'সোর্টিং কাজ', en: 'Sorting work', items: [
     { to: '/app/sorting/dashboard', icon: 'dash', bn: 'সোর্টিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
-    { to: '/app/sorting/routes', icon: 'map', bn: 'সোর্টিং টু হাব রুট', en: 'Sorting to hub routes', perms: ['sorting.center.view'] },
     { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
     { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
   ] },
@@ -145,6 +143,18 @@ export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং স
   ] },
 ])
 
+
+/**
+ * রুট — a menu of its own (owner, 24 Nov 2026): all route work on ONE page, /app/routes, instead of four pages in the hub, zone and sorting menus.
+ * The first row opens the module; the others jump to one of its parts. Rows come from the module's part list (lib/routeModule.ts), so a new part
+ * with `menu: true` shows up here by itself, and each row shows only to a role that may use that part.
+ */
+export const ROUTES: Group = panel('routes', 'map', 'রুট', 'Routes', [
+  { bn: '', en: '', items: [
+    { to: ROUTE_PAGE, icon: 'map', bn: 'রুট কেন্দ্র', en: 'Route centre', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সোর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
+    ...ROUTE_MENU_PANES.map(p => ({ to: paneLink(p.id), icon: p.icon, bn: p.bn, en: p.en, hint: p.hint, perms: [...p.perms] })),
+  ] },
+])
 
 /**
  * এইচআর বিভাগ — a menu of its own (owner, 23 Nov 2026): every HR page in one place, in categories, instead of spread over
@@ -414,11 +424,15 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length) }))
   for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
   const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
-  const [accG, hrG, officeG, sortingG, adminG] = [ACCOUNTS, HR, OFFICE, SORTING, ADMIN].map(g => layoutGroup(g, layout))
+  const [accG, hrG, officeG, routesG, sortingG, adminG] = [ACCOUNTS, HR, OFFICE, ROUTES, SORTING, ADMIN].map(g => layoutGroup(g, layout))
   // A staff member (level 0) gets one panel only: the few HR pages they may open sit inside it, not under an HR heading.
   const hrAll = own(hrG)
   if (level === 0 && shown[0]) { shown[0].secs.push(...hrAll) }
   const hrSecs = level === 0 ? [] : hrAll
+  // the same for the route module: a rider who may open their hub's routes finds the row inside their one panel
+  const routesAll = own(routesG)
+  if (level === 0 && shown[0]) { shown[0].secs.push(...routesAll) }
+  const routesSecs = level === 0 ? [] : routesAll
   const accSecs = own(accG), officeSecs = own(officeG), sortingSecs = own(sortingG), adminSecs = own(adminG)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
@@ -434,7 +448,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     const until = newUntil(i.to, layout)
     return until && today <= until ? <span className="nb new">{L('নতুন', 'New')}</span> : null
   }
-  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={i.hint ? L(i.hint.bn, i.hint.en) : L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
+  const link = (i: Item) => <NavLink key={i.to} to={i.to} end className={({ isActive }) => ((i.to.includes('?') || i.to.startsWith('/app/accounts/') || i.to === ROUTE_PAGE ? onLink(i.to) : isActive) ? 'nl active' : 'nl')} title={i.hint ? L(i.hint.bn, i.hint.en) : L(i.bn, i.en)} onClick={() => setOpen(false)}><Icon name={i.icon} size={16} /><span className="t">{L(i.bn, i.en)}</span>
     {tagOf(i)}</NavLink>
 
   // Phone bottom menu: with a quick-add, it is two tabs · the big + · one or two tabs · আরও.
@@ -465,7 +479,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
       {layoutItems(HOME, layout).filter(i => forMe(i) && hit(i)).map(link)}
       {/* Divisions (owner, 23 Nov 2026): departments, my own panels, then system — each with a heading, so the menu reads like an org chart. */}
-      {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: sortingG, secs: sortingSecs }] },
+      {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: routesG, secs: routesSecs }, { g: sortingG, secs: sortingSecs }] },
         { key: 'work', bn: 'আমার কাজের প্যানেল', en: 'My work panels', list: shown },
         { key: 'sys', bn: 'সিস্টেম', en: 'System', list: [{ g: adminG, secs: adminSecs }] }].map(d => {
         const groups = d.list.filter(x => x.secs.some(sc => sc.items.length))

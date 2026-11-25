@@ -62,8 +62,7 @@ const ProfileGaps = lazy(() => import('./pages/hr/ProfileGaps').then(m => ({ def
 const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
 const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
 const Users = lazy(() => import('./pages/users/Users').then(m => ({ default: m.Users })))
-const RouteSettings = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RouteSettings })))
-const RoutePlanPage = lazy(() => import('./pages/zonal/RouteSettings').then(m => ({ default: m.RoutePlanPage })))
+const RouteModule = lazy(() => import('./pages/routes/RouteModule').then(m => ({ default: m.RouteModule })))
 const StaffWorkProfilePage = lazy(() => import('./pages/zonal/StaffWorkProfile').then(m => ({ default: m.StaffWorkProfilePage })))
 const ZonalAssistant = lazy(() => import('./pages/zonal/ZonalAssistant').then(m => ({ default: m.ZonalAssistant })))
 const Training = lazy(() => import('./pages/Training').then(m => ({ default: m.Training })))
@@ -130,8 +129,7 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/office/Office', () => import('./pages/office/Office')],
   ['./pages/issues/Issues', () => import('./pages/issues/Issues')],
   ['./pages/users/Users', () => import('./pages/users/Users')],
-  ['./pages/zonal/RouteSettings', () => import('./pages/zonal/RouteSettings')],
-  ['./pages/zonal/RoutePlan', () => import('./pages/zonal/RoutePlan')],
+  ['./pages/routes/RouteModule', () => import('./pages/routes/RouteModule')],
   ['./pages/zonal/ZonalAssistant', () => import('./pages/zonal/ZonalAssistant')],
   ['./pages/Training', () => import('./pages/Training')],
   ['./pages/users/Rollout', () => import('./pages/users/Rollout')],
@@ -180,6 +178,14 @@ function RedirectKeep({ to }: { to: string }) {
   const { search, hash } = useLocation()
   return <Navigate to={`${to}${search}${hash}`} replace />
 }
+/** An old route address -> the route module, keeping what was asked (?zone= ?hub= ?route=) and opening the part the old page was. */
+function RouteRedirect({ tab }: { tab?: string }) {
+  const { search, hash } = useLocation()
+  const q = new URLSearchParams(search)
+  if (tab) q.set('tab', tab)
+  const qs = q.toString()
+  return <Navigate to={`/app/routes${qs ? `?${qs}` : ''}${hash}`} replace />
+}
 function LegacyAttendanceRedirect({ view }: { view: 'me' | 'hub' | 'zone' }) {
   const q = new URLSearchParams(useLocation().search)
   q.set('view', view)
@@ -226,8 +232,12 @@ export default function App() {
       <Route path="/app/manager/staff" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/zonal/requests" element={<ZonalRequests />} />
       <Route path="/app/zonal/hr-records" element={<HrRecords />} />
-      <Route path="/app/zonal/routes" element={<RouteSettings />} />
-      <Route path="/app/routes/plan" element={<RoutePlanPage />} />
+      {/* Route module: all route work on one page. The four old route pages (zone map, hub routes, parcel plan, sorting routes) redirect to its parts. */}
+      <Route path="/app/routes" element={<RouteModule />} />
+      <Route path="/app/zonal/routes" element={<RouteRedirect />} />
+      <Route path="/app/routes/plan" element={<RouteRedirect tab="plan" />} />
+      <Route path="/app/hub/routes" element={<RouteRedirect tab="hub" />} />
+      <Route path="/app/sorting/routes" element={<RouteRedirect tab="sorting" />} />
       <Route path="/app/zonal/profile" element={<StaffWorkProfilePage />} />
       <Route path="/app/manpower" element={<Manpower />} />
       <Route path="/app/hub" element={<LegacyAttendanceRedirect view="hub" />} />
