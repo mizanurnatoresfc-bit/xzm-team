@@ -17,6 +17,7 @@ import { MyExplanations } from './MyExplanations'
 import { ReopenPanel } from './Reopen'
 import { ZoneFinal } from './ZoneFinal'
 import { ZoneOps } from './ZoneOps'
+import { OpsDeadlineEditor } from './OpsDeadlines'
 import { ZoneWindows } from './ZoneWindows'
 import { ChipTabs, Loading, LiveDot, Notice, fmtDay, prevMonth, useHubList } from './shared'
 import '../../workforce.css'
@@ -32,7 +33,7 @@ import '../../workforce.css'
  */
 type View = 'me' | 'hub' | 'zone'
 type HubTab = 'morning' | 'plan' | 'final' | 'month' | 'apps' | 'ops'
-type ZoneTab = 'morning' | 'final' | 'ops' | 'setting'
+type ZoneTab = 'morning' | 'final' | 'ops' | 'setting' | 'ops-setting'
 
 export function AttendancePage() {
   const { L } = usePrefs()
@@ -136,7 +137,7 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
         {tab === 'final' && <FinalSheetTab hubId={hubId} />}
         {tab === 'month' && <MonthSheetTab hubId={hubId} />}
         {tab === 'apps' && <AppsTab hubId={hubId} can={can} onChanged={() => { void ovQ.reload(); refreshShellCounts() }} />}
-        {tab === 'ops' && <OpsTab hubId={hubId} />}
+        {tab === 'ops' && <OpsTab hubId={hubId} zoneId={hub?.zone_id ?? ''} />}
       </div>
     </>}
   </div>
@@ -148,8 +149,9 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
   const { grants } = useAuth()
   const hubsQ = useHubList()
   const tabAsked = sp.get('tab') as ZoneTab | null
-  const tab: ZoneTab = tabAsked === 'ops' || tabAsked === 'final' || (tabAsked === 'setting' && canSet) ? tabAsked : 'morning'
-  const zones = (hubsQ.data?.zones ?? []).filter(z => tab !== 'setting' || grants.some(grant =>
+  const configuring = canSet && (tabAsked === 'setting' || tabAsked === 'ops-setting')
+  const tab: ZoneTab = tabAsked === 'ops' || tabAsked === 'final' || configuring ? tabAsked : 'morning'
+  const zones = (hubsQ.data?.zones ?? []).filter(z => !configuring || grants.some(grant =>
     grant.is_super || (grant.permission_code === 'hr.attendance.configure' &&
       (grant.scope_type === 'global' || (grant.scope_type === 'zone' && grant.zone_id === z.id)))))
   const zoneAsked = sp.get('zone') ?? ''
@@ -159,14 +161,17 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
     { key: 'morning', label: L('জোনের সকাল', 'The zone’s morning') },
     { key: 'final', label: L('দৈনিক হাজিরা — হাব অনুযায়ী', 'Daily attendance — by hub') },
     { key: 'ops', label: L('পিকআপ · রিটার্ন · ডেলিভারি', 'Pickup · return · delivery') },
-    ...(canSet ? [{ key: 'setting' as const, label: L('সেটিং: হাজিরা বই', 'Setting: attendance book') }] : []),
+    ...(canSet ? [
+      { key: 'setting' as const, label: L('সেটিং: হাজিরা বই', 'Setting: attendance book') },
+      { key: 'ops-setting' as const, label: L('সেটিং: দৈনিক রিপোর্ট', 'Setting: daily report') },
+    ] : []),
   ]
 
   return <div className="wm">
     {zones.length > 1 && <section className="panel wm-top no-print">
       <Field label={L('জোন', 'Zone')}>
-        <select value={tab === 'setting' ? policyZone : zone} onChange={e => put({ zone: e.target.value || null })}>
-          {tab !== 'setting' && <option value="">{L('সব জোন', 'All zones')}</option>}
+        <select value={configuring ? policyZone : zone} onChange={e => put({ zone: e.target.value || null })}>
+          {!configuring && <option value="">{L('সব জোন', 'All zones')}</option>}
           {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
     </section>}
     {hubsQ.error ? <p className="da-error" role="alert">{wfFriendly(hubsQ.error)}</p> : null}
@@ -176,6 +181,7 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
       {tab === 'morning' && <ZoneMorningTab zone={zone} />}
       {tab === 'final' && <><ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />{canSet && <ReopenPanel zone={zone} />}</>}
       {tab === 'ops' && <ZoneOps zone={zone} />}
+      {tab === 'ops-setting' && <OpsDeadlineEditor key={policyZone} zone={policyZone} />}
       {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} />{policyZone && <ZoneWindows key={`windows-${policyZone}`} zone={policyZone} />}</>}
     </div>
   </div>
