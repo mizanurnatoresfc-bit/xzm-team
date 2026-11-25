@@ -9,6 +9,7 @@ import { NodiGaps } from '../../components/NodiGaps'
 import { MyExplanations } from '../workforce/MyExplanations'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
+import { StaffForms } from '../../components/RiderQuick'
 import { MyAvatarUpload } from '../../components/MyAvatar'
 import { MyRouteCard } from '../../components/MyRoute'
 import { MyParcelsCard } from '../zonal/RoutePlan'
@@ -73,7 +74,10 @@ export function StaffPanel() {
   const chosen: StaffSection[] = layout.loading && !layout.data ? [] : layout.data ?? STAFF_DEFAULT   // wait for it, so nothing jumps
   const wfCounts = useWfCounts().data
   const wfOpen = wfCounts?.open === true   // the attendance book is open today (days 1-17): "not coming" is given there
-  const order: StaffSection[] = chosen
+  // Someone who must give today's numbers always gets the forms, even when their role's layout hides them:
+  // otherwise the "not given yet" alert would point at a section that is not on the page.
+  const mustReport = wfCounts?.mine?.ops_expected === true
+  const order: StaffSection[] = chosen.length && !chosen.includes('work') && mustReport ? [...chosen, 'work'] : chosen
   const gapQ = useLoad(() => v?.me ? hr.myProfileGap(v.me.id).catch(() => null) : Promise.resolve(null), [v?.me?.id])
   const profilePct = gapQ.data ? Math.round(100 * (gapQ.data.total_checks - gapQ.data.missing.length) / Math.max(1, gapQ.data.total_checks)) : null
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
@@ -155,8 +159,7 @@ export function StaffPanel() {
         {row('/app/accounts/mine', due > 0 ? 'o' : 'b', 'ledger', L('আমার আগের হিসাব', 'My earlier accounts'), due > 0 ? L(`৩০ দিনে বকেয়া ${taka(due)}`, `Due in 30 days ${taka(due)}`) : L('৭ দিন, ৩০ দিন, এ মাস বা তারিখ বেছে', '7 days, 30 days, this month or pick dates'))}
       </div>
     </>,
-    // The pickup and delivery forms go here next (the old count card and "send today's count" card were removed).
-    work: () => <></>,
+    work: () => <StaffForms onSent={() => d.reload()} />,
     attendance: () => <>
       <h2 className="sd-h">{L('আজকের হাজিরা', "Today's attendance")}</h2>
       <div className={`sp-card t-${attTone}`} id="sp-att">

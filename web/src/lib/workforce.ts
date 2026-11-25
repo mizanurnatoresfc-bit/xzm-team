@@ -1,7 +1,7 @@
 // My Workforce & Attendance — typed calls to the database functions of migration 20261117010000_workforce_attendance.
 //
 // THIS FILE IS THE CONTRACT between the database functions (supabase/migrations/…workforce_attendance.sql) and every
-// screen of the module (pages/workforce/*, components/PersonalMenu, components/DailyOpsCard …). Keep the two in step:
+// screen of the module (pages/workforce/*, components/PersonalMenu, components/RiderQuick (StaffForms) …). Keep the two in step:
 // a function listed here must return exactly these keys. Every rule (window, duplicates, scope, approval) is enforced
 // in the database; these helpers only call it, read live changes and turn errors into readable Bangla.
 //
