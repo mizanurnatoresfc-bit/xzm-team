@@ -108,6 +108,9 @@ export const office = {
   createHubOffices: async (zone: string | null) => { const { data, error } = await supabase.rpc('office_create_hub_offices', { p_zone: zone }); fail(error); return (data ?? 0) as number },
   saveProperty: save('office_properties'), saveRoom: save('office_rooms'), saveDesk: save('office_desks'), saveAsset: save('office_assets'),
   archiveProperty: archive('office_properties'), archiveRoom: archive('office_rooms'), archiveDesk: archive('office_desks'), archiveAsset: archive('office_assets'),
+  addRooms: async (rows: Pick<Room, 'property_id' | 'kind' | 'name' | 'floor'>[]) => {
+    const { error } = await supabase.from('office_rooms').insert(rows); fail(error)
+  },
   /** Add the usual items of a room kind or a desk in one go. */
   addDefaults: async (property: string, kinds: string[], at: { room_id?: string | null; desk_id?: string | null; holder_id?: string | null }) => {
     if (!kinds.length) return
@@ -132,7 +135,7 @@ export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] 
   // office_properties · office_rooms · office_desks · office_residents
   { bn: 'জায়গা ও মানুষ', en: 'Places & people', parts: [
     { key: 'places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
-    { key: 'rooms', icon: 'grid', bn: 'ফ্ল্যাটের বিবরণ (রুম ও দিক)', en: 'Flat details (rooms & direction)', perms: ['office.property.view'] },
+    { key: 'rooms', icon: 'grid', bn: 'কক্ষের তালিকা', en: 'Room list', perms: ['office.property.view'] },
     { key: 'desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
     { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who lives here', perms: ['office.property.view'] },
   ] },
