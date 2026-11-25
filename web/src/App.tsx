@@ -19,6 +19,7 @@ import { Terms } from './pages/Terms'
 import { advancedAccessHere, isNativeApp } from './lib/native'
 
 // Pages load on first visit, so the first screen downloads only what it needs.
+const FlowMockups = lazy(() => import('./pages/previews/FlowMockups'))
 const DailyDashboard = lazy(() => import('./pages/accounts/DailyDashboard').then(m => ({ default: m.DailyDashboard })))
 const MainSheet = lazy(() => import('./pages/accounts/sheetFlow').then(m => ({ default: m.MainSheet })))
 const AccountsCenter = lazy(() => import('./pages/accounts/AccountsCenter').then(m => ({ default: m.AccountsCenter })))
@@ -208,6 +209,7 @@ export default function App() {
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />
       <Route path="/app/staff" element={<StaffPanel />} />
+      <Route path="/app/preview/flow-mockups" element={<FlowMockups />} />
       <Route path="/app/accounts/khata" element={<MyKhata />} />
       <Route path="/app/accounts/center" element={<AccountsCenter />} />
       <Route path="/app/accounts/learn" element={<LearnCenter />} />
