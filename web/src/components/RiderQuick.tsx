@@ -51,7 +51,7 @@ export function StaffForms({ onSent }: { onSent?: () => void | Promise<void> }) 
     : used ? L(`আজ সর্বোচ্চ ${n(v.max_times)} বার পাঠানো হয়ে গেছে`, `You have sent the most allowed today (${v.max_times})`)
     : !chosen ? L('আগে ম্যানেজার বাছুন', 'Pick a manager first') : ''
   const total = ops.data.entry
-  const sum = (a: number, b: number) => L(`আজ মোট: ${n(a)} · ${n(b)}`, `Today so far: ${a} · ${b}`)
+  const sum = (l1: string, a: number, l2: string, b: number) => `${L('আজ মোট', 'Today so far')}: ${l1} ${n(a)} · ${l2} ${n(b)}`
 
   async function send(kind: 'pickup' | 'delivery') {
     const p = kind === 'pickup' ? toNum(pf.pickup) : 0, pr = kind === 'pickup' ? toNum(pf.ret) : 0
@@ -90,7 +90,7 @@ export function StaffForms({ onSent }: { onSent?: () => void | Promise<void> }) 
         {open.map(m => <button key={m.user_id} type="button" className={`rs-chip${chosen === m.user_id ? ' on' : ''}`} aria-pressed={chosen === m.user_id} onClick={() => setMgr(m.user_id)}>{m.name ?? m.code ?? '—'}</button>)}</div>}
 
       <h3 className="small" style={{ margin: '12px 0 0' }}>{L('পিকআপ খাতা', 'Pickup khata')}
-        <span className="muted"> · {sum(total?.pickup ?? 0, total?.pickup_return ?? 0)}</span></h3>
+        <span className="muted"> · {sum(L('পিকআপ', 'pickup'), total?.pickup ?? 0, L('রিটার্ন', 'returned'), total?.pickup_return ?? 0)}</span></h3>
       <div className="rs-grid" style={{ gridTemplateColumns: 'repeat(2,minmax(0,1fr))' }}>
         {field('t-b', 'box', L('পিকআপ', 'Pickup'), pf.pickup, x => setPf({ ...pf, pickup: x }))}
         {field('t-p', 'back', L('মার্চেন্টকে রিটার্ন', 'Returned to merchant'), pf.ret, x => setPf({ ...pf, ret: x }))}
@@ -98,7 +98,7 @@ export function StaffForms({ onSent }: { onSent?: () => void | Promise<void> }) 
       <button type="button" className="rs-send" disabled={!!busy} onClick={() => void send('pickup')}><Icon name="check" size={18} />{busy === 'pickup' ? L('পাঠানো হচ্ছে…', 'Sending…') : L('পিকআপ পাঠান', 'Send pickup')}</button>
 
       <h3 className="small" style={{ margin: '18px 0 0' }}>{L('ডেলিভারি খাতা', 'Delivery khata')}
-        <span className="muted"> · {sum(total?.delivery_return ?? 0, total?.delivery ?? 0)}</span></h3>
+        <span className="muted"> · {sum(L('রিটার্ন', 'returned'), total?.delivery_return ?? 0, L('ডেলিভারি', 'delivery'), total?.delivery ?? 0)}</span></h3>
       <div className="rs-grid">
         {field('t-p', 'back', L('ডেলিভারি রিটার্ন', 'Delivery return'), df.ret, x => setDf({ ...df, ret: x }))}
         {field('t-g', 'truck', L('ডেলিভারি', 'Delivery'), df.delivery, x => setDf({ ...df, delivery: x }))}

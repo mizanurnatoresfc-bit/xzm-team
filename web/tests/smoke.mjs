@@ -158,6 +158,8 @@ try {
       const u = r.request().url()
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
       const j = d => r.fulfill({ status: 200, contentType: 'application/json', headers: { ...cors, 'content-range': '0-0/0' }, body: JSON.stringify(d) })
+      // the staff member's own four numbers (a login with a staff profile gets an answer, nobody else gets null)
+      if (/rpc\/wf_ops_mine(\?|$)/.test(u)) return j(asEmployee || permsNow?.includes('ops.pickup_as_rider.create') ? { today: '2026-11-25', backdate_days: 1, entry: null, recent: [], hint: null } : null)
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (u.includes('/auth/v1/user')) return j(session.user)
       if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
@@ -353,6 +355,7 @@ try {
         is_rider: (permsNow ?? []).includes('ops.pickup_as_rider.create'), my_times: 1, max_times: 3,
         managers: [{ user_id: 'u7', name: 'Abdul Karim', code: '1007', closed: false }, { user_id: 'u8', name: 'Sohel Sardar', code: '8157', closed: false }],
         mine: !(permsNow ?? []).includes('ops.pickup_as_rider.create') ? [] : [{ id: 'rl1', seq: 1, source: 'rider', delivery: 20, pickup: 3, amount: 4100, office_deposit: false, manager: 'Abdul Karim', at: '2026-11-15T06:00:00Z', status: 'pending' }] })
+      if (/rpc\/wf_ops_add(\?|$)/.test(u)) { flowCalls.push({ fn: 'wf_ops_add', ...r.request().postDataJSON() }); return j({}) }
       if (/rpc\/(da_rider_submit|da_rider_accept_all|da_rider_accept)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j(u.includes('accept_all') ? 2 : 'rl9') }
       if (/rpc\/(da_claim_add|da_claim_reject)(\?|$)/.test(u)) { flowCalls.push({ fn: u.split('rpc/')[1].split('?')[0], ...r.request().postDataJSON() }); return j('x9') }
       if (u.includes('/rest/v1/da_expense_claims') && u.includes('status=eq.submitted')) return j([
@@ -1071,17 +1074,33 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       await page.waitForSelector('.sp-hero')
       await page.waitForSelector('.rsend .rs-grid input', { timeout: 8000 }).catch(() => {})
-      check(await page.locator('.rsend').count() === 1 && await page.locator('.rsend .rs-send').isDisabled() && await page.locator('.rsend .rs-list li').count() === 1,
-        `${size}: a rider sees the send card and today's line; send waits for a manager and a number`)
+      check(await page.locator('.rsend').count() === 1 && await page.locator('.rsend .rs-send').count() === 2 && await page.locator('.rsend .rs-grid input').count() === 5
+        && await page.locator('.rsend .rs-list li').count() === 1,
+        `${size}: a rider sees the pickup and delivery forms (numbers only) and today's line`)
       await page.locator('.rsend .rs-chip', { hasText: 'Abdul Karim' }).click()
-      const [pk, dl, am] = [0, 1, 2].map(i => page.locator('.rsend .rs-grid input').nth(i))
-      await pk.fill('৪'); await dl.fill('12'); await am.fill('2,500')
-      await fits('send card')
+      const inp = i => page.locator('.rsend .rs-grid input').nth(i)
+      // pickup khata: pickup, returned to the merchant
+      await inp(0).fill('৪'); await inp(1).fill('1')
+      await fits('pickup and delivery forms')
       if (process.env.SHOTS) await page.locator('.rsend').screenshot({ path: `${process.env.SHOTS}/${size}-rider-send.png` })
-      await page.locator('.rsend .rs-send').click(); await page.waitForSelector('.rsend .rs-done', { timeout: 8000 }).catch(() => {})
-      { const c = flowCalls.filter(x => x.fn === 'da_rider_submit').at(-1) ?? {}
-        check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false && await page.locator('.rsend .rs-done').count() === 1,
-          `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
+      await page.locator('.rsend .rs-send').nth(0).click(); await page.waitForSelector('.rsend .rs-done', { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'da_rider_submit').at(-1) ?? {}, w = flowCalls.filter(x => x.fn === 'wf_ops_add').at(-1) ?? {}
+        check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 0 && c.p_amount === 0 && String(c.p_remarks ?? '').includes('1')
+          && w.p_pickup === 4 && w.p_pickup_return === 1 && w.p_delivery === 0 && await page.locator('.rsend .rs-done').count() === 1,
+          `${size}: the pickup form sends the pickup to the chosen manager's khata (Bangla digits too) and adds all numbers to the day's count`) }
+      // delivery khata: delivery return, delivery, money
+      await inp(2).fill('2'); await inp(3).fill('12'); await inp(4).fill('2,500')
+      await page.locator('.rsend .rs-send').nth(1).click(); await page.waitForFunction(() => document.querySelectorAll('.rsend .rs-grid input')[3]?.value === '', null, { timeout: 8000 }).catch(() => {})
+      { const c = flowCalls.filter(x => x.fn === 'da_rider_submit').at(-1) ?? {}, w = flowCalls.filter(x => x.fn === 'wf_ops_add').at(-1) ?? {}
+        check(c.p_manager === 'u7' && c.p_pickup === 0 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false
+          && w.p_delivery === 12 && w.p_delivery_return === 2 && w.p_pickup === 0,
+          `${size}: the delivery form sends delivery and money to the manager's khata, with the delivery return in the day's count`) }
+      // returns alone: nothing for the khata, only the day's count
+      { const before = flowCalls.filter(x => x.fn === 'da_rider_submit').length
+        await inp(1).fill('3'); await page.locator('.rsend .rs-send').nth(0).click(); await page.waitForTimeout(500)
+        const w = flowCalls.filter(x => x.fn === 'wf_ops_add').at(-1) ?? {}
+        check(flowCalls.filter(x => x.fn === 'da_rider_submit').length === before && w.p_pickup === 0 && w.p_pickup_return === 3,
+          `${size}: returns alone go to the day's count only, nothing is sent to the khata`) }
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
       check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
         `${size}: a rider gets one panel only, with everything they may open inside it`)
@@ -1463,9 +1482,9 @@ try {
     check(await page.locator('.app-dl').count() === 1, `${size}: the staff panel ends with the Android app card`)
     { const sp = await page.locator('.sp').innerText()
       // Today's attendance is not given yet, so it comes first; the rest keep the owner's order.
-      const order = ['আজকের হাজিরা', 'আমার হিসাব', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
-      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আজকের পিকআপ', 'আজকের ডেলিভারি', 'আজকের রিটার্ন', 'আজকের টাকা', 'আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
-        `${size}: the staff panel shows attendance (not given yet) first, then accounts, bill, route, complaint, issues and my people, in that order`)
+      const order = ['আজকের হাজিরা', 'আমার হিসাব', 'পিকআপ ও ডেলিভারি খাতা', 'আমার বিল', 'আমার রুট ও দায়িত্ব', 'আমার অভিযোগ', 'ইস্যু ও যোগাযোগ', 'আমার লোক'].map(x => sp.indexOf(x))
+      check(order.every((x, i) => x >= 0 && (i === 0 || x > order[i - 1])) && ['আমাকে দেওয়া ইস্যু', 'হাব গ্রুপ', 'জোন গ্রুপ', 'জোনাল ম্যানেজার', 'আমার হাতে লোক আছে'].every(x => sp.includes(x)),
+        `${size}: the staff panel shows attendance (not given yet) first, then accounts, the pickup and delivery forms, bill, route, complaint, issues and my people, in that order`)
       check(await page.locator('.sp-hero a.sp-att.go[href="#sp-att"]', { hasText: 'হাজিরা দিন' }).count() === 1, `${size}: the hero's "give attendance" badge takes you to the attendance buttons`)
       check(await page.locator('.sp-hero .hoodie-av').count() === 1 && await page.locator('.sp-hero .my-av-cam input[type=file][accept="image/*"]').count() === 1,
         `${size}: with no photo the staff panel shows the hoodie avatar, with a button to put up my own photo`)
