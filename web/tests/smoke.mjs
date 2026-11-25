@@ -941,7 +941,7 @@ try {
       await scope.getByRole('link', { name: 'আবাসিক', exact: true }).click()
       await page.waitForURL('**/app/office/residential/places')
       await scope.locator('a[aria-current="location"][href="/app/office/residential/places"]').waitFor()
-      await page.locator('main').getByText('Staff Mess A').first().waitFor()
+      await page.locator('button[aria-label="Staff Mess B সরান"]:visible').first().waitFor()
       check(await scope.getByRole('link', { name: 'আবাসিক', exact: true }).getAttribute('aria-current') === 'location'
         && (await scope.getByRole('link', { name: 'অফিস', exact: true }).getAttribute('href')) === '/app/office/places',
         `${size}: changing the property type preserves the section and updates the selected scope`)
