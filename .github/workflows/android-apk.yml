@@ -9,6 +9,10 @@ on:
         description: Publish the tested Android release to the live website
         type: boolean
         default: false
+      replace_legacy_168:
+        description: First signed release only. Users on debug build 168 must reinstall
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -150,9 +154,17 @@ jobs:
 
       # The download the app offers: this run's APK, or (on an ordinary push) the one already live, kept as it is.
       - name: App download
+        env:
+          PUBLISH_APK: ${{ inputs.publish_apk }}
+          REPLACE_LEGACY: ${{ inputs.replace_legacy_168 }}
         run: |
           mkdir -p dist/download
-          if [ "${{ inputs.publish_apk }}" = "true" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+          if [ "$REPLACE_LEGACY" = "true" ] && { [ "$PUBLISH_APK" != "true" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; }; then
+            echo "::error::The build 168 replacement requires publication from main."
+            exit 1
+          fi
+          if [ "$PUBLISH_APK" = "true" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            legacy_build=168
             live_apk="$RUNNER_TEMP/xzm-live.apk"
             status="$(curl -sSL --retry 2 --connect-timeout 15 --max-time 60 -o "$live_apk" -w '%{http_code}' https://xzmteam.com/download/XZM-TEAM.apk)"
             if [ "$status" = 200 ]; then
@@ -164,8 +176,8 @@ jobs:
               }
               live_signers="$(signer_digests "$live_apk")"
               build_signers="$(signer_digests "$GITHUB_WORKSPACE/XZM-TEAM.apk")"
-              if [ -z "$live_signers" ] || [ "$live_signers" != "$build_signers" ]; then
-                echo "::error::The APK signer differs from the published APK. Keep the current download and build with the original signing key."
+              if [ -z "$live_signers" ] || [ -z "$build_signers" ]; then
+                echo "::error::Could not read both APK signing certificates."
                 exit 1
               fi
               live_badging="$("$(dirname "$apksigner")/aapt" dump badging "$live_apk")"
@@ -174,12 +186,22 @@ jobs:
                 echo "::error::The Android release must have a higher versionCode than the published APK."
                 exit 1
               fi
-            elif [ "$status" != 404 ]; then
+              if [ "$REPLACE_LEGACY" = "true" ]; then
+                if [ "$live_build" != "$legacy_build" ] || [ "$live_signers" = "$build_signers" ] ||
+                  ! grep -Fq "package: name='com.xzmteam.erp' " <<< "$live_badging"; then
+                  echo "::error::The one-time replacement applies only to the published XZM TEAM debug build 168."
+                  exit 1
+                fi
+              elif [ "$live_signers" != "$build_signers" ]; then
+                echo "::error::The APK signer differs from the published APK. Use the established signing key."
+                exit 1
+              fi
+            elif [ "$status" != 404 ] || [ "$REPLACE_LEGACY" = "true" ]; then
               echo "::error::Could not check the published APK (HTTP $status)."
               exit 1
             fi
             cp "$GITHUB_WORKSPACE/XZM-TEAM.apk" dist/download/XZM-TEAM.apk
-            printf '{"build":%s,"version":"1.%s","url":"/download/XZM-TEAM.apk","at":"%s"}\n' "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$(date -u +%FT%TZ)" > dist/download/apk.json
+            printf '{"build":%s,"version":"1.%s","url":"/download/XZM-TEAM.apk","at":"%s","reinstallThrough":%s}\n' "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$(date -u +%FT%TZ)" "$legacy_build" > dist/download/apk.json
           else
             ok=0
             if curl -fsSL https://xzmteam.com/download/apk.json -o /tmp/apk.json && node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/apk.json','utf8')); if(!(j.build>0)) process.exit(1)" \
