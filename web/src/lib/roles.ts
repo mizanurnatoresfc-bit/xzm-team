@@ -63,6 +63,7 @@ export const RESOURCE_LABEL: Record<string, string> = {
   'ops.pickup_as_rider': 'নিজের পিকআপ জমা (রাইডার)', 'ops.pickup_verification': 'পিকআপ যাচাই', 'ops.reconciliation': 'দৈনিক নগদ মিলানো',
   'ops.report': 'অপারেশন রিপোর্ট', 'ops.rider_handover': 'রাইডার থেকে টাকা গ্রহণ',
   'system.list_view': 'তালিকার ভিউ বদলানো (টেবিল / কার্ড / তালিকা)', 'system.list_mark': 'তালিকায় সারি চিহ্নিত করা',
+  'system.list_tools': 'তালিকার টুলবার দেখানো (ফিল্টার, ভিউ, চিহ্নিত, প্রিন্ট, Excel, PDF)',
   'system.admin_portal': 'অ্যাডমিন পোর্টাল', 'system.audit': 'অডিট লগ', 'system.role': 'রোল', 'system.settings': 'সিস্টেম সেটিংস',
   'system.user': 'ইউজার অ্যাকাউন্ট', 'system.user_role': 'ইউজারকে রোল দেওয়া',
   'zonal.claim': 'যাতায়াত বিল', 'zonal.dashboard': 'জোনাল ড্যাশবোর্ড', 'zonal.hub_metric': 'হাবের দৈনিক হিসাব', 'zonal.planning': 'জনবল পরিকল্পনা',

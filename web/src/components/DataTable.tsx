@@ -55,6 +55,8 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   // Per role (রোল ও অনুমতি): who may switch the view, and who may mark rows. Print and the files come from the page (canPrint / canExport).
   const { can } = useAuth()
   const canView = can('system.list_view.configure'), canMark = can('system.list_mark.edit')
+  // The whole tool row (filter, view, mark / print / Excel / PDF) is shown or hidden per role; the count and the search box stay.
+  const canTools = can('system.list_tools.view')
   const id = prefKey ?? file
   const [marked, setMarked] = useState<Set<string>>(new Set())
   const [saved, setSavedS] = useState<Saved>(() => readSaved(id))
@@ -88,7 +90,8 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [source, cols, big, quickFilters])
   // A remembered filter only counts while its value still exists in the list.
-  const filters: Record<string, string[]> = Object.fromEntries(Object.entries(saved.filters ?? {})
+  // Without the tool row there is no way to clear a filter, so one remembered on this device is ignored.
+  const filters: Record<string, string[]> = Object.fromEntries(Object.entries(canTools ? saved.filters ?? {} : {})
     .map(([k, v]) => [k, (Array.isArray(v) ? v : [v]).filter(x => filterable.some(f => f.c.key === k && f.vals.includes(x)))] as [string, string[]])
     .filter(([, v]) => v.length))
   const sort = saved.sort && cols.some(c => c.key === saved.sort!.key) ? saved.sort : null
@@ -157,16 +160,16 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
       <span className="cnt">{L('মোট ', '')}<b>{n(list.length)}</b>{L('টি', ' rows')}{narrowed ? <em>{L(` / ${n(source.length)}`, ` of ${source.length}`)}</em> : null}{mk.size ? <em>{L(` · ${n(mk.size)} চিহ্নিত`, ` · ${mk.size} marked`)}</em> : null}</span>
       {big && search && <input type="search" className="dv-search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('এই তালিকায় খুঁজুন…', 'Search this list…')} aria-label={L('এই তালিকায় খুঁজুন', 'Search this list')} />}
       <span className="grow" />
-      {filterable.length > 0 && <button type="button" className={`secondary sm dv-fbtn${showFilters || activeFilters ? ' on' : ''}`} aria-expanded={showFilters} onClick={() => setShowFilters(v => !v)}>
+      {canTools && filterable.length > 0 && <button type="button" className={`secondary sm dv-fbtn${showFilters || activeFilters ? ' on' : ''}`} aria-expanded={showFilters} onClick={() => setShowFilters(v => !v)}>
         <Icon name="search" size={14} />{L('ফিল্টার', 'Filter')}{activeFilters ? ` (${n(activeFilters)})` : ''}</button>}
-      {canView && views.length > 1 && <div className={`tool-menu${menu === 'view' ? ' open' : ''}`}>
+      {canTools && canView && views.length > 1 && <div className={`tool-menu${menu === 'view' ? ' open' : ''}`}>
         <button type="button" className="secondary sm tool-menu-btn" aria-expanded={menu === 'view'} onClick={() => setMenu(m => m === 'view' ? null : 'view')}>
           <Icon name={VIEW_ICON[view]} size={16} />{L('ভিউ', 'View')}<Icon name="chev" size={14} /></button>
         <div className="tool-group" role="group" aria-label={L('কীভাবে দেখবেন', 'View')}>
         {views.map(v => <button key={v} type="button" className={`tb${view === v ? ' on' : ''}`} aria-pressed={view === v} title={viewName[v]} aria-label={viewName[v]} onClick={() => { save({ view: v }); setMenu(null) }}>
           <Icon name={VIEW_ICON[v]} size={16} /><span className="tl">{viewName[v]}</span></button>)}
       </div></div>}
-      {(canMark || canPrint || canExport) && <div className={`tool-menu${menu === 'file' ? ' open' : ''}`}>
+      {canTools && (canMark || canPrint || canExport) && <div className={`tool-menu${menu === 'file' ? ' open' : ''}`}>
         <button type="button" className={`secondary sm tool-menu-btn${mk.size ? ' on' : ''}`} aria-expanded={menu === 'file'} onClick={() => setMenu(m => m === 'file' ? null : 'file')}>
           <Icon name={canPrint || canExport ? 'print' : 'checkall'} size={16} />{canPrint || canExport ? L('প্রিন্ট ও ফাইল', 'Print & file') : L('চিহ্নিত', 'Mark')}<Icon name="chev" size={14} /></button>
       <div className="tool-group" role="group" aria-label={L('তালিকার কাজ', 'List tools')} onClick={() => setMenu(null)}>
@@ -180,7 +183,7 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
     </div>
     {bulk && mk.size > 0 && <div className="dv-bulk no-print" role="region" aria-label={L('চিহ্নিত সারির কাজ', 'Actions for marked rows')}>
       <strong>{L(`${n(mk.size)}টি চিহ্নিত`, `${mk.size} marked`)}</strong>{bulk(list.filter(r => mk.has(rowKey(r))), () => setMarked(new Set()))}</div>}
-    {(showFilters || activeFilters > 0) && filterable.length > 0 && <div className="dv-filters no-print">
+    {canTools && (showFilters || activeFilters > 0) && filterable.length > 0 && <div className="dv-filters no-print">
       {filterable.map(({ c, vals }) => <div key={c.key} className="dv-f"><span>{c.label}</span>
         <MultiCombo label={c.label} values={filters[c.key] ?? []} onChange={v => setFilter(c.key, v)} options={vals.map(v => ({ value: v, label: v }))} placeholder={L('সব', 'All')} /></div>)}
       {(activeFilters > 0 || sort) && <button type="button" className="link small" onClick={() => save({ filters: {}, sort: null })}>{L('ফিল্টার ও সাজানো মুছুন', 'Clear filters & sorting')}</button>}
