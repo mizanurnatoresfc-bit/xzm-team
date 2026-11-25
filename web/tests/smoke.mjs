@@ -925,19 +925,25 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
       const adminPanels = (await panels()).split(',')
-      check(['accounts', 'hr', 'office', 'self', 'hub', 'zone', 'admin'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
+      check(['accounts', 'hr', 'self', 'hub', 'zone', 'admin'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
         && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hr', 'কর্মী তালিকা') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
-        `${size}: the Super Admin sees the accounts, HR and office groups plus staff, manager and zonal panels`)
+        `${size}: the Super Admin sees the accounts and HR groups plus staff, manager and zonal panels`)
       check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
-      check(await page.locator('.side .ngrp[data-panel=office] .nsec').count() === 6 && await page.locator('.side .ngrp[data-panel=office] a.nl').count() === 21
-        && await inPanel('office', 'কারা থাকেন') === 2 && await inPanel('office', 'আবাসিকের সারসংক্ষেপ') === 1 && await inPanel('zone', 'অফিস ভিজ্যুয়াল') === 0,
-        `${size}: আমার অফিস is a menu of its own, in five headed parts plus আবাসিক`)
-      // Office and Residential: the same rows, split by kind
+      const officeLinks = page.locator('.side a.nl[href^="/app/office/"]')
+      check(await officeLinks.count() === 1 && (await officeLinks.innerText()).includes('অফিস ও আবাসিক'),
+        `${size}: the sidebar has one office and residential entry`)
+      // Office and Residential: switching type keeps the open section.
       await page.goto(`${BASE}/app/office/places`); await page.waitForSelector('.panel h2')
       { const t = await page.locator('main').innerText()
         check(t.includes('Natore Hub Office') && !t.includes('Staff Mess A') && await page.locator('a[href="/app/office/residential/places"]').count() > 0,
           `${size}: the office list shows offices only, and points to the residential list`) }
-      await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.panel h2')
+      const scope = page.getByRole('navigation', { name: 'জায়গার ধরন' })
+      await scope.getByRole('link', { name: 'আবাসিক', exact: true }).click()
+      await page.waitForURL('**/app/office/residential/places')
+      await page.waitForSelector('.panel h2')
+      check(await scope.getByRole('link', { name: 'আবাসিক', exact: true }).getAttribute('aria-current') === 'location'
+        && (await scope.getByRole('link', { name: 'অফিস', exact: true }).getAttribute('href')) === '/app/office/places',
+        `${size}: changing the property type preserves the section and updates the selected scope`)
       { const t = await page.locator('main').innerText()
         check(t.includes('Staff Mess A') && t.includes('Staff Mess B') && !t.includes('Natore Hub Office'), `${size}: the residential list shows residences only`) }
       // remove asks for the reason in a box of its own (no browser prompt), and a removed place comes back with one tap
