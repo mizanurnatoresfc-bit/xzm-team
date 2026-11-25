@@ -165,7 +165,8 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
   return <div className="wm">
     {zones.length > 1 && <section className="panel wm-top no-print">
       <Field label={L('জোন', 'Zone')}>
-        <select value={zone} onChange={e => put({ zone: e.target.value || null })}><option value="">{L('সব জোন', 'All zones')}</option>
+        <select value={tab === 'setting' ? policyZone : zone} onChange={e => put({ zone: e.target.value || null })}>
+          {tab !== 'setting' && <option value="">{L('সব জোন', 'All zones')}</option>}
           {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
     </section>}
     {hubsQ.error ? <p className="da-error" role="alert">{wfFriendly(hubsQ.error)}</p> : null}
@@ -175,7 +176,7 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
       {tab === 'morning' && <ZoneMorningTab zone={zone} />}
       {tab === 'final' && <><ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />{canSet && <ReopenPanel zone={zone} />}</>}
       {tab === 'ops' && <ZoneOps zone={zone} />}
-      {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} /><ZoneWindows zone={zone} /></>}
+      {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} />{policyZone && <ZoneWindows key={policyZone} zone={policyZone} />}</>}
     </div>
   </div>
 }
