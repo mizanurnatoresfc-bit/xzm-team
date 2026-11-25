@@ -1,3 +1,4 @@
+import { EvidencePicker } from '../../components/EvidencePicker'
 // হিসাব কেন্দ্র — the manager's accounts dashboard inside Nodi: one day across the hubs a person may see.
 // Hub manager: their hub, with create actions. Zonal manager: every assigned hub, deposit and voucher status,
 // submission and approval times. Head office: every hub. What each sees is decided by the database (da_center_overview).
@@ -289,7 +290,7 @@ function NewVoucher({ cats, done }: { cats: Category[]; done: (msg: string) => v
       <Field label="রেফারেন্স"><input value={d.ref} onChange={e => setD({ ...d, ref: e.target.value })} placeholder="যার কথায় খরচ হলো" /></Field>
       <Field label="স্টাফ আইডি" hint="কর্মীর জন্য খরচ হলে — তখন এটা স্টাফ খরচ"><input inputMode="numeric" value={d.staff} onChange={e => setD({ ...d, staff: e.target.value })} /></Field>
       <Field label="বিবরণ" wide><input value={d.desc} onChange={e => setD({ ...d, desc: e.target.value })} placeholder="কেন বিল নেই, কোথা থেকে কোথায় ইত্যাদি" /></Field>
-      <Field label="সংযুক্তি (সই করা ভাউচার/কাগজের ছবি বা পিডিএফ)"><input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Field>
+      <Field label="সংযুক্তি (সই করা ভাউচার/কাগজের ছবি বা পিডিএফ)"><EvidencePicker disabled={busy} onFile={setFile} />{file && <small>{file.name}</small>}</Field>
     </div>
     <p className="pr-sort">সিস্টেম যেখানে রাখবে: <Badge tone={sort.missingVoucher ? 'warn' : 'ok'}>{sort.label}</Badge></p>
     <ErrorNote error={err} />

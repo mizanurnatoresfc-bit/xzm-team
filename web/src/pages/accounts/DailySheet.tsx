@@ -1,3 +1,4 @@
+import { EvidencePicker } from '../../components/EvidencePicker'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { refs } from '../../lib/refs'
 import { Link, useParams } from 'react-router-dom'
@@ -354,7 +355,7 @@ export function MerchantTab({ s, settings, reload, ls }: { s: Sheet; settings: D
     {d && <Modal title={d.line ? 'মার্চেন্ট পেমেন্ট এডিট' : 'মার্চেন্ট পেমেন্ট যোগ'} wide onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || up.progress !== null || (!!d.ocr && !d.verified)} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'যাচাই করে সেভ'}</button></>}>
       <Field label="পেমেন্টের স্ক্রিনশট (ছবি দিলে তথ্য নিজে পূরণ হবে)" hint={up.progress !== null ? `পড়া হচ্ছে… ${num(Math.round(up.progress * 100))}%` : d.path ? 'আপলোড হয়েছে' : undefined}>
-        <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void onFile(f) }} /></Field>
+        <EvidencePicker disabled={busy || up.progress !== null} onFile={file => void onFile(file)} /></Field>
       <ErrorNote error={up.err} /><OcrNote ocr={d.ocr} min={settings['da.ocr'].min_confidence} />
       <p className="muted small no-print">শুধু <b>Payment ID</b> আর <b>টাকা</b> — ব্যস। <b>101001</b> লিখলেও <b>SFC-101001</b> হয়ে যাবে। মার্চেন্ট মেলানোর দরকার নেই; ওই আইডির রেকর্ড থাকলে নাম নিজে থেকেই বসবে।</p>
       <div className="da-grid3">
@@ -520,7 +521,7 @@ export function ExpenseTab({ s, settings, templates, reload, ls }: { s: Sheet; s
     {d && <Modal title={d.line ? 'খরচ এডিট' : 'খরচ যোগ করুন'} wide onClose={() => setD(null)}
       actions={<><button className="secondary" onClick={() => setD(null)}>বাতিল</button><button disabled={busy || up.progress !== null || (!!d.ocr && !d.verified)} onClick={() => void save()}>{busy ? 'সেভ হচ্ছে…' : 'যাচাই করে সেভ'}</button></>}>
       <Field label="বিল / মেমোর ছবি বা PDF" hint={up.progress !== null ? `পড়া হচ্ছে… ${num(Math.round(up.progress * 100))}%` : d.path ? 'আপলোড হয়েছে' : `ছবি দিলে AI/OCR দিয়ে তথ্য পূরণ হবে · সর্বোচ্চ ${num(billCfg.max_mb)} MB`}>
-        <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void onFile(f) }} /></Field>
+        <EvidencePicker disabled={busy || up.progress !== null} onFile={file => void onFile(file)} /></Field>
       <ErrorNote error={up.err} /><OcrNote ocr={d.ocr} min={settings['da.ocr'].min_confidence} />
       <div className="da-grid3">
         <Field label="খাত *" wide><select value={d.category} onChange={e => setD({ ...d, category: e.target.value })}>{cats.map(c => <option key={c.code} value={c.code}>{c.bn} ({c.en})</option>)}</select>
