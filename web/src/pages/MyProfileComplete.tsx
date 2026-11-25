@@ -15,6 +15,8 @@ import { shrinkImage } from '../lib/shrinkImage'
  * one form for the details, and one tap each for the photo and the NID images (camera or gallery). Everything saves at once.
  */
 const PICS: Array<[type: string, bn: string, en: string]> = [['photo', 'নিজের ছবি', 'Your photo'], ['nid_front', 'এনআইডি — সামনে', 'NID — front'], ['nid_back', 'এনআইডি — পেছনে', 'NID — back']]
+/** No NID card? A birth certificate is accepted instead — offered while an NID side is still missing, and kept once given. */
+const BIRTH: [type: string, bn: string, en: string] = ['birth_certificate', 'জন্ম নিবন্ধন (এনআইডি না থাকলে)', 'Birth certificate (if no NID)']
 
 export function MyProfileComplete() {
   const { L, n } = usePrefs()
@@ -28,6 +30,7 @@ export function MyProfileComplete() {
   const g = gap.data
   const pct = g ? Math.round(100 * (g.total_checks - g.missing.length) / Math.max(1, g.total_checks)) : null
   const has = (t: string) => (files.data ?? []).some(d => d.doc_type === t)
+  const pics = has('birth_certificate') || !(has('nid_front') && has('nid_back')) ? [...PICS, BIRTH] : PICS
   async function upload(type: string, f: File | undefined) {
     if (!f || !id) return
     setBusy(type); setErr('')
@@ -53,10 +56,11 @@ export function MyProfileComplete() {
           'Mobile, emergency contact, blood group, date of birth, NID, parents, address — fill what you know; an empty box never removes what is on file.')}</p>
 
         <h2 className="sd-h">{L('ছবি ও এনআইডি', 'Photo & NID')}</h2>
-        <div className="mpc-pics">{PICS.map(([t, b, e]) => <label key={t} className={`mpc-pic${has(t) ? ' done' : ''}`}>
+        <div className="mpc-pics">{pics.map(([t, b, e]) => <label key={t} className={`mpc-pic${has(t) ? ' done' : ''}`}>
           <span className="i"><Icon name={has(t) ? 'check' : 'upload'} size={22} /></span>
           <b>{L(b, e)}</b><small>{busy === t ? L('জমা হচ্ছে…', 'Uploading…') : has(t) ? L('জমা আছে — বদলাতে আবার দিন', 'On file — tap to replace') : L('ক্যামেরা বা গ্যালারি থেকে দিন', 'Camera or gallery')}</small>
-          <input type="file" accept="image/*" disabled={!!busy} onChange={e => void upload(t, e.target.files?.[0])} /></label>)}</div>
+          <input type="file" accept={t === 'birth_certificate' ? 'image/*,application/pdf' : 'image/*'} disabled={!!busy} onChange={e => void upload(t, e.target.files?.[0])} /></label>)}</div>
+        {has('birth_certificate') && !(has('nid_front') && has('nid_back')) && <p className="muted small" style={{ margin: '0 4px' }}>{L('জন্ম নিবন্ধন জমা আছে — এনআইডির সামনে-পেছনের ছবি লাগবে না।', 'Birth certificate is on file — NID front and back are not needed.')}</p>}
         {err && <p className="da-error" role="alert">{err}</p>}
         <p className="muted small" style={{ margin: '0 4px' }}><Link to="/app/me">{L('← আমার প্রোফাইলে ফিরুন', '← Back to my profile')}</Link></p>
       </>}
