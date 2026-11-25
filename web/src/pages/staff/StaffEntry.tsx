@@ -37,12 +37,6 @@ function fmtBnTime(iso: string, lang: 'bn' | 'en') {
     timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: true,
   })
 }
-function fmtBnShortDate(iso: string, lang: 'bn' | 'en') {
-  return new Date(iso).toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', {
-    timeZone: 'Asia/Dhaka', weekday: 'short', day: 'numeric', month: 'short',
-  })
-}
-
 export default function StaffEntry() {
   const { L, n, lang } = usePrefs()
   const { session } = useAuth()
