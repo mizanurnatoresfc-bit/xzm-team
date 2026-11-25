@@ -588,6 +588,9 @@ try {
     await page.locator('.ac-tabs button', { hasText: 'হিসাবের ইতিহাস' }).click(); await page.waitForSelector('.ac-hist li')
     check((await page.locator('.ac-hist').innerText()).includes('৩৮০০০') || (await page.locator('.ac-hist').innerText()).includes('38000'), `${size}: the history shows the old and the new value`)
     await page.locator('.ac-tabs button', { hasText: 'নতুন ভাউচার' }).click(); await page.waitForSelector('.ac-new')
+    check(await page.locator('.ac-new input[type="file"][capture="environment"]').count() === 1
+      && await page.locator('.ac-new input[type="file"]:not([capture])').count() === 1,
+      `${size}: voucher evidence offers both the camera and file selection`)
     { const f = page.locator('.ac-new .pr-grid')
       await f.locator('input').nth(2).fill('ভ্যান ভাড়া (হাব থেকে ব্যাংক)'); await f.locator('select').nth(1).selectOption('transport'); await f.locator('input').nth(3).fill('120')
       await page.locator('.ac-new button', { hasText: 'ভাউচার বানান' }).click(); await page.waitForSelector('.ac-made', { timeout: 8000 }).catch(() => {})
@@ -873,13 +876,13 @@ try {
       await page.getByRole('option', { name: /Natore Sadar #80/ }).click()
       await applyHub.click()
     }
-    // the hub part of the page: the final register is the way attendance reaches the register; the old approval list and the hub book are gone
+    // The approval queue groups waiting items. The final register is still how attendance reaches the register.
     await page.goto(`${BASE}/app/attendance?view=hub`); await page.waitForSelector('.wm .wm-tabs', { timeout: 10000 }).catch(() => {})
     { const parts = await page.locator('.wm .wm-tabs').first().innerText().catch(() => '')
       const tabs = await page.locator('.wm .wm-tabs').last().innerText().catch(() => '')
       check(['আমার হাজিরা', 'হাব', 'জোন'].every(x => parts.includes(x)), `${size}: the attendance page offers my attendance, hub and zone to a person who may see them (${parts.replace(/\s+/g, ' ')})`)
-      check(['ফাইনাল খাতা', 'মাসিক খাতা', 'আবেদন', 'দৈনিক রিপোর্ট'].every(x => tabs.includes(x)) && !tabs.includes('অনুমোদন') && !tabs.includes('হাজিরা বই') && !tabs.includes('ইতিহাস'),
-        `${size}: the hub part has the final register, monthly register, applications and daily report only (${tabs.replace(/\s+/g, ' ')})`)
+      check(['অনুমোদনের তালিকা', 'ফাইনাল খাতা', 'মাসিক খাতা', 'আবেদন', 'দৈনিক রিপোর্ট'].every(x => tabs.includes(x)) && !tabs.includes('হাজিরা বই') && !tabs.includes('ইতিহাস'),
+        `${size}: the hub part has the queue, final register, monthly register, applications and daily report (${tabs.replace(/\s+/g, ' ')})`)
       await page.waitForSelector('.wm-chip b.plain', { timeout: 10000 }).catch(() => {})
       const chips = await page.locator('section[aria-label="ফাইনাল খাতা বাকি"] .wm-chip').allInnerTexts().catch(() => [])
       check(chips.length === 2 && chips[0].includes('৩ নভেম্বর') && chips[0].includes('২') && chips[1].includes('৫ নভেম্বর'), `${size}: days still waiting for a final register are listed, oldest first, with how many each (${chips.join(' | ').replace(/\s+/g, ' ')})`)
@@ -887,6 +890,11 @@ try {
       check(/date=2026-11-03/.test(page.url()) && await page.locator('.as-line', { hasText: 'Alamin Sarker' }).count() === 1, `${size}: a waiting day opens that day's final register (${page.url()})`)
       check(await page.locator('.as-hold').count() === 1 && (await page.locator('.as-hold').innerText()).includes('সার্ভার এই খাতা জমা দেয়নি') && (await page.locator('.as-hold').innerText()).includes('Alamin Sarker'), `${size}: a register the server refused to submit says so, who is unfinished, and that the managers were told`)
       await fits('final register') }
+    await page.getByRole('tab', { name: 'অনুমোদনের তালিকা' }).click()
+    await page.waitForSelector('section[aria-label="অপেক্ষমাণ হাজিরা"] li', { timeout: 10000 }).catch(() => {})
+    check(await page.locator('section[aria-label="অপেক্ষমাণ হাজিরা"] li').count() === 2
+      && await page.locator('section[aria-label="অপেক্ষমাণ অপারেশন"]').count() === 1,
+      `${size}: the queue groups attendance and daily operations for the selected day`)
     // the morning input: the first part of the hub's page. Approved leave is in by itself, what is typed is saved, the submit locks it to a receipt
     await page.goto(`${BASE}/app/attendance?view=hub`); await page.waitForSelector('.mo-table', { timeout: 10000 }).catch(() => {})
     { check(await page.locator('.mo-table tbody tr').count() === 3 && await page.locator('.mo-table select').count() === 2 && (await page.locator('.mo-table tbody tr').last().innerText()).includes('LR-1A2B3C4D'),

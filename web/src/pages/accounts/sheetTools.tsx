@@ -1,3 +1,4 @@
+import { EvidencePicker } from '../../components/EvidencePicker'
 // The sheet as a tool: a ⋮ menu on every part (add a line, print this part, Excel of this part, lay out its
 // columns, switch it off), own columns with values per line, and the bank part (report IDs, deposits, slips).
 import { askConfirm, askText, tell } from '../../components/ask'
@@ -414,8 +415,7 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
           <td data-l="যাতায়াত" className="r">{taka(x.transport)}</td><td data-l="কে গেছেন">{x.people ?? '—'}</td>
           <td data-l="তারিখ">{dateBn(x.deposited_on)}</td><td data-l="রেফ নং">{x.ref_no ?? '—'}</td>
           <td data-l="স্লিপ">{x.slip_path ? <SlipLink path={x.slip_path} /> : s.can_edit
-            ? <label className="secondary sm upload-btn no-print">{uploading ? 'আপলোড…' : 'স্লিপ দিন'}<input type="file" hidden accept="image/png,image/jpeg,application/pdf"
-                onChange={e => { const f = e.target.files?.[0]; if (f) void slip(f, x) }} /></label> : <Badge tone="warn">বাকি</Badge>}</td>
+            ? <div className="no-print"><EvidencePicker disabled={uploading} onFile={file => void slip(file, x)} /></div> : <Badge tone="warn">বাকি</Badge>}</td>
           <td data-l="স্লিপ মিল · ব্যাংকে নিশ্চিত" className="dp-check">{x.slip_path ? <>
             {x.slip_match ? <Badge tone={MATCH_LABEL[x.slip_match][1] as 'ok' | 'bad' | 'warn'}>{MATCH_LABEL[x.slip_match][0]}</Badge> : <Badge tone="warn">পড়া হয়নি</Badge>}
             <span className="sec">{x.slip_ocr_amount !== null && x.slip_ocr_amount !== undefined ? `স্লিপে ${taka(x.slip_ocr_amount)}${x.slip_ocr_confidence ? ` (${num(x.slip_ocr_confidence)}%)` : ''} · ` : ''}
@@ -482,7 +482,7 @@ export function BankPanel({ s, settings, reload, onLayoutSaved }: { s: Sheet; se
           <button type="button" className="link" onClick={() => setD({ ...d, byHand: !d.byHand, charge: String(autoCharge) })}>{d.byHand ? 'অটোতে ফিরুন' : 'হাতে লিখুন'}</button></Field>
         <Field label="রেফ নং (স্লিপের)"><input value={d.ref} onChange={e => setD({ ...d, ref: e.target.value })} /></Field>
         <Field label="ব্যাংক স্লিপ" hint={uploading ? 'আপলোড হচ্ছে…' : d.slip ? 'আপলোড হয়েছে' : 'ছবি বা পিডিএফ'}>
-          <input type="file" accept="image/png,image/jpeg,application/pdf" onChange={e => { const f = e.target.files?.[0]; if (f) void slip(f) }} /></Field>
+          <EvidencePicker disabled={uploading} onFile={file => void slip(file)} /></Field>
         <Field label="মন্তব্য" wide><input value={d.remarks} onChange={e => setD({ ...d, remarks: e.target.value })} /></Field>
       </div>
       {(+d.amount || 0) > 0 && bankAmount > 0 && Math.abs((+d.amount || 0) - (bankAmount - deposited + (d.id ? deposits.find(x => x.id === d.id)?.amount ?? 0 : 0))) > 0.5 &&

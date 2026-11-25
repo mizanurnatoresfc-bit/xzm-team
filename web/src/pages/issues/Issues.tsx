@@ -1,3 +1,4 @@
+import { EvidencePicker } from '../../components/EvidencePicker'
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AppShell } from '../../components/AppShell'
@@ -583,7 +584,7 @@ function NewOrder({ hubs, kind: k0, onClose, onDone }: { hubs: GroupHub[]; kind:
       <Field label="গুরুত্ব"><select value={priority} onChange={e => setPriority(e.target.value as Priority)}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
       <Field label="কী কী লাগবে" wide required hint="যেভাবে বলেন সেভাবেই লিখুন — জিনিসের নাম আর পরিমাণ"><textarea rows={4} value={text} onChange={e => setText(e.target.value)} placeholder={ORDER_HINT[kind]} /></Field>
       <Field label="কবে লাগবে (ঐচ্ছিক)"><input type="date" value={due} onChange={e => setDue(e.target.value)} /></Field>
-      <Field label="ছবি (ঐচ্ছিক)"><input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] ?? null)} /></Field>
+      <Field label="ছবি (ঐচ্ছিক)"><EvidencePicker accept="image/*" onFile={setFile} />{file && <small>{file.name}</small>}</Field>
     </div>
     <div className="od-to">
       {inc.loading ? <span className="muted small">লোড হচ্ছে…</span>

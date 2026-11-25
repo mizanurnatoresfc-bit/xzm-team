@@ -108,6 +108,7 @@ export type DailyOps = {
   pickup: number; pickup_return: number; delivery: number; delivery_return: number
   note: string | null; revision: number              // 1 on first submit, +1 each time the person (or a manager) changes it
   submitted_at: string; updated_at: string
+  review_status?: 'approved' | 'returned' | null; review_note?: string | null
 }
 /** `wf_ops_mine(p_days)`. `hint` = what the person already sent to the manager's sheet today (read only, never copied). */
 export type MyOps = {
@@ -244,6 +245,10 @@ export const wf = {
   opsReport: (r: Range, from: IsoDate, to: IsoDate) => rpc<OpsReport>('wf_ops_report', { p_zone: r.zone ?? null, p_hub: r.hub ?? null, p_from: from, p_to: to }),
   correctOps: (id: string, v: OpsInput, note: string) =>
     rpc<void>('wf_ops_correct', { p_id: id, p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return, p_note: note }),
+  returnMark: (mark: Mark, note: string) => rpc<void>('wf_review_return_mark', { p_mark: mark.id, p_marked_at: mark.marked_at, p_note: note }),
+  decideOps: (entry: DailyOps, approve: boolean, note?: string) => rpc<void>('wf_ops_decide', { p_entry: entry.id, p_revision: entry.revision, p_approve: approve, p_note: note ?? null }),
+  resubmitOps: (entry: DailyOps, v: OpsInput, note?: string) => rpc<void>('wf_ops_resubmit', { p_entry: entry.id, p_revision: entry.revision,
+    p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return, p_note: note ?? null }),
   opsHistory: (entry: string) => rpc<OpsHistory[]>('wf_ops_history', { p_entry: entry }),
 }
 

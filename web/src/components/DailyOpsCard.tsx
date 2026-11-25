@@ -3,7 +3,7 @@ import { addDays } from '../lib/dailyAccounts'
 import { usePrefs, type Lang } from '../lib/prefs'
 import { toLatinDigits } from '../lib/validate'
 import { announceWfChange, useLiveLoad, wf, wfFriendly, type DailyOps, type OpsInput } from '../lib/workforce'
-import { Badge, Field, useLoad, useToast } from '../pages/accounts/ui'
+import { Badge, Field, Modal, useLoad, useToast } from '../pages/accounts/ui'
 import { clock } from '../pages/workforce/AbsenceApply'
 import { Icon } from './Icon'
 import '../workforce-book.css'
@@ -51,6 +51,7 @@ export function DailyOpsCard() {
   const [err, setErr] = useState('')
   const [tapsOpen, setTapsOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
+  const [correcting, setCorrecting] = useState<DailyOps | null>(null)
   const [pop, setPop] = useState(0)                   // bumps after each tap: the counter and totals animate once
 
   const maxBack = d ? Math.max(0, d.backdate_days) : 0
@@ -101,12 +102,17 @@ export function DailyOpsCard() {
         <h3 className="wf-op-title">{L('আজকের কাজের হিসাব', "Today's work count")}</h3>
         <span className="wf-op-date"><Icon name="cal" size={15} />{dateText(date, lang, { weekday: 'long', day: 'numeric', month: 'long' })}</span>
       </div>
-      <Badge tone={entry ? 'ok' : 'warn'}>{entry ? L('জমা আছে', 'Saved') : L('বাকি', 'Not sent')}</Badge>
+      {entry ? <ReviewBadge row={entry} /> : <Badge tone="warn">{L('বাকি', 'Not sent')}</Badge>}
     </div>
 
     {maxBack > 0 && <div className="wf-op-days" role="group" aria-label={L('কোন দিনের হিসাব', 'Which day')}>
       {Array.from({ length: maxBack + 1 }, (_, i) => <button key={i} type="button" aria-pressed={off === i} className={`wf-op-day${off === i ? ' on' : ''}`}
         onClick={() => pick(i)}>{i === 0 ? L('আজ', 'Today') : i === 1 ? L('গতকাল', 'Yesterday') : L(`${n(i)} দিন আগে`, `${i} days ago`)}</button>)}
+    </div>}
+
+    {entry?.review_status === 'returned' && <div className="notice" role="status">
+      <p>{entry.review_note}</p>
+      <button type="button" onClick={() => setCorrecting(entry)}>{L('সংশোধন করে আবার দিন', 'Correct and resubmit')}</button>
     </div>}
 
     {/* how many times, and the day's total */}
@@ -124,6 +130,7 @@ export function DailyOpsCard() {
       </div>
     </div>
 
+    {entry?.review_status !== 'returned' && <>
     <p className="wf-tap-lead">{count ? L('এবারের সংখ্যা লিখুন — মোটের সাথে যোগ হবে', 'Type this batch — it is added to the total') : L('সংখ্যা লিখে এক ক্লিকে সাবমিট দিন', 'Type the numbers and submit in one tap')}</p>
     <div className="wf-op-grid">
       {FIELDS.map(f => <Field key={f.key} label={L(f.bn, f.en)}>
@@ -151,6 +158,8 @@ export function DailyOpsCard() {
       {!busy && <em>{L(`${n(count + 1)} নম্বর`, `#${count + 1}`)}</em>}
     </button>
 
+    </>}
+
     {count > 0 && <div className="wf-op-recent">
       <button type="button" className="wf-op-fold" aria-expanded={tapsOpen} onClick={() => setTapsOpen(o => !o)}>
         <Icon name="checkall" size={17} /><span>{L(`${prefix} সব সাবমিট`, `${prefix} submits`)}<em>{n(count)}</em></span><Icon name="chev" size={17} />
@@ -174,10 +183,65 @@ export function DailyOpsCard() {
           {list.map(r => <li key={r.id}>
             <span className="dt">{dateText(r.work_date, lang, { day: 'numeric', month: 'short' })}</span>
             <dl className="nums">{FIELDS.map(f => <div key={f.key}><dt>{L(f.bn, f.en)}</dt><dd>{n(r[f.key])}</dd></div>)}</dl>
+            <ReviewBadge row={r} />
             {r.note && <span className="nt">{r.note}</span>}
+            {r.review_status === 'returned' && <div className="nt">
+              <p>{r.review_note}</p>
+              <button type="button" className="secondary sm" onClick={() => setCorrecting(r)}>{L('সংশোধন', 'Correct')}</button>
+            </div>}
           </li>)}
         </ul>)}
     </div>
+    {correcting && <ReturnedOpsEditor row={correcting} onClose={() => setCorrecting(null)} onDone={async () => {
+      setCorrecting(null)
+      announceWfChange()
+      await Promise.all([q.reload(), t.reload()])
+      toast(L('সংশোধিত এন্ট্রি জমা হয়েছে', 'Corrected entry submitted'))
+    }} />}
     {node}
   </section>
+}
+
+function ReviewBadge({ row }: { row: DailyOps }) {
+  const { L } = usePrefs()
+  if (row.review_status === 'returned') return <Badge tone="bad">{L('ফেরত', 'Returned')}</Badge>
+  if (row.review_status === 'approved') return <Badge tone="ok">{L('অনুমোদিত', 'Approved')}</Badge>
+  return <Badge tone="info">{L('অনুমোদনের অপেক্ষায়', 'Awaiting approval')}</Badge>
+}
+
+function ReturnedOpsEditor({ row, onClose, onDone }: { row: DailyOps; onClose: () => void; onDone: () => Promise<void> }) {
+  const { L } = usePrefs()
+  const [form, setForm] = useState<Form>({ pickup: String(row.pickup), pickup_return: String(row.pickup_return),
+    delivery: String(row.delivery), delivery_return: String(row.delivery_return), note: row.note ?? '' })
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const totals = parse(form)
+  const allFilled = FIELDS.every(({ key }) => form[key] !== '')
+
+  async function submit() {
+    if (!totals || !allFilled) return
+    setBusy(true)
+    setError('')
+    try {
+      await wf.resubmitOps(row, totals, form.note.trim())
+      await onDone()
+    } catch (err) {
+      setError(wfFriendly(err))
+      setBusy(false)
+    }
+  }
+
+  return <Modal title={L('ফেরত আসা দৈনিক এন্ট্রি', 'Returned daily entry')} onClose={() => { if (!busy) onClose() }}
+    actions={<button type="button" disabled={busy || !totals || !allFilled} onClick={() => void submit()}>{L('আবার জমা দিন', 'Resubmit')}</button>}>
+    <p>{row.work_date} · {row.review_note}</p>
+    <div className="wf-op-grid">{FIELDS.map(f => <Field key={f.key} label={L(f.bn, f.en)}>
+      <input inputMode="numeric" value={form[f.key]} maxLength={6} onChange={e => {
+        const value = toLatinDigits(e.target.value).replace(/\D/g, '').slice(0, 6)
+        setForm(prev => ({ ...prev, [f.key]: value }))
+      }} />
+    </Field>)}</div>
+    <Field label={L('নোট', 'Note')}><textarea rows={2} maxLength={500} value={form.note}
+      onChange={e => { const note = e.target.value; setForm(prev => ({ ...prev, note })) }} /></Field>
+    {error && <p className="da-error" role="alert">{error}</p>}
+  </Modal>
 }

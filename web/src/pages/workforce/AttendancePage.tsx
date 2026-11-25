@@ -11,6 +11,7 @@ import { LIVE, useLiveLoad, wf, wfFriendly, type HubOverview, type Mark } from '
 import { Field } from '../accounts/ui'
 import { AttendanceBook } from './AttendanceBook'
 import { FinalSheetTab, MonthSheetTab } from './FinalSheet'
+import { HubReview } from './HubReview'
 import { AppsTab, OpsTab } from './HubTabs'
 import { MorningPolicy, MorningTab, PublishedPlanTab, ZoneMorningTab } from './Morning'
 import { MyExplanations } from './MyExplanations'
@@ -32,7 +33,7 @@ import '../../workforce.css'
  * The old addresses (/app/workforce/hub, /zone, /attendance) lead here (see LegacyAttendanceRedirect in App.tsx).
  */
 type View = 'me' | 'hub' | 'zone'
-type HubTab = 'morning' | 'plan' | 'final' | 'month' | 'apps' | 'ops'
+type HubTab = 'morning' | 'plan' | 'final' | 'month' | 'apps' | 'ops' | 'review'
 type ZoneTab = 'morning' | 'final' | 'ops' | 'setting' | 'ops-setting'
 
 export function AttendancePage() {
@@ -67,7 +68,7 @@ export function AttendancePage() {
 type Put = (patch: Record<string, string | null>) => void
 
 // ====================================================================================== হাব
-const HUB_TABS: HubTab[] = ['morning', 'plan', 'final', 'month', 'apps', 'ops']
+const HUB_TABS: HubTab[] = ['morning', 'plan', 'final', 'month', 'apps', 'ops', 'review']
 
 function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canResend: boolean }) {
   const { L, n, lang } = usePrefs()
@@ -83,10 +84,12 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   const can = ov?.can
   const today = ov?.date ?? todayDhaka()
 
-  const visible: Record<HubTab, boolean> = { morning: !!can?.attendance, plan: !!can?.attendance, final: !!can?.attendance, month: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops }
+  const visible: Record<HubTab, boolean> = { morning: !!can?.attendance, plan: !!can?.attendance, final: !!can?.attendance, month: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops, review: !!(can?.decide || (can?.ops && can?.ops_edit)) }
   const askedTab = sp.get('tab') as HubTab | null
   const tab: HubTab = askedTab && HUB_TABS.includes(askedTab) && visible[askedTab] ? askedTab : can?.attendance ? 'morning' : 'ops'
   const go = (t: HubTab) => put({ tab: t })
+  const requestedDate = sp.get('date')
+  const reviewDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && requestedDate <= today ? requestedDate : today
 
   // the days on which staff gave attendance that no final register has settled yet — one tap opens that day's register
   const waitingQ = useLiveLoad<Mark[]>(() => hubId && can?.attendance ? wf.marks({ hub: hubId }, prevMonth(today), today, 'waiting') : Promise.resolve([]), [hubId, today, can?.attendance], LIVE.manage)
@@ -97,6 +100,7 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   }, [waitingQ.data])
 
   const tabs: Array<{ key: HubTab; label: string; count?: number; tone?: 'warn' | 'bad' }> = [
+    { key: 'review', label: L('অনুমোদনের তালিকা', 'Approval queue') },
     { key: 'morning', label: L('সকালের জনবল', 'Morning input') },
     { key: 'plan', label: L('পাওয়া রুট প্ল্যান', 'Route plan received') },
     { key: 'final', label: L('ফাইনাল খাতা', 'Final register'), count: backlog.length },
@@ -132,6 +136,8 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
       <ChipTabs<HubTab> tabs={tabs.filter(t => visible[t.key])} value={tab} onChange={go} label={L('হাবের বিভাগ', 'Hub sections')} />
 
       <div key={`${hubId}-${tab}`}>
+        {tab === 'review' && <HubReview key={reviewDate} hubId={hubId} date={reviewDate} today={today}
+          canAttendance={!!can.decide} canOps={!!(can.ops && can.ops_edit)} onDate={date => put({ date })} />}
         {tab === 'morning' && <MorningTab hubId={hubId} />}
         {tab === 'plan' && <PublishedPlanTab hubId={hubId} canResend={canResend} />}
         {tab === 'final' && <FinalSheetTab hubId={hubId} />}
