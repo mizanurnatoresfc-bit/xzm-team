@@ -38,10 +38,8 @@ export const MODULES: ModuleDef[] = [
   ] },
   { key: 'hr', icon: 'users', bn: 'স্টাফ ও এইচআর', en: 'Staff & HR', db: ['hr'], subs: [
     { to: '/app/staff/list', res: ['hr.employee', 'hr.employee_sensitive', 'hr.employee_profile', 'hr.document', 'hr.transfer', 'hr.status'], codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.transfer.edit', 'hr.status.edit', 'hr.application.create', 'hr.application.approve'] },
-    { to: '/app/hr/applications', res: ['hr.application'] },
     { to: '/app/attendance', res: ['hr.attendance'] },
     { to: '/app/zonal/assistant', res: ['hr.attendance_gap'] },
-    { to: '/app/hr/leave', res: ['hr.leave'] },
     { to: '/app/hr/requests', res: ['hr.request'] },
     { to: '/app/zonal/files', codes: ['hr.request.create', 'hr.request.approve'] },
     { to: '/app/zonal/requests', codes: ['hr.request.approve'] },

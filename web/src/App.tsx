@@ -33,11 +33,8 @@ const AccountsReports = lazy(() => import('./pages/accounts/AccountsReports').th
 const AccountsSettings = lazy(() => import('./pages/accounts/AccountsSettings').then(m => ({ default: m.AccountsSettings })))
 const OrgSetup = lazy(() => import('./pages/org/OrgSetup').then(m => ({ default: m.OrgSetup })))
 const Hubs = lazy(() => import('./pages/org/Hubs').then(m => ({ default: m.Hubs })))
-const HrDashboard = lazy(() => import('./pages/hr/HrDashboard').then(m => ({ default: m.HrDashboard })))
 const StaffList = lazy(() => import('./pages/staff/StaffList').then(m => ({ default: m.StaffList })))
 const EmployeeProfile = lazy(() => import('./pages/hr/EmployeeProfile').then(m => ({ default: m.EmployeeProfile })))
-const Applications = lazy(() => import('./pages/hr/Applications').then(m => ({ default: m.Applications })))
-const Leave = lazy(() => import('./pages/hr/Leave').then(m => ({ default: m.Leave })))
 const ImportEmployees = lazy(() => import('./pages/hr/ImportEmployees').then(m => ({ default: m.ImportEmployees })))
 const FieldSettings = lazy(() => import('./pages/hr/FieldSettings').then(m => ({ default: m.FieldSettings })))
 const Referrals = lazy(() => import('./pages/hr/Referrals').then(m => ({ default: m.Referrals })))
@@ -104,11 +101,8 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/accounts/AccountsSettings', () => import('./pages/accounts/AccountsSettings')],
   ['./pages/org/OrgSetup', () => import('./pages/org/OrgSetup')],
   ['./pages/org/Hubs', () => import('./pages/org/Hubs')],
-  ['./pages/hr/HrDashboard', () => import('./pages/hr/HrDashboard')],
   ['./pages/staff/StaffList', () => import('./pages/staff/StaffList')],
   ['./pages/hr/EmployeeProfile', () => import('./pages/hr/EmployeeProfile')],
-  ['./pages/hr/Applications', () => import('./pages/hr/Applications')],
-  ['./pages/hr/Leave', () => import('./pages/hr/Leave')],
   ['./pages/hr/ImportEmployees', () => import('./pages/hr/ImportEmployees')],
   ['./pages/hr/FieldSettings', () => import('./pages/hr/FieldSettings')],
   ['./pages/hr/Referrals', () => import('./pages/hr/Referrals')],
@@ -257,12 +251,12 @@ export default function App() {
       {/* the old vehicle pages were replaced by /app/fleet (owner, 16 Nov) */}
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
       <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
-      <Route path="/app/hr" element={<HrDashboard />} />
+      <Route path="/app/hr" element={<Navigate to="/app/staff/list" replace />} />
       <Route path="/app/hr/employees" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
-      <Route path="/app/hr/applications" element={<Applications />} />
+      <Route path="/app/hr/applications" element={<Navigate to="/app/zonal/requests" replace />} />
       <Route path="/app/hr/attendance" element={<LegacyAttendanceRedirect view="hub" />} />
-      <Route path="/app/hr/leave" element={<Leave />} />
+      <Route path="/app/hr/leave" element={<Navigate to="/app/staff" replace />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />
       <Route path="/app/notices" element={<NoticeBoard />} />

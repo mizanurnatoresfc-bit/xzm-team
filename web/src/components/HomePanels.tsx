@@ -48,7 +48,6 @@ export function MyDayPanel() {
             : <p className="muted small">{L('রুট দেওয়া হয়নি', 'No route assigned')}</p>}</div>
       </div>
       <div className="myday-acts">
-        <Link to="/app/hr/leave" className="ma t-p"><Icon name="log" size={18} />{L('ছুটি চাই', 'Ask leave')}</Link>
         <Link to="/app/hr/requests" className="ma t-o"><Icon name="form" size={18} />{L('আইডি রিকুয়েস্ট', 'ID request')}</Link>
         <Link to="/app/accounts/mine" className="ma t-g"><Icon name="wallet" size={18} />{L('আমার হিসাব', 'My accounts')}</Link>
         <Link to="/app/me" className="ma t-b"><Icon name="user" size={18} />{L('প্রোফাইল', 'Profile')}</Link>

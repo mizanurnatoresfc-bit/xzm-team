@@ -57,7 +57,7 @@ export function ZonalDashboard() {
     const a: Array<{ tone: 'bad' | 'warn' | 'info'; text: string; to?: string; act?: () => void }> = []
     if (d.tasks.overdue) a.push({ tone: 'bad', text: L(`${n(d.tasks.overdue)}টি কাজের সময় পেরিয়ে গেছে`, `${d.tasks.overdue} tasks overdue`), to: '/app/hub/tasks' })
     if (silent.length) a.push({ tone: 'bad', text: L(`${n(silent.length)}টি হাব এই সময়ে অপারেশনের হিসাব দেয়নি: ${silent.slice(0, 4).map(h => h.hub_name).join(', ')}${silent.length > 4 ? '…' : ''}`, `${silent.length} hubs sent no operation report`), to: '/app/hub/ops' })
-    if (d.workforce.pending_applications) a.push({ tone: 'warn', text: L(`${n(d.workforce.pending_applications)}টি আইডি আবেদন অপেক্ষায়`, `${d.workforce.pending_applications} ID applications waiting`), to: '/app/hr/applications' })
+    if (d.workforce.pending_applications) a.push({ tone: 'warn', text: L(`${n(d.workforce.pending_applications)}টি আইডি আবেদন অপেক্ষায়`, `${d.workforce.pending_applications} ID applications waiting`), to: '/app/zonal/requests' })
     if (d.hubs.unverified_days) a.push({ tone: 'warn', text: L(`${n(d.hubs.unverified_days)} দিনের হাব হিসাব যাচাই বাকি`, `${d.hubs.unverified_days} hub-days not verified`), to: '/app/hub/ops' })
     if (d.tasks.awaiting_confirmation) a.push({ tone: 'warn', text: L(`${n(d.tasks.awaiting_confirmation)}টি কাজ জমা পড়েছে, নিশ্চিত করা বাকি`, `${d.tasks.awaiting_confirmation} tasks waiting for confirmation`), to: '/app/hub/tasks' })
     if (d.claims_pending) a.push({ tone: 'warn', text: L(`${n(d.claims_pending)}টি যাতায়াত ক্লেইম অনুমোদনের অপেক্ষায়`, `${d.claims_pending} travel claims waiting`), act: () => setTab('visits') })

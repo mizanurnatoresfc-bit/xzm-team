@@ -158,7 +158,6 @@ export function StaffPanel() {
   const managers = (zm?.managers ?? []).filter(m => !m.is_me)
   const [zmOpen, setZmOpen] = useState(false)
   const people = (c: number) => (c ? L(`${n(c)} জন`, `${c} people`) : L('এখনো কেউ নেই', 'Nobody yet'))
-  const canLeave = can('hr.leave.create') || can('hr.leave.view')
 
   const row = (to: string | null, tone: string, icon: string, title: string, sub: string, end?: ReactNode) => {
     if (to && !ok(to)) return null
@@ -216,7 +215,6 @@ export function StaffPanel() {
               () => { setAttErr(''); setAbsent(waiting?.kind === 'absent' ? waiting.note ?? '' : '') }, busy || !v?.me)}
           </>}
       </div>}
-      {canLeave && ok('/app/hr/leave') && <div className="nv-rows">{row('/app/hr/leave', 'b', 'cal', L('ছুটির আবেদন', 'Apply for leave'), L('কয়েক দিনের ছুটি লাগলে এখান থেকে', 'For leave of one or more days'))}</div>}
       <NodiGaps />
       <MyExplanations />
     </>,

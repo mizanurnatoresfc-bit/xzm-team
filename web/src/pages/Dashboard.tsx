@@ -103,9 +103,8 @@ export function Dashboard() {
         {d.my_work.tasks_to_check > 0 && <Stat icon="check" label={L('আমার দেখার অপেক্ষায়', 'Waiting for my check')} value={n(d.my_work.tasks_to_check)} tone="warn" />}
         {!showsMyDay && <Stat icon="cal" label={L('আজকের হাজিরা', 'Attendance today')} value={d.my_work.marked_today ? L('দেওয়া হয়েছে', 'Marked') : L('দেওয়া হয়নি', 'Not marked')}
           tone={d.my_work.marked_today ? 'ok' : 'warn'} />}
-        <Stat icon="log" label={L('আমার ছুটির আবেদন', 'My leave requests')} value={n(d.my_work.leave_pending)} sub={L('সিদ্ধান্তের অপেক্ষায়', 'Awaiting a decision')} />
       </div>
-      {!showsMyDay && <p className="muted small home-links"><Link to="/app/me">{L('আমার প্রোফাইল', 'My profile')}</Link> · <Link to="/app/hr/leave">{L('ছুটি', 'Leave')}</Link> · <Link to="/app/accounts/mine">{L('আমার হিসাব', 'My accounts')}</Link></p>}
+      {!showsMyDay && <p className="muted small home-links"><Link to="/app/me">{L('আমার প্রোফাইল', 'My profile')}</Link> · <Link to="/app/accounts/mine">{L('আমার হিসাব', 'My accounts')}</Link></p>}
     </Panel> : null
       case 'hr_overview': return d?.hr_overview ? <Panel code="hr_overview" to="/app/staff/list">
       <div className="da-stats">
@@ -119,8 +118,7 @@ export function Dashboard() {
     </Panel> : null
       case 'hr_pending': return d?.hr_pending ? <Panel code="hr_pending">
       <div className="da-stats">
-        <Row to="/app/hr/applications" icon="form" label={L('আইডি আবেদন', 'ID applications')} value={d.hr_pending.applications} />
-        <Row to="/app/hr/leave" icon="log" label={L('ছুটির আবেদন', 'Leave requests')} value={d.hr_pending.leave} />
+        <Row to="/app/zonal/requests" icon="form" label={L('এইচআর অনুরোধ', 'HR requests')} value={d.hr_pending.applications} />
         <Row to="/app/staff/list" icon="wallet" label={L('বেতনের প্রস্তাব', 'Salary proposals')} value={d.hr_pending.salary} />
         <Row to="/app/staff/list" icon="shield" label={L('ডকুমেন্ট যাচাই', 'Documents to verify')} value={d.hr_pending.documents} />
       </div>
