@@ -176,7 +176,7 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
       {tab === 'morning' && <ZoneMorningTab zone={zone} />}
       {tab === 'final' && <><ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />{canSet && <ReopenPanel zone={zone} />}</>}
       {tab === 'ops' && <ZoneOps zone={zone} />}
-      {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} />{policyZone && <ZoneWindows key={policyZone} zone={policyZone} />}</>}
+      {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} />{policyZone && <ZoneWindows key={`windows-${policyZone}`} zone={policyZone} />}</>}
     </div>
   </div>
 }
