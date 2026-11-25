@@ -1,10 +1,13 @@
 import { askConfirm, askReason } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { usePrefs } from '../../lib/prefs'
 import { dmy } from '../../lib/hr'
+import { ATTENDANCE_HUB, pageLinkAllowed } from '../../lib/menu'
+import { wf, wfFriendly } from '../../lib/workforce'
 import {
   ATT_SHORT, JOB, OTHER_GROUP, REGISTER_TO_ATT, STATUS, dhakaToday, groupFor, hubOps, hubOpsFriendly, shiftDay,
   type Attendance, type Employment, type Found, type Group, type Person, type SaveData,
@@ -144,10 +147,12 @@ export function HubOpsPanel() {
 
   const title = p ? p.hub.name : L('হাব অপারেশন', 'Hub operations')
   const notInReport = locked ? p?.roster ?? [] : []
+  const backQuery = new URLSearchParams({ date })
+  if (p) backQuery.set('zone', p.hub.zone_id)
 
   return <AppShell title={title}
     subtitle={<>{L('হাবের অপারেশন রিপোর্ট', 'Hub operation report')} · {dmy(date)} {status ? <Badge tone={STATUS[status][2]}>{L(STATUS[status][0], STATUS[status][1])}</Badge> : <Badge tone="warn">{L('এখনো শুরু হয়নি', 'Not started')}</Badge>}</>}
-    actions={<Link className="btn-ghost" to={`/app/zonal/hub-ops?date=${date}`}><Icon name="back" size={16} />{L('সব হাব', 'All hubs')}</Link>}>
+    actions={<Link className="btn-ghost" to={`/app/zonal/hub-ops?${backQuery}`}><Icon name="back" size={16} />{L('সব হাব', 'All hubs')}</Link>}>
     {node}
     <div className="hop-date no-print">
       <button type="button" className="secondary" onClick={() => goDate(shiftDay(date, -1))} aria-label={L('আগের দিন', 'Previous day')}>‹</button>
@@ -163,6 +168,10 @@ export function HubOpsPanel() {
     {isFuture && <p className="da-error">{L('আগামী দিনের রিপোর্ট দেওয়া যায় না।', 'No report for a future date.')}</p>}
 
     {p && <>
+      {!q.loading && !q.error && p.hub.id === hubId && !isFuture && <HubDaySources
+        key={`${hubId}-${date}`} hub={p.hub} date={date} onOpen={async to => {
+          if (!dirty || await leave()) nav(to)
+        }} />}
       {p.report && <section className="panel hop-meta">
         <span>{L('সংস্করণ', 'Version')} {n(p.report.version)}</span>
         {p.report.submitted_at && <span>{L('জমা', 'Submitted')}: {p.report.submitted_by_name} · {new Date(p.report.submitted_at).toLocaleString(lang === 'bn' ? 'bn-BD' : 'en-GB', { timeZone: 'Asia/Dhaka', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</span>}
@@ -362,4 +371,50 @@ function AddPerson({ zone, groups, positions, taken, lang, onClose, onAdd }: {
     </>}
     {err && <p className="da-error">{err}</p>}
   </Modal>
+}
+
+function HubDaySources({ hub, date, onOpen }: {
+  hub: { id: string; zone_id: string }
+  date: string
+  onOpen: (to: string) => Promise<void>
+}) {
+  const access = useAuth()
+  const { L, n } = usePrefs()
+  const canReadOps = access.grants.some(grant => grant.is_super || (
+    grant.permission_code === 'ops.staff_daily.view' &&
+    (grant.scope_type === 'global' || (grant.scope_type === 'zone' && grant.zone_id === hub.zone_id)
+      || (grant.scope_type === 'hub' && grant.hub_id === hub.id))
+  ))
+  const source = useLoad(() => canReadOps
+    ? wf.opsReport({ hub: hub.id }, date, date)
+    : Promise.resolve(null), [hub.id, date, canReadOps])
+  const scope = new URLSearchParams({ hub: hub.id, date })
+  const attendance = new URLSearchParams(scope)
+  attendance.set('view', 'hub')
+  attendance.set('tab', 'final')
+  const attendanceLink = `/app/attendance?${attendance}`
+  const importLink = `/app/accounts/report-import?${scope}`
+  const totals = source.data?.totals
+
+  return <section className="panel">
+    <h2 className="hop-h"><Icon name="checkall" size={18} />{L('হাবের দৈনিক তথ্য মিলিয়ে দেখুন', 'Compare the hub’s daily records')}</h2>
+    {canReadOps && <div>
+      <h3>{L('স্টাফের জমা', 'Staff submissions')}</h3>
+      {source.error ? <p className="da-error" role="alert">{wfFriendly(source.error)}{' '}
+        <button type="button" className="secondary sm" onClick={() => void source.reload()}>{L('আবার চেষ্টা করুন', 'Try again')}</button>
+      </p> : source.loading ? <p className="muted" role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
+        : totals && totals.entries > 0 ? <ul>
+          <li>{L('পিকআপ', 'Pickup')} · {n(totals.pickup)}</li>
+          <li>{L('মার্চেন্টকে রিটার্ন জমা', 'Return to merchant')} · {n(totals.pickup_return)}</li>
+          <li>{L('ডেলিভারি রিটার্ন', 'Delivery return')} · {n(totals.delivery_return)}</li>
+          <li>{L('ডেলিভারি', 'Delivery')} · {n(totals.delivery)}</li>
+        </ul> : <p className="muted">{L('এই তারিখে স্টাফের জমা নেই।', 'There are no staff submissions for this date.')}</p>}
+    </div>}
+    <div className="hop-inline">
+      {ATTENDANCE_HUB.some(access.can) && pageLinkAllowed(attendanceLink, access) &&
+        <button type="button" className="secondary sm" onClick={() => void onOpen(attendanceLink)}>{L('হাজিরা খাতা খুলুন', 'Open attendance register')}</button>}
+      {pageLinkAllowed(importLink, access) &&
+        <button type="button" className="secondary sm" onClick={() => void onOpen(importLink)}>{L('ইম্পোর্ট করা রিপোর্ট দেখুন', 'See imported reports')}</button>}
+    </div>
+  </section>
 }
