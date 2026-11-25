@@ -16,6 +16,30 @@ import {
 export const placeToStop = (p: Place, lang: 'bn' | 'en' = 'bn'): RouteStop =>
   ({ name: placeName(p, lang), kind: stopKindOf(p.kind), lat: p.lat, lng: p.lng, radius_m: null, minutes: null, note: null })
 
+/** Point-in-polygon using ray casting. Polygon points are [lat, lng]. */
+export function insidePolygon(pt: [number, number], poly: Array<[number, number]>): boolean {
+  if (poly.length < 3) return false
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [lati, lngi] = poly[i], [latj, lngj] = poly[j]
+    if (((lati > pt[0]) !== (latj > pt[0])) && (pt[1] < ((lngj - lngi) * (pt[0] - lati)) / (latj - lati) + lngi)) inside = !inside
+  }
+  return inside
+}
+
+/** Order a set of places as a route from the hub: repeatedly pick the nearest unvisited. Good enough for a dozen stops. */
+export function nearestNeighbour(from: LatLng, places: Place[]): Place[] {
+  const left = places.filter(hasGps) as Place[]
+  const out: Place[] = []
+  let cur: LatLng = from
+  while (left.length) {
+    let best = 0, bestD = Infinity
+    for (let i = 0; i < left.length; i++) { const d = meters(cur, left[i] as LatLng); if (d < bestD) { bestD = d; best = i } }
+    const p = left.splice(best, 1)[0]; out.push(p); cur = p as LatLng
+  }
+  return out
+}
+
 /** Boundary of an upazila as a dashed map line (Naldanga has none). */
 export const boundaryLine = (u: Upazila | undefined): MapLine[] => u?.boundary?.length ? [{ id: `b${u.code}`, color: '#64748b', points: u.boundary, dashed: true, width: 2, opacity: 0.7 }] : []
 
@@ -108,6 +132,7 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
   const [pick, setPick] = useState<number | null>(null)
   const [edit, setEdit] = useState<Partial<Place> | null>(null)
   const [osm, setOsm] = useState<{ upazila_code: number } | null>(null)
+  const [poly, setPoly] = useState<Array<[number, number]> | null>(null)  // polygon-draw mode: null=off, array=vertices (lat,lng)
   const hubRoutes = o.routes.filter(r => r.hub_id === hubId)
   const taken = hubRoutes.flatMap(r => r.stops.filter(hasGps)) as LatLng[]
   const pool = pl.places.filter(p => !p.hidden && chosen.includes(p.upazila_code) && kinds.includes(p.kind))
@@ -127,12 +152,29 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
     const c = { lat: g.reduce((t, p) => t + p.lat!, 0) / g.length, lng: g.reduce((t, p) => t + p.lng!, 0) / g.length }
     return `${upzName(g[0].upazila_code)} ${direction(hub as LatLng, c)}`
   }
-  const pins: MapPin[] = [
+  // polygon-draw mode: places inside the closed polygon become route stops, nearest-neighbour from the hub
+  const polyInside = useMemo(() => {
+    if (!poly || poly.length < 3) return [] as Place[]
+    return candidates.filter(p => insidePolygon([p.lat!, p.lng!], poly))
+  }, [poly, candidates])
+  const polyOrdered = useMemo(() => hub && hasGps(hub) && polyInside.length > 0 ? nearestNeighbour(hub as LatLng, polyInside) : [], [polyInside, hub])
+  const polyColor = color(0)
+
+  const pins: MapPin[] = poly !== null ? [
+    ...(hub && hasGps(hub) ? [{ id: 'hub', lat: hub.lat!, lng: hub.lng!, label: hub.name, num: 'H', square: true }] : []),
+    // tiny dots for all candidate places, so the user can see what's inside the area as they draw
+    ...candidates.filter(hasGps).slice(0, 500).map(p => ({ id: `c:${p.id}`, lat: p.lat!, lng: p.lng!, label: placeName(p, lang), small: true, color: polyInside.includes(p) ? polyColor : '#94a3b8', tone: 'off' as const })),
+    // polygon vertex handles
+    ...poly.map(([la, ln], i) => ({ id: `v${i}`, lat: la, lng: ln, label: L(`শীর্ষ ${n(i + 1)}`, `Vertex ${i + 1}`), num: n(i + 1), tone: 'sel' as const })),
+  ] : [
     ...(hub && hasGps(hub) ? [{ id: 'hub', lat: hub.lat!, lng: hub.lng!, label: hub.name, num: 'H', square: true }] : []),
     ...sug.groups.flatMap((g, i) => (pick === null || pick === i ? g : []).map((p, j) => ({ id: `g${i}:${p.id}`, lat: p.lat!, lng: p.lng!, label: `${n(j + 1)}. ${placeName(p, lang)}`, num: n(j + 1), color: color(i) }))),
     ...taken.map((s, i) => ({ id: `t${i}`, lat: s.lat, lng: s.lng, label: L('আগের রুটের স্টপ', 'Existing stop'), num: '•', tone: 'off' as const })),
   ]
-  const lines: MapLine[] = [
+  const lines: MapLine[] = poly !== null ? [
+    ...chosen.flatMap(c => boundaryLine(pl.upazilas.find(u => u.code === c))),
+    ...(poly.length >= 2 ? [{ id: 'poly', color: polyColor, points: (poly.length >= 3 ? [...poly, poly[0]] : poly) as Array<[number, number]>, dashed: true, width: 3, opacity: 0.9 }] : []),
+  ] : [
     ...chosen.flatMap(c => boundaryLine(pl.upazilas.find(u => u.code === c))),
     ...sug.groups.map((g, i) => ({ id: `l${i}`, color: color(i), points: [[hub!.lat!, hub!.lng!] as [number, number], ...g.map(p => [p.lat!, p.lng!] as [number, number])], dashed: true, width: pick === i ? 5 : 3, opacity: pick === null || pick === i ? 0.85 : 0.2 })),
   ]
@@ -167,13 +209,35 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
         <Stat icon="truck" label={L('সাজেশন', 'Suggested')} value={L(`${n(sug.groups.length)}টা রুট`, `${sug.groups.length} routes`)}
           sub={sug.left.length ? L(`${n(sug.left.length)}টা জায়গা বাদ (স্টপের সীমা)`, `${sug.left.length} left out (stop limit)`) : undefined} />
       </div>
+      {canEdit && <div className="rt-bar" style={{ marginBottom: 6 }}>
+        <button type="button" className={poly !== null ? 'sm' : 'secondary sm'} onClick={() => { setPoly(poly === null ? [] : null); setPick(null) }}
+          title={L('ম্যাপে এরিয়া এঁকে এক ক্লিকে একটা রুট বানান', 'Draw an area on the map and build one route from everything inside')}>
+          <Icon name="edit" size={13} />{poly !== null ? L('এরিয়া আঁকা বন্ধ', 'Stop drawing') : L('এরিয়া এঁকে রুট বানান', 'Draw area → route')}</button>
+        {poly !== null && <>
+          <button type="button" className="secondary sm" disabled={!poly.length} onClick={() => setPoly(poly.slice(0, -1))}>{L('শেষ বিন্দু বাদ', 'Undo')}</button>
+          <button type="button" className="secondary sm" disabled={!poly.length} onClick={() => setPoly([])}>{L('পরিষ্কার', 'Clear')}</button>
+          <span className="small muted">{poly.length < 3 ? L(`ম্যাপে চাপুন — আরও ${n(3 - poly.length)}টা বিন্দু লাগবে`, `Tap the map — need ${3 - poly.length} more`) : L(`${n(polyInside.length)}টা জায়গা ভেতরে`, `${polyInside.length} places inside`)}</span>
+          {poly.length >= 3 && polyOrdered.length > 0 && <button type="button" className="sm" onClick={() => {
+            onBuild({ hub_id: hubId, name: `${upzName(polyOrdered[0].upazila_code)} ${direction(hub as LatLng, { lat: polyOrdered.reduce((t, p) => t + p.lat!, 0) / polyOrdered.length, lng: polyOrdered.reduce((t, p) => t + p.lng!, 0) / polyOrdered.length })}`, color: polyColor, stops: polyOrdered.slice(0, o.rules.max_stops).map(p => placeToStop(p, lang)) })
+            setPoly(null)
+          }}><Icon name="plus" size={13} />{L(`এই ${n(Math.min(polyOrdered.length, o.rules.max_stops))}টা দিয়ে রুট বানান`, `Build route from ${Math.min(polyOrdered.length, o.rules.max_stops)}`)}</button>}
+        </>}
+      </div>}
       {!hub || !hasGps(hub) ? <p className="da-error">{L('এই হাবের GPS নেই — আগে হাব তালিকা ও ম্যাপ থেকে হাবের লোকেশন দিন।', 'This hub has no GPS.')}</p> :
       <div className="rt-layout">
-        <OsmMap pins={pins} lines={lines} height={500} tags={pick === null ? 'selected' : 'all'} />
+        <OsmMap pins={pins} lines={lines} height={500} tags={poly !== null ? 'selected' : (pick === null ? 'selected' : 'all')} keepView={poly !== null}
+          onPick={poly !== null ? (lat, lng) => setPoly([...(poly ?? []), [lat, lng]]) : undefined} />
         <div className="rt-list">
+          {poly !== null && <article className="rt-card">
+            <header><span className="rt-sw" style={{ background: polyColor }} /><b>{L('এরিয়া আঁকা মোড', 'Draw-area mode')}</b></header>
+            <p className="small muted">{L('ম্যাপে একের পর এক বিন্দু চেপে এলাকা ঘিরুন (কমপক্ষে ৩টা)। ভেতরের সব জায়গা হাব থেকে কাছাকাছি অনুসারে স্টপ হয়ে একটা রুটে ঢুকবে।',
+              'Tap vertices on the map to enclose an area (at least 3). Every place inside becomes a stop, ordered nearest-first from the hub.')}</p>
+            {polyOrdered.length > 0 && <div className="small">{polyOrdered.slice(0, o.rules.max_stops).map(p => placeName(p, lang)).join(' → ')}
+              {polyOrdered.length > o.rules.max_stops && <span className="muted"> · {L(`${n(polyOrdered.length - o.rules.max_stops)}টা বাদ (স্টপের সীমা)`, `${polyOrdered.length - o.rules.max_stops} dropped (stop limit)`)}</span>}</div>}
+          </article>}
           {pl.loading && <p className="muted small">{L('এলাকার নাম আসছে…', 'Loading place names…')}</p>}
-          {!pl.loading && !sug.groups.length && <p className="muted">{L('এই এলাকায় রুটে নেওয়ার মতো নতুন জায়গা নেই।', 'No new places to put on a route here.')}</p>}
-          {sug.groups.map((g, i) => { const km = lineKm(hub as LatLng, g)
+          {poly === null && !pl.loading && !sug.groups.length && <p className="muted">{L('এই এলাকায় রুটে নেওয়ার মতো নতুন জায়গা নেই।', 'No new places to put on a route here.')}</p>}
+          {poly === null && sug.groups.map((g, i) => { const km = lineKm(hub as LatLng, g)
             return <article key={i} className={`rt-card${pick === i ? ' on' : ''}`}>
               <header><span className="rt-sw" style={{ background: color(i) }} /><b role="button" tabIndex={0} onClick={() => setPick(pick === i ? null : i)}
                 onKeyDown={e => { if (e.key === 'Enter') setPick(pick === i ? null : i) }}>{L(`সাজেশন ${n(i + 1)}`, `Suggestion ${i + 1}`)}: {groupName(g)}</b></header>
