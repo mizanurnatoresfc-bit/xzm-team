@@ -1193,7 +1193,7 @@ try {
         check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false && await page.locator('.rsend .rs-done').count() === 1,
           `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
-      check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রাইডার রুট') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
+      check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রুট কেন্দ্র') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
         `${size}: a rider gets one panel only, with everything they may open inside it`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
       permsNow = null; asEmployee = false }
@@ -1786,7 +1786,7 @@ try {
       check(true, `${size}: chat off — the chat page says it is switched off`)
       nodiParts.chat = true
       // রুট সেটিং: the zone's routes on the real map, the editor with stops, riders, warnings, check-ins and the zone rules
-      await page.goto(`${BASE}/app/zonal/routes`); await page.waitForSelector('.rt-card')
+      await page.goto(`${BASE}/app/routes`); await page.waitForSelector('.rt-card')
       { const t = await page.locator('main').innerText()
         check(t.includes('শহর পূর্ব') && t.includes('২/৩') && t.includes('Staff 01') && await page.locator('.osm-pin.num').count() >= 3, `${size}: route settings show the zone map with numbered stops, the route card and stops with location`) }
       await fits('route settings map')
@@ -1812,15 +1812,15 @@ try {
       await page.locator('.pick-row:has-text("Staff 02") input').check()
       await page.locator('.da-modal-acts button:has-text("সেভ")').last().click(); await page.waitForFunction(() => !document.querySelector('.pick-row'))
       check(flowCalls.some(x => x.fn === 'route_riders_set' && x.p_employees.length === 2), `${size}: riders of a route are saved`)
-      await page.locator('.da-seg button:has-text("সতর্কতা")').click(); await page.waitForSelector('.rt-warn')
+      await page.locator('.rm-tabs button:has-text("সতর্কতা")').click(); await page.waitForSelector('.rt-warn')
       { const t = await page.locator('.rt-warn').innerText()
         check(t.includes('হাবের GPS নেই') && t.includes('স্টেশন বাজার'), `${size}: warnings name the hub without GPS and the stop without a location`) }
-      await page.locator('.da-seg button:has-text("চেক-ইন")').click(); await page.locator('.rt-card:has-text("শহর পূর্ব")').click()
+      await page.locator('.rm-tabs button:has-text("চেক-ইন")').click(); await page.locator('.rt-card:has-text("শহর পূর্ব")').click()
       await page.waitForSelector('main :text("দূরে")')
       check((await page.locator('main').innerText()).includes('৬৪০ মিটার'), `${size}: the day's check-ins show near and far with the distance`)
       await fits('route check-ins')
       // কাভারেজ: every place of the district, on a route or not; the gaps are listed with their nearest hub
-      await page.locator('.da-seg button:has-text("কাভারেজ")').click(); await page.waitForSelector('.rt-card:has-text("পুরো জেলা")')
+      await page.locator('.rm-tabs button:has-text("কাভারেজ")').click(); await page.waitForSelector('.rt-card:has-text("পুরো জেলা")')
       await page.waitForSelector('.osm-pin.sm')
       { const t = await page.locator('main').innerText()
         check(await page.locator('.osm-pin.sm').count() === 8 && t.includes('পুরো জেলা') && t.includes('০/৮') && t.includes('কাভারেজ নেই'), `${size}: coverage shows every place as a dot and counts none of the eight as covered`)
@@ -1831,7 +1831,7 @@ try {
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-cover-${size}.png`, fullPage: true })
       // পার্সেল ও পরামর্শ: type what one rider delivers a day; the accounts say 140 a day on the one route, so riders are asked for
       loadSaved = null
-      await page.locator('.da-seg button:has-text("পার্সেল ও পরামর্শ")').click(); await page.waitForSelector('section.panel:has(h2:text-is("Natore Sadar"))')
+      await page.locator('.rm-tabs button:has-text("পার্সেল ও পরামর্শ")').click(); await page.waitForSelector('section.panel:has(h2:text-is("Natore Sadar"))')
       { const card = page.locator('section.panel:has(h2:text-is("Natore Sadar"))')
         check((await card.innerText()).includes('গড়ে কয়টা পার্সেল ডেলিভারি করেন তা লিখুন'), `${size}: parcel load asks for the rider average of a hub first`)
         await card.locator('input[type=number]').first().fill('60')
@@ -1842,12 +1842,12 @@ try {
         check(t.includes('১৪০') && t.includes('নতুন ১ জন রাইডার নিয়োগ দিন') && t.includes('আরও ২ জন রাইডার দিন'), `${size}: from the accounts (140 a day, 60 per rider) the hub is told to hire and the route to get more riders`) }
       await fits('parcel load and suggestions')
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-load-${size}.png`, fullPage: true })
-      await page.locator('.da-seg button:has-text("জোনের নিয়ম")').click(); await page.waitForSelector('button:has-text("নিয়ম সেভ")')
+      await page.locator('.rm-tabs button:has-text("জোনের নিয়ম")').click(); await page.waitForSelector('button:has-text("নিয়ম সেভ")')
       await page.locator('button:has-text("নিয়ম সেভ")').click(); await page.waitForTimeout(200)
       check(flowCalls.some(x => x.fn === 'route_settings_save' && x.p_zone === 'z1' && x.p.stop_radius_m === 150), `${size}: the zone rules are saved for the zone`)
       await fits('zone route rules')
       // এলাকা ও সাজেশন: the hub's upazila villages come up, split into suggested routes; one is built in the editor; places are picked one by one
-      await page.locator('.da-seg button:has-text("এলাকা ও সাজেশন")').click(); await page.waitForSelector('.rt-card:has-text("সাজেশন ১")')
+      await page.locator('.rm-tabs button:has-text("এলাকা ও সাজেশন")').click(); await page.waitForSelector('.rt-card:has-text("সাজেশন ১")')
       { const t = await page.locator('main').innerText()
         check(t.includes('নাটোর সদর ★') && t.includes('আমহাটি') && await page.locator('.rt-card:has-text("সাজেশন")').count() >= 1, `${size}: the hub's upazila is chosen by itself and its villages are suggested as routes`) }
       await fits('area suggestions')
@@ -1869,13 +1869,57 @@ try {
       await page.locator('.da-modal-acts button:has-text("সেভ")').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'))
       { const c = flowCalls.filter(x => x.fn === 'route_save')[before]
         check(!!c && !c.p.id && c.p.stops.length === k0 + 1 && c.p.stops.every(x => x.lat !== null) && c.p.name.includes('নাটোর সদর'), `${size}: the new route is saved with the places' locations and a name`) }
-      await page.locator('.da-seg button:has-text("এলাকা ও সাজেশন")').click(); await page.waitForSelector('button:has-text("বানান ঠিক")')
+      await page.locator('.rm-tabs button:has-text("এলাকা ও সাজেশন")').click(); await page.waitForSelector('button:has-text("বানান ঠিক")')
       await page.locator('tr:has-text("দিঘাপতিয়া") button:has-text("বানান ঠিক")').first().click().catch(async () => { await page.locator('button:has-text("বানান ঠিক")').first().click() })
       await page.waitForSelector('.da-modal input')
       await page.locator('.da-modal input').first().fill('দিঘাপতিয়া (রাজবাড়ি)')
       await page.locator('.da-modal-acts button:has-text("সেভ")').click(); await page.waitForFunction(() => !document.querySelector('.da-modal'))
       check(flowCalls.some(x => x.fn === 'route_place_save' && x.p.name_bn === 'দিঘাপতিয়া (রাজবাড়ি)' && x.p.bn_checked), `${size}: a village spelling is fixed and saved`)
-      await page.locator('.da-seg button:has-text("ম্যাপ")').first().click()
+      // রুট মডিউল — লোকেশন যোগ: the stop without a location is listed, and one search box (library, links, short-link help) places it
+      await page.locator('.rm-tabs button:has-text("লোকেশন যোগ")').click(); await page.waitForSelector('.rm-fix .rt-stop')
+      check((await page.locator('.rm-fix').first().innerText()).includes('স্টেশন বাজার'), `${size}: "add locations" lists the stop that has no location`)
+      await fits('add locations part')
+      if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-locations-${size}.png`, fullPage: true })
+      await page.locator('.rm-fix .rt-stop:has-text("স্টেশন বাজার") button:has-text("লোকেশন দিন")').click(); await page.waitForSelector('.da-modal .lc-q')
+      await page.locator('.da-modal .lc-q').fill('https://maps.app.goo.gl/AbCdEf'); await page.waitForSelector('.da-modal .lc-note:has-text("ছোট লিংক")')
+      check(true, `${size}: a short map link is explained, not silently refused`)
+      await page.locator('.da-modal .lc-q').fill('আমহাটি'); await page.waitForSelector('.da-modal .lc-row:has-text("আমহাটি")')
+      await fits('location picker')
+      if (process.env.SHOTS) await page.locator('.da-modal').screenshot({ path: `${process.env.SHOTS}/routes-picker-${size}.png` })
+      await page.locator('.da-modal .lc-row:has-text("আমহাটি") button:has-text("এটাই")').click()
+      await page.locator('.da-modal-acts button:has-text("সেভ")').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'))
+      { const c = flowCalls.filter(x => x.fn === 'route_save').at(-1)
+        check(!!c && c.p.id === 'rt1' && c.p.stops.length === 3 && c.p.stops[2].name === 'স্টেশন বাজার' && c.p.stops[2].lat === 24.4315 && c.p.stops[0].lat === 24.4102,
+          `${size}: the place picked from the library is saved on that stop only, the others unchanged`) }
+      // the editor: the same search box adds a stop (with undo), many lines at once are matched from the library
+      await page.locator('.rm-tabs button:has-text("ম্যাপ")').first().click(); await page.waitForSelector('.rt-card')
+      await page.locator('.rt-card button:has-text("এডিট / ম্যাপ")').click(); await page.waitForSelector('.rt-stop')
+      const n0 = await page.locator('.rt-stop').count()
+      await page.locator('.da-modal .lc-q').fill('আমহাটি'); await page.waitForSelector('.da-modal .lc-row:has-text("আমহাটি")')
+      await page.locator('.da-modal .lc-row:has-text("আমহাটি") button:has-text("নতুন স্টপ")').click()
+      check(await page.locator('.rt-stop').count() === n0 + 1 && await page.locator('.lc-undo:has-text("আমহাটি")').count() === 1, `${size}: a result of the search box becomes a stop, with an undo line`)
+      await page.locator('.lc-undo button:has-text("পূর্বাবস্থায়")').click()
+      check(await page.locator('.rt-stop').count() === n0, `${size}: undo takes the stop back`)
+      await page.locator('.da-modal button:has-text("একসাথে অনেক")').click(); await page.waitForSelector('.lc-bulk textarea')
+      await page.locator('.lc-bulk textarea').fill('আমহাটি\nঅজানা জায়গা, 24.5, 89.1')
+      await page.locator('.lc-bulk button:has-text("লাইনগুলো দেখুন")').click(); await page.waitForSelector('.lc-bulk-row')
+      await page.locator('.lc-bulk label:has-text("অনলাইনেও") input').uncheck()
+      await page.locator('.lc-bulk button:has-text("নাম থেকে লোকেশন খুঁজে দিন")').click(); await page.waitForSelector('.lc-bulk-row .lc-tag:has-text("তালিকায় পেয়েছি")')
+      await fits('many at once')
+      if (process.env.SHOTS) await page.locator('.da-modal').screenshot({ path: `${process.env.SHOTS}/routes-bulk-${size}.png` })
+      await page.locator('.lc-bulk button:has-text("স্টপ যোগ করুন")').click()
+      check(await page.locator('.rt-stop').count() === n0 + 2, `${size}: two pasted lines become two stops (one found in the library by its name, one with its own location)`)
+      await page.locator('.da-modal-acts button:has-text("বাতিল")').last().click(); await page.waitForFunction(() => !document.querySelector('.da-modal'))
+      // the four old route addresses lead to the one module, keeping what was asked
+      for (const [old, want] of [['/app/zonal/routes?hub=h1', /\/app\/routes\?.*hub=h1/], ['/app/routes/plan?hub=h1', /tab=plan/], ['/app/hub/routes', /\/app\/routes/], ['/app/sorting/routes', /tab=sorting/]]) {
+        await page.goto(`${BASE}${old}`); await page.waitForURL(/\/app\/routes/, { timeout: 8000 }).catch(() => {})
+        await page.waitForSelector('.rm-tabs')
+        check(want.test(page.url()), `${size}: ${old} opens the route module (${page.url().replace(BASE, '')})`) }
+      await page.goto(`${BASE}/app/routes`); await page.waitForSelector('.rt-card')
+      check(await page.locator('.rm-tabs button').count() >= 10 && await page.locator('.side a[href="/app/routes"]').count() === 1 && await page.locator('.side a[href="/app/zonal/routes"], .side a[href="/app/hub/routes"], .side a[href="/app/routes/plan"], .side a[href="/app/sorting/routes"]').count() === 0,
+        `${size}: the menu has one route group (no old route rows) and the module shows its parts as tabs`)
+      await fits('route module')
+      await page.locator('.rm-tabs button:has-text("ম্যাপ")').first().click()
       // inside the Android app the older page stays for now
       const app = await ctx.newPage()
       await app.addInitScript(() => { window.Capacitor = { isNativePlatform: () => true, getPlatform: () => 'android', Plugins: {} } })

@@ -18,7 +18,7 @@ import { hubApi, hubToday, PICKUP_STATUS, PRIORITY, TASK_STATUS, type HubMetric,
 import { useOrg } from '../hr/common'
 
 // Team moved to /app/staff/list; attendance, late and the attendance-days page moved into /app/attendance (role-aware).
-export type HubSection = 'pickup' | 'tasks' | 'ops' | 'accounts' | 'logins' | 'routes'
+export type HubSection = 'pickup' | 'tasks' | 'ops' | 'accounts' | 'logins'
 
 /** Menu entries for the Hub Management group (also used by the tab strip on the page). */
 export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en: string; perms: readonly string[] }> = [
@@ -27,7 +27,6 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: HUB_SECTION_PERMS.ops },
   { key: 'accounts', icon: 'ledger', bn: 'আজকের হিসাব', en: "Today's accounts", perms: HUB_SECTION_PERMS.accounts },
   { key: 'logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: HUB_SECTION_PERMS.logins },
-  { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: HUB_SECTION_PERMS.routes },
 ]
 
 export function HubManagement() {
@@ -38,6 +37,7 @@ export function HubManagement() {
   const preferred = useWorkHub(session?.user.id ?? '')
   const hubs = useMemo(() => (o.data?.hubs ?? []).filter(h => !h.archived_at), [o.data])
   // Old sections moved to new master pages
+  if (section === 'routes') return <Navigate to="/app/routes?tab=hub" replace />   // rider routes moved into the route module
   if (section === 'team') return <Navigate to="/app/staff/list" replace />
   if (section === 'attendance' || section === 'late' || section === 'days') return <Navigate to="/app/attendance?view=hub" replace />
   const sec = HUB_SECTIONS.find(s => s.key === section)
@@ -70,7 +70,6 @@ function Body({ section, hub }: { section: HubSection; hub: Hub }) {
     case 'ops': return <OpsToday hub={hub} />
     case 'accounts': return <AccountsToday hub={hub} />
     case 'logins': return <HubLogins hub={hub} />
-    case 'routes': return <RiderRoutes hub={hub} />
   }
 }
 
@@ -388,6 +387,26 @@ function AccountsToday({ hub }: { hub: Hub }) {
 }
 
 // ---------------------------------------------------------------- rider routes
+/** The part of the route module for a hub manager: routes made from area names, and giving riders their route (the zone map is for those with the zone permissions). */
+export function HubRoutesPane() {
+  const { session } = useAuth()
+  const { L } = usePrefs()
+  const o = useOrg()
+  const preferred = useWorkHub(session?.user.id ?? '')
+  const hubs = useMemo(() => (o.data?.hubs ?? []).filter(h => !h.archived_at), [o.data])
+  const [pick, setPick] = useState('')
+  const current = hubs.find(h => h.id === pick) ?? resolveWorkHub(hubs, preferred)
+  return <>
+    {o.error ? <p className="da-error">{hrFriendly(o.error)}</p> : null}
+    {hubs.length > 1 && <section className="da-filters panel no-print"><Field label={L('হাব', 'Hub')}><select value={current?.id ?? ''} onChange={e => setPick(e.target.value)}>
+      {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field></section>}
+    {current ? <RiderRoutes key={current.id} hub={current} />
+      : o.data && !hubs.length ? <p className="notice">{L('আপনার দেখার মতো কোনো হাব নেই।', 'There is no hub you can see.')}</p>
+      : hubs.length ? <p className="notice"><Link to="/app/me/permissions">{L('আমার অনুমতি থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in My permissions.')}</Link></p>
+      : <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
+  </>
+}
+
 function RiderRoutes({ hub }: { hub: Hub }) {
   const { can } = useAuth()
   const { L, n } = usePrefs()
@@ -439,7 +458,7 @@ function RiderRoutes({ hub }: { hub: Hub }) {
       <div className="da-bar"><h2>{L('রাইডার রুট', 'Rider routes')}</h2>
         <span className="row-acts"><span className="da-seg"><button className={view === 'map' ? 'sm' : 'secondary sm'} onClick={() => setView('map')}><Icon name="map" size={14} />{L('ছবি', 'Map')}</button>
           <button className={view === 'list' ? 'sm' : 'secondary sm'} onClick={() => setView('list')}><Icon name="table" size={14} />{L('কার্ড', 'Cards')}</button></span>
-        {(can('ops.route_setting.view') || can('ops.route_setting.edit')) && <Link to={`/app/zonal/routes?zone=${hub.zone_id}&hub=${hub.id}`} className="btn-ghost"><Icon name="map" size={15} />{L('আসল ম্যাপে খুলুন', 'Open on the real map')}</Link>}
+        {(can('ops.route_setting.view') || can('ops.route_setting.edit')) && <Link to={`/app/routes?zone=${hub.zone_id}&hub=${hub.id}`} className="btn-ghost"><Icon name="map" size={15} />{L('আসল ম্যাপে খুলুন', 'Open on the real map')}</Link>}
         {edit && <button onClick={() => { setErr(''); setF({ code: '', name: '', areas: '', note: '' }) }}><Icon name="plus" size={15} />{L('নতুন রুট', 'New route')}</button>}</span></div>
       {err && !f && !pick && <p className="da-error">{err}</p>}
       {routes.error ? <p className="da-error">{hrFriendly(routes.error)}</p> : routes.data && !routes.data.length ? <p className="muted">{L('এখনো কোনো রুট নেই। এলাকার নাম দিয়ে রুট বানিয়ে রাইডারদের দিন।', 'No routes yet. Make one from area names and give it to riders.')}</p> : view === 'map' ?

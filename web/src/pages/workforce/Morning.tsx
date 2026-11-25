@@ -179,7 +179,7 @@ export function ZoneMorningTab({ zone }: { zone: string }) {
               {open === h.id && <MorningLines people={h.people.map(p => ({ id: p.id, name: p.name, code: p.code, state: p.state, ref: p.leave_ref }))} />}</details>}
           </>}
           <div className="mo-acts">
-            <button type="button" className="secondary sm" onClick={() => nav(`/app/routes/plan?hub=${h.id}`)}><Icon name="map" size={14} />{L('রুট প্ল্যান খুলুন', 'Open the route plan')}</button>
+            <button type="button" className="secondary sm" onClick={() => nav(`/app/routes?tab=plan&hub=${h.id}`)}><Icon name="map" size={14} />{L('রুট প্ল্যান খুলুন', 'Open the route plan')}</button>
             {h.state === 'submitted' && <button type="button" className="secondary sm" onClick={() => void sendBack(h)}><Icon name="back" size={14} />{L('সংশোধনের জন্য ফেরত', 'Send back')}</button>}
             {h.plan && <Badge tone={h.plan.status === 'approved' ? 'ok' : h.plan.status === 'sent' ? 'warn' : 'info'}>{h.plan.status === 'approved' ? `${L('রুট প্ল্যান প্রকাশিত', 'Plan published')} · ${L('সংস্করণ', 'v')}${n(h.plan.published_version)}` : h.plan.status === 'sent' ? L('প্ল্যান অনুমোদনের অপেক্ষায়', 'Plan waiting for approval') : L('প্ল্যান খসড়া', 'Plan draft')}</Badge>}
           </div>

@@ -1024,3 +1024,18 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Kept on purpose:** the "আবেদন" tab (a staff member who did not apply on the website can only be absent through an application, decided there) and the daily pickup/delivery report.
 - **Database untouched.** Functions the app no longer calls (`att_days_*`, `wf_hub_book`, `wf_zone_overview`, `wf_att_correct`, `wf_marks_decide`) stay until the owner decides to drop them. Live has 4 migrations not in `main` (`master_audit_fixes`, `att_self_line_and_manager_roles` on branch `claude/vigilant-gates-8ek99l`; `staff_self_employee_scope`, `add_ai_plan_to_route_day_plans` on no branch) — still to be brought into the repository.
 - Tests: `tsc` clean, build ok, whole browser smoke test passes (727 checks; new checks for the old addresses, the three parts, the hub tabs and the waiting-days chips).
+
+## 2026-11-25 — রুট মডিউল: রুটের সব কাজ এক পেজে, লোকেশন যোগ আরও উন্নত (one route module)
+- Owner: "রুটের যত কাজ যত মেনুতে আছে সব একজায়গায় করো — রুটে লোকেশন এড ফিচার আরও উন্নত করো, ফিউচারে হাইলি আপগ্রেড হবে, মডিউল।"
+- **One page `/app/routes`** (tabs by group: রুট · এলাকা ও লোকেশন · পরিকল্পনা · নজরদারি · সেটিং) replaces four pages in four menus: জোনাল → রুট ম্যাপ, ম্যানেজার → রাইডার রুট (হাব),
+  ম্যানেজার → আজকের পার্সেল পরিকল্পনা, সোর্টিং → সোর্টিং টু হাব রুট. **One menu group "রুট"** (rows: রুট কেন্দ্র, লোকেশন যোগ, আজকের পরিকল্পনা, সোর্টিং → হাব — each only for a role that may use it;
+  a rider's row sits in their one panel). The old four addresses redirect (`?zone ?hub ?route` kept); a role's saved page list naming an old page keeps exactly that page's parts.
+- **Built as a module** (`docs/ROUTE_MODULE.md` is the guide): `lib/routeModule.ts` = list of parts, `lib/routeChecks.ts` = list of warning rules, `lib/routeLocation.ts` = list of location sources,
+  `pages/routes/` = page, editor, shared location screens. A new feature = one entry in a list + one view; tab, permission, page-list rule, menu row and URL follow by themselves.
+- **Location add, upgraded:** one search box over library (offline) / links / DMS / Plus Code / stops of other routes / hubs / OpenStreetMap; tapped points get a name; duplicate / far-from-hub / rough-GPS notes with undo;
+  many stops at once from pasted lines or an Excel / CSV file (locations looked up by name); new part **লোকেশন যোগ** (every stop with no location in the zone, fixed one by one or many from the library / a file; library places
+  with no location; new place); a stop can be kept in the place library; two new warning rules (two stops on one spot, a stop > 50 km from its hub).
+- **Database untouched** (same tables and functions). Moved: `RouteSettings.tsx` is now only the zone parts (map, table, rules, riders, check-ins); `HubManagement` lost its "রাইডার রুট" tab and `Sorting` its routes tab (both redirect).
+- Tests: `npm run test:routes` (22, new; added to website.yml), tsc clean, build ok, whole browser smoke test passes (route scenario moved to `/app/routes`, new checks for locations, undo, many-at-once, redirects).
+  `npm run test:nav`: the same 2 failures as before this change (phone tab for `/app/hr/leave`; a bare `<Navigate to="/app/staff/list">` in App.tsx) — not touched here.
+- Not done: dragging a pin on the map, resolving short Google links (browser cannot follow the redirect), a map for sorting → hub routes, route rules switchable per zone (`runChecks` has the hook).

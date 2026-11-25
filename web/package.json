@@ -12,7 +12,8 @@
     "android:open": "npx cap open android",
     "test:smoke": "node tests/smoke.mjs",
     "test:parser": "node --experimental-strip-types --test tests/reportParser.test.mjs",
-    "test:nav": "node --experimental-strip-types --test tests/navAccess.test.mjs"
+    "test:nav": "node --experimental-strip-types --test tests/navAccess.test.mjs",
+    "test:routes": "node --experimental-strip-types --test tests/routeModule.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
