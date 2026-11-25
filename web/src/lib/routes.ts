@@ -172,6 +172,12 @@ export const placesApi = {
   save: (p: { id?: string; upazila_code: number; name_bn: string; name?: string | null; kind: PlaceKind; lat: number | null; lng: number | null; note?: string | null; bn_checked?: boolean }) =>
     rpc<string>('route_place_save', { p }),
   hide: (id: string, hidden: boolean, reason?: string) => rpc<void>('route_place_hide', { p_id: id, p_hidden: hidden, p_reason: reason || null }),
+  /** Pull bazaars, villages, hamlets and paras from OpenStreetMap (Overpass) for an upazila. `preview` returns rows without writing. */
+  osmFetch: async (p: { upazila_code: number; preview?: boolean; bbox?: [number, number, number, number] }) => {
+    const { data, error } = await supabase.functions.invoke('osm-fetch-places', { body: p })
+    if (error) throw new RouteError(error.message ?? 'OSM fetch failed', 'osm_fetch')
+    return data as { bbox?: { s: number; w: number; n: number; e: number }; found?: number; inserted?: number; updated?: number; preview?: Array<{ kind: PlaceKind; name: string; name_bn: string | null; lat: number; lng: number; source_ref: string }>; message?: string }
+  },
 }
 
 /** The upazila a point is in: most of the 7 nearest places with a location (works for Naldanga too, which has no boundary). */
