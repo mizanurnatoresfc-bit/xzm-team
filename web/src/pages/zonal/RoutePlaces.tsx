@@ -107,6 +107,7 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
   const [onlyNew, setOnlyNew] = useState(true)
   const [pick, setPick] = useState<number | null>(null)
   const [edit, setEdit] = useState<Partial<Place> | null>(null)
+  const [osm, setOsm] = useState<{ upazila_code: number } | null>(null)
   const hubRoutes = o.routes.filter(r => r.hub_id === hubId)
   const taken = hubRoutes.flatMap(r => r.stops.filter(hasGps)) as LatLng[]
   const pool = pl.places.filter(p => !p.hidden && chosen.includes(p.upazila_code) && kinds.includes(p.kind))
@@ -188,7 +189,12 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
 
     <section className="panel">
       <div className="da-bar"><h2>{L('এলাকার নাম (গ্রাম, পাড়া, বাজার, ইউনিয়ন)', 'Place names')}</h2>
-        {canPlaces && <button onClick={() => setEdit({ upazila_code: chosen[0] ?? pl.upazilas[0]?.code, kind: 'village', name_bn: '', lat: null, lng: null })}><Icon name="plus" size={15} />{L('নতুন জায়গা', 'New place')}</button>}</div>
+        {canPlaces && <span className="row-acts">
+          <button className="secondary" onClick={() => setOsm({ upazila_code: chosen[0] ?? pl.upazilas[0]?.code })} title={L('OpenStreetMap থেকে বাজার, গ্রাম, পাড়া একসাথে আনুন', 'Pull bazaars, villages and paras from OpenStreetMap')}>
+            <Icon name="map" size={15} />{L('OSM থেকে লোড', 'Load from OSM')}</button>
+          <button onClick={() => setEdit({ upazila_code: chosen[0] ?? pl.upazilas[0]?.code, kind: 'village', name_bn: '', lat: null, lng: null })}><Icon name="plus" size={15} />{L('নতুন জায়গা', 'New place')}</button>
+        </span>}
+      </div>
       <p className="rt-hint">{L('গ্রামের বাংলা নাম যন্ত্রে বানানো, অনেক বানান ভুল থাকতে পারে — "বানান ঠিক" চাপে ঠিক করুন। ভুল বা একই জায়গা দুবার থাকলে লুকিয়ে দিন। তালিকায় না থাকা পাড়া/মহল্লা "নতুন জায়গা" দিয়ে যোগ করুন।',
         'Bangla village names were machine-made: fix spellings, hide wrong ones, add missing paras.')}</p>
       <DataTable<Place> title={L('এলাকার নাম', 'Place names')} file="route-places" prefKey="route-places" rows={pl.places.filter(p => chosen.includes(p.upazila_code))} rowKey={p => p.id}
@@ -211,7 +217,63 @@ export function PlacesTab({ o, hubOf, initialHub, onBuild }: {
       <p className="muted small">{PLACE_SOURCES}</p>
     </section>
     {edit && <PlaceForm place={edit} upazilas={pl.upazilas} places={pl.places} onClose={() => setEdit(null)} onSaved={async () => { setEdit(null); pl.setData(await placesApi.load(true)) }} />}
+    {osm && <OsmFetchModal upazilas={pl.upazilas} initial={osm.upazila_code} onClose={() => setOsm(null)} onDone={async () => { setOsm(null); pl.setData(await placesApi.load(true)) }} />}
   </>
+}
+
+// ---------------------------------------------------------------- one-click OSM pull: preview, then write
+export function OsmFetchModal({ upazilas, initial, onClose, onDone }:
+  { upazilas: Upazila[]; initial: number; onClose: () => void; onDone: () => void }) {
+  const { L, n, lang } = usePrefs()
+  const [code, setCode] = useState<number>(initial)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [prev, setPrev] = useState<Awaited<ReturnType<typeof placesApi.osmFetch>> | null>(null)
+  const [done, setDone] = useState<{ inserted: number; updated: number } | null>(null)
+  const u = upazilas.find(x => x.code === code)
+
+  async function run(preview: boolean) {
+    setBusy(true); setErr('')
+    try {
+      const r = await placesApi.osmFetch({ upazila_code: code, preview })
+      if (preview) setPrev(r)
+      else { setDone({ inserted: r.inserted ?? 0, updated: r.updated ?? 0 }); setPrev(null) }
+    } catch (e) { setErr(routeFriendly(e)) } finally { setBusy(false) }
+  }
+
+  const byKind = (prev?.preview ?? []).reduce<Record<string, number>>((a, r) => { a[r.kind] = (a[r.kind] ?? 0) + 1; return a }, {})
+
+  return <Modal wide title={L('OpenStreetMap থেকে জায়গা আনুন', 'Pull places from OpenStreetMap')} onClose={onClose}
+    actions={<>
+      <button className="secondary" onClick={onClose}>{done ? L('বন্ধ', 'Close') : L('বাতিল', 'Cancel')}</button>
+      {!done && !prev && <button disabled={busy} onClick={() => void run(true)}>{busy ? L('আসছে…', 'Loading…') : L('প্রিভিউ', 'Preview')}</button>}
+      {!done && prev && <button disabled={busy} onClick={() => void run(false)}>{busy ? L('সেভ হচ্ছে…', 'Saving…') : L(`${n(prev.found ?? 0)}টা সেভ করুন`, `Save ${prev.found ?? 0}`)}</button>}
+    </>}>
+    <div className="hr-form" style={{ gridTemplateColumns: '1fr' }}>
+      <Field label={L('উপজেলা', 'Upazila')} hint={L('উপজেলার বিদ্যমান জায়গাগুলোর চারপাশ ধরে OSM এ খোঁজা হবে।', 'Searches OSM around existing places of this upazila.')}>
+        <select value={code} onChange={e => { setCode(Number(e.target.value)); setPrev(null); setDone(null) }}>
+          {upazilas.map(x => <option key={x.code} value={x.code}>{lang === 'en' ? x.name : x.name_bn}</option>)}
+        </select>
+      </Field>
+    </div>
+    <p className="rt-hint">{L('OpenStreetMap থেকে বাজার (amenity=marketplace), গ্রাম, হ্যামলেট, পাড়া নামে চিহ্নিত জায়গা আনবে। নতুনগুলো যোগ হবে, আগেরগুলোর নাম/লোকেশন হালনাগাদ হবে। লুকানো বা ম্যানুয়ালি দেওয়া জায়গায় হাত পড়বে না।',
+      'Pulls bazaars, villages, hamlets and paras from OSM. Adds new ones; updates name/location of ones already loaded via OSM. Does not touch manually-added or hidden places.')}</p>
+    {prev && <div className="da-stats">
+      <Stat icon="map" label={L('মোট পাওয়া', 'Total found')} value={n(prev.found ?? 0)} sub={u ? (lang === 'en' ? u.name : u.name_bn) : ''} />
+      {Object.entries(byKind).map(([k, c]) => <Stat key={k} icon="check" label={L(PLACE_KIND[k as PlaceKind]?.bn ?? k, PLACE_KIND[k as PlaceKind]?.en ?? k)} value={n(c)} />)}
+    </div>}
+    {prev?.preview?.length ? <div className="rt-stops" style={{ maxHeight: '35vh' }}>
+      {prev.preview.slice(0, 100).map(r => <div key={r.source_ref} className="rt-stop" style={{ gridTemplateColumns: '1fr auto' }}>
+        <div style={{ minWidth: 0 }}><b className="small">{r.name_bn || r.name}</b>
+          <div className="rt-meta"><span>{L(PLACE_KIND[r.kind]?.bn ?? r.kind, PLACE_KIND[r.kind]?.en ?? r.kind)}</span><span className="muted">{r.lat.toFixed(4)}, {r.lng.toFixed(4)}</span></div></div>
+        <span className="muted small">OSM</span>
+      </div>)}
+      {(prev.found ?? 0) > 100 && <p className="muted small">{L(`আরও ${n((prev.found ?? 0) - 100)}টা সেভের পর দেখা যাবে`, `${(prev.found ?? 0) - 100} more will appear after save`)}</p>}
+    </div> : null}
+    {done && <p className="da-ok">{L(`✓ ${n(done.inserted)}টা নতুন যোগ, ${n(done.updated)}টা হালনাগাদ`, `✓ ${done.inserted} added, ${done.updated} updated`)}
+      <button className="sm" style={{ marginLeft: 10 }} onClick={() => { onDone() }}>{L('তালিকায় ফিরুন', 'Back to list')}</button></p>}
+    {err && <p className="da-error">{err}</p>}
+  </Modal>
 }
 
 /** Add or fix one place of the library. The location is picked with the shared LocationPicker (tap the map, search, paste a link, phone GPS). */
