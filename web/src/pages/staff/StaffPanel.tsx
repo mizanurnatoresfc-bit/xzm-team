@@ -24,6 +24,7 @@ import { hr } from '../../lib/hr'
 import { issues, type ZoneContacts, type ZoneGroup } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
+import { CONDITION, office } from '../../lib/office'
 import { fleet } from '../../lib/fleet'
 import { useLiveLoad, wf } from '../../lib/workforce'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
@@ -93,6 +94,13 @@ export function StaffPanel() {
   const { hash } = useLocation()
   useEffect(() => { if (hash === '#wf-ops' && opsHere) document.getElementById('wf-ops')?.scrollIntoView({ block: 'start' }) }, [hash, opsHere])
   const toOps = (e: MouseEvent) => { const el = document.getElementById('wf-ops'); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }) } }
+  const deskAssets = useLoad(() => v?.me ? office.myDeskAssets(v.me.id) : Promise.resolve([]), [v?.me?.id])
+  const assetsByDesk = new Map<string, NonNullable<typeof deskAssets.data>>()
+  for (const item of deskAssets.data ?? []) {
+    const group = assetsByDesk.get(item.desk_id) ?? []
+    group.push(item)
+    assetsByDesk.set(item.desk_id, group)
+  }
   const gapQ = useLoad(() => v?.me ? hr.myProfileGap(v.me.id).catch(() => null) : Promise.resolve(null), [v?.me?.id])
   const profilePct = gapQ.data ? Math.round(100 * (gapQ.data.total_checks - gapQ.data.missing.length) / Math.max(1, gapQ.data.total_checks)) : null
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
@@ -291,6 +299,14 @@ export function StaffPanel() {
           : <span className={`sp-att t-${attTone}`}><Icon name={a ? 'check' : 'clock'} size={15} />{a ? L(a[0], a[1]) : waiting ? L('অনুমোদন বাকি', 'Waiting') : L('হাজিরা বাকি', 'Not marked')}</span>}
       </div>
       <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
+      {!!deskAssets.data?.length && <section className="panel">
+        <h2>{L('আমার কাছে থাকা সম্পদ', 'Assets assigned to me')}</h2>
+        {[...assetsByDesk].map(([deskId, items]) => <div key={deskId}>
+          <h3>{items[0].desk?.name ?? L('ডেস্ক সেট', 'Desk set')}</h3>
+          <ul>{items.map(item => <li key={item.id}>{item.name} × {n(item.quantity)} · {L(CONDITION[item.condition][0], CONDITION[item.condition][1])}</li>)}</ul>
+        </div>)}
+      </section>}
+
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       {profilePct !== null && profilePct < 100 && <Link to="/app/me/complete" className="sp-card t-w mpc-nudge">
         <span className="i"><Icon name="user" size={24} /></span>

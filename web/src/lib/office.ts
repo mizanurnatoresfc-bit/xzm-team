@@ -11,13 +11,13 @@ export type Property = { id: string; code: string; name: string; kind: PlaceKind
   sorting_center_id: string | null; address: string | null; floor_note: string | null; owner_name: string | null; owner_phone: string | null
   rent: number | null; front_direction: string | null; note: string | null; status: string
   advance: number | null; contract_from: string | null; contract_to: string | null; contract_file: string | null; rent_due_day: number | null
-  meter_no: string | null; unit_rate: number | null; wifi_provider: string | null; wifi_bill: number | null; capacity: number | null }
+  meter_no: string | null; unit_rate: number | null; wifi_provider: string | null; wifi_bill: number | null; capacity: number | null; desk_set_template?: Record<string, number> | null }
 /** [বাংলা, English, emoji] */
 export const PLACE_KIND: Record<PlaceKind, [string, string, string]> = {
   office: ['অফিস', 'Office', '🏢'], residence: ['আবাসিক ফ্ল্যাট', 'Residence', '🏠'], garage: ['গ্যারেজ', 'Garage', '🚚'], auto_garage: ['অটো গ্যারেজ', 'Auto garage', '🛺'],
 }
 export type Room = { id: string; property_id: string; name: string; kind: string; direction: string; floor: number; responsible_id: string | null; note: string | null; sort: number }
-export type Desk = { id: string; property_id: string; room_id: string | null; code: string; name: string; responsible_id: string | null; duty: string | null; note: string | null; sort: number }
+export type Desk = { id: string; property_id: string; room_id: string | null; code: string; name: string; responsible_id: string | null; duty: string | null; note: string | null; sort: number; updated_at: string }
 export type Asset = { id: string; property_id: string; room_id: string | null; desk_id: string | null; kind: string; name: string; brand: string | null
   serial_no: string | null; quantity: number; condition: 'good' | 'repair' | 'broken' | 'lost'; holder_id: string | null
   purchase_date: string | null; price: number | null; note: string | null
@@ -37,6 +37,7 @@ export const DIR_GRID = ['nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', 'se']
 export const ASSET_KIND: Record<string, [string, string, string]> = {
   monitor: ['মনিটর', 'Monitor', 'a_monitor'], pc: ['পিসি', 'PC', 'a_pc'], keyboard: ['কিবোর্ড', 'Keyboard', 'a_keyboard'], mouse: ['মাউস', 'Mouse', 'a_mouse'],
   printer: ['জি-প্রিন্টার', 'G-printer', 'a_printer'], laptop: ['ল্যাপটপ', 'Laptop', 'a_laptop'], ups: ['UPS', 'UPS', 'a_ups'], router: ['রাউটার', 'Router', 'a_router'],
+  multiplug: ['মাল্টিপ্লাগ', 'Power strip', 'power'],
   scanner: ['স্ক্যানার', 'Scanner', 'a_scanner'], chair: ['চেয়ার', 'Chair', 'a_chair'], chair_plastic: ['প্লাস্টিক চেয়ার', 'Plastic chair', 'a_chair'],
   chair_exec: ['এক্সিকিউটিভ চেয়ার', 'Executive chair', 'a_chair_exec'], table: ['টেবিল', 'Table', 'a_table'],
   weight_machine: ['ওয়েট মেশিন', 'Weight machine', 'a_weight'], mobile: ['মোবাইল ফোন', 'Mobile phone', 'a_mobile'], ip_phone: ['আইপি ফোন', 'IP phone', 'a_ipphone'],
@@ -48,6 +49,7 @@ export const CONDITION: Record<Asset['condition'], [string, string, 'ok' | 'warn
   good: ['ভালো', 'Good', 'ok'], repair: ['মেরামত লাগবে', 'Needs repair', 'warn'], broken: ['নষ্ট', 'Broken', 'bad'], lost: ['হারানো', 'Lost', 'neutral'],
 }
 /** One click fills the usual items. */
+export const DESK_SET_DEFAULT = { chair: 1, table: 1, monitor: 1, pc: 1, printer: 1, multiplug: 1 }
 export const DESK_DEFAULT = ['monitor', 'pc', 'keyboard', 'mouse', 'printer']
 export const ROOM_DEFAULT: Record<string, string[]> = {
   garage: ['light', 'fan', 'bedding'], room: ['light', 'fan'], kitchen: ['light', 'fan', 'stove', 'cylinder'], bathroom: ['light'],
@@ -108,6 +110,18 @@ export const office = {
   createHubOffices: async (zone: string | null) => { const { data, error } = await supabase.rpc('office_create_hub_offices', { p_zone: zone }); fail(error); return (data ?? 0) as number },
   saveProperty: save('office_properties'), saveRoom: save('office_rooms'), saveDesk: save('office_desks'), saveAsset: save('office_assets'),
   archiveProperty: archive('office_properties'), archiveRoom: archive('office_rooms'), archiveDesk: archive('office_desks'), archiveAsset: archive('office_assets'),
+  saveDeskSet: async (desk: Desk, employee: string | null, items: Record<string, number>) => {
+    const { error } = await supabase.rpc('office_save_desk_set', {
+      p_desk: desk.id, p_employee: employee, p_items: items, p_expected: desk.updated_at,
+    }); fail(error)
+  },
+  myDeskAssets: async (employee: string) => {
+    const { data, error } = await supabase.from('office_assets').select('id,name,quantity,condition,desk_id,desk:office_desks(name)')
+      .eq('holder_id', employee).not('desk_id', 'is', null).is('archived_at', null).order('desk_id').order('name')
+      .returns<{ id: string; name: string; quantity: number; condition: Asset['condition']; desk_id: string; desk: { name: string } | null }[]>()
+    fail(error)
+    return data ?? []
+  },
   addRooms: async (rows: Pick<Room, 'property_id' | 'kind' | 'name' | 'floor'>[]) => {
     const { error } = await supabase.from('office_rooms').insert(rows); fail(error)
   },
