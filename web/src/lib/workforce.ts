@@ -115,6 +115,8 @@ export type MyOps = {
   hint: { pickup: number; delivery: number; lines: number } | null
 }
 export type OpsInput = { pickup: number; pickup_return: number; delivery: number; delivery_return: number }
+export type OpsDeadlineTimes = Record<keyof OpsInput, string | null>
+export type OpsDeadlines = OpsDeadlineTimes & { zone_id: string }
 /** `wf_ops_taps(p_date)` — one person's own taps for one date (each "সাবমিট" adds to the day's total). Newest tap first. */
 export type OpsTaps = { date: IsoDate; count: number; total: OpsInput | null; taps: Array<OpsInput & { at: string; note: string | null }> }
 
@@ -217,6 +219,9 @@ export const wf = {
   bookMode: () => rpc<BookMode>('wf_book_mode'),
   bookFullMonth: (on: boolean, note?: string | null) => rpc<BookMode>('wf_book_full_month_set', { p_on: on, p_note: note || null }),
   // staff — the four numbers
+  opsDeadlines: (zone?: string) => rpc<OpsDeadlines | null>('wf_ops_deadlines_get', { p_zone: zone ?? null }),
+  saveOpsDeadlines: (zone: string, times: OpsDeadlineTimes) =>
+    rpc<void>('wf_ops_deadlines_save', { p_zone: zone, p_times: times }),
   myOps: (days = 14) => rpc<MyOps | null>('wf_ops_mine', { p_days: days }),
   submitOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
     rpc<DailyOps>('wf_ops_submit', { p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return,
