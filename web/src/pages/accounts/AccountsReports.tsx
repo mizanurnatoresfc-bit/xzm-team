@@ -51,7 +51,7 @@ export function AccountsReports() {
 
   return <AccountsShell title="হিসাবের রিপোর্ট" subtitle="Daily Accounts · Reports & Export"
     actions={reportReady && (can('da.report.export') || can('da.report.print')) ? <>
-      {can('da.report.export') && <button onClick={() => download(xlsxBlob(`XZM-TEAM — ${def[1]}`, sub, def[2].map(c => c.l), rows.map(r => def[2].map(c => raw(r[c.k], c.t)))), `daily-accounts-${kind}-${from}-${to}.xlsx`)}>Excel</button>}
+      {can('da.report.export') && <button onClick={() => download(xlsxBlob(`XZM TEAM — ${def[1]}`, sub, def[2].map(c => c.l), rows.map(r => def[2].map(c => raw(r[c.k], c.t)))), `daily-accounts-${kind}-${from}-${to}.xlsx`)}>Excel</button>}
       {can('da.report.export') && <button className="secondary" onClick={() => printArea(`daily-accounts-${kind}-${from}-${to}`)}>PDF</button>}
       {can('da.report.print') && <button className="secondary" onClick={() => printArea(`daily-accounts-${kind}`)}>প্রিন্ট</button>}</> : undefined}>
     <div className="nv-chips no-print" role="group" aria-label="কোন রিপোর্ট" style={{ marginBottom: 10 }}>{KINDS.map(k => <button key={k[0]} type="button" className={`nv-chip${kind === k[0] ? ' on' : ''}`} aria-pressed={kind === k[0]} onClick={() => setKind(k[0])}>{k[1]}</button>)}</div>

@@ -99,7 +99,7 @@ function recordSheets(recs: RecordFile[]): LaidSheet[] {
   const sheets: LaidSheet[] = []
   for (const list of groups.values()) {
     const f = list[0]
-    sheets.push({ name: RECORD[f.kind].en, top: [{ text: `XZM-TEAM — ${f.title}`, c0: 0, c1: Math.max(0, f.heads.length - 1) }], topRows: 1,
+    sheets.push({ name: RECORD[f.kind].en, top: [{ text: `XZM TEAM — ${f.title}`, c0: 0, c1: Math.max(0, f.heads.length - 1) }], topRows: 1,
       heads: f.heads, rows: list.map((r, i) => [i + 1, ...r.cells.slice(1)]) })
   }
   if (recs.length === 1 && recs[0].kind === 'exit' && recs[0].accounts) {

@@ -43,7 +43,7 @@ export function voucherHtml(v: VoucherData, cat: Category | undefined): string {
   const copy = (label: string) => `
   <div class="vch">
     <div class="vch-head">
-      <div><b>XZM-TEAM</b><div class="s">${esc(v.hub)} · ${esc(v.zone)}</div></div>
+      <div><b>XZM TEAM</b><div class="s">${esc(v.hub)} · ${esc(v.zone)}</div></div>
       <div class="r"><b>খরচের ভাউচার</b><div class="s">${label}</div></div>
     </div>
     <table class="vch-t">
@@ -81,7 +81,7 @@ export function printVoucher(v: VoucherData, cat: Category | undefined) {
   host.appendChild(box)
   document.body.classList.add('print-list')
   const old = document.title
-  document.title = `XZM-TEAM-ভাউচার-${v.voucher_no ?? v.expense_no}`
+  document.title = `XZM TEAM — ভাউচার ${v.voucher_no ?? v.expense_no}`
   const done = () => {
     box.remove(); document.body.classList.remove('print-list'); document.title = old
     window.removeEventListener('afterprint', done)

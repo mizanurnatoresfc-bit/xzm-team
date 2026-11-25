@@ -1,6 +1,6 @@
 {
   "appId": "com.xzmteam.erp",
-  "appName": "XZM-TEAM",
+  "appName": "XZM TEAM",
   "webDir": "dist",
   "android": {
     "allowMixedContent": false,

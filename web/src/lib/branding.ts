@@ -16,11 +16,11 @@ export type Branding = {
 }
 
 export const DEFAULT_BRANDING: Branding = {
-  company_name: 'XZM-TEAM', name_bn: 'XZM-TEAM', short_name: 'X',
+  company_name: 'XZM TEAM', name_bn: 'XZM TEAM', short_name: 'X',
   tagline: { bn: 'নিজের কাজের জন্য নিজের টুল', en: 'My own tool for my own work' },
   logo: null, favicon: null,
   theme: { primary: '#15803D', primaryDark: '#14532D' },
-  system_title: 'XZM-TEAM',
+  system_title: 'XZM TEAM',
 }
 
 const cleanPicture = (v: unknown): string | null =>

@@ -97,7 +97,7 @@ export function OrgSetup() {
       <p className="muted">একবারই করতে হয়। এরপর এরিয়া, হাব, বিভাগ ও পদবি যোগ করা যাবে।</p>
       {can('org.organization.create') ? <form onSubmit={e => { e.preventDefault(); void saveOrg(new FormData(e.currentTarget)) }} className="hr-form">
         <input type="hidden" name="code" value="XZM" />
-        <Field label="নাম"><input name="name" required defaultValue="XZM-TEAM" /></Field>
+        <Field label="নাম"><input name="name" required defaultValue="XZM TEAM" /></Field>
         <Field label="নাম (বাংলা)"><input name="name_bn" /></Field>
         <Field label="ফোন"><input name="phone" inputMode="tel" /></Field>
         <div className="row" style={{ alignSelf: 'end' }}><button disabled={busy}>তৈরি করুন</button></div>

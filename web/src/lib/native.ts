@@ -104,7 +104,7 @@ export async function setupPush(save: (token: string) => Promise<void>, open: (l
     pushStarted = true
     void p.addListener('registration', t => { if (t.value) { try { localStorage.setItem(PUSH_KEY, t.value) } catch { /* ignore */ } void save(t.value).catch(() => undefined) } })
     void p.addListener('pushNotificationActionPerformed', a => { const l = a.notification?.data?.link; if (l && l.startsWith('/')) open(l) })
-    void p.createChannel?.({ id: 'xzm', name: 'XZM-TEAM', importance: 5, sound: 'default', vibration: true, visibility: 1 }).catch(() => undefined)
+    void p.createChannel?.({ id: 'xzm', name: 'XZM TEAM', importance: 5, sound: 'default', vibration: true, visibility: 1 }).catch(() => undefined)
   }
   let st = (await p.checkPermissions().catch(() => ({ receive: 'denied' }))).receive
   if (st === 'prompt' || st === 'prompt-with-rationale') st = (await p.requestPermissions().catch(() => ({ receive: 'denied' }))).receive
