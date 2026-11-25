@@ -39,5 +39,20 @@ select tests.ok(tests.review_sqlstate(format('select public.wf_ops_decide(%L, 1,
 select public.wf_ops_decide(tests.id('review_entry'), 2, true);
 select tests.login(tests.id('review_rider'));
 select tests.ok(public.wf_ops_mine() #>> '{entry,review_status}' = 'approved', 'staff sees the final approval');
+-- A returned attendance mark keeps the manager's reason without writing the final register.
+select tests.login(tests.id('review_rider'));
+insert into tests.ids select 'review_mark', public.att_self_mark('present');
+select tests.login(tests.id('hub_mgr'));
+select tests.ok(tests.review_sqlstate(format(
+  'select public.wf_review_return_mark(%L,%L,%L)', tests.id('review_mark'), '2000-01-01T00:00:00Z', 'Recheck attendance')) = '40001',
+  'manager cannot return stale attendance');
 select tests.logout();
+select set_config('tests.review_marked_at', (select marked_at::text from public.attendance_self_marks where id = tests.id('review_mark')), true);
+select tests.login(tests.id('hub_mgr'));
+select public.wf_review_return_mark(tests.id('review_mark'), current_setting('tests.review_marked_at')::timestamptz, 'Recheck attendance');
+select tests.logout();
+select tests.ok((select status = 'rejected' and decide_note = 'Recheck attendance'
+  from public.attendance_self_marks where id = tests.id('review_mark'))
+  and not exists (select 1 from public.attendance_records where employee_id = tests.id('review_employee')),
+  'return reason is stored on the mark and no final attendance record was written');
 rollback;

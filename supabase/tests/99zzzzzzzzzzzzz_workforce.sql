@@ -103,6 +103,7 @@ select tests.ok(not (public.wf_my_book() ->> 'open')::boolean and not (public.wf
 select tests.ok(tests.err($$select public.wf_att_submit(tests.day(18), 'present')$$) ~ '^22023 .*book is closed', 'day 18: nothing can be given');
 select tests.ok(tests.err($$select public.wf_att_submit(tests.day(16), 'present')$$) ~ '^22023 .*book is closed', 'day 18: not even an earlier date of the same month');
 select tests.ok(tests.err($$select public.wf_absence_apply(array[tests.day(16)], 'কারণ')$$) ~ '^22023 .*book is closed', 'day 18: no application either');
+-- + 3 from 20261125200000_workforce_review_queue (wf_ops_decide, wf_ops_resubmit, wf_review_return_mark)
 select tests.ok((select count(*) filter (where d ->> 'state' = 'closed') from jsonb_array_elements(public.wf_my_book() -> 'days') d) = 16
             and tests.bd(17) ->> 'state' = 'waiting' and (public.wf_pending_counts() #>> '{mine,missing_days}')::integer = 0,
   'day 18: what was given stays, the rest is closed and nobody is nagged');
@@ -889,9 +890,9 @@ select tests.ok(not exists (select 1 from public.notifications where kind = 'wor
 -- (the 13 of 20261122001100_workforce_manager_book were removed again by 20261122001200)
 -- + 7 from 20261124000100_morning_input (wf_morning_get/save/submit/zone/return, wf_att_policy_get/save)
 -- + 2 from 20261125182000_ops_deadlines (wf_ops_deadlines_get/save)
-select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 36 and count(*) = 36
+select tests.ok((select count(*) filter (where p.prosecdef and p.proconfig @> array['search_path=""']) = 39 and count(*) = 39
                    from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'),
-  'all thirty-six public functions are security definer with an empty search path');
+  'all thirty-nine public functions are security definer with an empty search path');
 select tests.ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname like 'wf\_%'
                               and (has_function_privilege('anon', p.oid, 'execute') or not has_function_privilege('authenticated', p.oid, 'execute'))), 'anon cannot run any of them; signed-in users can');
 rollback;
