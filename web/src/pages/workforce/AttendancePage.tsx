@@ -1,11 +1,12 @@
-import { useEffect, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useMemo } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { todayDhaka } from '../../lib/dailyAccounts'
 import { ATTENDANCE_HUB, ATTENDANCE_ZONE } from '../../lib/menu'
 import { usePrefs } from '../../lib/prefs'
+import { resolveWorkHub, useWorkHub } from '../../lib/workHub'
 import { LIVE, useLiveLoad, wf, wfFriendly, type HubOverview, type Mark } from '../../lib/workforce'
 import { Field } from '../accounts/ui'
 import { AttendanceBook } from './AttendanceBook'
@@ -17,7 +18,7 @@ import { ReopenPanel } from './Reopen'
 import { ZoneFinal } from './ZoneFinal'
 import { ZoneOps } from './ZoneOps'
 import { ZoneWindows } from './ZoneWindows'
-import { ChipTabs, Loading, LiveDot, Notice, fmtDay, prevMonth, rememberHub, storedHub, useHubList } from './shared'
+import { ChipTabs, Loading, LiveDot, Notice, fmtDay, prevMonth, useHubList } from './shared'
 import '../../workforce.css'
 
 /**
@@ -71,9 +72,11 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   const { L, n, lang } = usePrefs()
   const hubsQ = useHubList()
   const hubs = useMemo(() => hubsQ.data?.hubs ?? [], [hubsQ.data])
-  const want = sp.get('hub') || storedHub()
-  const hubId = hubs.find(h => h.id === want)?.id ?? hubs[0]?.id ?? ''
-  useEffect(() => { if (hubId) rememberHub(hubId) }, [hubId])
+  const { session } = useAuth()
+  const preferred = useWorkHub(session?.user.id ?? '')
+  const linkedHub = sp.get('hub')
+  const hub = resolveWorkHub(hubs, preferred, linkedHub)
+  const hubId = hub?.id ?? ''
   const ovQ = useLiveLoad<HubOverview | null>(() => hubId ? wf.hubOverview(hubId) : Promise.resolve(null), [hubId], LIVE.manage)
   const ov = ovQ.data && ovQ.data.hub.id === hubId ? ovQ.data : null
   const can = ov?.can
@@ -83,7 +86,6 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   const askedTab = sp.get('tab') as HubTab | null
   const tab: HubTab = askedTab && HUB_TABS.includes(askedTab) && visible[askedTab] ? askedTab : can?.attendance ? 'morning' : 'ops'
   const go = (t: HubTab) => put({ tab: t })
-  const pickHub = (id: string) => { rememberHub(id); refreshShellCounts(); put({ hub: id, date: null }) }
 
   // the days on which staff gave attendance that no final register has settled yet — one tap opens that day's register
   const waitingQ = useLiveLoad<Mark[]>(() => hubId && can?.attendance ? wf.marks({ hub: hubId }, prevMonth(today), today, 'waiting') : Promise.resolve([]), [hubId, today, can?.attendance], LIVE.manage)
@@ -103,12 +105,10 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   ]
 
   return <div className="wm">
-    <section className="panel wm-top no-print">
-      <Field label={L('হাব', 'Hub')}>
-        <select value={hubId} onChange={e => pickHub(e.target.value)} disabled={!hubs.length}>
-          {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
-      <div className="wm-top-r"><LiveDot on={ovQ.live} /></div>
-    </section>
+    {hub && <div className="da-bar no-print"><span className="muted small">{hub.name}</span><LiveDot on={ovQ.live} /></div>}
+    {hubs.length > 0 && !hub && <Notice>{linkedHub
+      ? <Link to="/app/attendance?view=hub">{L('লিংকের হাবটি দেখা যাচ্ছে না। কাজের হাব খুলুন।', 'This link’s hub is unavailable. Open your working hub.')}</Link>
+      : <Link to="/app/me/permissions">{L('আমার অনুমতি থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in My permissions.')}</Link>}</Notice>}
 
     {hubsQ.error ? <p className="da-error" role="alert">{wfFriendly(hubsQ.error)}</p> : null}
     {hubsQ.data && !hubs.length ? <Notice>{L('আপনার দেখার মতো কোনো হাব নেই।', 'There is no hub you can see.')}</Notice> : null}

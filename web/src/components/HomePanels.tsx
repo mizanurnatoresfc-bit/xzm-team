@@ -1,10 +1,11 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { dutiesApi, hubApi } from '../lib/hub'
 import { hubLabel, org } from '../lib/hr'
 import { hrReq } from '../lib/hrreq'
 import { usePrefs } from '../lib/prefs'
+import { resolveWorkHub, useWorkHub } from '../lib/workHub'
 import { supabase } from '../lib/supabase'
 import { useLoad } from '../pages/accounts/ui'
 import { Icon } from './Icon'
@@ -56,20 +57,14 @@ export function MyDayPanel() {
   </section>
 }
 
-/** "হাব" view: one hub at a glance, with a hub picker for people who look after several. */
+/** "হাব" view: the working hub at a glance. */
 export function HubTodayPanel() {
   const { L, n } = usePrefs()
-  const { can } = useAuth()
-  const hubs = useLoad(() => org.hubs().catch(() => []), [])
-  const [hub, setHub] = useState<string>(() => { try { return sessionStorage.getItem('xzm_hub') || '' } catch { return '' } })
-  useEffect(() => {
-    const list = hubs.data ?? []
-    if (!list.length) return
-    if (!hub || !list.some(h => h.id === hub)) {
-      void hrReq.myEmployee().then(me => setHub(me?.hub_id && list.some(h => h.id === me.hub_id) ? me.hub_id : list[0].id)).catch(() => setHub(list[0].id))
-    }
-  }, [hubs.data, hub])
-  const pick = (id: string) => { setHub(id); try { sessionStorage.setItem('xzm_hub', id) } catch { /* ignore */ } }
+  const { can, session } = useAuth()
+  const preferred = useWorkHub(session?.user.id ?? '')
+  const hubs = useLoad(() => org.hubs(), [session?.user.id])
+  const cur = resolveWorkHub((hubs.data ?? []).filter(h => !h.archived_at), preferred)
+  const hub = cur?.id ?? ''
   const d = useLoad(async () => {
     if (!hub) return null
     const team = await hubApi.team(hub, 'active').catch(() => [])
@@ -79,17 +74,17 @@ export function HubTodayPanel() {
       supabase.from('da_sessions').select('status').eq('hub_id', hub).eq('account_date', today()).maybeSingle().then(r => (r.data as { status: string } | null)?.status ?? null),
     ])
     const c = (s: string) => att.filter(a => a.status === s).length
-    return { staff: team.length, present: c('present') + c('half_day'), late: c('late'), absent: c('absent') + c('leave'), notMarked: Math.max(team.length - att.length, 0), pickups: pickups.length, sheet }
+    return { hub, staff: team.length, present: c('present') + c('half_day'), late: c('late'), absent: c('absent') + c('leave'), notMarked: Math.max(team.length - att.length, 0), pickups: pickups.length, sheet }
   }, [hub])
-  const v = d.data
+  const v = d.data?.hub === hub ? d.data : null
   const SHEET: Record<string, [string, string]> = { open: ['খোলা', 'g'], submitted: ['যাচাইয়ের অপেক্ষায়', 'o'], correction: ['সংশোধন লাগবে', 'r'], approved: ['অনুমোদিত', 'b'] }
-  const cur = hubs.data?.find(h => h.id === hub)
   const pct = v && v.staff ? Math.round((v.present + v.late) * 100 / v.staff) : 0
   return <section className="panel hubtoday">
     <div className="da-bar"><h2 style={{ margin: 0 }}>{L('আজ আমার হাব', 'My hub today')}</h2>
-      {(hubs.data?.length ?? 0) > 1 ? <select className="ht-pick" value={hub} onChange={e => pick(e.target.value)}>{hubs.data!.map(h => <option key={h.id} value={h.id}>{hubLabel(h)}</option>)}</select>
-        : cur && <b className="small">{hubLabel(cur)}</b>}</div>
-    {!v ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : <>
+      {cur && <b className="small">{hubLabel(cur)}</b>}</div>
+    {!v ? <p className="muted">{hubs.error ? L('হাবের তালিকা লোড করা যায়নি।', 'Could not load hubs.') : hubs.data && !hub
+      ? hubs.data.length > 0 ? <Link to="/app/me/permissions">{L('কাজের হাব বেছে নিন।', 'Choose a working hub.')}</Link> : L('কোনো হাব পাওয়া যায়নি।', 'No hubs available.')
+      : L('লোড হচ্ছে…', 'Loading…')}</p> : <>
       {/* attendance at a glance: how much of the team is marked present, and what is still open */}
       <div className="ht-att">
         <Link to="/app/attendance?view=hub" className="ht-ring" style={{ '--p': pct } as CSSProperties} aria-label={L(`উপস্থিত ${n(pct)}%`, `${pct}% present`)}><span>{n(pct)}%</span></Link>
