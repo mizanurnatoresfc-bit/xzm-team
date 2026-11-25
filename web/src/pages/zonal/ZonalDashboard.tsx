@@ -44,7 +44,7 @@ export function ZonalDashboard() {
   // A manager of one zone may not ask for "all zones": wait until the zone list has loaded and their zone is picked.
   const ready = !!o.data && (zone !== '' || o.data.zones.length !== 1)
   const dash = useLoad(() => ready ? zonal.dashboard(z, from, to) : Promise.resolve(null), [z, from, to, ready])
-  const hubs = useLoad(() => ready ? zonal.hubs(z, from, to).catch(() => [] as HubPerf[]) : Promise.resolve([] as HubPerf[]), [z, from, to, ready])
+  const hubs = useLoad(() => ready ? zonal.hubs(z, from, to) : Promise.resolve([] as HubPerf[]), [z, from, to, ready])
   const [detail, setDetail] = useState<{ stat: WorkStat; title: string } | null>(null)
   const [tab, setTab] = useState<'hubs' | 'reports' | 'tasks' | 'plan' | 'visits'>('hubs')
   const d = dash.data
@@ -89,8 +89,24 @@ export function ZonalDashboard() {
         <Field label={L('পর্যন্ত', 'To')}><input type="date" value={custom.to} min={custom.from} max={dhaka()} onChange={e => setCustom({ ...custom, to: e.target.value })} /></Field></>}
       {dash.loading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
     </section>
+    {hubs.error ? <p className="da-error">{hrFriendly(hubs.error)}</p> : null}
     {dash.error ? <p className="da-error">{hrFriendly(dash.error)}</p> : null}
     {can('zonal.pulse.manage') && <PulsePanel zone={zone || (o.data?.zones.length === 1 ? o.data.zones[0].id : '')} />}
+
+    {ready && d && !dash.loading && !dash.error && !hubs.loading && !hubs.error && (can('zonal.hub_ops.view') || can('zonal.hub_ops.create')) && <section className="panel">
+      <div className="da-bar"><h2 style={{ margin: 0 }}>ONE HAND MY ZONE</h2></div>
+      <p className="muted small">{L('স্মার্ট জোন অপারেশন — নির্বাচিত সময়ের বিদ্যমান রিপোর্ট। কোনো স্বয়ংক্রিয় বরাদ্দ বা হিসাব পরিবর্তন হয় না।', 'Smart zone operations — existing reports for the selected period. No automatic assignments or accounting changes.')}</p>
+      <div className="da-stats">
+        <Stat label={L('রিপোর্ট নেই এমন হাব', 'Hubs without reports')} value={n((hubs.data ?? []).filter(h => h.days_verified + h.days_unverified === 0).length)} />
+        <Stat label={L('ডেলিভারি', 'Deliveries')} value={n(d.hubs.deliveries)} />
+        <Stat label={L('পিকআপ', 'Pickups')} value={n(d.hubs.pickups)} />
+        <Stat label={L('পেন্ডিং পার্সেল', 'Pending parcels')} value={n(d.hubs.pending_parcels)} />
+      </div>
+      <Link to="/app/zonal/hub-ops" className="btn-ghost">{L('হাব অপারেশন ও রিপোর্ট দেখুন', 'Open hub operations and reports')}</Link>
+      {can('zonal.planning.view') && <button type="button" className="secondary" onClick={() => setTab('plan')}>{L('বিদ্যমান জনবল পরিকল্পনা দেখুন', 'View existing workforce planning')}</button>}
+      {can('ops.route_plan.view') && <Link to="/app/routes/plan" className="btn-ghost">{L('রাইডার ও পার্সেল পরিকল্পনা', 'Rider and parcel planning')}</Link>}
+      <button type="button" className="secondary" onClick={() => setTab('tasks')}>{L('ম্যানেজারের কাজের অবস্থা', 'Manager task status')}</button>
+    </section>}
 
     {d && <>
       <section className="panel">
