@@ -66,7 +66,7 @@ export function srcParts(src: string): string[] {
 }
 export const joinSrc = (parts: string[]) => parts.filter(p => p && p !== 'blank').join('|') || 'blank'
 
-export const DOC_SRC: Array<[string, string]> = [['doc:photo', 'ছবি জমা আছে কি (Yes)'], ['doc:nid_front', 'NID সামনের ছবি আছে কি'], ['doc:nid_back', 'NID পেছনের ছবি আছে কি'],
+export const DOC_SRC: Array<[string, string]> = [['doc:photo', 'ছবি জমা আছে কি (Yes)'], ['doc:nid_front', 'NID সামনের ছবি আছে কি'], ['doc:nid_back', 'NID পেছনের ছবি আছে কি'], ['doc:birth_certificate', 'জন্ম নিবন্ধনের ছবি আছে কি'],
   ['doc:signature', 'স্বাক্ষর আছে কি'], ['doc:cv', 'সিভি আছে কি']]
 export const REQ_SRC: Array<[string, string]> = [['req.hub', 'রিকুয়েস্টের হাব (বদলিতে: পুরোনো হাব)'], ['req.no', 'রিকুয়েস্ট নং'], ['req.date', 'রিকুয়েস্টের তারিখ'], ['req.status', 'রিকুয়েস্টের অবস্থা'],
   ['req.result', 'ফলাফল'], ['req.note', 'নোট'], ['req.decision', 'সিদ্ধান্তের নোট']]
@@ -109,7 +109,7 @@ export function guessSrc(head: string, group: string, ctx: SrcCtx): { src: strin
   const pay = (field: string, key: string) => !isNew ? yes(`emp:${field}`) : R && has(key) ? yes(`req:${key}|emp:${field}`) : { src: 'blank', sure: false }
 
   if (/^(sl|s l|sl no|serial|serial no|no|ক্রমিক|ক্রমিক নং|নং)$/.test(h)) return yes('sl')
-  if (/picture|photo|image|ছবি/.test(h)) return yes(/front|সামনে/.test(h) ? 'doc:nid_front' : /back|পেছ|পিছ/.test(h) ? 'doc:nid_back' : /signature|স্বাক্ষর/.test(h) ? 'doc:signature' : 'doc:photo')
+  if (/picture|photo|image|ছবি/.test(h)) return yes(/birth|জন্ম/.test(h) ? 'doc:birth_certificate' : /front|সামনে/.test(h) ? 'doc:nid_front' : /back|পেছ|পিছ/.test(h) ? 'doc:nid_back' : /signature|স্বাক্ষর/.test(h) ? 'doc:signature' : 'doc:photo')
   if (/refer|rafer|রেফা/.test(h)) return yes('ref')
   if (/(alt|alternative|second|বিকল্প).*(phone|mobile|number|নম্বর|মোবাইল)/.test(h)) { const c = cf(/alt/); return yes(joinSrc([c, 'emp:emergency_contact_phone'])) }
   if (/(old|previous|present|current|from|পুরা|পুরো|বর্তমান|আগের).*(hub|হাব)/.test(h)) return yes(R ? 'req.hub' + req('from_hub') : 'emp:hub_name')

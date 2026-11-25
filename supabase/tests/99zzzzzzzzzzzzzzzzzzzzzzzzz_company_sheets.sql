@@ -8,7 +8,7 @@ insert into tests.ids values
 
 -- ---------- what the migration puts in ----------
 select tests.ok((select count(*) = 3 from public.company_sheets), 'the three company sheets are there to start with');
-select tests.ok((select source = 'staff' and kind is null and jsonb_array_length(columns) = 25 from public.company_sheets where name = 'New Admin & Rider ID Creat Information'),
+select tests.ok((select source = 'staff' and kind is null and jsonb_array_length(columns) = 26 from public.company_sheets where name = 'New Admin & Rider ID Creat Information'),
   'ID create: 25 columns, filled from staff records');
 select tests.ok((select source = 'requests' and kind = 'id_transfer' and jsonb_array_length(columns) = 11 from public.company_sheets where name = 'Admin & Rider ID Transfer Information'),
   'ID transfer: 11 columns, filled from transfer requests');
@@ -83,6 +83,21 @@ insert into public.employee_documents (employee_id, doc_type, storage_path, file
 select tests.login(tests.id('hr'));
 select tests.ok((public.hr_sheet_people(array[tests.id('a1')], array['doc:photo', 'doc:nid_front', 'doc:nid_back']) -> tests.id('a1')::text) = '{"doc:photo":true,"doc:nid_front":true}'::jsonb,
   'papers on file are flagged, missing ones are not');
+select tests.logout();
+
+insert into public.employee_documents (employee_id, doc_type, storage_path, file_name, mime_type, size_bytes)
+values (tests.id('a1'), 'birth_certificate', 'employee/' || tests.id('a1') || '/b.pdf', 'b.pdf', 'application/pdf', 100);
+select tests.login(tests.id('hr'));
+select tests.ok((public.hr_sheet_people(array[tests.id('a1')], array['doc:birth_certificate']) -> tests.id('a1')::text) = '{"doc:birth_certificate":true}'::jsonb,
+  'a birth certificate on file is flagged for HR');
+select tests.logout();
+select tests.ok((select count(*) = 1 from public.company_sheets s, jsonb_array_elements(s.columns) c
+                  where s.name = 'New Admin & Rider ID Creat Information' and c ->> 'src' = 'doc:birth_certificate'
+                    and (s.columns -> 14) ->> 'src' = 'doc:nid_back' and (s.columns -> 15) ->> 'src' = 'doc:birth_certificate'),
+  'the ID Create sheet has a birth certificate column right after NID back');
+select tests.login(tests.id('hub_mgr'));
+select tests.ok((public.hr_sheet_people(array[tests.id('a1')], array['full_name', 'doc:birth_certificate']) -> tests.id('a1')::text) = '{"full_name":"Hub A1 Rider"}'::jsonb,
+  'a hub manager does not see the birth certificate flag (identity paper)');
 select tests.logout();
 
 select tests.login(tests.id('hub_mgr'));

@@ -373,8 +373,10 @@ function Documents({ e, canUpload, onDone }: { e: Employee; canUpload: boolean; 
   async function view(path: string) { try { window.open(await docs.url(path), '_blank', 'noopener') } catch (x) { setErr(hrFriendly(x)) } }
   return <section className="panel">
     <h2>ডকুমেন্ট</h2>
-    {e.status === 'applicant' && <div className="da-chips" style={{ marginBottom: 10 }}>{REQUIRED_DOCS.map(d =>
-      <Badge key={d} tone={have.has(d) ? 'ok' : 'warn'}>{have.has(d) ? '✓' : '•'} {DOC_TYPE[d]}</Badge>)}</div>}
+    {e.status === 'applicant' && <div className="da-chips" style={{ marginBottom: 10 }}>{REQUIRED_DOCS.map(d => {
+      const ok = have.has(d) || (have.has('birth_certificate') && (d === 'nid_front' || d === 'nid_back'))
+      return <Badge key={d} tone={ok ? 'ok' : 'warn'}>{ok ? '✓' : '•'} {DOC_TYPE[d]}</Badge> })}
+      {have.has('birth_certificate') && <Badge tone="ok">✓ জন্ম নিবন্ধন (এনআইডির বদলে)</Badge>}</div>}
     {list.error ? <p className="da-error">{hrFriendly(list.error)}</p> : list.data?.length ? <div className="da-table-wrap"><table className="da-table"><thead><tr><th>ধরন</th><th>ফাইল</th><th>তারিখ</th><th>যাচাই</th><th /></tr></thead>
       <tbody>{list.data.map(d => <tr key={d.id}><td>{DOC_TYPE[d.doc_type] ?? d.doc_type}</td><td>{d.file_name}<span className="sec">{bn(Math.ceil(d.size_bytes / 1024))} KB</span></td>
         <td>{dmy(d.created_at)}</td><td>{d.verified_at ? <Badge tone="ok">যাচাই হয়েছে</Badge> : <Badge tone="neutral">বাকি</Badge>}</td>
