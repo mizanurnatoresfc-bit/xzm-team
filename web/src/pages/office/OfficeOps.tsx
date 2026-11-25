@@ -117,7 +117,7 @@ function BillBlock({ ctx, kinds }: { ctx: Ctx; kinds: BillKind[] }) {
     const why = await askWith(L)(L('বিলটা সরানোর কারণ', 'Why remove this bill?')); if (!why) return
     try { await ops.billRemove(b.id, why); await Promise.all([bills.reload(), lines.reload()]) } catch (e) { setErr(opsFriendly(e)) }
   }
-  const memo = (b: Bill) => printHtml(`XZM-TEAM-মেমো-${b.memo_no ?? ''}`, memoHtml(b, p, p.hub_id ? ctx.hubName(p.hub_id) : null, takaInWords(Number(b.amount))))
+  const memo = (b: Bill) => printHtml(`XZM TEAM — মেমো ${b.memo_no ?? ''}`, memoHtml(b, p, p.hub_id ? ctx.hubName(p.hub_id) : null, takaInWords(Number(b.amount))))
   if (!can('office.bill.view')) return <p className="notice">{L('বিল দেখার অনুমতি আপনার রোলে নেই।', 'Your role may not see bills.')}</p>
   if (bills.error) return <p className="da-error">{opsFriendly(bills.error)}</p>
 
@@ -273,7 +273,7 @@ export function Rent({ ctx }: { ctx: Ctx }) {
     {c && <Modal wide title={L('নতুন চুক্তির খসড়া', 'New contract draft')} onClose={() => setC(null)}
       actions={<><button className="secondary" onClick={() => setC(null)}>{L('বন্ধ', 'Close')}</button>
         <button className="secondary" onClick={() => { void navigator.clipboard?.writeText(c.text).then(() => toast(L('কপি হয়েছে', 'Copied'))) }}><Icon name="doc" size={14} />{L('কপি', 'Copy')}</button>
-        <button onClick={() => printText(`XZM-TEAM-চুক্তি-${p.name}`, c.text)}><Icon name="print" size={14} />{L('প্রিন্ট / পিডিএফ', 'Print / PDF')}</button></>}>
+        <button onClick={() => printText(`XZM TEAM — চুক্তি ${p.name}`, c.text)}><Icon name="print" size={14} />{L('প্রিন্ট / পিডিএফ', 'Print / PDF')}</button></>}>
       <div className="hr-form">
         <Field label={L('শুরু', 'From')}><input type="date" value={c.from} onChange={e => { const x = { ...c, from: e.target.value }; setC({ ...x, text: redraft(x) }) }} /></Field>
         <Field label={L('শেষ', 'To')}><input type="date" value={c.to} onChange={e => { const x = { ...c, to: e.target.value }; setC({ ...x, text: redraft(x) }) }} /></Field>
@@ -282,7 +282,7 @@ export function Rent({ ctx }: { ctx: Ctx }) {
       </div>
       <textarea className="oo-contract" rows={16} value={c.text} onChange={e => setC({ ...c, text: e.target.value })} />
       <AiBox label={L('নদী AI দিয়ে পুরো চুক্তি লিখুন', 'Write the full contract with Nodi AI')} hint={L('উপরের খসড়াটা অফিসের তথ্য থেকে তৈরি; AI আরও বিস্তারিত লিখে দেয়।', 'The draft above is built from the office data; the AI writes a fuller one.')}
-        run={async () => { const t = await ops.ai('contract', { landlord: p.owner_name, landlord_phone: p.owner_phone, tenant: `XZM-TEAM${p.hub_id ? ' — ' + ctx.hubName(p.hub_id) : ''}`,
+        run={async () => { const t = await ops.ai('contract', { landlord: p.owner_name, landlord_phone: p.owner_phone, tenant: `XZM TEAM${p.hub_id ? ' — ' + ctx.hubName(p.hub_id) : ''}`,
           place: p.name, kind: PLACE_KIND[p.kind][0], address: p.address, floor: p.floor_note, rooms_office: split.office, rooms_residential: split.living, rooms_other: split.other,
           from: c.from, to: c.to, monthly_rent: c.rent || null, advance: c.advance || null, rent_day: p.rent_due_day, meter_no: p.meter_no }); if (t) setC(x => x ? { ...x, text: t } : x); return '' }} />
       <p className="muted small">{L('এটা খসড়া — সই করার আগে দুই পক্ষ পড়ে মিলিয়ে নিন। সই হলে ছবি তুলে "তথ্য বদলান" থেকে চুক্তির ছবি ও নতুন মেয়াদ বসান।', 'This is a draft — both sides must read it before signing. Once signed, add its photo and the new dates under "Edit".')}</p>

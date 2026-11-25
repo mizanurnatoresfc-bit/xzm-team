@@ -47,7 +47,7 @@ function ExportModal({ zone, hub, status, q, title, onClose, L, n, lang }: {
       const heads = chosen.columns.map(c => colLabel(c, lang))
       const body = rows.map((r, i) => [i + 1, ...chosen.columns.map(c => exportValue(c.field, r[c.field], lang, data.data!.custom))])
       const when = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })
-      download(xlsxBlob(`XZM-TEAM — ${title}`, `${colLabel({ field: '', label: chosen.name, label_bn: chosen.name_bn ?? undefined }, lang)} · ${n(rows.length)} · ${when}`,
+      download(xlsxBlob(`XZM TEAM — ${title}`, `${colLabel({ field: '', label: chosen.name, label_bn: chosen.name_bn ?? undefined }, lang)} · ${n(rows.length)} · ${when}`,
         ['S/L', ...heads], body), `XZM-TEAM-${title.replace(/[^\wঀ-৿-]+/g, '-')}.xlsx`)
       setDone(L(`${n(rows.length)} জন কর্মীর ফাইল নামানো হয়েছে।`, `${rows.length} staff downloaded.`))
     } catch (e) { setErr(formatFriendly(e)) } finally { setBusy(false) }

@@ -137,16 +137,16 @@ export function DataTable<T>({ title, rows, cols: allCols, rowKey, onRowClick, e
   }
   function excel() {
     const data = pick().map((r, i) => [i + 1, ...exp.map(c => cell(c, r))])
-    download(xlsxBlob(`XZM-TEAM — ${title}`, `${scope()} · ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}`, ['S/L', ...exp.map(c => c.label)], data),
+    download(xlsxBlob(`XZM TEAM — ${title}`, `${scope()} · ${new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' })}`, ['S/L', ...exp.map(c => c.label)], data),
       `XZM-TEAM-${(file ?? title).replace(/[^\wঀ-৿-]+/g, '-')}.xlsx`)
   }
   function print(pdf: boolean) {
     const box = document.createElement('div'); box.id = 'print-box'
     const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
-    box.innerHTML = `<h2 style="margin:0">XZM-TEAM — ${esc(title)}</h2><p style="margin:2px 0 10px">${esc(scope())} · ${esc(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }))}${pdf ? ' · ' + esc(L('প্রিন্ট উইন্ডোতে “Save as PDF” বেছে নিন', 'choose “Save as PDF” in the print window')) : ''}</p>
+    box.innerHTML = `<h2 style="margin:0">XZM TEAM — ${esc(title)}</h2><p style="margin:2px 0 10px">${esc(scope())} · ${esc(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }))}${pdf ? ' · ' + esc(L('প্রিন্ট উইন্ডোতে “Save as PDF” বেছে নিন', 'choose “Save as PDF” in the print window')) : ''}</p>
       <table><thead><tr><th>S/L</th>${exp.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>${pick().map((r, i) => `<tr><td>${i + 1}</td>${exp.map(c => `<td>${esc(cell(c, r))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
     const host = document.querySelector('.app-main') ?? document.body; host.appendChild(box); document.body.classList.add('print-list')
-    const old = document.title; document.title = `XZM-TEAM-${title}`
+    const old = document.title; document.title = `XZM TEAM — ${title}`
     const done = () => { box.remove(); document.body.classList.remove('print-list'); document.title = old; window.removeEventListener('afterprint', done) }
     window.addEventListener('afterprint', done); setTimeout(() => window.print(), 50)
   }

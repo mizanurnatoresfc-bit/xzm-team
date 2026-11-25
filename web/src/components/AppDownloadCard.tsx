@@ -33,11 +33,11 @@ export function AppDownloadCard() {
   useEffect(() => { let on = true; void apkInfo().then(a => { if (on) setApk(a) }); return () => { on = false } }, [])
   useEffect(() => { if (!msg) return; const t = window.setTimeout(() => setMsg(null), 3000); return () => window.clearTimeout(t) }, [msg])
 
-  const text = L(`XZM-TEAM অ্যান্ড্রয়েড অ্যাপ ডাউনলোড করুন: ${APK_URL}\nওয়েবসাইট: ${SITE}`, `Download the XZM-TEAM Android app: ${APK_URL}\nWebsite: ${SITE}`)
+  const text = L(`XZM TEAM অ্যান্ড্রয়েড অ্যাপ ডাউনলোড করুন: ${APK_URL}\nওয়েবসাইট: ${SITE}`, `Download the XZM TEAM Android app: ${APK_URL}\nWebsite: ${SITE}`)
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   async function share() {
-    if (canShare) { try { await navigator.share({ title: 'XZM-TEAM', text, url: APK_URL }); return } catch (e) { if ((e as Error)?.name === 'AbortError') return } }
+    if (canShare) { try { await navigator.share({ title: 'XZM TEAM', text, url: APK_URL }); return } catch (e) { if ((e as Error)?.name === 'AbortError') return } }
     setMsg(await copy(text) ? L('লিংক কপি হয়েছে', 'Link copied') : APK_URL)
   }
   async function copyLink() { setMsg(await copy(APK_URL) ? L('লিংক কপি হয়েছে', 'Link copied') : APK_URL) }

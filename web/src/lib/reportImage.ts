@@ -50,7 +50,7 @@ export async function reportCanvas(sheet: Sheet, row: CenterRow, cats: Category[
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H)
 
   // header
-  g.fillStyle = '#15803D'; g.font = font(24, true); g.fillText('XZM-TEAM · দৈনিক রিপোর্ট শীট', pad, pad + 24)
+  g.fillStyle = '#15803D'; g.font = font(24, true); g.fillText('XZM TEAM · দৈনিক রিপোর্ট শীট', pad, pad + 24)
   g.fillStyle = '#111827'; g.font = font(40, true); g.fillText(`${row.name}`, pad, pad + 76)
   g.textAlign = 'right'; g.font = font(24, true); g.fillText(dateBn(sheet.session.account_date), W - pad, pad + 30)
   g.font = font(18); g.fillStyle = '#4b5563'

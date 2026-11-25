@@ -229,7 +229,7 @@ export function MainSheet() {
       ['খরচ', '', ''], ...sh.expenses.map(x => [`${x.expense_name} (${cats.get(x.category) ?? x.category})`, x.amount, [x.employee_name, x.bill_no, x.voucher_no, x.reference_no].filter(Boolean).join(' · ')]),
       ['পেমেন্ট', '', ''], ...sh.merchant_payments.map(m => [`${m.merchant_name} ${m.payment_ref ?? ''}`.trim(), m.amount, m.transaction_id ?? '']),
       ['ব্যাংক ডিপোজিট', '', ''], ...deposits.map(d => [`${d.bank_name ?? d.method} ${d.ref_no ?? ''}`.trim(), d.amount, `চার্জ ${d.charge} · যাতায়াত ${d.transport}`])]
-    download(xlsxBlob(`XZM-TEAM — ডেইলি হিসাবের খাতা · ${sh.hub.name}`, `${se.account_date} · হিসাব নং ${se.no}`, ['বিবরণ', 'টাকা', 'নোট'], rows), `${title}.xlsx`)
+    download(xlsxBlob(`XZM TEAM — ডেইলি হিসাবের খাতা · ${sh.hub.name}`, `${se.account_date} · হিসাব নং ${se.no}`, ['বিবরণ', 'টাকা', 'নোট'], rows), `${title}.xlsx`)
   }
 
   return <AccountsShell title={`ডেইলি হিসাবের খাতা · ${s.hub.name}`} subtitle={`${dateBn(se.account_date)} · হিসাব নং ${num(se.no)}`}

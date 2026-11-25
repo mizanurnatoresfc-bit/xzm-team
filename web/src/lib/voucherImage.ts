@@ -30,7 +30,7 @@ export async function voucherCanvas(v: VoucherData, cat: Category | undefined): 
   const font = (size: number, bold = false) => `${bold ? '700 ' : ''}${size}px "Hind Siliguri", "Noto Sans Bengali", system-ui, sans-serif`
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H)
   g.strokeStyle = '#1f2937'; g.lineWidth = 2; g.strokeRect(pad / 2, pad / 2, W - pad, H - pad)
-  g.fillStyle = '#15803D'; g.font = font(30, true); g.fillText('XZM-TEAM', pad, pad + 40)
+  g.fillStyle = '#15803D'; g.font = font(30, true); g.fillText('XZM TEAM', pad, pad + 40)
   g.fillStyle = '#111827'; g.font = font(26, true); g.textAlign = 'right'; g.fillText('খরচের ভাউচার', W - pad, pad + 40)
   g.font = font(17); g.fillStyle = '#4b5563'; g.fillText(`তৈরি করেছেন ${v.made_by ?? ''}`, W - pad, pad + 70); g.textAlign = 'left'
   g.fillText(`${v.hub}${v.hub_code ? ` (${v.hub_code})` : ''}`, pad, pad + 70)

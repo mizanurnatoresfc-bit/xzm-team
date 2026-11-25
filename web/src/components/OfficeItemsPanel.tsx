@@ -60,14 +60,14 @@ export function OfficeItemsPanel() {
       const title = L('অফিসের জিনিসপত্র — নষ্ট ও লাগবে', 'Office items — broken and needed')
       const heads = ['S/L', L('অফিস', 'Office'), L('ধরন', 'Kind'), L('নাম', 'Name'), L('সংখ্যা', 'Qty'), L('অবস্থা', 'Status')]
       const box = document.createElement('div'); box.id = 'print-box'
-      box.innerHTML = `<h2 style="margin:0">XZM-TEAM — ${esc(title)}</h2>
+      box.innerHTML = `<h2 style="margin:0">XZM TEAM — ${esc(title)}</h2>
         <p style="margin:2px 0 4px">${esc(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' }))}${pdf ? ' · ' + esc(L('প্রিন্ট উইন্ডোতে “Save as PDF” বেছে নিন', 'choose “Save as PDF” in the print window')) : ''}</p>
         <p style="margin:0 0 10px"><b>${esc(L('ভালো', 'Good'))}: ${esc(n(v?.good ?? 0))} · ${esc(L('নষ্ট', 'Broken'))}: ${esc(n(v?.bad ?? 0))} · ${esc(L('লাগবে', 'Needed'))}: ${esc(n(v?.need ?? 0))}</b></p>
         ${lines.length ? `<table><thead><tr>${heads.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${lines.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(place[r.property_id] ?? '—')}</td>
           <td>${esc(r.kind ? L(ASSET_KIND[r.kind]?.[0] ?? r.kind, ASSET_KIND[r.kind]?.[1] ?? r.kind) : '—')}</td><td>${esc(r.name)}</td><td>${esc(n(r.quantity))}</td><td>${esc(r.state)}</td></tr>`).join('')}</tbody></table>`
           : `<p>${esc(L('নষ্ট বা লাগবে — কিছুই নেই।', 'Nothing is broken or needed.'))}</p>`}`
       const host = document.querySelector('.app-main') ?? document.body; host.appendChild(box); document.body.classList.add('print-list')
-      const old = document.title; document.title = `XZM-TEAM-${title}`
+      const old = document.title; document.title = `XZM TEAM — ${title}`
       const done = () => { box.remove(); document.body.classList.remove('print-list'); document.title = old; window.removeEventListener('afterprint', done) }
       window.addEventListener('afterprint', done); setTimeout(() => window.print(), 50)
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy(false) }

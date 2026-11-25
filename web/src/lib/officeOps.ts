@@ -107,7 +107,7 @@ export function contractDraft(p: Property, hubName: string | null, rooms: { offi
   return `বাড়ি / ঘর ভাড়ার চুক্তিপত্র
 
 প্রথম পক্ষ (মালিক): ${p.owner_name || '..............'}, মোবাইল: ${p.owner_phone ? bnDigits(p.owner_phone) : '..............'}
-দ্বিতীয় পক্ষ (ভাড়াটিয়া): XZM-TEAM${hubName ? ` — ${hubName}` : ''}
+দ্বিতীয় পক্ষ (ভাড়াটিয়া): XZM TEAM${hubName ? ` — ${hubName}` : ''}
 
 ভাড়ার জায়গা: ${p.address || '..............'}${p.floor_note ? `, ${p.floor_note}` : ''}
 বিবরণ: অফিস রুম ${bnDigits(rooms.office)}টি, থাকার রুম ${bnDigits(rooms.living)}টি, অন্যান্য (রান্নাঘর, বাথরুম, গ্যারেজ, স্টোর) ${bnDigits(rooms.other)}টি।
@@ -148,7 +148,7 @@ export function memoHtml(b: Bill, p: Property, hubName: string | null, words: st
   const row = (a: string, v: string) => `<tr><th>${a}</th><td>${v}</td></tr>`
   const amount = '৳ ' + bnDigits(Number(b.amount).toLocaleString('en-US', { minimumFractionDigits: 2 }))
   const copy = (label: string) => `<div class="vch">
-    <div class="vch-head"><div><b>XZM-TEAM</b><div class="s">${esc(hubName ?? '')}${hubName ? ' · ' : ''}${esc(p.name)}</div></div>
+    <div class="vch-head"><div><b>XZM TEAM</b><div class="s">${esc(hubName ?? '')}${hubName ? ' · ' : ''}${esc(p.name)}</div></div>
       <div class="r"><b>${esc(BILL_KIND[b.kind][0])} — মেমো</b><div class="s">${label}</div></div></div>
     <table class="vch-t">
       ${row('মেমো নম্বর', `<b>${esc(b.memo_no ?? '—')}</b>`)}
