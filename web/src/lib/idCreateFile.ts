@@ -13,6 +13,7 @@ export const ID_CREATE_COLUMNS: SheetCol[] = [
   { head: 'Date Of Birth', src: 'emp:date_of_birth' }, { head: 'Permament Address', src: 'emp:permanent_address|emp:present_address', w: 20.7 },
   { head: 'Raferance Name & ID', src: 'ref', w: 21.4 }, { head: 'NID/ Birth Certificate Number', src: 'emp:nid_number', w: 25.6 },
   { head: 'Employee Picture', src: 'doc:photo', w: 21.3 }, { head: 'NID Front Picture', src: 'doc:nid_front', w: 19.7 }, { head: 'NID Back Picture', src: 'doc:nid_back', w: 23.7 },
+  { head: 'Birth Certificate Picture', src: 'doc:birth_certificate', w: 25 },
   { head: 'Basic', src: 'emp:basic_salary' }, { head: 'Phn bill', src: B }, { head: 'Conveyance', src: 'emp:transport_allowance' }, { head: 'Commission', src: 'emp:commission' },
   { head: 'Pick & Drop', src: B }, { head: 'Return', src: B }, { head: 'Weight Bonus', src: B, w: 18.7 }, { head: 'Entry Com.', src: B }, { head: 'Reason', src: B }, { head: 'Remarks', src: B }]
 type Layout = Pick<CompanySheet, 'name' | 'source' | 'kind' | 'format_id' | 'title' | 'title_at' | 'columns' | 'file_name'>
