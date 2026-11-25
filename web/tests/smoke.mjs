@@ -940,7 +940,8 @@ try {
       const scope = page.getByRole('navigation', { name: 'জায়গার ধরন' })
       await scope.getByRole('link', { name: 'আবাসিক', exact: true }).click()
       await page.waitForURL('**/app/office/residential/places')
-      await page.waitForSelector('.panel h2')
+      await scope.locator('a[aria-current="location"][href="/app/office/residential/places"]').waitFor()
+      await page.locator('main').getByText('Staff Mess A').first().waitFor()
       check(await scope.getByRole('link', { name: 'আবাসিক', exact: true }).getAttribute('aria-current') === 'location'
         && (await scope.getByRole('link', { name: 'অফিস', exact: true }).getAttribute('href')) === '/app/office/places',
         `${size}: changing the property type preserves the section and updates the selected scope`)
@@ -1012,7 +1013,8 @@ try {
         for (const path of pages) {
           await page.goto(`${BASE}${path}`); await page.waitForSelector('.hub-tabs', { timeout: 8000 }).catch(() => {})
           await page.waitForTimeout(150)
-          const ok = await page.locator('.hub-tabs a.on').count() === 1 && await page.locator('main.crash, .da-error').count() === 0
+          const ok = await page.locator('.hub-tabs a[aria-current="location"]').count() === 1
+            && await page.locator('.hub-tabs a[aria-current="page"]').count() === 1 && await page.locator('main.crash, .da-error').count() === 0
             && await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)
           if (!ok) bad.push(path)
           if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}${path.replaceAll('/', '-')}.png`, fullPage: true })
