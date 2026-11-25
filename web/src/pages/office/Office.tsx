@@ -16,6 +16,7 @@ import {
 } from '../../lib/office'
 import { ResidentialOverview } from './Residential'
 import { askText, askWith } from './askText'
+import { DeskSets } from './DeskSets'
 import { HistoryModal } from './History'
 import { Reports } from './Reports'
 import { useOfficeOutput } from './useOutput'
@@ -109,7 +110,7 @@ function Body({ sec, ctx }: { sec: Sec; ctx: Ctx }) {
     case 'overview': return <Overview ctx={ctx} />
     case 'rooms': return <Rooms ctx={ctx} />
     case 'desks': return <Desks ctx={ctx} />
-    case 'assets': return <Assets ctx={ctx} />
+    case 'assets': return <><DeskSets key={ctx.p.id} ctx={ctx} /><Assets ctx={ctx} /></>
     case 'rent': return <Rent ctx={ctx} />
     case 'bills': return <Bills ctx={ctx} />
     case 'power': return <Power ctx={ctx} />
@@ -453,10 +454,10 @@ function Desks({ ctx }: { ctx: Ctx }) {
   const next = ctx.desks.length + 1
   return <section className="panel">{node}
     <div className="da-bar"><h2>{L('ডেস্ক ও দায়িত্ব', 'Desks & responsibility')} <span className="count-pill">{n(ctx.desks.length)}</span></h2>
-      {edit && <button onClick={() => { setErr(''); setF({ code: '', name: L(`ডেস্ক ${n(next)}`, `Desk ${next}`), room: ctx.rooms.find(r => r.kind === 'office_room')?.id ?? '', resp: null, duty: '', note: '', defaults: true }) }}>
+      {edit && <button onClick={() => { setErr(''); setF({ code: '', name: L(`ডেস্ক ${n(next)}`, `Desk ${next}`), room: ctx.rooms.find(r => r.kind === 'office_room')?.id ?? '', resp: null, duty: '', note: '', defaults: false }) }}>
         <Icon name="plus" size={15} />{L('ডেস্ক যোগ', 'Add desk')}</button>}</div>
     {err && !f && <p className="da-error">{err}</p>}
-    {!ctx.desks.length ? <p className="muted">{L('ডেস্ক যোগ করলে মনিটর, পিসি, কিবোর্ড, মাউস, জি-প্রিন্টার একসাথে যোগ হবে, আর কে দায়িত্বে তা দেবেন।', 'Adding a desk adds monitor, PC, keyboard, mouse and G-printer, and you name who is responsible.')}</p> :
+    {!ctx.desks.length ? <p className="muted">{L('ডেস্ক যোগ করুন। তারপর সম্পদ ট্যাব থেকে ডেস্ক সেট বরাদ্দ করতে পারবেন।', 'Add a desk, then assign a desk set from the Assets tab.')}</p> :
       <div className="route-cards">{ctx.desks.map(d => { const items = ctx.assets.filter(a => a.desk_id === d.id)
         return <article key={d.id} className="route-card">
           <header><span className="ti"><Icon name="table" size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{d.name}</b>
