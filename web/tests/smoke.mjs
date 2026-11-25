@@ -938,7 +938,7 @@ try {
       { const c = flowCalls.filter(x => x.fn === 'wf_morning_return').at(-1) ?? {}
         check(c.p_hub === 'h1' && c.p_reason === 'আলামিন এসেছে', `${size}: sending back needs a written reason and goes with it`) } }
     await page.goto(`${BASE}/app/attendance?view=hub&hub=h1&tab=morning`)
-    const returnedMorningInput = page.getByText(/জোনাল ম্যানেজার ফেরত পাঠিয়েছেন/).filter({ hasText: 'আলামিন এসেছে' })
+    const returnedMorningInput = page.locator('.wm-note', { hasText: 'আলামিন এসেছে' })
     await returnedMorningInput.waitFor()
     check(await page.locator('.mo-table select').count() === 2, `${size}: the hub manager sees the return reason and can edit the reopened input`)
     await page.goto(`${BASE}/app/attendance?view=zone&tab=setting`); await page.waitForSelector('input[type=time]', { timeout: 10000 }).catch(() => {})
