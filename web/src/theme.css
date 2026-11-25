@@ -1,7 +1,8 @@
 /* ============ XZM-TEAM design system (same look as the HTML demo) ============
    Loaded last: colours come from CSS variables so light and dark mode both work. */
 :root{
-  --primary:#0F7A3D;--primary-dark:#0A4D27;--primary-50:#E8F5EE;--on-primary:#FFFFFF;
+  /* Flight Hub brand palette — see /public/logo.svg */
+  --primary:#16A34A;--primary-dark:#15803D;--primary-50:#DCFCE7;--on-primary:#FFFFFF;
   --canvas:#F4F7F5;--surface:#FFFFFF;--text:#0F172A;--muted:#475569;--border:#DDE5E0;
   --ok-fg:#166534;--ok-bg:#DCFCE7;--warn-fg:#92400E;--warn-bg:#FEF3C7;--bad-fg:#B91C1C;--bad-bg:#FEE2E2;--info-fg:#1D4ED8;--info-bg:#DBEAFE;
   --side:#FFFFFF;--side-fg:#1F2937;--side-muted:#6B7280;--row-hover:#F0F7F3;--th:#F8FAF9;

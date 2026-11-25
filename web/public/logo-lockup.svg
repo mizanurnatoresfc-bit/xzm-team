@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" width="900" height="220">
+  <title>XZM TEAM — Horizontal Lockup</title>
+  <g transform="translate(30,30)">
+    <rect width="160" height="160" rx="36" fill="#16A34A"/>
+    <g transform="scale(0.3125)">
+      <path d="M 100 410 Q 180 320 256 256 Q 332 192 410 110" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-dasharray="3 14" opacity="0.4"/>
+      <g stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" fill="none">
+        <line x1="160" y1="160" x2="352" y2="352"/>
+        <line x1="352" y1="160" x2="160" y2="352"/>
+      </g>
+      <circle cx="130" cy="130" r="22" fill="#0F172A"/>
+      <circle cx="382" cy="130" r="22" fill="#0F172A"/>
+      <circle cx="130" cy="382" r="22" fill="#0F172A"/>
+      <circle cx="382" cy="382" r="22" fill="#0F172A"/>
+      <circle cx="256" cy="256" r="34" fill="#0F172A"/>
+      <circle cx="256" cy="256" r="14" fill="#FFFFFF"/>
+      <polygon points="398,80 456,96 428,138" fill="#0F172A"/>
+    </g>
+  </g>
+  <g transform="translate(220,0)" font-family="'Inter','Segoe UI',sans-serif">
+    <text x="0" y="128" font-size="84" font-weight="800" fill="#0F172A" letter-spacing="2">XZM<tspan fill="#16A34A">·</tspan>TEAM</text>
+    <text x="4" y="172" font-size="22" font-weight="500" fill="#475569" letter-spacing="8">COURIER OPERATIONS</text>
+  </g>
+</svg>

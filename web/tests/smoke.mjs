@@ -639,6 +639,33 @@ try {
     await page.waitForFunction(n => document.querySelectorAll('aside .nl').length === n, before, { timeout: 5000 }).catch(() => {})
     check(await menu() === before, `${size}: leaving the role view restores the menu`)
 
+    // Settings should show scoped controls, even when a lower role holds unrelated setup grants.
+    await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.font-pick')
+    const settingsLink = (path) => page.locator(`main a[href="${path}"]`)
+    const zoneTimeLink = '/app/attendance?view=zone&tab=setting'
+    check(await settingsLink('/app/users').count() === 1 && await settingsLink(zoneTimeLink).count() === 1,
+      `${size}: Super Admin gets system setup and zonal attendance times`)
+    try {
+      permsNow = ['hr.attendance.self', 'org.hub.view', 'hr.duty.view']
+      await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.font-pick')
+      check(await settingsLink('/app/me/permissions').count() === 1 && await settingsLink('/app/org/hubs').count() === 0
+        && await settingsLink('/app/hr/duties').count() === 0 && await settingsLink(zoneTimeLink).count() === 0,
+        `${size}: staff Settings shows personal links and omits setup`)
+      permsNow = ['hr.attendance.view', 'hr.attendance.create', 'org.hub.view', 'hr.duty.view', 'da.settings.configure']
+      await page.goto(`${BASE}/app/settings`)
+      await page.getByText(/পরদিন দৈনিক হাজিরা খাতা জমা|Next-day attendance register/).waitFor()
+      check(await settingsLink('/app/org/hubs').count() === 1 && await settingsLink('/app/hr/duties').count() === 1
+        && await settingsLink('/app/accounts/settings').count() === 0 && await settingsLink(zoneTimeLink).count() === 0,
+        `${size}: Hub Manager sees hub setup links and read-only attendance times`)
+      permsNow = ['zonal.dashboard.view', 'hr.attendance.configure', 'system.user.view', 'da.settings.configure']
+      await page.goto(`${BASE}/app/settings`); await page.waitForSelector('.font-pick')
+      check(await settingsLink(zoneTimeLink).count() === 1 && await settingsLink('/app/accounts/settings').count() === 1
+        && await settingsLink('/app/users').count() === 0 && await settingsLink('/app/hr/import').count() === 0,
+        `${size}: Zonal Manager gets attendance times and delegated setup links`)
+    } finally {
+      permsNow = null
+    }
+
     // the shared list: search, sort, filter, pages, views, remembered choice
     await page.goto(`${BASE}/app/zonal/files`)
     await page.locator('.emp-tabs button').nth(1).click(); await page.waitForSelector('.da-table tbody tr')

@@ -4,7 +4,7 @@
 import { isNativeApp } from './native'
 
 export const BUILD_ID = __BUILD_ID__
-export type ApkInfo = { build: number; version: string; url: string; at?: string; notes?: string }
+export type ApkInfo = { build: number; version: string; url: string; at?: string; notes?: string; reinstallThrough?: number }
 type CapApp = { getInfo?: () => Promise<{ build: string; version: string }> }
 type CapBrowser = { open: (o: { url: string }) => Promise<void> }
 const plugins = () => (window as unknown as { Capacitor?: { Plugins?: { App?: CapApp; Browser?: CapBrowser } } }).Capacitor?.Plugins
@@ -30,12 +30,21 @@ export async function installedApk(): Promise<{ build: number; version: string }
   try { const i = await plugins()?.App?.getInfo?.(); return i ? { build: Number(i.build) || 0, version: i.version } : null } catch { return null }
 }
 
+export function requiresApkReinstall(apk: ApkInfo, installedBuild: number): boolean {
+  return installedBuild > 0 && apk.build > installedBuild &&
+    typeof apk.reinstallThrough === 'number' && installedBuild <= apk.reinstallThrough
+}
+
+export const APK_REINSTALL_MESSAGE = 'নতুন APK আগে ডাউনলোড করুন। তারপর পুরোনো অ্যাপ একবার সরিয়ে ফোনের Downloads থেকে নতুন APK ইনস্টল করুন।'
+
 /** A newer Android app to download, if there is one. */
-export async function newerApk(): Promise<ApkInfo | null> {
+export async function newerApk(): Promise<(ApkInfo & { requiresReinstall: boolean }) | null> {
   const mine = await installedApk()
   if (!mine) return null
   const apk = await fresh<ApkInfo>('/download/apk.json')
-  return apk && apk.build > mine.build ? apk : null
+  return apk && apk.build > mine.build
+    ? { ...apk, requiresReinstall: requiresApkReinstall(apk, mine.build) }
+    : null
 }
 
 export async function apkInfo(): Promise<ApkInfo | null> { return fresh<ApkInfo>('/download/apk.json') }

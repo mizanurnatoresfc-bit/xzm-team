@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BUILD_ID, applyPages, apkInfo, downloadApk, installedApk, newerPages, type ApkInfo } from '../lib/update'
+import { APK_REINSTALL_MESSAGE, BUILD_ID, applyPages, apkInfo, downloadApk, installedApk, newerPages, requiresApkReinstall, type ApkInfo } from '../lib/update'
 import { isNativeApp } from '../lib/native'
 import { Icon } from './Icon'
 
@@ -23,6 +23,7 @@ export function AppUpdate() {
       {apk && <div><span>সর্বশেষ অ্যাপ</span><b>{apk.version}</b></div>}
     </div>
     {state === 'latest' && !apkNew && <p className="da-ok small">সব আপডেট আছে — নতুন কিছু নেই।</p>}
+    {mine && apk && requiresApkReinstall(apk, mine.build) && <p className="small" role="status">{APK_REINSTALL_MESSAGE}</p>}
     <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
       {state === 'pages' ? <button onClick={applyPages}><Icon name="upload" size={16} />নতুন আপডেট — এখনই আপডেট করুন</button>
         : <button className="secondary" disabled={state === 'checking'} onClick={() => void check()}>{state === 'checking' ? 'খোঁজা হচ্ছে…' : 'আপডেট আছে কিনা দেখুন'}</button>}
