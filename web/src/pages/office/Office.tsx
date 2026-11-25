@@ -11,7 +11,7 @@ import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import {
-  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, DIR_GRID, inScope, office, OFFICE_PARTS, PLACE_KIND, RESIDENTIAL_PARTS, ROOM_DEFAULT, ROOM_KIND, scopePath,
+  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, inScope, office, OFFICE_PARTS, PLACE_KIND, RESIDENTIAL_PARTS, ROOM_DEFAULT, ROOM_KIND, scopePath,
   type Asset, type OfficeScope, type OfficeSec, type Desk, type PlaceKind, type Property, type Room,
 } from '../../lib/office'
 import { ResidentialOverview } from './Residential'
@@ -22,7 +22,6 @@ import { useOfficeOutput } from './useOutput'
 import { POWER } from '../../lib/officeOps'
 import { Bills, LendModal, NoticeModal, Notices, People, Power, Rent, roomSplit, Security, useLoans, Zone, type Ctx } from './OfficeOps'
 import { useOrg } from '../hr/common'
-import { RealOffice } from './OfficeReal'
 import { EmpPicker, empLabel } from '../sorting/Sorting'
 
 type Sec = OfficeSec
@@ -126,11 +125,10 @@ function Body({ sec, ctx }: { sec: Sec; ctx: Ctx }) {
 // ---------------------------------------------------------------- overview: visual layout + checks
 function Overview({ ctx }: { ctx: Ctx }) {
   const { L, n } = usePrefs()
+  const { can, menu, menuUnavailable } = useAuth()
   const floors = [...new Set(ctx.rooms.map(r => r.floor))].sort((a, b) => a - b)
   const [floor, setFloor] = useState<number | null>(null)
-  const [mode, setModeRaw] = useState<'map' | 'real'>(() => { try { return localStorage.getItem('office.view') === 'map' ? 'map' : 'real' } catch { return 'real' } })
-  const setMode = (m: 'map' | 'real') => { setModeRaw(m); try { localStorage.setItem('office.view', m) } catch { /* private window */ } }
-  const fl = floor ?? floors[0] ?? 1
+  const fl = floor !== null && floors.includes(floor) ? floor : floors[0] ?? 1
   const inFloor = ctx.rooms.filter(r => r.floor === fl)
   const itemsOf = (room: string) => ctx.assets.filter(a => a.room_id === room && !a.desk_id)
   const desksOf = (room: string) => ctx.desks.filter(d => d.room_id === room)
@@ -164,34 +162,18 @@ function Overview({ ctx }: { ctx: Ctx }) {
       <Stat icon="alert" tone={bad.length ? 'warn' : 'ok'} label={L('মেরামত / নষ্ট / হারানো', 'Repair / broken / lost')} value={n(bad.length)} />
     </div>
     <section className="panel">
-      <div className="da-bar"><h2>{L('অফিসের নকশা (দিক অনুযায়ী)', 'Layout by direction')}</h2>
+      <div className="da-bar"><h2>{L('কক্ষের তালিকা', 'Room list')}</h2>
         <span className="row-acts">
           {floors.length > 1 && <span className="da-seg">{floors.map(f => <button key={f} className={f === fl ? 'sm' : 'secondary sm'} onClick={() => setFloor(f)}>{L(`${n(f)} তলা`, `Floor ${f}`)}</button>)}</span>}
-          {ctx.rooms.length > 0 && <span className="ofm-mode" role="tablist" aria-label={L('দেখার ধরন', 'View')}>
-            <button type="button" role="tab" aria-selected={mode === 'real'} className={mode === 'real' ? 'on' : ''} onClick={() => setMode('real')}>{L('বাস্তব মোড', 'Realistic')}</button>
-            <button type="button" role="tab" aria-selected={mode === 'map'} className={mode === 'map' ? 'on' : ''} onClick={() => setMode('map')}>{L('দিক-ম্যাপ', 'Direction map')}</button></span>}</span></div>
-      {!ctx.rooms.length ? <p className="muted">{L('রুম যোগ করলে এখানে দিক অনুযায়ী নকশা দেখাবে।', 'Add rooms to see the layout here.')} <Link to={scopePath(ctx.p.kind === 'residence' ? 'residential' : 'office', 'rooms')}>{L('রুম যোগ করুন →', 'Add rooms →')}</Link></p> : mode === 'real' ? <RealOffice ctx={ctx} rooms={inFloor} /> : <>
-        <p className="ofm-help"><Icon name="map" size={15} /><span>{L('উপরের দিক উত্তর ধরে আঁকা — যেমন ম্যাপে থাকে। প্রতিটা খোপ বাড়ির একটা দিক; রুমে চাপলে নিচে তার বিস্তারিত দেখাবে।', 'Drawn with north at the top, like a map. Each box is one side of the building; tap a room to see its details below.')}
-          {ctx.p.front_direction ? <> {L(`সবুজ দাগের খোপটা সামনের দিক (${DIR[ctx.p.front_direction]?.[0] ?? ''}) — ঢোকার দরজা।`, `The green box is the front (${DIR[ctx.p.front_direction]?.[1] ?? ''}) — the entrance.`)}</> : null}</span></p>
-        <div className="ofm">
-          <span className="ofm-c n">{L('উত্তর', 'N')}</span><span className="ofm-c s">{L('দক্ষিণ', 'S')}</span>
-          <span className="ofm-c w">{L('পশ্চিম', 'W')}</span><span className="ofm-c e">{L('পূর্ব', 'E')}</span>
-          <div className="ofm-grid">{DIR_GRID.map(d => { const rs = inFloor.filter(r => r.direction === d); const front = ctx.p.front_direction === d
-            return <div key={d} className={`ofm-cell${rs.length ? '' : ' empty'}${front ? ' front' : ''}`}>
-              <span className="ofm-dir">{L(DIR[d][0], DIR[d][1])}</span>
-              {rs.map(r => { const broken = ctx.assets.some(a => a.room_id === r.id && a.condition !== 'good')
-                return <a key={r.id} href={`#room-${r.id}`} className={`ofm-room k-${r.kind}`} title={L(ROOM_KIND[r.kind]?.[0] ?? '', ROOM_KIND[r.kind]?.[1] ?? '')}>
-                  <Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={14} /><span>{r.name}</span>{broken && <i className="ofm-dot" aria-label={L('নষ্ট জিনিস আছে', 'Has broken items')} />}</a> })}
-              {front && <span className="ofm-door">{L('সামনে · দরজা', 'Front · door')}</span>}
-            </div> })}</div>
-        </div>
-        <div className="ofm-legend">{[...new Set(inFloor.map(r => r.kind))].map(k => <span key={k} className={`k-${k}`}><i />{L(ROOM_KIND[k]?.[0] ?? k, ROOM_KIND[k]?.[1] ?? k)}</span>)}
-          {inFloor.some(r => ctx.assets.some(a => a.room_id === r.id && a.condition !== 'good')) && <span className="bad"><i />{L('নষ্ট / মেরামত দরকার', 'Broken / needs repair')}</span>}</div>
-
-        <div className="ofm-cards">{DIR_GRID.flatMap(d => inFloor.filter(r => r.direction === d)).map(r => { const items = itemsOf(r.id); const desks = desksOf(r.id)
+          {can('office.property.view') && pageLinkAllowed('/app/office/rooms', { can, menu, menuUnavailable }) && <Link className="secondary sm" to="/app/office/rooms">{L('কক্ষ খুলুন', 'Open rooms')}</Link>}
+        </span>
+      </div>
+      <p className="muted">{L(`${n(inFloor.filter(r => r.kind === 'room' || r.kind === 'office_room').length)} রুম · ${n(inFloor.filter(r => r.kind === 'kitchen').length)} রান্নাঘর · ${n(inFloor.filter(r => r.kind === 'bathroom').length)} বাথরুম`,
+        `${inFloor.filter(r => r.kind === 'room' || r.kind === 'office_room').length} rooms · ${inFloor.filter(r => r.kind === 'kitchen').length} kitchens · ${inFloor.filter(r => r.kind === 'bathroom').length} bathrooms`)}</p>
+      <div className="ofm-cards">{inFloor.map(r => { const items = itemsOf(r.id); const desks = desksOf(r.id)
           return <article key={r.id} id={`room-${r.id}`} className={`ofm-card k-${r.kind}`}>
             <header><span className="ofm-ic"><Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={18} /></span>
-              <span className="tx"><b>{r.name}</b><small>{L(ROOM_KIND[r.kind]?.[0] ?? '', ROOM_KIND[r.kind]?.[1] ?? '')} · {L(DIR[r.direction]?.[0] ?? '', DIR[r.direction]?.[1] ?? '')}</small></span></header>
+              <span className="tx"><b>{r.name}</b><small>{L(ROOM_KIND[r.kind]?.[0] ?? '', ROOM_KIND[r.kind]?.[1] ?? '')}</small></span></header>
             <div className="ofm-who"><Icon name="user" size={13} />{r.responsible_id ? ctx.emp[r.responsible_id]?.full_name ?? '—' : <span className="muted">{L('দায়িত্বে কেউ নেই', 'Nobody responsible')}</span>}</div>
             {items.length > 0 && <div className="ofm-items">{items.map(a => <span key={a.id} className={a.condition !== 'good' ? 'bad' : ''}>{ASSET_KIND[a.kind]?.[0] ?? a.name}{a.quantity > 1 ? ` ×${n(a.quantity)}` : ''}</span>)}</div>}
             {desks.length > 0 && <ul className="ofm-desks">{desks.map(dk => <li key={dk.id}><Icon name="table" size={13} /><b>{dk.name}</b>
@@ -200,7 +182,6 @@ function Overview({ ctx }: { ctx: Ctx }) {
             {!items.length && !desks.length && <small className="muted">{L('এই রুমে কোনো জিনিস লেখা নেই', 'Nothing listed in this room')}</small>}
           </article> })}</div>
         {ctx.desks.some(d => !d.room_id) && <p className="muted small">{L('রুম ছাড়া ডেস্ক', 'Desks without a room')}: {ctx.desks.filter(d => !d.room_id).map(d => d.name).join(', ')}</p>}
-      </>}
     </section>
     <section className="panel">
       <h2>{L('যা চোখে পড়ার মতো', 'Worth a look')} <span className="count-pill">{n(checks.length)}</span></h2>
@@ -338,12 +319,21 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
 }
 
 // ---------------------------------------------------------------- rooms
+const ROOM_COUNT_KINDS = ['room', 'kitchen', 'bathroom'] as const
+
 function Rooms({ ctx }: { ctx: Ctx }) {
   const { can } = useAuth()
   const { L, n } = usePrefs()
   const { toast, node } = useToast()
   type F = { id?: string; name: string; kind: string; direction: string; floor: string; resp: EmpLite | null; note: string; defaults: boolean }
   const [f, setF] = useState<F | null>(null)
+  const [counts, setCounts] = useState({ room: '', kitchen: '', bathroom: '' })
+  const [batchFloor, setBatchFloor] = useState('1')
+  const [batchOpen, setBatchOpen] = useState(false)
+  const normalized = ROOM_COUNT_KINDS.map(kind => Number(counts[kind]))
+  const total = normalized.reduce((sum, count) => sum + count, 0)
+  const validBatch = total > 0 && normalized.every(count => Number.isInteger(count) && count >= 0 && count <= 99)
+    && batchFloor.trim() !== '' && Number.isInteger(Number(batchFloor)) && Math.abs(Number(batchFloor)) <= 2147483647
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const edit = can('office.property.edit') || can('office.property.create')
   async function save() {
@@ -357,19 +347,46 @@ function Rooms({ ctx }: { ctx: Ctx }) {
       setF(null); await ctx.reload(); toast(L('সেভ হয়েছে', 'Saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
+  async function createRooms() {
+    if (!edit || busy || !validBatch) return
+    setBusy(true); setErr('')
+    const usedNames = new Set(ctx.rooms.map(room => room.name))
+    const rows = ROOM_COUNT_KINDS.flatMap((kind, index) => {
+      const [bn, en] = ROOM_KIND[kind]
+      let number = 0
+      return Array.from({ length: normalized[index] }, () => {
+        let name: string
+        do {
+          number += 1
+          name = L(`${bn} ${n(number)}`, `${en} ${number}`)
+        } while (usedNames.has(name))
+        usedNames.add(name)
+        return { property_id: ctx.p.id, kind, name, floor: Number(batchFloor) }
+      })
+    })
+    try {
+      await office.addRooms(rows)
+      setBatchOpen(false); await ctx.reload()
+      toast(L(`${n(total)}টি কক্ষ তৈরি হয়েছে`, `${total} rooms created`))
+    } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
+  }
   async function remove(r: Room) {
     const why = await askWith(L)(L(`"${r.name}" সরানোর কারণ`, `Why remove "${r.name}"?`)); if (!why) return
     try { await office.archiveRoom(r.id, why); await ctx.reload() } catch (e) { setErr(hrFriendly(e)) }
   }
   return <section className="panel">{node}
-    <div className="da-bar"><h2>{L('ফ্ল্যাটের বিবরণ', 'Flat details')} <span className="count-pill">{n(ctx.rooms.length)}</span></h2>
-      {edit && <button onClick={() => { setErr(''); setF({ name: '', kind: 'room', direction: 'c', floor: '1', resp: null, note: '', defaults: true }) }}><Icon name="plus" size={15} />{L('রুম যোগ', 'Add room')}</button>}</div>
-    {err && !f && <p className="da-error">{err}</p>}
-    {!ctx.rooms.length ? <p className="muted">{L('গ্যারেজ, রুম, রান্নাঘর, বাথরুম, অফিস রুম — কোনটা কোন দিকে, যোগ করুন।', 'Add garage, rooms, kitchen, bathroom, office room — and which side each is on.')}</p> :
+    <div className="da-bar"><h2>{L('কক্ষের তালিকা', 'Room list')} <span className="count-pill">{n(ctx.rooms.length)}</span></h2>
+      {edit && <span className="row-acts">
+        <button disabled={busy} onClick={() => { setErr(''); setCounts({ room: '', kitchen: '', bathroom: '' }); setBatchFloor('1'); setBatchOpen(true) }}>
+          <Icon name="plus" size={15} />{L('সংখ্যা দিয়ে কক্ষ তৈরি', 'Create rooms by count')}
+        </button>
+        <button className="secondary" onClick={() => { setErr(''); setF({ name: '', kind: 'room', direction: 'c', floor: '1', resp: null, note: '', defaults: true }) }}><Icon name="plus" size={15} />{L('একটি কক্ষ যোগ', 'Add one room')}</button></span>}</div>
+    {err && !f && !batchOpen && <p className="da-error">{err}</p>}
+    {!ctx.rooms.length ? <p className="muted">{L('এখনো কোনো কক্ষ যোগ হয়নি।', 'No rooms have been added.')}</p> :
       <div className="route-cards">{ctx.rooms.map(r => { const items = ctx.assets.filter(a => a.room_id === r.id)
         return <article key={r.id} className="route-card">
           <header><span className="ti"><Icon name={ROOM_KIND[r.kind]?.[2] ?? 'form'} size={18} /></span><div style={{ flex: 1, minWidth: 0 }}><b>{r.name}</b>
-            <div className="muted small">{L(ROOM_KIND[r.kind]?.[0] ?? r.kind, ROOM_KIND[r.kind]?.[1] ?? r.kind)} · {L(DIR[r.direction][0], DIR[r.direction][1])} · {L(`${n(r.floor)} তলা`, `floor ${r.floor}`)}
+            <div className="muted small">{L(ROOM_KIND[r.kind]?.[0] ?? r.kind, ROOM_KIND[r.kind]?.[1] ?? r.kind)} · {L(`${n(r.floor)} তলা`, `floor ${r.floor}`)}
               {r.responsible_id && ` · ${ctx.emp[r.responsible_id]?.full_name ?? ''}`}</div></div>
             {edit && <span className="row-acts">
               <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, name: r.name, kind: r.kind, direction: r.direction, floor: String(r.floor), resp: r.responsible_id ? ctx.emp[r.responsible_id] ?? null : null, note: r.note ?? '', defaults: false }) }}><Icon name="edit" size={14} /></button>
@@ -378,14 +395,24 @@ function Rooms({ ctx }: { ctx: Ctx }) {
             : <span className="muted small">{L('কোনো জিনিস লেখা নেই', 'No items listed')}</span>}</div>
           {r.note && <div className="muted small">{r.note}</div>}
         </article> })}</div>}
+    {batchOpen && <Modal title={L('সংখ্যা দিয়ে কক্ষ তৈরি', 'Create rooms by count')} onClose={() => { if (!busy) setBatchOpen(false) }}
+      actions={<><button className="secondary" disabled={busy} onClick={() => setBatchOpen(false)}>{L('বাতিল', 'Cancel')}</button>
+        <button disabled={busy || !validBatch} onClick={() => void createRooms()}>{L(`${n(total)}টি কক্ষ তৈরি করুন`, `Create ${total} rooms`)}</button></>}>
+      <div className="hr-form">
+        {ROOM_COUNT_KINDS.map(kind => <Field key={kind} label={L(ROOM_KIND[kind][0], ROOM_KIND[kind][1])}>
+          <input type="number" inputMode="numeric" min={0} max={99} step={1} value={counts[kind]} disabled={busy}
+            onChange={e => setCounts({ ...counts, [kind]: e.target.value })} placeholder="0" />
+        </Field>)}
+        <Field label={L('তলা', 'Floor')}><input type="number" step={1} value={batchFloor} disabled={busy} onChange={e => setBatchFloor(e.target.value)} /></Field>
+      </div>
+      {err && <p className="da-error">{err}</p>}
+    </Modal>}
     {f && <Modal title={f.id ? L('রুম এডিট', 'Edit room') : L('রুম যোগ', 'Add room')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
         <Field label={L('ধরন', 'Kind')}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value, name: f.name || L(ROOM_KIND[e.target.value][0], ROOM_KIND[e.target.value][1]) })}>
           {Object.entries(ROOM_KIND).map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select></Field>
         <Field label={L('নাম', 'Name')}><input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={L('যেমন রুম ১', 'e.g. Room 1')} /></Field>
-        <Field label={L('কোন দিকে', 'Which side')}><select value={f.direction} onChange={e => setF({ ...f, direction: e.target.value })}>
-          {Object.entries(DIR).map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select></Field>
         <Field label={L('তলা', 'Floor')}><input inputMode="numeric" value={f.floor} onChange={e => setF({ ...f, floor: e.target.value })} /></Field>
         <EmpPicker label={L('দেখাশোনার দায়িত্বে (আইডি)', 'Looked after by (ID)')} value={f.resp} onPick={e => setF({ ...f, resp: e })} />
         <Field label={L('নোট', 'Note')}><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Field>

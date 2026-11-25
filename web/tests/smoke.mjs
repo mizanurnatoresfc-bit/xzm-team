@@ -1006,6 +1006,19 @@ try {
         check(chips === 4 && onlyFan && await page.locator('.oo-name').count() === 3 && await page.locator('.oo-help[open]').count() === 0
           && brokenAction > 0 && items.some(t => t.includes('আরও লাগবে')) && items.some(t => t.includes('এডিট')),
           `${size}: office resources — kind chips filter the list, help is folded, each item has one ⋮ menu`) }
+      await page.goto(`${BASE}/app/office/overview`)
+      await page.getByRole('link', { name: 'কক্ষ খুলুন', exact: true }).click()
+      await page.getByRole('button', { name: 'সংখ্যা দিয়ে কক্ষ তৈরি', exact: true }).click()
+      const roomForm = page.locator('.da-modal')
+      await roomForm.getByRole('spinbutton', { name: 'রুম', exact: true }).fill('2')
+      await roomForm.getByRole('spinbutton', { name: 'রান্নাঘর', exact: true }).fill('1')
+      await roomForm.getByRole('spinbutton', { name: 'বাথরুম', exact: true }).fill('1')
+      const roomWrite = page.waitForRequest(r => r.method() === 'POST' && r.url().includes('/rest/v1/office_rooms'))
+      await roomForm.getByRole('button', { name: '৪টি কক্ষ তৈরি করুন', exact: true }).click()
+      const rooms = (await roomWrite).postDataJSON()
+      check(rooms.map(r => r.kind).join() === 'room,room,kitchen,bathroom'
+        && new Set(rooms.map(r => r.name)).size === 4 && rooms.every(r => r.property_id === 'of1' && r.floor === 1),
+        `${size}: room counts create four named rooms for the selected office in one request`)
       // every office and residential page opens, shows its tabs, has no error box and fits the screen
       { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports'].map(k => `/app/office/${k}`),
           ...['overview', 'places', 'rooms', 'people', 'rent', 'bills', 'assets', 'reports', 'power', 'security', 'notices', 'desks'].map(k => `/app/office/residential/${k}`)]
