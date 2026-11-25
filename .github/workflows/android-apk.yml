@@ -1,14 +1,18 @@
-# Builds the Android app (APK) on GitHub's servers - no Android Studio needed on the PC.
-# Push = website only (fast). The APK is built only by hand: Actions -> this workflow -> Run workflow.
-# Runs on every push that changes the app, or by hand: Actions -> "Android APK" -> Run workflow.
-# Download: open the finished run -> "Artifacts" -> XZM-TEAM-apk (a zip with XZM-TEAM.apk inside).
-#
-# Supabase settings come from web/.env.production (public values). Repository variables
-# VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY, if set, take precedence.
+# Web changes deploy from main. Manual runs build a signed Android APK for testing.
+# The publish input also replaces the APK download on the live site when run on main.
 name: Android APK and site build
 
 on:
   workflow_dispatch:
+    inputs:
+      publish_apk:
+        description: Publish the tested Android release to the live website
+        type: boolean
+        default: false
+      replace_legacy_168:
+        description: First signed release only. Users on debug build 168 must reinstall
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -75,42 +79,71 @@ jobs:
           npx playwright install --with-deps chromium
           npm run test:smoke
 
-      # The Android app loads the live site, so page updates reach it without a new APK; the app offers "আপডেট করুন".
-      # A new APK is needed only when something on the phone side changes. It is built by hand (Run workflow),
-      # numbered with the run number, and published with the site under /download/, where the app finds it.
-      - name: Android project
+      - name: Prepare Android project
         if: github.event_name == 'workflow_dispatch'
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          # Without the Firebase file the push plugin is left out, so the app never calls Firebase uninitialised (that would crash it).
-          if [ -z "$GOOGLE_SERVICES_JSON" ]; then npm uninstall --no-audit --no-fund @capacitor/push-notifications; fi
+          if [ -z "$GOOGLE_SERVICES_JSON" ]; then
+            echo "::error::Configure GOOGLE_SERVICES_JSON for the Android release."
+            exit 1
+          fi
           if [ ! -d android ]; then npx cap add android; fi
           npx -y @capacitor/assets generate --android || echo "icons skipped"
           npx cap sync android
-          # Phone push: the Firebase file comes from the repository secret GOOGLE_SERVICES_JSON (set once by the owner).
-          # Without it the app builds as before, just without push.
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
-            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
-            node -e "JSON.parse(require('fs').readFileSync('android/app/google-services.json','utf8'))" || { echo "::error::GOOGLE_SERVICES_JSON is not valid JSON"; exit 1; }
-            echo "push: Firebase file added"
-          else
-            echo "push: no GOOGLE_SERVICES_JSON secret — building without push"
-          fi
-          # Android 13+: the app must declare that it may show notifications.
-          M=android/app/src/main/AndroidManifest.xml
-          grep -q POST_NOTIFICATIONS "$M" || sed -i 's#<application#<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <application#' "$M"
-          # the app's version: build number = this run, shown as 1.<run>
+          node <<'NODE'
+          const fs = require('node:fs');
+          const appId = require('./capacitor.config.json').appId;
+          const config = JSON.parse(process.env.GOOGLE_SERVICES_JSON);
+          if (!config.client?.some(client => client.client_info?.android_client_info?.package_name === appId)) {
+            throw new Error('Firebase config must contain the Android application ID ' + appId);
+          }
+          fs.writeFileSync('android/app/google-services.json', process.env.GOOGLE_SERVICES_JSON);
+          NODE
+          manifest=android/app/src/main/AndroidManifest.xml
+          for permission in POST_NOTIFICATIONS ACCESS_COARSE_LOCATION ACCESS_FINE_LOCATION; do
+            grep -q "android.permission.$permission" "$manifest" ||
+              sed -i "/<application/i\    <uses-permission android:name=\"android.permission.$permission\" />" "$manifest"
+          done
           sed -i -E "s/versionCode [0-9]+/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"1.${GITHUB_RUN_NUMBER}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
 
-      - name: Build APK
+      - name: Build and sign Android release
         if: github.event_name == 'workflow_dispatch'
         working-directory: web/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          for setting in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!setting}" ]; then
+              echo "::error::Missing Android release signing setting: $setting"
+              exit 1
+            fi
+          done
+          umask 077
+          keystore="$(mktemp "$RUNNER_TEMP/xzm-signing.XXXXXX")"
+          trap 'rm -f -- "$keystore"' EXIT
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          unset KEYSTORE_BASE64
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/XZM-TEAM.apk"
+          ./gradlew assembleRelease --no-daemon
+          apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$apksigner"
+          build_tools="$(dirname "$apksigner")"
+          "$build_tools/zipalign" -P 16 -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/xzm-aligned.apk"
+          apk="$GITHUB_WORKSPACE/XZM-TEAM.apk"
+          "$apksigner" sign --ks "$keystore" --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD --key-pass env:KEY_PASSWORD --out "$apk" "$RUNNER_TEMP/xzm-aligned.apk"
+          "$apksigner" verify --print-certs "$apk"
+          permissions="$("$build_tools/aapt" dump permissions "$apk")"
+          for permission in POST_NOTIFICATIONS ACCESS_COARSE_LOCATION ACCESS_FINE_LOCATION; do
+            grep -Fq "android.permission.$permission" <<< "$permissions"
+          done
+          "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/xzm-apk-badging.txt"
+          grep -F "versionCode='$GITHUB_RUN_NUMBER'" "$RUNNER_TEMP/xzm-apk-badging.txt"
 
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
@@ -121,11 +154,54 @@ jobs:
 
       # The download the app offers: this run's APK, or (on an ordinary push) the one already live, kept as it is.
       - name: App download
+        env:
+          PUBLISH_APK: ${{ inputs.publish_apk }}
+          REPLACE_LEGACY: ${{ inputs.replace_legacy_168 }}
         run: |
           mkdir -p dist/download
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$REPLACE_LEGACY" = "true" ] && { [ "$PUBLISH_APK" != "true" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; }; then
+            echo "::error::The build 168 replacement requires publication from main."
+            exit 1
+          fi
+          if [ "$PUBLISH_APK" = "true" ] && [ "$GITHUB_REF" = "refs/heads/main" ]; then
+            legacy_build=168
+            live_apk="$RUNNER_TEMP/xzm-live.apk"
+            status="$(curl -sSL --retry 2 --connect-timeout 15 --max-time 60 -o "$live_apk" -w '%{http_code}' https://xzmteam.com/download/XZM-TEAM.apk)"
+            if [ "$status" = 200 ]; then
+              apksigner="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+              test -x "$apksigner"
+              signer_digests() {
+                "$apksigner" verify --print-certs "$1" > "$RUNNER_TEMP/xzm-apk-certs.txt" || return 1
+                awk '/^Signer #[0-9]+ certificate SHA-256 digest:/ { print $NF }' "$RUNNER_TEMP/xzm-apk-certs.txt" | sort
+              }
+              live_signers="$(signer_digests "$live_apk")"
+              build_signers="$(signer_digests "$GITHUB_WORKSPACE/XZM-TEAM.apk")"
+              if [ -z "$live_signers" ] || [ -z "$build_signers" ]; then
+                echo "::error::Could not read both APK signing certificates."
+                exit 1
+              fi
+              live_badging="$("$(dirname "$apksigner")/aapt" dump badging "$live_apk")"
+              live_build="$(sed -n "s/^package:.*versionCode='\([0-9][0-9]*\)'.*/\1/p" <<< "$live_badging")"
+              if [ -z "$live_build" ] || [ "$GITHUB_RUN_NUMBER" -le "$live_build" ]; then
+                echo "::error::The Android release must have a higher versionCode than the published APK."
+                exit 1
+              fi
+              if [ "$REPLACE_LEGACY" = "true" ]; then
+                if [ "$live_build" != "$legacy_build" ] || [ "$live_signers" = "$build_signers" ] ||
+                  ! grep -Fq "package: name='com.xzmteam.erp' " <<< "$live_badging"; then
+                  echo "::error::The one-time replacement applies only to the published XZM TEAM debug build 168."
+                  exit 1
+                fi
+              elif [ "$live_signers" != "$build_signers" ]; then
+                echo "::error::The APK signer differs from the published APK. Use the established signing key."
+                exit 1
+              fi
+            elif [ "$status" != 404 ] || [ "$REPLACE_LEGACY" = "true" ]; then
+              echo "::error::Could not check the published APK (HTTP $status)."
+              exit 1
+            fi
             cp "$GITHUB_WORKSPACE/XZM-TEAM.apk" dist/download/XZM-TEAM.apk
-            printf '{"build":%s,"version":"1.%s","url":"/download/XZM-TEAM.apk","at":"%s"}\n' "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$(date -u +%FT%TZ)" > dist/download/apk.json
+            printf '{"build":%s,"version":"1.%s","url":"/download/XZM-TEAM.apk","at":"%s","reinstallThrough":%s}\n' "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$(date -u +%FT%TZ)" "$legacy_build" > dist/download/apk.json
           else
             ok=0
             if curl -fsSL https://xzmteam.com/download/apk.json -o /tmp/apk.json && node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/apk.json','utf8')); if(!(j.build>0)) process.exit(1)" \
@@ -145,7 +221,7 @@ jobs:
       # then GitHub -> repo Settings -> Secrets and variables -> Actions -> New repository
       # secret named NETLIFY_AUTH_TOKEN. Without the secret this step is skipped.
       - name: Publish the website to Netlify
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.publish_apk)
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: 2909a0bd-55bc-4b11-930f-73750fb34bd4
