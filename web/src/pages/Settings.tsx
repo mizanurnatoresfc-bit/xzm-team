@@ -3,35 +3,40 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AppShell } from '../components/AppShell'
 import { Icon } from '../components/Icon'
+import { AppUpdate } from '../components/AppUpdate'
 import { ViewAsPicker } from '../components/ViewAs'
 import { advancedAccessHere, isNativeApp } from '../lib/native'
 import { FONTS, TEXT_SIZES, usePrefs, type Theme } from '../lib/prefs'
-import { panelLevel } from '../lib/menu'
-import { AppUpdate } from '../components/AppUpdate'
+import { ATTENDANCE_ZONE, pageLinkAllowed, panelLevel } from '../lib/menu'
+import { morning, type AttPolicy } from '../lib/morning'
+import { resolveWorkHub, useWorkHub } from '../lib/workHub'
+import { wfFriendly } from '../lib/workforce'
+import { useLoad } from './accounts/ui'
+import { fmtTime, useHubList } from './workforce/shared'
 
-type Row = [to: string, icon: string, bn: string, en: string, perms: string[]]
-// Every settings / set-up page in the system, grouped. A row shows only when the role may open it.
-const ADMIN: Array<[bn: string, en: string, rows: Row[]]> = [
-  ['সিস্টেম ও ইউজার', 'System & users', [
+type Level = 0 | 1 | 2 | 3
+type Row = [to: string, icon: string, bn: string, en: string, perms: string[], minimum?: Level]
+const SETUP: Array<[bn: string, en: string, minimum: Level, rows: Row[]]> = [
+  ['সিস্টেম ও ইউজার', 'System & users', 3, [
     ['/app/users', 'key', 'ইউজার ও রোল দেওয়া', 'Users & their roles', ['system.user.view']],
     ['/app/roles', 'shield', 'রোল ও অনুমতি', 'Roles & permissions', ['system.role.view']],
     ['/app/role-dashboards', 'chart', 'রোল অনুযায়ী ড্যাশবোর্ড', 'Dashboard by role', ['system.role.edit']],
     ['/app/branding', 'form', 'নাম, লোগো ও রঙ', 'Name, logo & colour', ['system.settings.configure']],
     ['/app/nodi', 'gear', 'নদী AI (API ও সীমা)', 'Nodi AI (API & limits)', ['nodi.settings.configure']],
   ]],
-  ['প্রতিষ্ঠান', 'Organisation', [
+  ['প্রতিষ্ঠান', 'Organisation', 1, [
     ['/app/org', 'org', 'এরিয়া, হাব ও পদ', 'Areas, hubs & posts', ['org.zone.view', 'org.hub.view', 'org.department.view']],
     ['/app/org/hubs', 'map', 'হাব তালিকা ও ম্যাপ', 'Hub list & map', ['org.hub.view']],
-    ['/app/sorting/centers', 'hub', 'শটিং সেন্টার ও হাব', 'Sorting centers & hubs', ['sorting.center.view', 'sorting.center.create']],
-    ['/app/office/places', 'home', 'অফিস ও আবাসিক', 'Offices & residences', ['office.property.view', 'office.property.create']],
-  ]],
-  ['স্টাফ / এইচআর', 'Staff / HR', [
-    ['/app/hr/fields', 'form', 'প্রোফাইলের ঘর, কলাম ও ফরম্যাট', 'Profile fields, columns & formats', ['hr.profile_field.configure', 'hr.referral.configure']],
+    ['/app/sorting/centers', 'hub', 'শটিং সেন্টার ও হাব', 'Sorting centers & hubs', ['sorting.center.view', 'sorting.center.create'], 2],
+    ['/app/office/places', 'home', 'অফিস ও আবাসিক', 'Offices & residences', ['office.property.view', 'office.property.create'], 2],
     ['/app/hr/duties', 'tasks', 'কাজের দায়িত্ব', 'Duties', ['hr.duty.view', 'hr.duty.edit']],
+  ]],
+  ['স্টাফ / এইচআর', 'Staff / HR', 2, [
+    ['/app/hr/fields', 'form', 'প্রোফাইলের ঘর, কলাম ও ফরম্যাট', 'Profile fields, columns & formats', ['hr.profile_field.configure', 'hr.referral.configure']],
     ['/app/hr/import', 'upload', 'কর্মী ইমপোর্ট (এক্সেল)', 'Import employees', ['hr.import.create']],
     ['/app/hr/requests?tab=settings', 'form', 'এইচআর রিকুয়েস্টের ফরম্যাট', 'HR request formats', ['hr.request.configure']],
   ]],
-  ['হিসাব ও গাড়ি', 'Accounts & vehicles', [
+  ['হিসাব ও গাড়ি', 'Accounts & vehicles', 2, [
     ['/app/accounts/settings', 'gear', 'হিসাব সেটিংস (খাত, ব্যাংক চার্জ, ফিক্সড)', 'Accounts settings', ['da.settings.configure']],
     ['/app/fleet?tab=settings', 'truck', 'গাড়ি সেটিংস (কাজ, ধরন, খোরাকি, ফরম্যাট)', 'Vehicle settings', ['vehicle.settings.configure']],
   ]],
@@ -39,7 +44,12 @@ const ADMIN: Array<[bn: string, en: string, rows: Row[]]> = [
 
 /** Settings: language, theme and Bangla font for this device; the account; and every admin setting the role may open. */
 export function Settings() {
-  const { can, isSuperAdmin, viewAs } = useAuth()
+  const access = useAuth()
+  const { can, isSuperAdmin, viewAs } = access
+  const superAdmin = viewAs?.is_super ?? isSuperAdmin
+  const level: Level = superAdmin ? 3 : ATTENDANCE_ZONE.some(can) ? 2 : panelLevel(can) > 0 ? 1 : 0
+  const canReadHubTimes = level === 1 && can('hr.attendance.view')
+  const canSetZoneTimes = level >= 2 && can('hr.attendance.configure')
   const { L, n, lang, setLang, theme, setTheme, font, setFont, textSize, setTextSize, contrast, setContrast, motion, setMotion, nodiFab, setNodiFab } = usePrefs()
   // the floating নদী button is shown to zonal-level people who may use নদী (AppShell)
   const hasNodiFab = can('nodi.assistant.view') && panelLevel(can) === 2
@@ -47,8 +57,12 @@ export function Settings() {
   const [copied, setCopied] = useState(false)
   const themes: Array<[Theme, string, string]> = [['light', 'লাইট', 'Light'], ['dark', 'ডার্ক', 'Dark'], ['system', 'ফোনের মতো', 'Same as device']]
   // on the website the role page is the advanced one (inside the Android app the older page stays)
-  const here = (r: Row): Row => (r[0] === '/app/roles' && advancedAccessHere() ? ['/app/access', r[1], 'অ্যাডভান্সড রোল ও পারমিশন', 'Advanced roles & permissions', r[4]] : r)
-  const groups = ADMIN.map(([bn, en, rows]) => [bn, en, rows.filter(r => r[4].some(p => can(p))).map(here)] as const).filter(g => g[2].length)
+  const here = (r: Row): Row => (r[0] === '/app/roles' && advancedAccessHere() ? ['/app/access', r[1], 'অ্যাডভান্সড রোল ও পারমিশন', 'Advanced roles & permissions', r[4], r[5]] : r)
+  const groups = SETUP.map(([bn, en, minimum, rows]) => {
+    const visible = rows.map(here).filter(([to, , , , permissions, rowMinimum]) =>
+      level >= (rowMinimum ?? minimum) && permissions.some(can) && pageLinkAllowed(to, access))
+    return [bn, en, visible] as const
+  }).filter(([, , rows]) => rows.length > 0)
   const loginUrl = `${location.origin}/staff/login`
   async function share() {
     try {
@@ -105,7 +119,16 @@ export function Settings() {
           <span>{copied ? L('লিংক কপি হয়েছে', 'Link copied') : L('লগইন লিংক শেয়ার করুন', 'Share the login link')}</span><Icon name="chev" size={14} /></button>}
       </div>
     </section>
-    {isSuperAdmin && <section className="panel">
+    {canReadHubTimes && <HubAttendanceTimes />}
+    {canSetZoneTimes && <section className="panel">
+      <h2>{L('হাজিরা জমার সময়', 'Attendance submission times')}</h2>
+      <div className="hub-links">
+        <Link to="/app/attendance?view=zone&tab=setting" className="hub-link">
+          <Icon name="clock" size={18} /><span>{L('জোনের সময় নির্ধারণ করুন', 'Set the zone’s times')}</span><Icon name="chev" size={14} />
+        </Link>
+      </div>
+    </section>}
+    {superAdmin && <section className="panel">
       <h2>{L('সুপার অ্যাডমিন', 'Super Admin')}</h2>
       <div className="hub-links">
         <button type="button" className="hub-link as-btn" onClick={() => setAsRole(true)}><Icon name="shield" size={18} />
@@ -119,4 +142,33 @@ export function Settings() {
     </section>)}
     {asRole && <ViewAsPicker onClose={() => setAsRole(false)} />}
   </AppShell>
+}
+
+function HubAttendanceTimes() {
+  const { L, lang } = usePrefs()
+  const { grants, session } = useAuth()
+  const saved = useWorkHub(session?.user.id ?? '')
+  const list = useHubList()
+  const attendanceGrants = grants.filter(grant => grant.permission_code === 'hr.attendance.view')
+  const hubs = (list.data?.hubs ?? []).filter(hub => attendanceGrants.some(grant =>
+    grant.scope_type === 'global' || (grant.scope_type === 'zone' && grant.zone_id === hub.zone_id)
+    || (grant.scope_type === 'hub' && grant.hub_id === hub.id)))
+  const hub = resolveWorkHub(hubs, saved)
+  const zone = hub?.zone_id
+  const policy = useLoad<AttPolicy | null>(() => zone ? morning.policy(zone) : Promise.resolve(null), [zone])
+  const times = policy.data?.zone_id === zone ? policy.data : null
+
+  return <section className="panel">
+    <h2>{L('হাজিরা জমার সময়', 'Attendance submission times')}</h2>
+    {hub && <p>{hub.name} · {L('বাংলাদেশ সময়', 'Bangladesh time')}</p>}
+    {list.error || policy.error
+      ? <p className="da-error" role="alert">{wfFriendly(list.error || policy.error)}</p>
+      : times ? <ul>
+        <li>{L('আজ সকালের ইনপুট জমা', 'Today’s morning input')}{' · '}{fmtTime(times.today_due, lang)}</li>
+        <li>{L('পরদিন দৈনিক হাজিরা খাতা জমা', 'Next-day attendance register')}{' · '}{times.day_time}
+          {times.day_extra > 0 && ` + ${times.day_extra} ${L('মিনিট', 'min')}`}</li>
+      </ul>
+        : list.data && !hub ? <p><Link to="/app/me/permissions">{L('কাজের হাব বেছে নিন', 'Choose your working hub')}</Link></p>
+          : <p className="muted" role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>}
+  </section>
 }

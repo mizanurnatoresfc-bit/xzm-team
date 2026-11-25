@@ -145,12 +145,16 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
 // ====================================================================================== জোন
 function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: boolean }) {
   const { L } = usePrefs()
+  const { grants } = useAuth()
   const hubsQ = useHubList()
-  const zones = useMemo(() => hubsQ.data?.zones ?? [], [hubsQ.data])
-  const zoneAsked = sp.get('zone') ?? ''
-  const zone = zones.some(z => z.id === zoneAsked) ? zoneAsked : ''
   const tabAsked = sp.get('tab') as ZoneTab | null
   const tab: ZoneTab = tabAsked === 'ops' || tabAsked === 'final' || (tabAsked === 'setting' && canSet) ? tabAsked : 'morning'
+  const zones = (hubsQ.data?.zones ?? []).filter(z => tab !== 'setting' || grants.some(grant =>
+    grant.is_super || (grant.permission_code === 'hr.attendance.configure' &&
+      (grant.scope_type === 'global' || (grant.scope_type === 'zone' && grant.zone_id === z.id)))))
+  const zoneAsked = sp.get('zone') ?? ''
+  const zone = zones.some(z => z.id === zoneAsked) ? zoneAsked : ''
+  const policyZone = zone || zones[0]?.id || ''
   const tabs: Array<{ key: ZoneTab; label: string }> = [
     { key: 'morning', label: L('জোনের সকাল', 'The zone’s morning') },
     { key: 'final', label: L('দৈনিক হাজিরা — হাব অনুযায়ী', 'Daily attendance — by hub') },
@@ -161,7 +165,8 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
   return <div className="wm">
     {zones.length > 1 && <section className="panel wm-top no-print">
       <Field label={L('জোন', 'Zone')}>
-        <select value={zone} onChange={e => put({ zone: e.target.value || null })}><option value="">{L('সব জোন', 'All zones')}</option>
+        <select value={tab === 'setting' ? policyZone : zone} onChange={e => put({ zone: e.target.value || null })}>
+          {tab !== 'setting' && <option value="">{L('সব জোন', 'All zones')}</option>}
           {zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
     </section>}
     {hubsQ.error ? <p className="da-error" role="alert">{wfFriendly(hubsQ.error)}</p> : null}
@@ -171,7 +176,7 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
       {tab === 'morning' && <ZoneMorningTab zone={zone} />}
       {tab === 'final' && <><ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />{canSet && <ReopenPanel zone={zone} />}</>}
       {tab === 'ops' && <ZoneOps zone={zone} />}
-      {tab === 'setting' && <><MorningPolicy zone={zone || zones[0]?.id || ''} /><ZoneWindows zone={zone} /></>}
+      {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} />{policyZone && <ZoneWindows key={`windows-${policyZone}`} zone={policyZone} />}</>}
     </div>
   </div>
 }
