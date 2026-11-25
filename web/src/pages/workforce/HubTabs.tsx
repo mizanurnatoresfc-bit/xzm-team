@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { Icon } from '../../components/Icon'
+import { OpsDeadlineSummary } from './OpsDeadlines'
 import { todayDhaka } from '../../lib/dailyAccounts'
 import { usePrefs } from '../../lib/prefs'
 import { APP_META, LIVE, useLiveLoad, wf, wfFriendly,
@@ -83,7 +84,7 @@ export function AppsTab({ hubId, can, onChanged }: { hubId: string; can: Can; on
 
 // ====================================================================================== দৈনিক রিপোর্ট
 const NUM_CHIPS = ['pickup', 'pickup_return', 'delivery', 'delivery_return'] as const
-export function OpsTab({ hubId }: { hubId: string }) {
+export function OpsTab({ hubId, zoneId }: { hubId: string; zoneId: string }) {
   const { L, n, lang } = usePrefs()
   const { toast, node } = useToast()
   const r = useRange('today')
@@ -99,6 +100,7 @@ export function OpsTab({ hubId }: { hubId: string }) {
   return <>
     {node}
     <Section title={L('দৈনিক অপারেশন রিপোর্ট', 'Daily operations report')} hint={L('কর্মীরা নিজের আজকের পিকআপ, রিটার্ন ও ডেলিভারির সংখ্যা দেন — হাব ও জোনসহ এখানে জমা হয়।', 'Staff give their own pickup, return and delivery numbers; they collect here by hub and zone.')}>
+      {zoneId && <OpsDeadlineSummary zone={zoneId} />}
       <RangeBar r={r} presets={['today', 'yesterday', '7d', 'month', 'custom']} />
       {q.error && !d ? <p className="da-error" role="alert">{wfFriendly(q.error)}</p> : null}
       {!d && !q.error ? <Loading /> : null}
