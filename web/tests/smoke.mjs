@@ -323,6 +323,17 @@ try {
         sub: null, changed: false, changed_days: [], history: [], checks: [], my_check: null, can: { submit: true, send: false } })
       if (u.includes('rpc/att_reopen_list')) return j([{ id: 'w1', from: '2026-11-22', to: '2026-11-22', expires_at: '2026-11-24T05:00:00Z', reason: 'ভুল স্ট্যাটাস', by: 'Zonal', status: 'open', created_at: '2026-11-24T04:00:00Z', closed_at: null, can_close: true }])
       if (u.includes('rpc/att_reopen_open')) { flowCalls.push({ fn: 'att_reopen_open', ...r.request().postDataJSON() }); return j({ window: 'w2', opened: 1, expires_at: '2026-11-24T05:00:00Z' }) }
+      if (u.includes('rpc/hub_ops_panel')) {
+        const { p_hub, p_date } = r.request().postDataJSON()
+        return j({ hub: { id: p_hub, code: 'DEMO', name: 'DEMO Hub', zone_id: 'z1', skip: false },
+          date: p_date, today: dhakaToday, report: null, rows: [], roster: [], left_before: [],
+          groups: [], reasons: [], hub_metric: null, can: { create: false, edit: false, approve: false, hr_edit: false } })
+      }
+      if (u.includes('rpc/wf_ops_report') && r.request().postDataJSON().p_hub === 'demo-pilot') {
+        const req = r.request().postDataJSON()
+        flowCalls.push({ fn: 'demo_pilot_ops', ...req })
+        return j({ totals: { entries: 0, people: 0, pickup: 0, pickup_return: 0, delivery: 0, delivery_return: 0 } })
+      }
       // the morning input: a form with two people to mark and one on approved leave; after the submit only a receipt
       if (/rpc\/wf_morning_(get|save|submit|return)\b/.test(u)) {
         const body = r.request().postDataJSON() ?? {}, fn = u.split('rpc/')[1].split('?')[0]
@@ -903,6 +914,16 @@ try {
       { const c = flowCalls.filter(x => x.fn === 'wf_morning_submit').at(-1) ?? {}
         check(c.p_hub === 'h1' && c.p_lines?.length === 2 && await page.locator('.mo-receipt').count() === 1 && await page.locator('.mo-table').count() === 0,
           `${size}: the submit sends the lines once and the hub manager is left with a receipt, no lines`) } }
+    await page.goto(`${BASE}/app/zonal/hub-ops/hub/demo-pilot?date=2026-11-23`)
+    await page.getByText('এই তারিখে স্টাফের জমা নেই।', { exact: true }).waitFor()
+    const pilotQuery = flowCalls.filter(x => x.fn === 'demo_pilot_ops').at(-1)
+    check(pilotQuery?.p_hub === 'demo-pilot' && pilotQuery.p_from === '2026-11-23' && pilotQuery.p_to === '2026-11-23',
+      `${size}: the empty DEMO Hub uses the requested hub and exact date`)
+    await page.getByRole('button', { name: 'ইম্পোর্ট করা রিপোর্ট দেখুন' }).click()
+    await page.waitForURL(/report-import\?hub=demo-pilot&date=2026-11-23/)
+    await page.getByText(/লিংকের হাবটির রিপোর্ট দেখার অনুমতি নেই/).waitFor()
+    check(await page.locator('.ri .da-stats').count() === 0,
+      `${size}: an unavailable DEMO Hub never shows another hub’s import totals`)
     // the zone's morning: each hub's submission, the route that needs cover, send back with a reason
     await page.goto(`${BASE}/app/attendance?view=zone`); await page.waitForSelector('.mo-hub', { timeout: 10000 }).catch(() => {})
     { const cards = page.locator('.mo-hub')
