@@ -964,14 +964,20 @@ try {
       await page.locator('.list-tools .tb.xls').first().click(); await page.waitForTimeout(400)
       check(officeLogs.length === 1 && officeLogs[0].p_report === 'residential-places' && officeLogs[0].p_format === 'excel' && officeLogs[0].p_rows === 2,
         `${size}: an Excel export of the residential list is written to the audit log first`)
-      permsNow = ['office.property.view']
+      // every role holds system.list_tools.view after the database update, so the mock role does too (the tool row itself is checked below)
+      permsNow = ['office.property.view', 'system.list_tools.view']
       await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.list-tools')
       const tools = async () => [await page.locator('.list-tools .tb.xls').count(), await page.locator('.list-tools .tb.pdf').count(), await page.locator('.list-tools .tb[aria-label="প্রিন্ট"]').count()].join(',')
-      { const noneShown = await tools(); permsNow = ['office.property.view', 'office.report.print']
+      { const noneShown = await tools(); permsNow = ['office.property.view', 'office.report.print', 'system.list_tools.view']
         await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.list-tools')
         const printOnly = await tools()
         check(noneShown === '0,0,0' && printOnly === '0,0,1' && (await page.locator('main').innerText()).includes('Staff Mess A'),
           `${size}: without office export / print the list still shows but has no Excel, PDF or print; print alone gives print only`) }
+      // without system.list_tools.view the list keeps its count but has no tool row at all (even with print / export allowed)
+      permsNow = ['office.property.view', 'office.report.print', 'office.report.export']
+      await page.goto(`${BASE}/app/office/residential/places`); await page.waitForSelector('.list-tools .cnt')
+      check(await page.locator('.list-tools .tool-menu, .list-tools .tb, .list-tools .dv-fbtn').count() === 0 && (await page.locator('.list-tools .cnt').innerText()).length > 0 && (await page.locator('main').innerText()).includes('Staff Mess A'),
+        `${size}: without the list tool-row permission the list keeps its count but shows no filter, view, mark, print, Excel or PDF`)
       permsNow = null
       // monthly report: this month's bills by place, the rent still missing, and contracts ending
       await page.goto(`${BASE}/app/office/residential/reports`); await page.waitForSelector('.da-stats')

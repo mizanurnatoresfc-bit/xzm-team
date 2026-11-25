@@ -21,7 +21,7 @@ insert into t select 'lt', id::text from public.leave_types where status = 'acti
 
 -- ---------- the role ----------
 select tests.ok((select count(*) = 8 from public.role_permissions rp join public.roles r on r.id = rp.role_id join public.permissions p on p.id = rp.permission_id
-                  where r.code = 'zonal_assistant' and p.code not in ('system.list_view.configure', 'system.list_mark.edit')), 'the Zonal Assistant role carries its eight permissions');
+                  where r.code = 'zonal_assistant' and p.code not in ('system.list_view.configure', 'system.list_mark.edit', 'system.list_tools.view')), 'the Zonal Assistant role carries its eight permissions');
 
 -- ---------- my own gaps ----------
 select tests.login(tests.id('rider_login'));

@@ -46,7 +46,7 @@ select tests.ok((select array_agg(r.code::text order by r.code::text) from publi
                   join public.permissions p on p.id = rp.permission_id where p.code = 'hr.attendance.configure') = array['admin', 'hr_manager', 'zonal_manager'],
   'admin, HR manager and zonal manager may open earlier dates; nobody else by default');
 select tests.ok((select count(*) = 8 from public.role_permissions rp join public.roles r on r.id = rp.role_id join public.permissions p on p.id = rp.permission_id
-                  where r.code = 'zonal_assistant' and p.code not in ('system.list_view.configure', 'system.list_mark.edit')),
+                  where r.code = 'zonal_assistant' and p.code not in ('system.list_view.configure', 'system.list_mark.edit', 'system.list_tools.view')),
   'the Zonal Assistant role keeps exactly its eight permissions');
 select tests.ok(not has_table_privilege('anon', 'public.wf_book_windows', 'select') and has_table_privilege('authenticated', 'public.wf_book_windows', 'select')
             and not has_table_privilege('authenticated', 'public.wf_book_windows', 'insert') and not has_table_privilege('authenticated', 'public.wf_book_windows', 'update'),
