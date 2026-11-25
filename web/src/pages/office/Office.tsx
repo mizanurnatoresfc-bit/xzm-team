@@ -6,6 +6,7 @@ import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { RowMenu, type RowMenuItem } from '../../components/RowMenu'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { pageLinkAllowed } from '../../lib/navAccess'
 import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
@@ -34,7 +35,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const SECTIONS = scope === 'residential' ? RESIDENTIAL_PARTS : OFFICE_PARTS
   const PKEY = scope === 'residential' ? 'xzm_office_residence' : 'xzm_office_property'
   const { section } = useParams()
-  const { can } = useAuth()
+  const { can, menu, menuUnavailable } = useAuth()
   const { L } = usePrefs()
   const o = useOrg()
   const props = useLoad(() => office.properties(), [])
@@ -54,7 +55,17 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const emp = useMemo(() => Object.fromEntries((emps.data ?? []).map(e => [e.id, e])) as Record<string, EmpLite>, [emps.data])
   const sec = SECTIONS.find(s => s.key === section)
   if (!sec) return <Navigate to={scopePath(scope, 'overview')} replace />
-  const tabs = SECTIONS.filter(s => s.perms.some(x => can(x)))
+  const visibleParts = (target: OfficeScope) => (target === 'residential' ? RESIDENTIAL_PARTS : OFFICE_PARTS)
+    .filter(part => part.perms.some(can) && pageLinkAllowed(scopePath(target, part.key), { can, menu, menuUnavailable }))
+  const tabs = visibleParts(scope)
+  const scopes = (['office', 'residential'] as const).map(target => {
+    const parts = target === scope ? tabs : visibleParts(target)
+    const entry = parts.find(part => part.key === sec.key) ?? parts[0]
+    return { target, entry }
+  })
+  const shortLabels: Partial<Record<Sec, [string, string]>> = {
+    rooms: ['কক্ষ', 'Rooms'], assets: ['সম্পদ', 'Assets'], rent: ['ভাড়া', 'Rent'], bills: ['বিল', 'Bills'],
+  }
   const reload = async () => { await Promise.all([rooms.reload(), desks.reload(), assets.reload()]) }
 
   const hubName = (id: string | null) => (id && o.names.hub[id]) || ''
@@ -65,11 +76,21 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={p && !allFlats ? `${p.name} · ${L(PLACE_KIND[p.kind][0], PLACE_KIND[p.kind][1])}` : undefined}>
     <section className="da-filters panel no-print hub-top">
+      <nav className="hub-tabs" aria-label={L('জায়গার ধরন', 'Property type')}>
+        {scopes.map(({ target, entry }) => entry && <Link key={target} to={scopePath(target, entry.key)}
+          className={target === scope ? 'on' : ''} aria-current={target === scope ? 'location' : undefined}>
+          <Icon name={target === 'residential' ? 'home' : 'hub'} size={15} />
+          <span>{target === 'residential' ? L('আবাসিক', 'Residential') : L('অফিস', 'Office')}</span>
+        </Link>)}
+      </nav>
       {sec.key !== 'places' && !allFlats && list.length > 0 && <Field label={res ? L('আবাসিক ফ্ল্যাট', 'Residence') : L('অফিস / গ্যারেজ', 'Office / garage')}><select value={pid} onChange={e => setPid(e.target.value)}>
         {list.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>}
       <nav className="hub-tabs" aria-label={res ? L('আবাসিক', 'Residential') : L('আমার অফিস', 'My office')}>
         {res && can('issue.issue.create') && <Link to={'/app/issues?new=residential' + (p?.hub_id && !allFlats ? '&hub=' + p.hub_id : '')}><Icon name="alert" size={15} /><span>{L('আবাসিক ইস্যু জানান', 'Report a residential issue')}</span></Link>}
-        {tabs.map(t => <Link key={t.key} to={scopePath(scope, t.key)} className={t.key === sec.key ? 'on' : ''}><Icon name={t.icon} size={15} /><span>{L(t.bn, t.en)}</span></Link>)}
+        {tabs.map(t => <Link key={t.key} to={scopePath(scope, t.key)} className={t.key === sec.key ? 'on' : ''}
+          aria-current={t.key === sec.key ? 'page' : undefined}><Icon name={t.icon} size={15} />
+          <span>{L(...(shortLabels[t.key] ?? [t.bn, t.en]))}</span>
+        </Link>)}
       </nav>
     </section>
     {props.error ? <p className="da-error">{hrFriendly(props.error)}</p> : null}

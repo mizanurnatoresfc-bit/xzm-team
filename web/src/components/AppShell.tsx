@@ -222,7 +222,7 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
  * আমার অফিস — a menu of its own (owner, 19 Nov 2026), arranged by what the database keeps: places and people,
  * things, rent and bills, security and reports. Like হিসাব it is not a level panel: anyone whose role may see an office sees it.
  */
-export const OFFICE: Group = panel('office', 'home', 'আমার অফিস', 'My office', [
+export const OFFICE: Group = panel('office', 'home', 'অফিস ও আবাসিক', 'Office & residential', [
   ...OFFICE_GROUPS.map(g => ({ bn: g.bn, en: g.en, items: g.parts.map(p => ({ to: `/app/office/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) })),
   // আবাসিক: the residences on pages of their own (owner, 21 Nov 2026) — same tables, same permissions.
   { bn: RESIDENTIAL_GROUP.bn, en: RESIDENTIAL_GROUP.en, items: RESIDENTIAL_GROUP.parts.map(p => ({ to: `${RESIDENTIAL_BASE}/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) },
@@ -474,6 +474,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           {groups.map(({ g, secs }) => {
           const vis = secs.flatMap(x => x.items)
           if (!vis.length) return null
+          if (g.key === OFFICE.key) {
+            const active = here.startsWith('/app/office/')
+            return <Link key={g.key} to={vis[0].to} className={active ? 'nl active' : 'nl'} aria-current={active ? 'location' : undefined}
+              title={L(g.bn, g.en)} onClick={() => setOpen(false)}>
+              <Icon name={g.icon} size={16} /><span className="t">{L(g.bn, g.en)}</span>
+            </Link>
+          }
           const has = vis.some(i => i.to.split('?')[0] === here)
           const isOpen = groupOpen[g.key] ?? (g.key === defaultOpenGroup || has)
           const badge = vis.reduce((a, i) => a + (i.count && i.count !== 'team' ? cnt[i.count] : 0), 0)
