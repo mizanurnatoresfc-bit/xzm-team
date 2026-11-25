@@ -61,8 +61,6 @@ export function MyApprovalCard() {
   if (!v) return null
   const { riders, bills, other } = v
   const others: Array<[string, number, string, string, string]> = ([
-    ['/app/hr/applications', other.apps, L('আইডি আবেদন', 'ID applications'), 'form', 'b'],
-    ['/app/hr/leave', other.leave, L('ছুটির আবেদন', 'Leave requests'), 'log', 'p'],
     ['/app/accounts/daily', other.sheets, L('হিসাব খাতা যাচাই', 'Daily sheets to check'), 'ledger', 'g'],
     ['/app/hr/requests?tab=list', other.hrreq, L('এইচআর রিকুয়েস্ট', 'HR requests'), 'users', 'o'],
   ] as Array<[string, number, string, string, string]>).filter(r => r[1] >= 0)

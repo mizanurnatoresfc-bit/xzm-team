@@ -19,7 +19,7 @@ const PROFILE_TAB: Tab = { to: '/app/me', icon: 'user', bn: 'প্রোফা�
 /** The panel is only its own address: the staff list under /app/staff/ is not the panel. */
 const PANEL_TAB: Tab = { to: '/app/staff', icon: 'user', bn: 'প্যানেল', en: 'Panel', perms: null, match: '/app/staff$' }
 const ACCOUNTS_MINE_TAB: Tab = { to: '/app/accounts/mine', icon: 'wallet', bn: 'হিসাব', en: 'Accounts', perms: null, match: '/app/accounts' }
-const REQUESTS_TAB: Tab = { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/(?:hr/(?:requests|leave)|manpower)' }
+const REQUESTS_TAB: Tab = { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট', en: 'Requests', perms: null, match: '/app/(?:hr/requests|manpower)' }
 const ACCOUNTS_TAB: Tab = { to: '/app/accounts/daily', icon: 'ledger', bn: 'হিসাব', en: 'Accounts', perms: DA_SHEET, match: '/app/accounts' }
 
 // Mobile: bottom tabs (first four the role may open) and the quick-add sheet.

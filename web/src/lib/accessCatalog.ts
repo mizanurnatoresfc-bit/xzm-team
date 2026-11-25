@@ -38,10 +38,10 @@ export const MODULES: ModuleDef[] = [
   ] },
   { key: 'hr', icon: 'users', bn: 'স্টাফ ও এইচআর', en: 'Staff & HR', db: ['hr'], subs: [
     { to: '/app/staff/list', res: ['hr.employee', 'hr.employee_sensitive', 'hr.employee_profile', 'hr.document', 'hr.transfer', 'hr.status'], codes: ['hr.employee.view', 'hr.employee.edit', 'hr.employee.archive', 'hr.transfer.edit', 'hr.status.edit', 'hr.application.create', 'hr.application.approve'] },
-    { to: '/app/hr/applications', res: ['hr.application'] },
+    { to: '/app/hr/applications', bn: 'আইডি আবেদন (পুরনো)', en: 'ID applications (legacy)', res: ['hr.application'] },
     { to: '/app/attendance', res: ['hr.attendance'] },
     { to: '/app/zonal/assistant', res: ['hr.attendance_gap'] },
-    { to: '/app/hr/leave', res: ['hr.leave'] },
+    { to: '/app/hr/leave', bn: 'ছুটি (পুরনো)', en: 'Leave (legacy)', res: ['hr.leave'] },
     { to: '/app/hr/requests', res: ['hr.request'] },
     { to: '/app/zonal/files', codes: ['hr.request.create', 'hr.request.approve'] },
     { to: '/app/zonal/requests', codes: ['hr.request.approve'] },
@@ -180,7 +180,7 @@ export function buildCatalog(perms: Permission[], menu: MenuEntry[]): Catalog {
     for (const d of m.subs) {
       const entry = d.to ? menu.find(x => x.to === d.to) : undefined
       if (d.to && !entry && !d.bn) continue   // a page that is no longer in the menu
-      const sub: Sub = { key: d.key ?? d.to!, to: entry ? d.to! : null, bn: entry?.bn ?? d.bn ?? '', en: entry?.en ?? d.en ?? '',
+      const sub: Sub = { key: d.key ?? d.to!, to: entry || d.bn ? d.to! : null, bn: entry?.bn ?? d.bn ?? '', en: entry?.en ?? d.en ?? '',
         needs: entry ? entry.perms : null, cells: emptyCells(), codes: [], auto: false, always: !!d.to && ALWAYS_OPEN.includes(d.to),
         tabs: d.to ? menu.filter(x => x.to.includes('?') && bare(x.to) === d.to).map(x => ({ bn: x.bn, en: x.en })) : [] }
       for (const r of d.res ?? []) { claimed.add(r); fill(sub, byRes.get(r) ?? []) }

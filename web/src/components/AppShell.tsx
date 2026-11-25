@@ -29,7 +29,7 @@ type Item = { to: string; icon: string; bn: string; en: string; perms: string[] 
   /** 'web' = the website only, 'app' = the Android app only (see advancedAccessHere). */ only?: 'web' | 'app' }
 type Sec = { bn: string; en: string; items: Item[] }
 type Group = { key: string; icon: string; bn: string; en: string; secs: Sec[]; items: Item[] }
-type CountKey = 'apps' | 'leave' | 'sheets' | 'team' | 'hrreq'
+type CountKey = 'sheets' | 'team' | 'hrreq'
 /** Pages added lately: the menu shows "নতুন" beside them until this date (Asia/Dhaka, inclusive). */
 export const NEW_UNTIL: Record<string, string> = {
   '/app/manpower': '2026-11-30', '/app/attendance': '2026-11-30',
@@ -75,7 +75,6 @@ export const GROUPS: Group[] = [
       { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
       // My attendance is already linked in the personal menu above; keep one primary sidebar entry.
       { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
-      { to: '/app/hr/leave', icon: 'log', bn: 'ছুটি', en: 'Leave', perms: ['hr.leave.view', 'hr.leave.create'], count: 'leave' },
       { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
       { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
     ] },
@@ -157,8 +156,7 @@ export const HR: Group = panel('hr', 'users', 'এইচআর বিভাগ',
       { to: '/app/staff/list', icon: 'users', bn: 'কর্মী তালিকা', en: 'Staff list', hint: { bn: 'পুরো কর্মী তালিকা — পদ, এরিয়া, হাব; হাব ম্যানেজারের জন্য নিজ হাবের সক্রিয় স্টাফ', en: 'Full staff list — roles see their scope' }, perms: ['hr.employee.view', 'hr.application.create', 'hr.request.create'], count: 'team' },
       { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
   ] },
-  { bn: 'আইডি ও এইচআর অনুরোধ', en: 'IDs & HR requests', items: [
-      { to: '/app/hr/applications', icon: 'form', bn: 'আইডি আবেদন', en: 'ID applications', perms: ['hr.application.view', 'hr.application.create'], count: 'apps' },
+  { bn: 'এইচআর অনুরোধ', en: 'HR requests', items: [
       { to: '/app/zonal/requests', icon: 'form', bn: 'এইচআর অনুরোধ', en: 'HR requests', perms: ['hr.request.approve'], count: 'hrreq' },
   ] },
   { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
@@ -267,15 +265,13 @@ async function teamCount(hub: string): Promise<number> {
 }
 function counts(user: string, can: (p: string) => boolean, workHub: string): Promise<Record<CountKey, number>> {
   const hub = can('hr.employee.view') ? workHub : ''
-  const key = [user, can('hr.application.approve'), can('hr.leave.approve'), can('da.sheet.approve'), can('hr.request.approve'), hub].join('|')
+  const key = [user, can('da.sheet.approve'), can('hr.request.approve'), hub].join('|')
   if (countCache && countCache.key === key && Date.now() - countCache.at < 60_000) return countCache.p
   const p = Promise.all([
-    can('hr.application.approve') ? countOf('employee_applications', 'status', 'submitted') : 0,
-    can('hr.leave.approve') ? countOf('leave_requests', 'status', 'pending') : 0,
     can('da.sheet.approve') ? countOf('da_sessions', 'status', 'submitted') : 0,
     teamCount(hub),
     can('hr.request.approve') ? hrReq.openCount() : 0,
-  ]).then(([apps, leave, sheets, team, hrreq]) => ({ apps, leave, sheets, team, hrreq })).catch(() => ({ apps: 0, leave: 0, sheets: 0, team: 0, hrreq: 0 }))
+  ]).then(([sheets, team, hrreq]) => ({ sheets, team, hrreq })).catch(() => ({ sheets: 0, team: 0, hrreq: 0 }))
   countCache = { key, at: Date.now(), p }; return p
 }
 export function refreshShellCounts() { countCache = null }
@@ -342,7 +338,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [mSearch, setMSearch] = useState(false)
   const [roles, setRoles] = useState<MyRole[]>([])
   const [photo, setPhoto] = useState<string | null>(null)
-  const [cnt, setCnt] = useState<Record<CountKey, number>>({ apps: 0, leave: 0, sheets: 0, team: 0, hrreq: 0 })
+  const [cnt, setCnt] = useState<Record<CountKey, number>>({ sheets: 0, team: 0, hrreq: 0 })
   const nt = useNotices()
   const notes = nt.list
   const [dview, setDview] = useState<DashView | null>(getView())
@@ -392,8 +388,6 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const top = roles[0]
   const scopeText = roles.length ? roles.map(r => `${r.name}${r.hub ? ` · ${r.hub}` : r.zone ? ` · ${r.zone}` : ''}`).join(' · ') : L('কোনো রোল নেই', 'No role')
   const alerts: Array<[string, number, string, string]> = ([
-    ['/app/hr/applications', cnt.apps, L('আইডি আবেদন যাচাইয়ের অপেক্ষায়', 'ID applications waiting for review'), 'form'],
-    ['/app/hr/leave', cnt.leave, L('ছুটির অনুরোধ অপেক্ষমাণ', 'Leave requests waiting'), 'log'],
     ['/app/accounts/daily', cnt.sheets, L('হিসাব খাতা যাচাইয়ের অপেক্ষায়', 'Daily sheets waiting for verification'), 'ledger'],
     ['/app/hr/requests?tab=list', cnt.hrreq, L('এইচআর রিকুয়েস্ট অপেক্ষমাণ', 'HR requests waiting'), 'form'],
   ] as Array<[string, number, string, string]>).filter(([to, count]) => count > 0 && canOpen(to))
