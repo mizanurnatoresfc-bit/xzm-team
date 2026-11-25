@@ -3,7 +3,7 @@ import { addDays } from '../lib/dailyAccounts'
 import { usePrefs, type Lang } from '../lib/prefs'
 import { toLatinDigits } from '../lib/validate'
 import { announceWfChange, useLiveLoad, wf, wfFriendly, type DailyOps, type OpsInput } from '../lib/workforce'
-import { Badge, Field, useToast } from '../pages/accounts/ui'
+import { Badge, Field, useLoad, useToast } from '../pages/accounts/ui'
 import { clock } from '../pages/workforce/AbsenceApply'
 import { Icon } from './Icon'
 import '../workforce-book.css'
@@ -43,6 +43,8 @@ export function DailyOpsCard() {
   const { toast, node } = useToast()
   const q = useLiveLoad(() => wf.myOps(14), [], ['wf_daily_ops'])
   const d = q.data
+  const hasProfile = Boolean(d)
+  const deadlines = useLoad(() => hasProfile ? wf.opsDeadlines() : Promise.resolve(null), [hasProfile])
   const [back, setBack] = useState(0)                 // 0 = today (auto), 1 = yesterday … only while the settings allow
   const [form, setForm] = useState<Form>(EMPTY)
   const [busy, setBusy] = useState(false)
@@ -128,6 +130,9 @@ export function DailyOpsCard() {
         <input className="wf-op-in" inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint="done" maxLength={6} placeholder="0"
           value={form[f.key]} onKeyDown={e => { if (e.key === 'Enter' && !busy) void submit() }}
           onChange={e => set(f.key, toLatinDigits(e.target.value).replace(/\D/g, '').slice(0, 6).replace(/^0+(?=\d)/, ''))} />
+        {off === 0 && deadlines.data?.[f.key] && <small className="muted">
+          {L('জমার সময়', 'Due')} · {deadlines.data[f.key]} {L('(বাংলাদেশ সময়)', '(Bangladesh time)')}
+        </small>}
         {count > 0 && <span className="wf-tap-after" aria-hidden={!(typed && typed[f.key] > 0) || undefined}>
           {typed && typed[f.key] > 0 ? L(`মোট হবে ${n(total[f.key] + typed[f.key])}`, `Total becomes ${total[f.key] + typed[f.key]}`) : '\u00a0'}</span>}
       </Field>)}

@@ -128,6 +128,16 @@ export function Settings() {
         </Link>
       </div>
     </section>}
+    {(canSetZoneTimes || (level === 1 && can('ops.staff_daily.view'))) && <section className="panel">
+      <h2>{L('দৈনিক রিপোর্ট জমার সময়', 'Daily report deadlines')}</h2>
+      <div className="hub-links">
+        <Link to={canSetZoneTimes ? '/app/attendance?view=zone&tab=ops-setting' : '/app/attendance?view=hub&tab=ops'} className="hub-link">
+          <Icon name="clock" size={18} />
+          <span>{canSetZoneTimes ? L('জোনের রিপোর্টের সময় নির্ধারণ করুন', 'Set the zone’s report deadlines') : L('হাবের রিপোর্টের সময় দেখুন', 'View the hub’s report deadlines')}</span>
+          <Icon name="chev" size={14} />
+        </Link>
+      </div>
+    </section>}
     {superAdmin && <section className="panel">
       <h2>{L('সুপার অ্যাডমিন', 'Super Admin')}</h2>
       <div className="hub-links">

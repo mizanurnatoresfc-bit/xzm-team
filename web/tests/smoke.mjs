@@ -112,6 +112,8 @@ try {
     let morningDone = false
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, menuFail = false, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false, staffSecs = null
+    let opsDeadlines = { zone_id: 'z1', pickup: '18:00', pickup_return: null, delivery_return: '19:20', delivery: '21:00' }
+    let withOpsDeadlineCard = false
     const prospects = []
     const routePlaces = [['আমহাটি', 'Amhati', 24.4315, 89.0003], ['দিঘাপতিয়া', 'Dighapatia', 24.4400, 88.9800], ['ছাতনী', 'Chhatni', 24.4500, 88.9500], ['হালসা', 'Halsa', 24.3800, 89.0400],
       ['বড়হরিশপুর', 'Barahorishpur', 24.4000, 89.0300], ['তেবাড়িয়া', 'Tebaria', 24.4200, 88.9500], ['কাফুরিয়া', 'Kafuria', 24.3900, 88.9600], ['লক্ষীপুর', 'Laxmipur', 24.4600, 89.0200]]
@@ -342,6 +344,15 @@ try {
           cover: [{ id: 'rt1', code: 'R-1', name: 'Town East', regular: ['Alamin Sarker'] }], plan: { id: 'p1', status: 'approved', published_version: 2 } },
         { id: 'h2', name: 'Lalpur', zone_id: 'z1', zone_name: 'Natore Area', staff: 4, due: '2026-11-24T02:15:00Z', state: 'none', sub_id: null, revision: null, mode: null, submitted_at: null, returned: null,
           present: 0, absent: 0, leave: 0, unknown: 0, people: null, cover: null, plan: null, held: true, hold: { reason: 'empty', gap_count: 4, total: 4, gaps: [] } }] })
+      if (u.includes('rpc/wf_ops_deadlines_get')) return j(opsDeadlines)
+      if (u.includes('rpc/wf_ops_deadlines_save')) {
+        const args = r.request().postDataJSON()
+        flowCalls.push({ fn: 'wf_ops_deadlines_save', ...args })
+        opsDeadlines = { zone_id: args.p_zone, ...args.p_times }
+        return j(null)
+      }
+      if (withOpsDeadlineCard && u.includes('rpc/wf_ops_mine')) return j({ today: dhakaToday, backdate_days: 0, entry: null, recent: [], hint: null })
+      if (withOpsDeadlineCard && u.includes('rpc/wf_ops_taps')) return j({ date: dhakaToday, count: 0, total: null, taps: [] })
       if (u.includes('rpc/wf_att_policy_get')) return j({ zone_id: 'z1', morning_cutoff: '08:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: false, today_due: '2026-11-24T02:15:00Z', can_edit: true })
       if (u.includes('rpc/wf_att_policy_save')) { flowCalls.push({ fn: 'wf_att_policy_save', ...r.request().postDataJSON() }); return j({ zone_id: 'z1', morning_cutoff: '09:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: true, today_due: '2026-11-24T03:15:00Z', can_edit: true }) }
       if (u.includes('rpc/route_plan_published')) return j({ date: r.request().postDataJSON().p_date, plan_id: 'p1', version: { no: 2, published_at: '2026-11-24T03:00:00Z', by: 'Zonal', morning_revision: 1 }, reopened: false,
@@ -662,8 +673,27 @@ try {
       check(await settingsLink(zoneTimeLink).count() === 1 && await settingsLink('/app/accounts/settings').count() === 1
         && await settingsLink('/app/users').count() === 0 && await settingsLink('/app/hr/import').count() === 0,
         `${size}: Zonal Manager gets attendance times and delegated setup links`)
+      await settingsLink('/app/attendance?view=zone&tab=ops-setting').click()
+      const opsTimes = page.locator('main input[type=time]')
+      await opsTimes.first().waitFor()
+      check(await opsTimes.count() === 4 && await opsTimes.first().inputValue() === '18:00',
+        `${size}: the daily report policy shows the four saved deadlines`)
+      await opsTimes.first().fill('18:30')
+      await page.getByRole('button', { name: /রিপোর্টের সময় সেভ করুন|Save report deadlines/ }).click()
+      await page.getByText(/রিপোর্টের সময় সেভ হয়েছে|Report deadlines saved/).waitFor()
+      const savedOps = flowCalls.findLast(x => x.fn === 'wf_ops_deadlines_save')
+      check(savedOps?.p_zone === 'z1' && savedOps.p_times.pickup === '18:30' && savedOps.p_times.pickup_return === null,
+        `${size}: daily report times save for the selected zone and blank stays unset`)
+
+      permsNow = ['hr.attendance.self']
+      withOpsDeadlineCard = true
+      await page.goto(`${BASE}/app/staff`)
+      await page.locator('.wf-op-grid').getByText(/18:30/).waitFor()
+      check(await page.locator('.wf-op-grid input').count() === 4 && await page.locator('.wf-op-send').isEnabled(),
+        `${size}: staff sees the deadlines and can still submit daily figures`)
     } finally {
       permsNow = null
+      withOpsDeadlineCard = false
     }
 
     // the shared list: search, sort, filter, pages, views, remembered choice
