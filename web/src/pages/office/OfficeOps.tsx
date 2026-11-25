@@ -78,7 +78,7 @@ function BillBlock({ ctx, kinds }: { ctx: Ctx; kinds: BillKind[] }) {
   const { toast, node } = useToast()
   const p = ctx.p
   const bills = useLoad(() => ops.bills(p.id), [p.id])
-  const from = useMemo(() => { const d = new Date(); d.setMonth(d.getMonth() - 12); return d.toISOString().slice(0, 10) }, [])
+  const from = useMemo(() => { const d = new Date(today() + 'T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() - 12); return d.toISOString().slice(0, 10) }, [])
   const lines = useLoad(() => p.hub_id ? ops.expenseLines(p.id, from, today()).catch(() => [] as ExpenseLine[]) : Promise.resolve([] as ExpenseLine[]), [p.id])
   const [f, setF] = useState<BF | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [ocr, setOcr] = useState('')
@@ -225,8 +225,10 @@ export function Rent({ ctx }: { ctx: Ctx }) {
     } catch (e) { setErr(opsFriendly(e)) } finally { setBusy(false) }
   }
   function newContract() {
-    const start = p.contract_to ? new Date(new Date(p.contract_to + 'T00:00:00').getTime() + 86400000).toISOString().slice(0, 10) : today()
-    const e = new Date(start + 'T00:00:00'); e.setFullYear(e.getFullYear() + 1); e.setDate(e.getDate() - 1)
+    // plain calendar dates: work in UTC so a Dhaka (UTC+6) browser does not slip the day back by one
+    const next = (iso: string) => { const x = new Date(iso + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10) }
+    const start = p.contract_to ? next(p.contract_to) : today()
+    const e = new Date(start + 'T00:00:00Z'); e.setUTCFullYear(e.getUTCFullYear() + 1); e.setUTCDate(e.getUTCDate() - 1)
     const end = e.toISOString().slice(0, 10)
     setC({ from: start, to: end, rent: p.rent?.toString() ?? '', advance: p.advance?.toString() ?? '', text: contractDraft(p, p.hub_id ? ctx.hubName(p.hub_id) : null, split, start, end, p.rent, p.advance) })
   }

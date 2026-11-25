@@ -25,7 +25,15 @@ const toNum = (v: string) => {
   )
   return Number.isFinite(x) ? x : 0
 }
-const cleanDigits = (v: string) => v.replace(/[^\d০-৯.]/g, '')
+const toLatin = (v: string) => v.replace(/[০-৯]/g, d => String('০১২৩৪৫৬৭৮৯'.indexOf(d)))
+/** Parcel counts are whole numbers (the database column is an integer). */
+const cleanCount = (v: string) => toLatin(v).replace(/\D/g, '').slice(0, 6)
+/** Money: digits and at most one dot, two decimals. */
+const cleanMoney = (v: string) => {
+  const x = toLatin(v).replace(/[^\d.]/g, '')
+  const [whole, ...rest] = x.split('.')
+  return (rest.length ? `${whole}.${rest.join('').slice(0, 2)}` : whole).slice(0, 10)
+}
 
 function fmtBnDate(d: Date, lang: 'bn' | 'en') {
   return d.toLocaleDateString(lang === 'bn' ? 'bn-BD' : 'en-GB', {
@@ -80,7 +88,12 @@ export default function StaffEntry() {
   const sessionOpen = !!v?.session_id
   const canSend = sessionOpen && !!chosen && !used && !empty && !busy
 
-  const today = useMemo(() => new Date(), [])
+  // the page can stay open for hours: keep the date and time current
+  const [today, setToday] = useState(() => new Date())
+  useEffect(() => {
+    const t = window.setInterval(() => setToday(new Date()), 30000)
+    return () => window.clearInterval(t)
+  }, [])
   const now = today.toLocaleTimeString(lang === 'bn' ? 'bn-BD' : 'en-GB', {
     timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hour12: true,
   })
@@ -185,7 +198,7 @@ export default function StaffEntry() {
                   inputMode="numeric"
                   placeholder="0"
                   value={pickup}
-                  onChange={e => setPickup(cleanDigits(e.target.value))}
+                  onChange={e => setPickup(cleanCount(e.target.value))}
                   aria-label={L('পিকআপ', 'Pickup')}
                 />
                 <div className="se-hint">{L('কতটা পার্সেল তুলেছেন', 'Parcels picked up')}</div>
@@ -196,7 +209,7 @@ export default function StaffEntry() {
                   inputMode="numeric"
                   placeholder="0"
                   value={delivery}
-                  onChange={e => setDelivery(cleanDigits(e.target.value))}
+                  onChange={e => setDelivery(cleanCount(e.target.value))}
                   aria-label={L('ডেলিভারি', 'Delivery')}
                 />
                 <div className="se-hint">{L('কতটা ডেলিভারি করেছেন', 'Parcels delivered')}</div>
@@ -209,7 +222,7 @@ export default function StaffEntry() {
                     inputMode="decimal"
                     placeholder="0"
                     value={amount}
-                    onChange={e => setAmount(cleanDigits(e.target.value))}
+                    onChange={e => setAmount(cleanMoney(e.target.value))}
                     onKeyDown={e => { if (e.key === 'Enter') void send() }}
                     aria-label={L('ডেলিভারি টাকা', 'Delivery amount')}
                   />
