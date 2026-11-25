@@ -1,4 +1,4 @@
-/* My Workforce & Attendance — the staff attendance book (AttendanceBook, AbsenceApply) and the four daily inputs (DailyOpsCard).
+/* My Workforce & Attendance — the staff attendance book (AttendanceBook, AbsenceApply) and the four daily inputs (now StaffForms in RiderQuick.tsx).
    Class prefixes: wf-bk (book) · wf-sh (give-sheet) · wf-opt (big answer buttons) · wf-ap (application form) · wf-op (daily inputs).
    Only the app's own colour tokens are used, so dark mode follows by itself. Flat cards, thin borders, calm green. */
 

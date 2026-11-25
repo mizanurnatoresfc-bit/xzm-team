@@ -6,8 +6,8 @@ export type StaffSection = 'accounts' | 'work' | 'attendance' | 'bill' | 'route'
 
 /** The standard page, in its standard order: [key, name bn, name en, what it holds bn, en]. */
 export const STAFF_SECTIONS: Array<[StaffSection, string, string, string, string]> = [
-  ['accounts', 'আমার হিসাব', 'My accounts', 'আজকের পিকআপ, ডেলিভারি, রিটার্ন ও টাকা; আগের হিসাব', "Today's pickups, deliveries, returns and money; earlier accounts"],
-  ['work', 'আজকের কাজের হিসাব', "Today's work count", 'আজকের পিকআপ/ডেলিভারি/রিটার্ন নিজে লেখা', "Write today's pickups, deliveries and returns"],
+  ['accounts', 'আমার হিসাব', 'My accounts', 'আজকের হিসাব খাতায় উঠেছে কিনা; আগের হিসাব', "Whether today's line is on the sheet; earlier accounts"],
+  ['work', 'পিকআপ ও ডেলিভারি খাতা', 'Pickup & delivery khata', 'পিকআপ, মার্চেন্টকে রিটার্ন, ডেলিভারি, ডেলিভারি রিটার্ন ও টাকা — ম্যানেজারের খাতায়', "Pickup, returns to merchants, delivery, delivery return and money — to the manager's khata"],
   ['attendance', 'আজকের হাজিরা', "Today's attendance", 'হাজিরা দেওয়া, আজ আসব না, ছুটির আবেদন', 'Give attendance, not coming, apply for leave'],
   ['bill', 'আমার বিল', 'My bill', 'খরচের বিল দেওয়া ও বিলের অবস্থা', 'Put up a bill and see where it is'],
   ['route', 'আমার রুট ও দায়িত্ব', 'My route & duties', 'রুটের এলাকা, দায়িত্ব, আমার গাড়ি', 'Route areas, duties, my vehicle'],

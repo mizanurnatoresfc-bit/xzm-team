@@ -1,16 +1,15 @@
 import { scrollBehavior } from '../../lib/a11y'
-import { Fragment, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Fragment, useState, type MouseEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { NodiGaps } from '../../components/NodiGaps'
 import { MyExplanations } from '../workforce/MyExplanations'
-import { DailyOpsCard } from '../../components/DailyOpsCard'
 import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
-import { RiderSendCard } from '../../components/RiderQuick'
+import { StaffForms } from '../../components/RiderQuick'
 import { MyAvatarUpload } from '../../components/MyAvatar'
 import { MyRouteCard } from '../../components/MyRoute'
 import { MyParcelsCard } from '../zonal/RoutePlan'
@@ -25,7 +24,6 @@ import { issues, type ZoneContacts, type ZoneGroup } from '../../lib/issues'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { fleet } from '../../lib/fleet'
-import { useLiveLoad, wf } from '../../lib/workforce'
 import { selfAtt, selfAttFriendly, type MyAttToday } from '../../lib/selfAtt'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { AppDownloadCard } from '../../components/AppDownloadCard'
@@ -74,25 +72,12 @@ export function StaffPanel() {
   const v = d.data
   const layout = useLoad(() => staffPanel.mine(), [])
   const chosen: StaffSection[] = layout.loading && !layout.data ? [] : layout.data ?? STAFF_DEFAULT   // wait for it, so nothing jumps
-  // Today's four numbers (My Workforce): the returns tile reads them; the input card below saves them. Live, so a submit shows here at once.
-  const ops = useLiveLoad(() => wf.myOps(1), [], ['wf_daily_ops'])
-  const reloadOps = ops.reload
-  useEffect(() => { const f = () => void reloadOps(); window.addEventListener('wf:changed', f); return () => window.removeEventListener('wf:changed', f) }, [reloadOps])
-  const todayOps = ops.data?.entry ?? null
-  const returnsToday = todayOps ? todayOps.pickup_return + todayOps.delivery_return : null
   const wfCounts = useWfCounts().data
   const wfOpen = wfCounts?.open === true   // the attendance book is open today (days 1-17): "not coming" is given there
-  // A login with no active staff profile gets no input card. Only the first load decides: a failed 60-second refresh keeps the card
-  // (and what the person is typing in it); DailyOpsCard shows its own error.
-  const opsHere = !!ops.data
-  // Someone who must give today's four numbers always gets the input card, even when their role's layout hides it:
-  // otherwise the "not given yet" alert and the returns tile would point at a card that is not on the page.
+  // Someone who must give today's numbers always gets the forms, even when their role's layout hides them:
+  // otherwise the "not given yet" alert would point at a section that is not on the page.
   const mustReport = wfCounts?.mine?.ops_expected === true
-  const order: StaffSection[] = chosen.length && !chosen.includes('work') && opsHere && mustReport ? [...chosen, 'work'] : chosen
-  const workShown = order.includes('work') && opsHere
-  const { hash } = useLocation()
-  useEffect(() => { if (hash === '#wf-ops' && opsHere) document.getElementById('wf-ops')?.scrollIntoView({ block: 'start' }) }, [hash, opsHere])
-  const toOps = (e: MouseEvent) => { const el = document.getElementById('wf-ops'); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }) } }
+  const order: StaffSection[] = chosen.length && !chosen.includes('work') && mustReport ? [...chosen, 'work'] : chosen
   const gapQ = useLoad(() => v?.me ? hr.myProfileGap(v.me.id).catch(() => null) : Promise.resolve(null), [v?.me?.id])
   const profilePct = gapQ.data ? Math.round(100 * (gapQ.data.total_checks - gapQ.data.missing.length) / Math.max(1, gapQ.data.total_checks)) : null
   const duties = v?.duties ?? [], routes = v?.routes ?? []   // a database function may answer null instead of an empty list
@@ -169,26 +154,12 @@ export function StaffPanel() {
   const SECTION: Record<StaffSection, () => ReactNode> = {
     accounts: () => <>
       <h2 className="sd-h">{L('আমার হিসাব', 'My accounts')}</h2>
-      <div className="sp-tiles">
-        <Link to="/app/accounts/mine" className="sp-tile t-b"><span className="i"><Icon name="box" size={20} /></span><b>{n(sum(l => l.line.pickup_qty))}</b><small>{L('আজকের পিকআপ', 'Pickups today')}</small></Link>
-        <Link to="/app/accounts/mine" className="sp-tile t-g"><span className="i"><Icon name="truck" size={20} /></span><b>{n(sum(l => l.line.delivery_qty))}</b><small>{L('আজকের ডেলিভারি', 'Deliveries today')}</small></Link>
-        {workShown
-          ? <a href="#wf-ops" className="sp-tile t-o" onClick={toOps}><span className="i"><Icon name="back" size={20} /></span><b>{returnsToday === null ? '—' : n(returnsToday)}</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></a>
-          : <div className="sp-tile t-o off"><span className="i"><Icon name="back" size={20} /></span><b>—</b><small>{L('আজকের রিটার্ন', 'Returns today')}</small></div>}
-        <Link to="/app/accounts/mine" className="sp-tile t-p"><span className="i"><Icon name="cash" size={20} /></span><b>{taka(sum(l => Number(l.line.amount)))}</b><small>{L('আজকের টাকা', 'Money today')}</small></Link>
-      </div>
-      <RiderSendCard onSent={() => d.reload()} />
       <div className="nv-rows">
         {row('/app/accounts/mine', 'g', 'wallet', L('আমার হিসাব', 'My accounts'), mine.length ? L('আজকের হিসাব খাতায় উঠেছে', "Today's line is on the sheet") : L('আজ এখনো আমার নামে হিসাব ওঠেনি', 'No line in my name yet today'))}
         {row('/app/accounts/mine', due > 0 ? 'o' : 'b', 'ledger', L('আমার আগের হিসাব', 'My earlier accounts'), due > 0 ? L(`৩০ দিনে বকেয়া ${taka(due)}`, `Due in 30 days ${taka(due)}`) : L('৭ দিন, ৩০ দিন, এ মাস বা তারিখ বেছে', '7 days, 30 days, this month or pick dates'))}
       </div>
     </>,
-    work: () => <>
-      {opsHere && <section id="wf-ops" className="wf-ops-sec">
-        <h2 className="sd-h">{L('আজকের কাজের হিসাব', "Today's work count")}</h2>
-        <DailyOpsCard />
-      </section>}
-    </>,
+    work: () => <StaffForms onSent={() => d.reload()} />,
     attendance: () => <>
       <h2 className="sd-h">{L('আজকের হাজিরা', "Today's attendance")}</h2>
       <div className={`sp-card t-${attTone}`} id="sp-att">

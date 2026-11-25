@@ -14,7 +14,6 @@ import { usePrefs } from '../lib/prefs'
 import { VIEWS, VIEW_OF, dashboard, dashboardFriendly, panelLabel, pickedView, setView, type DashView, type PanelCode } from '../lib/dashboard'
 import { HubTodayPanel, MyDayPanel } from '../components/HomePanels'
 import { MyApprovalCard } from '../components/MyApprovals'
-import { RiderSendCard } from '../components/RiderQuick'
 import { PersonalMenu } from '../components/PersonalMenu'
 import { WorkforceAlerts } from '../components/WorkforceAlerts'
 import { AppDownloadCard } from '../components/AppDownloadCard'
@@ -80,7 +79,6 @@ export function Dashboard() {
       <span>{L('প্রোফাইলের ছবি নেই — নিজেই ছবি দিন', 'No profile photo — add it yourself')}</span></Link>}
     {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
     <MyApprovalCard />
-    <RiderSendCard />
     {pageLinkAllowed('/app/accounts/report-import', { can, menu: menu ?? null }) && <ReportUploadCard />}
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
     {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}

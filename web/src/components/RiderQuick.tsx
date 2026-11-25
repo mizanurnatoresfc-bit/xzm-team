@@ -1,5 +1,5 @@
-// One tap from the dashboard: a rider/staff member sends today's pickup, delivery and amount into a
-// manager's khata, and the manager accepts it (one line, or all at once). Every rule is in the database
+// Staff send numbers into a manager's khata, and the manager accepts them (one line, or all at once). StaffForms is the staff side
+// (the two forms on the staff panel), RiderInbox the manager side. Every rule is in the database
 // (da_rider_submit / da_rider_accept / da_rider_accept_all); this only calls it.
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthProvider'
@@ -8,6 +8,7 @@ import { usePrefs } from '../lib/prefs'
 import { supabase } from '../lib/supabase'
 import { ErrorNote, useLoad } from '../pages/accounts/ui'
 import { Icon } from './Icon'
+import { announceWfChange, wf, wfFriendly } from '../lib/workforce'
 
 const MGR_KEY = 'xzm_rider_mgr'
 /** Bangla or English digits in, a number out (empty = 0). */
@@ -18,75 +19,101 @@ const STATUS: Record<MyRiderSend['status'], [string, string, string]> = {
   pending: ['গ্রহণের অপেক্ষায়', 'Waiting', 'o'], accepted: ['গৃহীত', 'Accepted', 'g'], taken: ['খাতায় উঠেছে', 'In the sheet', 'g'],
 }
 
-/** Staff card: পিকআপ · ডেলিভারি · টাকা → পাঠান. Shows to riders, and to anyone who already sent something today. */
-export function RiderSendCard({ onSent }: { onSent?: () => void | Promise<void> }) {
+/**
+ * Staff panel: the two forms. পিকআপ খাতা = pickup + returns given back to merchants; ডেলিভারি খাতা = delivery return + delivery + money.
+ * Numbers only (no merchant name). What needs the manager (pickup, delivery, money) goes into the manager's khata as one line the manager
+ * accepts — the same line the old "send today's count" card made; nothing new is made for it. The four numbers are also added to the day's
+ * count (wf_ops_add), so the attendance daily report and the zone report stay right. The returns have no column in the khata line, so they
+ * are written in its remark. A send with only returns has nothing for the khata and goes to the day's count alone.
+ */
+export function StaffForms({ onSent }: { onSent?: () => void | Promise<void> }) {
   const { L, n } = usePrefs()
   const { session } = useAuth()
   const uid = session?.user.id ?? ''
   const d = useLoad(() => da.riderOpen().catch(() => null), [])
-  const [pickup, setPickup] = useState('')
-  const [delivery, setDelivery] = useState('')
-  const [amount, setAmount] = useState('')
-  const [office, setOffice] = useState(false)
+  const ops = useLoad(() => wf.myOps(1).catch(() => null), [])
+  const [pf, setPf] = useState({ pickup: '', ret: '' })
+  const [df, setDf] = useState({ ret: '', delivery: '', amount: '', office: false })
   const [mgr, setMgr] = useState<string>(() => { try { return localStorage.getItem(MGR_KEY) ?? '' } catch { return '' } })
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState<'' | 'pickup' | 'delivery'>('')
   const [err, setErr] = useState<unknown>(null)
   const [done, setDone] = useState<string | null>(null)
-  useEffect(() => { if (!done) return; const t = window.setTimeout(() => setDone(null), 4000); return () => window.clearTimeout(t) }, [done])
+  useEffect(() => { if (!done) return; const t = window.setTimeout(() => setDone(null), 5000); return () => window.clearTimeout(t) }, [done])
 
+  if (!ops.data) return null                       // no active staff profile on this login: nothing to fill
   const v = d.data
-  if (!v || !Array.isArray(v.managers)) return null
-  const open = v.managers.filter(m => !m.closed && m.user_id !== uid)
-  if (!v.is_rider && !v.mine.length) return null
+  const open = (v && Array.isArray(v.managers) ? v.managers : []).filter(m => !m.closed && m.user_id !== uid)
   const chosen = open.length === 1 ? open[0].user_id : open.some(m => m.user_id === mgr) ? mgr : ''
-  const used = v.my_times >= v.max_times
-  const p = toNum(pickup), dl = toNum(delivery), a = toNum(amount)
-  const empty = !office && p === 0 && dl === 0 && a === 0
-  const canSend = !!v.session_id && !!chosen && !used && !empty && !busy
+  const used = !!v && v.my_times >= v.max_times
+  const khataWhy = !v ? L('খাতার অবস্থা জানা যায়নি', 'The khata status could not be read')
+    : !v.session_id ? L('আজকের খাতা এখনো কোনো ম্যানেজার খোলেননি', "No manager has opened today's khata yet")
+    : !open.length ? L('আজ সব ম্যানেজারের খাতা বন্ধ', "Every manager's khata is closed")
+    : used ? L(`আজ সর্বোচ্চ ${n(v.max_times)} বার পাঠানো হয়ে গেছে`, `You have sent the most allowed today (${v.max_times})`)
+    : !chosen ? L('আগে ম্যানেজার বাছুন', 'Pick a manager first') : ''
+  const total = ops.data.entry
+  const sum = (l1: string, a: number, l2: string, b: number) => `${L('আজ মোট', 'Today so far')}: ${l1} ${n(a)} · ${l2} ${n(b)}`
 
-  async function send() {
-    if (!canSend) return
-    setBusy(true); setErr(null)
+  async function send(kind: 'pickup' | 'delivery') {
+    const p = kind === 'pickup' ? toNum(pf.pickup) : 0, pr = kind === 'pickup' ? toNum(pf.ret) : 0
+    const dl = kind === 'delivery' ? toNum(df.delivery) : 0, dr = kind === 'delivery' ? toNum(df.ret) : 0
+    const a = kind === 'delivery' ? toNum(df.amount) : 0, office = kind === 'delivery' && df.office
+    setErr(null)
+    if (!office && p + pr + dl + dr + a === 0) { setErr(new Error(L('অন্তত একটা ঘরে সংখ্যা লিখুন', 'Write at least one number'))); return }
+    const needKhata = p > 0 || dl > 0 || a > 0 || office
+    if (needKhata && khataWhy) { setErr(new Error(`${khataWhy} — ${L('পিকআপ, ডেলিভারি বা টাকা পাঠানো যাবে না', 'pickup, delivery or money cannot be sent')}`)); return }
+    const rem = [pr > 0 && `${L('মার্চেন্টকে রিটার্ন', 'Returned to merchants')} ${pr}`, dr > 0 && `${L('ডেলিভারি রিটার্ন', 'Delivery return')} ${dr}`].filter(Boolean).join(' · ')
+    setBusy(kind)
     try {
-      await da.riderSubmit({ manager: chosen, amount: a, delivery: dl, pickup: p, office })
-      try { localStorage.setItem(MGR_KEY, chosen) } catch { /* private window */ }
-      setPickup(''); setDelivery(''); setAmount(''); setOffice(false)
-      setDone(L(`পাঠানো হয়েছে: ${n(p)} পিকআপ · ${n(dl)} ডেলিভারি · ৳${n(a)}`, `Sent: ${p} pickups · ${dl} deliveries · ৳${a}`))
-      await d.reload(); await onSent?.()
-    } catch (e) { setErr(e) } finally { setBusy(false) }
+      if (needKhata) {
+        await da.riderSubmit({ manager: chosen, amount: a, delivery: dl, pickup: p, office, remarks: rem || null })
+        try { localStorage.setItem(MGR_KEY, chosen) } catch { /* private window */ }
+      }
+      try { await wf.addOps({ pickup: p, pickup_return: pr, delivery: dl, delivery_return: dr }); announceWfChange() }
+      catch (e) { if (!needKhata) throw e; setErr(new Error(L(`খাতায় গেছে, কিন্তু দৈনিক সংখ্যায় যোগ হয়নি: ${wfFriendly(e)}`, `Sent to the khata, but not added to the day's count: ${wfFriendly(e)}`))) }
+      if (kind === 'pickup') setPf({ pickup: '', ret: '' }); else setDf({ ret: '', delivery: '', amount: '', office: false })
+      setDone(needKhata ? L('পাঠানো হয়েছে — ম্যানেজারের গ্রহণের অপেক্ষায়', 'Sent — waiting for the manager') : L('সংখ্যা জমা হয়েছে', 'Numbers saved'))
+      await Promise.all([d.reload(), ops.reload()]); await onSent?.()
+    } catch (e) { setErr(e) } finally { setBusy('') }
   }
+  const field = (cls: string, icon: string, label: string, val: string, set: (x: string) => void, dec = false) =>
+    <label className={`rs-f ${cls}`}><span><Icon name={icon} size={16} /> {label}</span>
+      <input inputMode={dec ? 'decimal' : 'numeric'} placeholder="0" value={val} onChange={e => set(clean(e.target.value))} /></label>
 
-  return <section className="panel rsend">
-    <div className="da-bar"><h2 style={{ margin: 0 }}>{L('আজকের হিসাব পাঠান', "Send today's count")}</h2>
-      <span className="small muted">{v.hub ?? ''}{v.session_id ? ` · ${L('আজ', 'Today')} ${n(v.my_times)}/${n(v.max_times)} ${L('বার', 'times')}` : ''}</span></div>
+  return <section id="wf-ops" className="wf-ops-sec">
+    <h2 className="sd-h">{L('পিকআপ ও ডেলিভারি খাতা', 'Pickup & delivery khata')}</h2>
+    <div className="panel rsend">
+      <div className="da-bar"><h2 style={{ margin: 0 }}>{L('আজকের সংখ্যা', "Today's numbers")}</h2>
+        <span className="small muted">{v?.hub ?? ''}{v?.session_id ? ` · ${L('আজ', 'Today')} ${n(v.my_times)}/${n(v.max_times)} ${L('বার', 'times')}` : ''}</span></div>
+      {khataWhy && <p className="rs-note"><Icon name="clock" size={18} />{khataWhy}{L(' — রিটার্ন লিখে রাখা যাবে, কিন্তু পিকআপ, ডেলিভারি ও টাকা পাঠানো যাবে না।', ' — returns can still be saved, but pickup, delivery and money cannot be sent.')}</p>}
+      {open.length > 1 && <div className="rs-mgrs" role="group" aria-label={L('কোন ম্যানেজারের কাছে', 'To which manager')}>
+        <span className="small muted">{L('কার কাছে দিচ্ছেন:', 'Giving to:')}</span>
+        {open.map(m => <button key={m.user_id} type="button" className={`rs-chip${chosen === m.user_id ? ' on' : ''}`} aria-pressed={chosen === m.user_id} onClick={() => setMgr(m.user_id)}>{m.name ?? m.code ?? '—'}</button>)}</div>}
 
-    {!v.session_id ? <p className="rs-note"><Icon name="clock" size={18} />{L('আজকের খাতা এখনো কোনো ম্যানেজার খোলেননি — খোলা হলে এখানে পাঠাতে পারবেন।', 'No manager has opened today’s sheet yet — you can send once it is open.')}</p>
-      : !open.length ? <p className="rs-note"><Icon name="check" size={18} />{L('আজ সব ম্যানেজারের খাতা বন্ধ — আর পাঠানো যাবে না।', 'Every manager’s sheet is closed for today.')}</p>
-      : used ? <p className="rs-note"><Icon name="alert" size={18} />{L(`আজ সর্বোচ্চ ${n(v.max_times)} বার পাঠানো হয়ে গেছে।`, `You have sent the most allowed today (${v.max_times}).`)}</p>
-      : <>
-        {open.length > 1 && <div className="rs-mgrs" role="group" aria-label={L('কোন ম্যানেজারের কাছে', 'To which manager')}>
-          <span className="small muted">{L('কার কাছে দিচ্ছেন:', 'Giving to:')}</span>
-          {open.map(m => <button key={m.user_id} type="button" className={`rs-chip${chosen === m.user_id ? ' on' : ''}`} aria-pressed={chosen === m.user_id} onClick={() => setMgr(m.user_id)}>{m.name ?? m.code ?? '—'}</button>)}</div>}
-        <div className="rs-grid">
-          <label className="rs-f t-b"><span><Icon name="box" size={16} /> {L('পিকআপ', 'Pickup')}</span>
-            <input inputMode="numeric" placeholder="0" value={pickup} onChange={e => setPickup(clean(e.target.value))} /></label>
-          <label className="rs-f t-p"><span><Icon name="truck" size={16} /> {L('ডেলিভারি', 'Delivery')}</span>
-            <input inputMode="numeric" placeholder="0" value={delivery} onChange={e => setDelivery(clean(e.target.value))} /></label>
-          <label className="rs-f t-g"><span><Icon name="cash" size={16} /> {L('টাকা', 'Amount')}</span>
-            <input inputMode="decimal" placeholder="0" value={amount} onChange={e => setAmount(clean(e.target.value))} onKeyDown={e => { if (e.key === 'Enter') void send() }} /></label>
-        </div>
-        <label className="rs-office"><input type="checkbox" checked={office} onChange={e => setOffice(e.target.checked)} /> {L('টাকা অফিসে জমা দিয়েছি', 'I paid the money at the office')}</label>
-        <button type="button" className="rs-send" disabled={!canSend} onClick={() => void send()}>
-          <Icon name="check" size={18} />{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : !chosen ? L('আগে ম্যানেজার বাছুন', 'Pick a manager first')
-            : L(`পাঠান${open.length === 1 ? ` → ${open[0].name ?? ''}` : ''}`, `Send${open.length === 1 ? ` → ${open[0].name ?? ''}` : ''}`)}</button>
-      </>}
-    {done && <p className="rs-done" role="status"><Icon name="check" size={16} />{done}</p>}
-    <ErrorNote error={err} />
+      <h3 className="small" style={{ margin: '12px 0 0' }}>{L('পিকআপ খাতা', 'Pickup khata')}
+        <span className="muted"> · {sum(L('পিকআপ', 'pickup'), total?.pickup ?? 0, L('রিটার্ন', 'returned'), total?.pickup_return ?? 0)}</span></h3>
+      <div className="rs-grid" style={{ gridTemplateColumns: 'repeat(2,minmax(0,1fr))' }}>
+        {field('t-b', 'box', L('পিকআপ', 'Pickup'), pf.pickup, x => setPf({ ...pf, pickup: x }))}
+        {field('t-p', 'back', L('মার্চেন্টকে রিটার্ন', 'Returned to merchant'), pf.ret, x => setPf({ ...pf, ret: x }))}
+      </div>
+      <button type="button" className="rs-send" disabled={!!busy} onClick={() => void send('pickup')}><Icon name="check" size={18} />{busy === 'pickup' ? L('পাঠানো হচ্ছে…', 'Sending…') : L('পিকআপ পাঠান', 'Send pickup')}</button>
 
-    {v.mine.length > 0 && <ul className="rs-list">{v.mine.map(x => { const st = STATUS[x.status]; return <li key={x.id}>
-      <span className="rs-t">{new Date(x.at).toLocaleTimeString(L('bn-BD', 'en-GB'), { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' })}</span>
-      <span className="rs-v">{n(x.pickup)} {L('পিকআপ', 'pickup')} · {n(x.delivery)} {L('ডেলিভারি', 'delivery')} · <b>৳{n(x.amount)}</b>{x.office_deposit ? L(' · অফিসে জমা', ' · at office') : ''}</span>
-      <span className={`rs-st t-${st[2]}`}>{L(st[0], st[1])}</span></li> })}</ul>}
+      <h3 className="small" style={{ margin: '18px 0 0' }}>{L('ডেলিভারি খাতা', 'Delivery khata')}
+        <span className="muted"> · {sum(L('রিটার্ন', 'returned'), total?.delivery_return ?? 0, L('ডেলিভারি', 'delivery'), total?.delivery ?? 0)}</span></h3>
+      <div className="rs-grid">
+        {field('t-p', 'back', L('ডেলিভারি রিটার্ন', 'Delivery return'), df.ret, x => setDf({ ...df, ret: x }))}
+        {field('t-g', 'truck', L('ডেলিভারি', 'Delivery'), df.delivery, x => setDf({ ...df, delivery: x }))}
+        {field('t-g', 'cash', L('টাকা', 'Amount'), df.amount, x => setDf({ ...df, amount: x }), true)}
+      </div>
+      <label className="rs-office"><input type="checkbox" checked={df.office} onChange={e => setDf({ ...df, office: e.target.checked })} /> {L('টাকা অফিসে জমা দিয়েছি', 'I paid the money at the office')}</label>
+      <button type="button" className="rs-send" disabled={!!busy} onClick={() => void send('delivery')}><Icon name="check" size={18} />{busy === 'delivery' ? L('পাঠানো হচ্ছে…', 'Sending…') : L('ডেলিভারি পাঠান', 'Send delivery')}</button>
+
+      {done && <p className="rs-done" role="status"><Icon name="check" size={16} />{done}</p>}
+      <ErrorNote error={err} />
+      {v && v.mine.length > 0 && <ul className="rs-list">{v.mine.map(x => { const st = STATUS[x.status]; return <li key={x.id}>
+        <span className="rs-t">{new Date(x.at).toLocaleTimeString(L('bn-BD', 'en-GB'), { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' })}</span>
+        <span className="rs-v">{n(x.pickup)} {L('পিকআপ', 'pickup')} · {n(x.delivery)} {L('ডেলিভারি', 'delivery')} · <b>৳{n(x.amount)}</b>{x.office_deposit ? L(' · অফিসে জমা', ' · at office') : ''}</span>
+        <span className={`rs-st t-${st[2]}`}>{L(st[0], st[1])}</span></li> })}</ul>}
+    </div>
   </section>
 }
 
