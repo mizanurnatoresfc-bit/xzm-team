@@ -172,7 +172,7 @@ jobs:
               test -x "$apksigner"
               signer_digests() {
                 "$apksigner" verify --print-certs "$1" > "$RUNNER_TEMP/xzm-apk-certs.txt" || return 1
-                awk '/^Signer #[0-9]+ certificate SHA-256 digest:/ { print $NF }' "$RUNNER_TEMP/xzm-apk-certs.txt" | sort
+                awk '/^(Signer #[0-9]+ certificate|V[0-9]+(\.[0-9]+)? Signer( #[0-9]+)?: certificate) SHA-256 digest:/ && length($NF) == 64 && $NF ~ /^[[:xdigit:]]+$/ { print tolower($NF) }' "$RUNNER_TEMP/xzm-apk-certs.txt" | sort -u
               }
               live_signers="$(signer_digests "$live_apk")"
               build_signers="$(signer_digests "$GITHUB_WORKSPACE/XZM-TEAM.apk")"
