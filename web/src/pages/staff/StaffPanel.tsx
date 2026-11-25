@@ -49,7 +49,7 @@ const quiet = <T,>(p: PromiseLike<T>, or: T): Promise<T> => Promise.resolve(p).t
 
 export function StaffPanel() {
   const { L, n, lang } = usePrefs()
-  const { can, session, menu } = useAuth()
+  const { session, menu } = useAuth()
   // A role limited to a list of pages: rows that lead off the list are left out.
   const ok = (to: string) => pageAllowed(menu, to)
   const today = todayDhaka()
