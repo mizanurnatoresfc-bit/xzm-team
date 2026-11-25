@@ -1,15 +1,16 @@
 import { askReason, askText } from '../../components/ask'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HUB_SECTION_PERMS, hasPageAccess, linkAllowed } from '../../lib/menu'
 import { HubLogins } from './HubLogins'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
-import { AppShell, refreshShellCounts } from '../../components/AppShell'
+import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { RouteViz } from '../../components/RouteViz'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
+import { resolveWorkHub, useWorkHub } from '../../lib/workHub'
 import { autoCode, hrFriendly, type Employee, type Hub } from '../../lib/hr'
 import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts'
 import { routesApi, type HubRoute } from '../../lib/hub'
@@ -29,37 +30,26 @@ export const HUB_SECTIONS: Array<{ key: HubSection; icon: string; bn: string; en
   { key: 'routes', icon: 'map', bn: 'রাইডার রুট', en: 'Rider routes', perms: HUB_SECTION_PERMS.routes },
 ]
 
-const HUB_KEY = 'xzm_hub'
-export function storedHub(): string { try { return sessionStorage.getItem(HUB_KEY) || '' } catch { return '' } }
-function storeHub(id: string) { try { sessionStorage.setItem(HUB_KEY, id) } catch { /* ignore */ } }
-
 export function HubManagement() {
   const { section } = useParams()
-  const { can, menu } = useAuth()
+  const { can, menu, session } = useAuth()
   const { L } = usePrefs()
   const o = useOrg()
-  const [hub, setHubS] = useState(storedHub())
+  const preferred = useWorkHub(session?.user.id ?? '')
   const hubs = useMemo(() => (o.data?.hubs ?? []).filter(h => !h.archived_at), [o.data])
-  useEffect(() => {
-    if (!hubs.length) return
-    if (!hub || !hubs.some(h => h.id === hub)) { setHubS(hubs[0].id); storeHub(hubs[0].id) }
-  }, [hubs, hub])
-  const setHub = (id: string) => { setHubS(id); storeHub(id); refreshShellCounts() }
   // Old sections moved to new master pages
   if (section === 'team') return <Navigate to="/app/staff/list" replace />
   if (section === 'attendance' || section === 'late' || section === 'days') return <Navigate to="/app/attendance?view=hub" replace />
   const sec = HUB_SECTIONS.find(s => s.key === section)
   if (!sec) return <Navigate to="/app/attendance?view=hub" replace />
   const allowed = sec.perms.some(p => can(p)) && hasPageAccess(`/app/hub/${sec.key}`, can)
-  const current = hubs.find(h => h.id === hub) ?? null
+  const current = resolveWorkHub(hubs, preferred)
   // "আজকের হিসাব" is off the strip (see HIDDEN_PAGES in AppShell); it still opens by address.
   const offStrip = (k: HubSection) => k === 'accounts' && section !== k
   const tabs = HUB_SECTIONS.filter(s => linkAllowed(`/app/hub/${s.key}`, { can, menu }, s.perms) && !offStrip(s.key))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
     <section className="da-filters panel no-print hub-top">
-      <Field label={L('হাব', 'Hub')}><select value={hub} onChange={e => setHub(e.target.value)}>
-        {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field>
       <nav className="hub-tabs" aria-label={L('হাব ম্যানেজমেন্ট', 'Hub management')}>
         {tabs.map(t => <Link key={t.key} to={`/app/hub/${t.key}`} className={t.key === sec.key ? 'on' : ''}><Icon name={t.icon} size={15} /><span>{L(t.bn, t.en)}</span></Link>)}
       </nav>
@@ -67,7 +57,9 @@ export function HubManagement() {
     {o.error ? <p className="da-error">{hrFriendly(o.error)}</p> : null}
     {!allowed ? <p className="notice">{L('এই পাতা দেখার অনুমতি আপনার রোলে নেই।', 'Your role may not open this page.')}</p>
       : o.data && !hubs.length ? <p className="notice">{L('আপনার দেখার মতো কোনো হাব নেই।', 'There is no hub you can see.')}</p>
-      : current ? <Body section={sec.key} hub={current} /> : <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
+      : current ? <Body key={current.id} section={sec.key} hub={current} />
+      : hubs.length ? <p className="notice"><Link to="/app/me/permissions">{L('আমার অনুমতি থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in My permissions.')}</Link></p>
+      : <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
   </AppShell>
 }
 

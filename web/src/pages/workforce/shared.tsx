@@ -42,11 +42,6 @@ export const fmtTime = (ts: string, lang: Lang) => {
 export const fmtStamp = (ts: string | null | undefined, lang: Lang) => !ts ? '—' : `${fmtTsDay(ts, lang)}, ${fmtTime(ts, lang)}`
 export const monthName = (ym: string, lang: Lang) => dateText(`${ym.slice(0, 7)}-01`, lang, { month: 'long', year: 'numeric' })
 
-// ------------------------------------------------------------------ the hub the person works in (same memory as the hub pages)
-const HUB_KEY = 'xzm_hub'
-export const storedHub = (): string => { try { return sessionStorage.getItem(HUB_KEY) || '' } catch { return '' } }
-export const rememberHub = (id: string) => { try { sessionStorage.setItem(HUB_KEY, id) } catch { /* private mode */ } }
-
 export type HubOpt = { id: string; name: string; zone_id: string | null }
 export type ZoneOpt = { id: string; name: string }
 /** Hubs and zones the person may see (row security decides), hubs shown with their number code like everywhere else. */

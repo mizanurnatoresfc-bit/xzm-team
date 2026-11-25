@@ -14,6 +14,7 @@ import { advancedAccessHere, setupPush } from '../lib/native'
 import { hasIcon, Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq } from '../lib/hrreq'
+import { useWorkHub } from '../lib/workHub'
 import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 import { PersonalMenu, WfCountsHost } from './PersonalMenu'
@@ -242,7 +243,7 @@ export const HIDDEN_PAGES = ['/app/hub/accounts', '/app/hr', '/app/issues?tab=or
 type MyRole = { code: string; name: string; scope_type: string; zone: string | null; hub: string | null }
 let rolesCache: { user: string; at: number; p: Promise<MyRole[]> } | null = null
 let countCache: { key: string; at: number; p: Promise<Record<CountKey, number>> } | null = null
-function myRoles(user: string): Promise<MyRole[]> {
+export function myRoles(user: string): Promise<MyRole[]> {
   if (rolesCache && rolesCache.user === user && Date.now() - rolesCache.at < 300_000) return rolesCache.p
   const p = (async () => {
     const { data } = await supabase.from('user_roles').select('scope_type, zone_id, hub_id, revoked_at, roles(code, name), zones(name), hubs(name)').eq('user_id', user).is('revoked_at', null)
@@ -264,9 +265,8 @@ async function teamCount(hub: string): Promise<number> {
   const res = await supabase.from('employees').select('id', { count: 'exact', head: true }).eq('hub_id', hub).eq('status', 'active').is('archived_at', null)
   return res.error ? 0 : res.count ?? 0
 }
-const selectedHub = () => { try { return sessionStorage.getItem('xzm_hub') || '' } catch { return '' } }
-function counts(user: string, can: (p: string) => boolean): Promise<Record<CountKey, number>> {
-  const hub = can('hr.employee.view') ? selectedHub() : ''
+function counts(user: string, can: (p: string) => boolean, workHub: string): Promise<Record<CountKey, number>> {
+  const hub = can('hr.employee.view') ? workHub : ''
   const key = [user, can('hr.application.approve'), can('hr.leave.approve'), can('da.sheet.approve'), can('hr.request.approve'), hub].join('|')
   if (countCache && countCache.key === key && Date.now() - countCache.at < 60_000) return countCache.p
   const p = Promise.all([
@@ -302,6 +302,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const navType = useNavigationType()
   useEffect(() => { document.documentElement.dataset.nav = navType === 'POP' ? 'back' : 'fwd' }, [navType])
   const user = session?.user.id ?? ''
+  const workHub = useWorkHub(user)
   const name = (session?.user.user_metadata?.full_name as string | undefined) || session?.user.email || ''
   const [open, setOpen] = useState(false)
   // Sidebar size: phone = slide-in drawer; tablet = icon rail (opens on hover); PC = full, can be folded to a rail.
@@ -351,7 +352,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   }, [])
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>(() => { try { return JSON.parse(sessionStorage.getItem('xzm_ng') || '{}') } catch { return {} } })
   const popRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { if (user) { void myRoles(user).then(setRoles); void counts(user, can).then(setCnt) } }, [user, can])
+  useEffect(() => { if (user) void myRoles(user).then(setRoles) }, [user])
+  useEffect(() => {
+    if (!user) return
+    let current = true
+    void counts(user, can, workHub).then(result => { if (current) setCnt(result) })
+    return () => { current = false }
+  }, [user, can, workHub])
   const [photoTick, setPhotoTick] = useState(0)
   useEffect(() => onMyPhotoChange(() => setPhotoTick(t => t + 1)), [])
   useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user, photoTick])
