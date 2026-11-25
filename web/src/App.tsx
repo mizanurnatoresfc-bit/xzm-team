@@ -251,12 +251,12 @@ export default function App() {
       {/* the old vehicle pages were replaced by /app/fleet (owner, 16 Nov) */}
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />
       <Route path="/app/vehicles/*" element={<Navigate to="/app/fleet" replace />} />
-      <Route path="/app/hr" element={<Navigate to="/app/staff/list" replace />} />
+      <Route path="/app/hr" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/hr/employees" element={<RedirectKeep to="/app/staff/list" />} />
       <Route path="/app/hr/employees/:id" element={<EmployeeProfile />} />
-      <Route path="/app/hr/applications" element={<Navigate to="/app/zonal/requests" replace />} />
+      <Route path="/app/hr/applications" element={<RedirectKeep to="/app/zonal/requests" />} />
       <Route path="/app/hr/attendance" element={<LegacyAttendanceRedirect view="hub" />} />
-      <Route path="/app/hr/leave" element={<Navigate to="/app/staff" replace />} />
+      <Route path="/app/hr/leave" element={<RedirectKeep to="/app/staff" />} />
       <Route path="/app/password" element={<ChangePassword />} />
       <Route path="/app/notifications" element={<Notifications />} />
       <Route path="/app/notices" element={<NoticeBoard />} />

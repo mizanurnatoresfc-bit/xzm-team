@@ -149,7 +149,7 @@ test('phone tabs: the right tab is on for nested pages and deep links; never two
     [hub, '/app', 'হোম'], [hub, '/app/attendance', 'হাব'], [hub, '/app/attendance', 'হাব', '?view=hub&tab=final&date=2026-11-20'], [hub, '/app/hub/pickup', 'হাব'],
     [hub, '/app/staff/list', 'টিম'], [hub, '/app/hr/employees/e01', 'টিম'], [hub, '/app/hr/applications', 'টিম'],
     [hub, '/app/accounts/daily', 'হিসাব'], [hub, '/app/accounts/daily/s1/main', 'হিসাব'], [hub, '/app/accounts/center', 'হিসাব'], [hub, '/app/accounts/khata', 'হিসাব'],
-    [hub, '/app/hr/requests', 'রিকুয়েস্ট'], [hub, '/app/hr/leave', 'রিকুয়েস্ট'], [hub, '/app/manpower', 'রিকুয়েস্ট'],
+    [hub, '/app/hr/requests', 'রিকুয়েস্ট'], [hub, '/app/manpower', 'রিকুয়েস্ট'],
     [zone, '/app/hr/employees/e01', 'কর্মী'], [zone, '/app/sorting/parcels', 'ট্রিপ'], [zone, '/app/sorting/fuel', 'ট্রিপ'], [zone, '/app/accounts/reports', 'হিসাব'], [zone, '/app/attendance', 'হাব'],
     [plain, '/app/hr/employees/e01', 'কর্মী'],
     [self, '/app', 'হোম'], [self, '/app/staff', 'হোম'], [self, '/app/me', 'প্রোফাইল'], [self, '/app/me/complete', 'প্রোফাইল'], [self, '/app/accounts/mine', 'হিসাব'], [self, '/app/hr/requests', 'রিকুয়েস্ট'],

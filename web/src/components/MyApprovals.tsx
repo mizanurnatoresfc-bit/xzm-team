@@ -76,7 +76,12 @@ export function MyApprovalCard() {
 
   async function run(key: string, f: () => Promise<unknown>, msg: string) {
     setBusy(key); setErr(null)
-    try { await f(); setBack(null); setReason(''); setDone(msg); await d.reload() } catch (e) { setErr(e) } finally { setBusy('') }
+    try { await f(); setBack(null); setReason(''); setDone(msg); await d.reload() }
+    catch (e) {
+      setErr(e)
+      // "accept all" may have got part-way: show what is still waiting instead of lines that are already taken
+      await d.reload().catch(() => undefined)
+    } finally { setBusy('') }
   }
   /** Today's khata of the hub; opened now when nobody has opened it yet. */
   async function sheetOf(hub: string) {
@@ -103,7 +108,7 @@ export function MyApprovalCard() {
         <button type="button" className="t-b" onClick={() => setTab('rider')}><Icon name="box" size={18} /><b>{n(sum(riders, r => r.pickup_qty))}</b><small>{L('পিকআপ', 'Pickups')}</small></button>
         <button type="button" className="t-p" onClick={() => setTab('rider')}><Icon name="truck" size={18} /><b>{n(sum(riders, r => r.delivery_qty))}</b><small>{L('ডেলিভারি', 'Deliveries')}</small></button>
         <button type="button" className="t-g" onClick={() => setTab('rider')}><Icon name="cash" size={18} /><b>৳{n(sum(riders, r => Number(r.amount)))}</b><small>{L('রাইডারের টাকা', 'Rider money')}</small></button>
-        <button type="button" className="t-o" onClick={() => setTab('bill')}><Icon name="receipt" size={18} /><b>৳{n(sum(bills, b => Number(b.amount)))}</b><small>{L(`খরচের বিল · ${n(bills.length)}টি`, `Expense bills · ${bills.length}`)}</small></button>
+        {canBills && <button type="button" className="t-o" onClick={() => setTab('bill')}><Icon name="receipt" size={18} /><b>৳{n(sum(bills, b => Number(b.amount)))}</b><small>{L(`খরচের বিল · ${n(bills.length)}টি`, `Expense bills · ${bills.length}`)}</small></button>}
       </div>
 
       <nav className="da-tabs ma-tabs" aria-label={L('কী অনুমোদন', 'What to approve')}>
