@@ -1,0 +1,59 @@
+name: Cloudflare Android test APK
+on:
+  push:
+    branches: [test/cloudflare-android-apk]
+    paths: ['.github/workflows/cloudflare-android-test.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-apk:
+    if: github.ref == 'refs/heads/test/cloudflare-android-apk'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Set isolated Android identity and Cloudflare URL
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'capacitor.config.json';
+          const config = JSON.parse(fs.readFileSync(path));
+          config.appId = 'com.xzmteam.cloudflaretest';
+          config.appName = 'XZM TEAM Cloudflare Test';
+          config.server.url = 'https://xzm-team.pages.dev';
+          fs.writeFileSync(path, JSON.stringify(config, null, 2));
+          NODE
+          test ! -d android
+          npx cap add android
+          npx cap sync android
+      - name: Build and verify debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/XZM-TEAM-Cloudflare-Test.apk"
+          apk="$RUNNER_TEMP/XZM-TEAM-Cloudflare-Test.apk"
+          aapt="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          "$aapt" dump badging "$apk" | grep -F "package: name='com.xzmteam.cloudflaretest'"
+          unzip -p "$apk" assets/capacitor.config.json | python3 -c 'import json,sys; assert json.load(sys.stdin)["server"]["url"] == "https://xzm-team.pages.dev"'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XZM-TEAM-Cloudflare-Test
+          path: ${{ runner.temp }}/XZM-TEAM-Cloudflare-Test.apk
+          if-no-files-found: error
+          retention-days: 7
