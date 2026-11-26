@@ -208,15 +208,20 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
       <p className="rt-hint">{L('প্রতিটা রুটে আজ কয়টা পার্সেল যাবে লিখুন। ফাঁকা রাখলে পরামর্শের সময় রুটের গড় অনুযায়ী ভাগ হয়।', 'Type how many parcels go on each route today. Left empty, the suggestion spreads them by the route averages.')}</p>
       <div className="da-table-wrap"><table className="da-table">
         <thead><tr><th>{L('রুট', 'Route')}</th><th>{L('স্টপ', 'Stops')}</th><th>{L('রাইডার', 'Riders')}</th><th>{L('গড় পার্সেল', 'Average')}</th><th>{L('আজ', 'Today')}</th></tr></thead>
-        <tbody>{data.routes.map(r => <tr key={r.id}>
+        <tbody>{data.routes.map(r => {
+          const planned = int(f.routes[r.id] ?? '')
+          const aboveAverage = planned !== null && r.avg_parcels !== null ? Math.max(0, planned - r.avg_parcels) : 0
+          return <tr key={r.id}>
           <td data-label={L('রুট', 'Route')}><b>{r.code}</b> · {r.name}</td>
           <td data-label={L('স্টপ', 'Stops')}>{n(r.stops.length)}</td>
           <td data-label={L('রাইডার', 'Riders')}>{r.riders.length ? r.riders.map(x => { const p = data.people.find(y => y.id === x.employee_id); const off = p && f.rows[p.id] && !isHere(p, f.rows[p.id].present)
             return <span key={x.employee_id} style={{ marginRight: 8, color: off ? '#dc2626' : undefined, textDecoration: off ? 'line-through' : undefined }}>{x.name}</span> }) : <span className="muted">{L('নেই', 'None')}</span>}</td>
           <td data-label={L('গড় পার্সেল', 'Average')}>{r.avg_parcels === null ? '—' : n(r.avg_parcels)}</td>
           <td data-label={L('আজ', 'Today')}><input type="number" inputMode="numeric" min={0} style={{ width: 96 }} disabled={!canWrite} aria-label={L(`${r.name}: আজকের পার্সেল`, `${r.name}: parcels today`)}
-            value={f.routes[r.id] ?? ''} onChange={e => change({ routes: { ...f.routes, [r.id]: e.target.value } })} /></td>
-        </tr>)}</tbody>
+            value={f.routes[r.id] ?? ''} onChange={e => change({ routes: { ...f.routes, [r.id]: e.target.value } })} />
+            {aboveAverage > 0 && <div><Badge tone="warn">{L(`গড়ের চেয়ে ${n(aboveAverage)} বেশি`, `${aboveAverage} above average`)}</Badge></div>}
+          </td>
+        </tr> })}</tbody>
         <tfoot><tr><td colSpan={4}>{L('রুটে মোট', 'On routes')}</td><td><b style={{ color: todo !== null && onRoutes > todo ? '#dc2626' : undefined }}>{n(onRoutes)}</b>{todo !== null ? ` / ${n(Math.max(0, todo))}` : ''}</td></tr></tfoot>
       </table></div>
     </section>}
@@ -281,7 +286,11 @@ function FilesPanel({ hub, date, data, files, error, canWrite, reload, toast, on
     setBusy(true); const out: string[] = []; let ok = 0
     const { readPlanPdf } = await import('../../lib/planPdf')
     for (const file of picked.slice(0, 40)) {
-      try { const doc = await readPlanPdf(file); await planApi.saveFile(hub, date, { ...doc, file_name: file.name }); ok++ }
+      try {
+        const doc = await readPlanPdf(file)
+        if (doc.doc_date && doc.doc_date !== date) out.push(L(`${file.name}: PDF-এর তারিখ ${doc.doc_date}, নির্বাচিত প্ল্যান ${date}। প্রয়োগের আগে মিলিয়ে নিন।`, `${file.name}: PDF date ${doc.doc_date}, selected plan ${date}. Check before using its counts.`))
+        await planApi.saveFile(hub, date, { ...doc, file_name: file.name }); ok++
+      }
       catch (e) { out.push(`${file.name}: ${planFriendly(e)}`) }
     }
     setNotes(out); setBusy(false); if (ok) toast(L(`${n(ok)}টা পিডিএফ পড়া হয়েছে`, `${ok} PDF(s) read`)); reload()
