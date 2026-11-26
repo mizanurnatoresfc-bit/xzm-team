@@ -264,7 +264,8 @@ function PersonLine({ p, v, edit, problem, onChange }: { p: SheetPerson; v: Line
     {v.final_status === 'unchecked' && <div className="as-row"><Badge tone="warn">{L('যাচাই বাকি', 'Not checked')}</Badge></div>}
 
     {!onLeave && <div className="as-row"><span className="as-k">{L('হাজিরা', 'Attendance')}</span>
-      <span className="wm-chips">{FINAL_OPTIONS.filter(o => o.key !== 'leave' || v.final_status === 'leave').map(o => <button key={o.key} type="button" className={`wm-chip${v.final_status === o.key ? ' on' : ''}`} aria-pressed={v.final_status === o.key}
+      {(v.final_status === 'holiday' || v.final_status === 'half_day') && <Badge tone="info">{statusLabel(v.final_status, lang)}</Badge>}
+      <span className="wm-chips">{FINAL_OPTIONS.filter(o => o.key !== 'holiday' && o.key !== 'half_day' && (o.key !== 'leave' || v.final_status === 'leave')).map(o => <button key={o.key} type="button" className={`wm-chip${v.final_status === o.key ? ' on' : ''}`} aria-pressed={v.final_status === o.key}
         disabled={!edit} onClick={() => pick(o.key)}>{L(o.bn, o.en)}</button>)}</span></div>}
 
     {v.final_status === 'late' && <div className="as-row"><span className="as-k">{L('কখন এসেছেন', 'Arrived at')}</span>
