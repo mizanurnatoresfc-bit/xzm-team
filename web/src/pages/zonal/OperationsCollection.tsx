@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { usePrefs } from '../../lib/prefs'
 import { Field, useLoad } from '../accounts/ui'
@@ -118,6 +119,8 @@ function HubCollection({ hub, refresh }: { hub: Hub; refresh: () => Promise<unkn
     await questions.reload()
   }
   return <>
+    <PlanningSuggestions hub={hub} questions={questions.error ? null : questions.data} loading={questions.loading} />
+    <RoutePlanDelegations hub={hub} recipients={recipients.data ?? []} />
     {feedback && <p role="status">{feedback}</p>}
     {hub.can_edit && <form className="panel" onSubmit={e => void submit(e, save, L('ফিক্সড গড় সংরক্ষিত।', 'Fixed averages saved.'))}>
       <h2>{L('হাবের ফিক্সড গড় বদলান', 'Edit hub averages')}</h2>
@@ -153,6 +156,107 @@ function HubCollection({ hub, refresh }: { hub: Hub; refresh: () => Promise<unkn
       </li>)}</ul>
     </section>
   </>
+}
+
+const delegationLabels: Record<string, [string, string]> = {
+  'ops.route_plan.view': ['রুট প্ল্যান দেখা', 'View route plans'],
+  'ops.route_plan.edit': ['খসড়া রুট প্ল্যান সম্পাদনা', 'Edit draft route plans'],
+  'ops.route_plan.approve': ['রুট প্ল্যান অনুমোদন, ফেরত বা পুনরায় খোলা', 'Approve, return, or reopen route plans'],
+}
+type Delegations = { permissions: string[]; grants: { id: string; name: string; permission: string; until: string | null; active: boolean }[] }
+
+function RoutePlanDelegations({ hub, recipients }: { hub: Hub; recipients: Recipient[] }) {
+  const { L } = usePrefs()
+  const q = useLoad(() => rpc<Delegations>('route_plan_delegations', { p_hub: hub.id }), [hub.id])
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const label = (key: string) => delegationLabels[key] ? L(...delegationLabels[key]) : key
+  const permissions = q.data?.permissions ?? []
+  async function run(action: () => Promise<unknown>, success: string) {
+    setBusy(true)
+    setFeedback('')
+    try { await action(); await q.reload(); setFeedback(success) }
+    catch (error) { setFeedback(message(error)) }
+    finally { setBusy(false) }
+  }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    void run(() => rpc('route_plan_delegate', {
+      p_hub: hub.id, p_employee: data.get('employee'), p_permission: data.get('permission'), p_until: data.get('until') || null,
+    }), L('অনুমতি দেওয়া হয়েছে।', 'Permission granted.'))
+  }
+  if (!permissions.length) return null
+  return <section className="panel">
+    <h2>{L('রুট প্ল্যানের অনুমতি দিন', 'Delegate route plan permissions')} · {hub.name}</h2>
+    <p>{L('একবারে এই হাবের একটি অনুমতি দিন। অনুমোদনের অনুমতি দিলে রুট প্ল্যান ফেরত দেওয়া ও পুনরায় খোলাও যাবে।',
+      'Grant one permission at a time for this hub. Approval access also allows returning and reopening plans.')}</p>
+    <form onSubmit={submit}>
+      <div className="da-filters">
+        <Field label={L('কর্মী', 'Employee')}><select name="employee" required defaultValue="">
+          <option value="">{L('কর্মী বাছুন', 'Choose an employee')}</option>
+          {recipients.map(r => <option key={r.id} value={r.id}>{[r.name, r.code, r.position].filter(Boolean).join(' · ')}</option>)}
+        </select></Field>
+        <Field label={L('অনুমতি', 'Permission')}><select name="permission" required defaultValue="">
+          <option value="">{L('অনুমতি বাছুন', 'Choose a permission')}</option>
+          {permissions.map(key => <option key={key} value={key}>{label(key)}</option>)}
+        </select></Field>
+        <Field label={L('শেষ তারিখ (ঐচ্ছিক)', 'Expiry date (optional)')}><input name="until" type="date" /></Field>
+      </div>
+      <button disabled={busy || !recipients.length}>{L('অনুমতি দিন', 'Grant permission')}</button>
+    </form>
+    {feedback && <p role="status">{feedback}</p>}
+    <ul>{q.data?.grants.map(g => <li key={g.id}>
+      {g.name} · {label(g.permission)} · {g.active ? (g.until ?? L('মেয়াদ নির্ধারিত নেই', 'No expiry')) : L('মেয়াদ শেষ', 'Expired')}{' '}
+      <button type="button" className="secondary" disabled={busy} onClick={() => void run(
+        () => rpc('route_plan_revoke_delegation', { p_id: g.id }), L('অনুমতি প্রত্যাহার করা হয়েছে।', 'Permission revoked.')
+      )}>{L('প্রত্যাহার', 'Revoke')}</button>
+    </li>)}</ul>
+  </section>
+}
+
+function PlanningSuggestions({ hub, questions, loading }: { hub: Hub; questions: Question[] | null; loading: boolean }) {
+  const { L, n } = usePrefs()
+  const latest = new Map<string, Question>()
+  for (const answer of questions ?? []) {
+    if (answer.value === null || answer.answered_at === null) continue
+    const previous = latest.get(answer.metric)
+    if (!previous?.answered_at || Date.parse(answer.answered_at) > Date.parse(previous.answered_at)) {
+      latest.set(answer.metric, answer)
+    }
+  }
+
+  const received = hub.actual.received
+  const avg = hub.baseline?.received
+  const extra = received !== null && avg !== undefined ? Math.max(0, received - avg) : 0
+  const delivery = latest.get('delivery_pending')?.value ?? 0
+  const pickup = latest.get('pickup_pending')?.value ?? 0
+  const sorting = latest.get('sorting_pending')?.value ?? 0
+  const capacity = latest.get('spare_capacity')?.value ?? 0
+  const backup = latest.get('backup_needed')?.value ?? 0
+  const routeReview = delivery > 0 || pickup > 0
+  const suggestions = [
+    extra > 0 && L(`গড়ের চেয়ে ${n(extra)}টি বেশি পার্সেল এসেছে। আজকের সোর্টিং ও রুটের সক্ষমতা মিলিয়ে দেখুন।`, `${n(extra)} parcels above average. Review today’s sorting and route capacity.`),
+    delivery > 0 && L(`সর্বশেষ উত্তরে ${n(delivery)}টি ডেলিভারি পেন্ডিং। এলাকা ও বর্তমান অ্যাসাইনমেন্ট দেখে কাজ ভাগ করার প্রস্তাব।`, `The latest reply reports ${n(delivery)} pending deliveries. Review areas and existing assignments to split the work.`),
+    pickup > 0 && L(`সর্বশেষ উত্তরে ${n(pickup)}টি পিকআপ বাকি। মার্চেন্টের এলাকা ধরে পিকআপের কাজ ভাগ করার প্রস্তাব।`, `The latest reply reports ${n(pickup)} pending pickups. Review merchant locations to share the pickup work.`),
+    routeReview && capacity > 0 && L(`একটি উত্তরে আরও ${n(capacity)}টি পার্সেল নেওয়ার সক্ষমতা জানানো হয়েছে। এলাকা, বর্তমান দায়িত্ব ও উপস্থিতি মিলিয়ে দেখার জন্য এই তথ্য ব্যবহার করা যাবে।`, `One reply reports spare capacity for ${n(capacity)} parcels. Check area, current assignments and attendance before using it.`),
+    sorting > 0 && L(`সর্বশেষ উত্তরে ${n(sorting)}টি সোর্টিং বাকি। শিফটের লোকবল দেখে সোর্টিংয়ে সহায়তা দেওয়ার প্রস্তাব।`, `The latest reply reports ${n(sorting)} awaiting sorting. Review shift staffing for sorting support.`),
+    backup > 0 && L(`সর্বশেষ উত্তরে ${n(backup)} জন ব্যাকআপ চাওয়া হয়েছে। দায়িত্ব ও উপস্থিতি দেখে জোনাল ম্যানেজার সিদ্ধান্ত দেবেন।`, `The latest reply requests ${n(backup)} backup workers. The Zonal Manager decides after reviewing duties and availability.`),
+  ].filter((item): item is string => typeof item === 'string')
+
+  return <section className="panel">
+    <h2>{L('রুট ও জনবলের প্রস্তাব', 'Route and staffing suggestions')} · {hub.name}</h2>
+    <p>{L('রুট পরিবর্তন, কাজ পুনর্বণ্টন, জনবল ও ব্যাকআপের চূড়ান্ত সিদ্ধান্ত সংশ্লিষ্ট জোনাল ম্যানেজার নেবেন।', 'The assigned Zonal Manager makes the final decision on route changes, work redistribution, staffing and backup.')}</p>
+    {received === null && <p>{avg === undefined ? L('আজকের রিসিভ ও ফিক্সড গড় বাকি।', 'Today’s receipts and the fixed average are pending.')
+      : L(`আজকের রিসিভ বাকি। নিয়মিত পরিকল্পনার ভিত্তি ${n(avg)} পার্সেল।`, `Today’s receipts are pending. The regular planning baseline is ${n(avg)} parcels.`)}</p>}
+    {received !== null && avg === undefined && <p>{L('রিসিভ তুলনা করতে হাবের ফিক্সড গড় সেট করুন।', 'Set the hub’s fixed average to compare receipts.')}</p>}
+    {loading && <p>{L('কর্মীদের উত্তর লোড হচ্ছে…', 'Loading employee replies…')}</p>}
+    {!loading && questions === null && <p>{L('কর্মীদের উত্তর পাওয়া যায়নি। নিচে উত্তর রিফ্রেশ করুন।', 'Employee replies are unavailable. Refresh answers below.')}</p>}
+    {!loading && questions !== null && latest.size === 0 && <p>{L('এই হাবে পরিকল্পনার জন্য আজকের কোনো উত্তর জমা হয়নি।', 'There are no submitted planning replies for this hub today.')}</p>}
+    {suggestions.length ? <ul>{suggestions.map(item => <li key={item}>{item}</li>)}</ul> : null}
+    {suggestions.length === 0 && latest.size > 0 && <p>{L('পাওয়া তথ্যে বাড়তি কাজ বা জনবলের প্রস্তাব আসেনি।', 'The available data has not triggered a workload or staffing suggestion.')}</p>}
+    {routeReview && <Link to="/app/routes?tab=plan">{L('রুট কেন্দ্রের আজকের পরিকল্পনা খুলুন', 'Open today’s plan in Route Centre')}</Link>}
+  </section>
 }
 
 export function OperationsQuestions() {
