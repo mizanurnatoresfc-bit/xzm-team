@@ -10,7 +10,7 @@ import { isDark, usePrefs } from '../lib/prefs'
 import { NodiAvatar } from './NodiAvatar'
 import { useNodiFeatures } from '../lib/useNodiFeatures'
 import { clearFresh, kindOf, markAllRead, markRead, savePushDevice, startNotices, useNotices, type Notice as LiveNotice } from '../lib/notices'
-import { advancedAccessHere, setupPush } from '../lib/native'
+import { advancedAccessHere, isNativeApp, setupPush } from '../lib/native'
 import { hasIcon, Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq } from '../lib/hrreq'
@@ -310,6 +310,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const user = session?.user.id ?? ''
   const workHub = useWorkHub(user)
   const name = (session?.user.user_metadata?.full_name as string | undefined) || session?.user.email || ''
+  const nativeApp = isNativeApp()
   const [open, setOpen] = useState(false)
   // Sidebar size: phone = slide-in drawer; tablet = icon rail (opens on hover); PC = full, can be folded to a rail.
   const [sidePref, setSidePref] = useState<'full' | 'mini' | null>(() => { try { const v = localStorage.getItem('xzm_side'); return v === 'full' || v === 'mini' ? v : null } catch { return null } })
@@ -319,7 +320,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
     const m = matchMedia('(min-width:961px) and (max-width:1280px)'); const f = () => setTablet(m.matches)
     m.addEventListener?.('change', f); return () => m.removeEventListener?.('change', f)
   }, [])
-  const mini = sidePref === 'mini' || (sidePref === null && tablet)
+  const mini = sidePref === 'mini' || (sidePref === null && tablet && !nativeApp)
   const toggleMini = () => { const v = mini ? 'full' : 'mini'; setSidePref(v); try { localStorage.setItem('xzm_side', v) } catch { /* ignore */ } }
   // Drawer on phones: Esc closes, page behind does not scroll, swipe left closes.
   useEffect(() => {
@@ -390,8 +391,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   usePageFocus(loc.pathname, title, h1Ref)
   // One rule for every link (sidebar row, phone tab, quick action, alert, shortcut) — the same one the page routes use (lib/navAccess.ts).
   const access = { can, menu, menuUnavailable }
+  const dailyRegister: Item = { to: '/app/attendance', icon: 'table', bn: 'দৈনিক খাতা', en: 'Daily register', perms: null }
   const canOpen = (to: string) => linkAllowed(to, access)
-  const forMe = (i: Item) => linkAllowed(i.to, access, i.perms) && (!i.only || (i.only === 'web') === advancedAccessHere())
+  const forMe = (i: Item) => (!nativeApp || i.to !== '/app/attendance') && linkAllowed(i.to, access, i.perms) && (!i.only || (i.only === 'web') === advancedAccessHere())
   const here = typeof location !== 'undefined' ? location.pathname : ''
   const mq = menuQ.trim().toLowerCase()
   const hit = (i: Item) => !mq || `${i.bn} ${i.en}`.toLowerCase().includes(mq)
@@ -460,7 +462,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   return <div className={`app-frame${mini ? ' side-mini' : ''}`}>
     <a href="#main" className="skip-link no-print" onClick={e => { e.preventDefault(); const m = document.getElementById('main'); m?.focus(); m?.scrollIntoView() }}>{L('মূল অংশে যান', 'Skip to main content')}</a>
     <WfCountsHost />
-    <aside className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}
+    <aside id="xzm-main-menu" className={`side no-print${open ? ' open' : ''}${mq ? ' searching' : ''}`} aria-label={L('মূল মেনু', 'Main menu')}
       onTouchStart={e => { swipe.current = { x: e.touches[0].clientX, y: e.touches[0].clientY } }}
       onTouchEnd={e => { const s0 = swipe.current; swipe.current = null; if (!s0) return
         const dx = e.changedTouches[0].clientX - s0.x, dy = e.changedTouches[0].clientY - s0.y
@@ -476,7 +478,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <div className="side-user"><span className="avatar" aria-hidden="true">{(name || '?').slice(0, 2)}</span>
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
-      <PersonalMenu variant="side" onNavigate={() => setOpen(false)} />
+      <PersonalMenu variant="side" hideAttendance={nativeApp} onNavigate={() => setOpen(false)} />
+      {nativeApp && canOpen(dailyRegister.to) && hit(dailyRegister) && link(dailyRegister)}
       {layoutItems(HOME, layout).filter(i => forMe(i) && hit(i)).map(link)}
       {/* Divisions (owner, 23 Nov 2026): departments, my own panels, then system — each with a heading, so the menu reads like an org chart. */}
       {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: routesG, secs: routesSecs }, { g: sortingG, secs: sortingSecs }] },
@@ -516,7 +519,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <ViewAsBar onChange={() => setAsRole(true)} />
       <UpdateBar />
       <header className="top no-print">
-        <button className="icon menu-btn" aria-label={L('মেনু', 'Menu')} aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name="menu" /></button>
+        <button type="button" className="icon menu-btn" aria-label={L('মেনু', 'Menu')} aria-controls="xzm-main-menu" aria-expanded={open} onClick={() => setOpen(o => !o)}><Icon name="menu" /></button>
         {here !== '/app' && <button className="icon back-btn" aria-label={L('পেছনে', 'Back')} onClick={() => history.length > 1 ? nav(-1) : nav('/app')}><Icon name="back" /></button>}
         <div className="top-title"><b>{title}</b>{subtitle && <span>{subtitle}</span>}</div>
         {canSearch && <form className={`search${mSearch ? ' m-open' : ''}`} role="search" onSubmit={e => { e.preventDefault(); if (q.trim()) { setMSearch(false); nav(`/app/staff/list?q=${encodeURIComponent(q.trim())}`) } }}>
@@ -578,7 +581,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       {navTabs.flatMap((t, i) => [...(i === plusAt && quickItems.length ? [plusTab] : []), <NavLink key={t.to} to={t.to} end={t.to === '/app'}
         className={() => tabActive(t, loc.pathname, loc.search) ? 'bn-item on' : 'bn-item'}><Icon name={t.icon} size={22} /><span>{L(t.bn, t.en)}</span></NavLink>])}
       {quickItems.length > 0 && plusAt >= navTabs.length && plusTab}
-      <button type="button" className={`bn-item${open ? ' on' : ''}`} aria-expanded={open} onClick={() => { setQuick(false); setOpen(true) }}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span>{totalAlerts > 0 && <span className="sr-only">{L(`, ${n(totalAlerts)}টি অপেক্ষায়`, `, ${totalAlerts} waiting`)}</span>}</button>
+      <button type="button" className={`bn-item${open ? ' on' : ''}`} aria-expanded={open} aria-controls="xzm-main-menu" onClick={() => { setQuick(false); setOpen(true) }}><span className="rel"><Icon name="menu" size={22} />{totalAlerts > 0 && <span className="bn-dot" />}</span><span>{L('আরও', 'More')}</span>{totalAlerts > 0 && <span className="sr-only">{L(`, ${n(totalAlerts)}টি অপেক্ষায়`, `, ${totalAlerts} waiting`)}</span>}</button>
     </nav>
     {asRole && <ViewAsPicker onClose={() => setAsRole(false)} />}
     {quick && <div className="sheet-bg quick-bg no-print" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setQuick(false) }}>
