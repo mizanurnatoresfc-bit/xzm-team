@@ -1,5 +1,6 @@
 alter table public.user_permission_overrides
   add column delegated_zone_id uuid references public.zones(id);
+create index user_permission_overrides_delegated_zone_idx on public.user_permission_overrides(delegated_zone_id);
 
 create function private.can_delegate_route_plan(p_hub uuid, p_zone uuid, p_permission text)
 returns boolean language sql stable security definer set search_path = '' as $$
