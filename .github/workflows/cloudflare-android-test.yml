@@ -57,3 +57,19 @@ jobs:
           path: ${{ runner.temp }}/XZM-TEAM-Cloudflare-Test.apk
           if-no-files-found: error
           retention-days: 7
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Open the Cloudflare login in Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install "$RUNNER_TEMP/XZM-TEAM-Cloudflare-Test.apk"
+            adb shell am start -W -n com.xzmteam.cloudflaretest/.MainActivity
+            timeout 90 bash -c 'until adb shell uiautomator dump /sdcard/xzm-window.xml >/dev/null 2>&1 && adb shell cat /sdcard/xzm-window.xml | grep -E "পাসওয়ার্ড ভুলে গেছেন|Forgot password" >/dev/null; do sleep 3; done'
