@@ -34,7 +34,7 @@ export function HubOps() {
   useEffect(() => { if (!zone && zones.length) setZone(zones[0].id) }, [zones, zone])
   const setTab = (t: Tab) => { const x = new URLSearchParams(sp); x.set('tab', t); setSp(x, { replace: true }) }
 
-  return <AppShell title={L('হাব অপারেশন ড্যাশবোর্ড', 'Hub Operations Dashboard')}
+  return <AppShell title={L('জোন অপারেশন', 'Zone Operations')}
     subtitle={L('জোনের প্রতিটি হাবের পার্সেল, পিকআপ, কর্মী, হাজিরা ও ছুটি — এক জায়গায়; সেখান থেকে বসের কাছে দৈনিক, সাপ্তাহিক ও মাসিক রিপোর্ট।',
       'Parcels, pickups, staff, attendance and leave of every hub in the zone — in one place, and daily, weekly and monthly reports to the boss.')}>
     {zones.length > 1 && <section className="da-filters panel no-print">
