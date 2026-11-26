@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { usePrefs } from '../../lib/prefs'
 import { Field, useLoad } from '../accounts/ui'
@@ -118,7 +119,8 @@ function HubCollection({ hub, refresh }: { hub: Hub; refresh: () => Promise<unkn
     await questions.reload()
   }
   return <>
-    {feedback && <p role="status">{feedback}</p>}
+    <PlanningSuggestions hub={hub} questions={questions.error ? null : questions.data} loading={questions.loading} />
+    {feedback && <p role="status">{feedback}</p>
     {hub.can_edit && <form className="panel" onSubmit={e => void submit(e, save, L('ফিক্সড গড় সংরক্ষিত।', 'Fixed averages saved.'))}>
       <h2>{L('হাবের ফিক্সড গড় বদলান', 'Edit hub averages')}</h2>
       <div className="da-filters">{measures.map(([key, bn, en]) => <Field label={L(bn, en)} key={key}>
@@ -153,6 +155,49 @@ function HubCollection({ hub, refresh }: { hub: Hub; refresh: () => Promise<unkn
       </li>)}</ul>
     </section>
   </>
+}
+
+function PlanningSuggestions({ hub, questions, loading }: { hub: Hub; questions: Question[] | null; loading: boolean }) {
+  const { L, n } = usePrefs()
+  const latest = new Map<string, Question>()
+  for (const answer of questions ?? []) {
+    if (answer.value === null || answer.answered_at === null) continue
+    const previous = latest.get(answer.metric)
+    if (!previous?.answered_at || Date.parse(answer.answered_at) > Date.parse(previous.answered_at)) {
+      latest.set(answer.metric, answer)
+    }
+  }
+
+  const received = hub.actual.received
+  const avg = hub.baseline?.received
+  const extra = received !== null && avg !== undefined ? Math.max(0, received - avg) : 0
+  const delivery = latest.get('delivery_pending')?.value ?? 0
+  const pickup = latest.get('pickup_pending')?.value ?? 0
+  const sorting = latest.get('sorting_pending')?.value ?? 0
+  const capacity = latest.get('spare_capacity')?.value ?? 0
+  const backup = latest.get('backup_needed')?.value ?? 0
+  const routeReview = delivery > 0 || pickup > 0
+  const suggestions = [
+    extra > 0 && L(`গড়ের চেয়ে ${n(extra)}টি বেশি পার্সেল এসেছে। আজকের সোর্টিং ও রুটের সক্ষমতা মিলিয়ে দেখুন।`, `${n(extra)} parcels above average. Review today’s sorting and route capacity.`),
+    delivery > 0 && L(`সর্বশেষ উত্তরে ${n(delivery)}টি ডেলিভারি পেন্ডিং। এলাকা ও বর্তমান অ্যাসাইনমেন্ট দেখে রুটের কাজ ভাগ করুন।`, `The latest reply reports ${n(delivery)} pending deliveries. Review areas and existing assignments to split the work.`),
+    pickup > 0 && L(`সর্বশেষ উত্তরে ${n(pickup)}টি পিকআপ বাকি। মার্চেন্টের এলাকা দেখে পিকআপ রুটের কাজ ভাগ করুন।`, `The latest reply reports ${n(pickup)} pending pickups. Review merchant locations to share the pickup work.`),
+    routeReview && capacity > 0 && L(`একটি উত্তরে আরও ${n(capacity)}টি পার্সেল নেওয়ার সক্ষমতা জানানো হয়েছে। এলাকা, বর্তমান দায়িত্ব ও উপস্থিতি যাচাই করে কাজে লাগান।`, `One reply reports spare capacity for ${n(capacity)} parcels. Check area, current assignments and attendance before using it.`),
+    sorting > 0 && L(`সর্বশেষ উত্তরে ${n(sorting)}টি সোর্টিং বাকি। শিফটের লোকবল দেখে সোর্টিংয়ে সহায়তা দিন।`, `The latest reply reports ${n(sorting)} awaiting sorting. Review shift staffing for sorting support.`),
+    backup > 0 && L(`সর্বশেষ উত্তরে ${n(backup)} জন ব্যাকআপ চাওয়া হয়েছে। দায়িত্ব ও উপস্থিতি দেখে অনুমোদন করুন।`, `The latest reply requests ${n(backup)} backup workers. Review duties and availability before approval.`),
+  ].filter((item): item is string => typeof item === 'string')
+
+  return <section className="panel">
+    <h2>{L('রুট ও জনবলের প্রস্তাব', 'Route and staffing suggestions')} · {hub.name}</h2>
+    {received === null && <p>{avg === undefined ? L('আজকের রিসিভ ও ফিক্সড গড় বাকি।', 'Today’s receipts and the fixed average are pending.')
+      : L(`আজকের রিসিভ বাকি। নিয়মিত পরিকল্পনার ভিত্তি ${n(avg)} পার্সেল।`, `Today’s receipts are pending. The regular planning baseline is ${n(avg)} parcels.`)}</p>}
+    {received !== null && avg === undefined && <p>{L('রিসিভ তুলনা করতে হাবের ফিক্সড গড় সেট করুন।', 'Set the hub’s fixed average to compare receipts.')}</p>}
+    {loading && <p>{L('কর্মীদের উত্তর লোড হচ্ছে…', 'Loading employee replies…')}</p>}
+    {!loading && questions === null && <p>{L('কর্মীদের উত্তর পাওয়া যায়নি। নিচে উত্তর রিফ্রেশ করুন।', 'Employee replies are unavailable. Refresh answers below.')}</p>}
+    {!loading && questions !== null && latest.size === 0 && <p>{L('এই হাবে পরিকল্পনার জন্য আজকের কোনো উত্তর জমা হয়নি।', 'There are no submitted planning replies for this hub today.')}</p>}
+    {suggestions.length ? <ul>{suggestions.map(item => <li key={item}>{item}</li>)}</ul> : null}
+    {suggestions.length === 0 && latest.size > 0 && <p>{L('পাওয়া তথ্যে বাড়তি কাজ বা জনবলের প্রস্তাব আসেনি।', 'The available data has not triggered a workload or staffing suggestion.')}</p>}
+    {routeReview && <Link to="/app/routes?tab=plan">{L('রুট কেন্দ্রের আজকের পরিকল্পনা খুলুন', 'Open today’s plan in Route Centre')}</Link>}
+  </section>
 }
 
 export function OperationsQuestions() {
