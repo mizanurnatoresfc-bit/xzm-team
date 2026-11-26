@@ -120,7 +120,7 @@ function HubCollection({ hub, refresh }: { hub: Hub; refresh: () => Promise<unkn
   }
   return <>
     <PlanningSuggestions hub={hub} questions={questions.error ? null : questions.data} loading={questions.loading} />
-    {feedback && <p role="status">{feedback}</p>
+    {feedback && <p role="status">{feedback}</p>}
     {hub.can_edit && <form className="panel" onSubmit={e => void submit(e, save, L('ফিক্সড গড় সংরক্ষিত।', 'Fixed averages saved.'))}>
       <h2>{L('হাবের ফিক্সড গড় বদলান', 'Edit hub averages')}</h2>
       <div className="da-filters">{measures.map(([key, bn, en]) => <Field label={L(bn, en)} key={key}>
