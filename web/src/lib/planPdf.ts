@@ -86,6 +86,7 @@ function dispatch(pages: PdfItem[][], head: string, areaRows?: PdfAreaRow[]): Pa
   type P = { pieces: number; other: boolean; status: string; received: boolean; point: boolean }
   const parcels = new Map<number, P>()
   const counts: Record<string, number> = { pieces: 0, received: 0, not_scanned: 0 }
+  const addressRows: PdfAreaRow[] = []
   let cut = false
   for (const page of pages) {
     const t = table(page, ['PARCEL', 'MERCHANT', 'CUSTOMER', 'DESTINATION', 'STATUS'])
@@ -96,7 +97,7 @@ function dispatch(pages: PdfItem[][], head: string, areaRows?: PdfAreaRow[]): Pa
     const starts = t.body.filter(i => Math.abs(i.x - t.col.PARCEL) < 3 && /^#\d{8,10}$/.test(i.s.trim()))
     for (const row of bands(t.body, starts, 6, 50)) {
       const id = Number(row.start.s.trim().slice(1))
-      if (areaRows) areaRows.push({ id, text: words(inCol(row.items, t.col.CUSTOMER, t.col.DESTINATION)) })
+      if (areaRows) addressRows.push({ id, text: words(inCol(row.items, t.col.CUSTOMER, t.col.DESTINATION)) })
       const status = words(inCol(row.items, t.col.STATUS, rx).filter(i => row.start.y + 6 - i.y < 20)) || 'unknown'
       const got = words(inCol(row.items, rx, 9999))
       const received = /Rece/i.test(got) && !/^Not/i.test(got)
@@ -109,6 +110,12 @@ function dispatch(pages: PdfItem[][], head: string, areaRows?: PdfAreaRow[]): Pa
     }
   }
   if (!parcels.size) throw new Error('No parcel rows found in the dispatch sheet')
+  if (areaRows) {
+    for (const row of addressRows) {
+      const parcel = parcels.get(row.id)!
+      if (!parcel.other && !/^cancel/i.test(parcel.status)) areaRows.push(row)
+    }
+  }
   const all = [...parcels.values()]
   counts.parcels = all.length
   counts.other_hub = all.filter(p => p.other).length
