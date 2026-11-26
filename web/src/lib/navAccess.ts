@@ -43,10 +43,12 @@ const officeTwin = (p: string) => p + '/' === RES ? '/app/office/overview' : p.s
  *  residential page for a role, its list is taken as it is — so Office can be shown and Residential hidden, or the other way round. */
 const beforeSplit = (menu: string[]) => !menu.some(p => (bare(p) + '/').startsWith(RES))
 
-/** A menu entry is shown when it is on the list. Even an ALWAYS-open page (which stays reachable by URL) is only shown in the
- *  sidebar when the role's list names it, so the admin can hide any personal row for a role whose list is set. */
+/** A menu entry is shown when it is on the list. The dashboard (/app) is kept in the sidebar for every role so the person can always
+ *  get home; every other ALWAYS-open page (the personal panel, accounts, vehicle, references, notices, workforce, profile, password,
+ *  settings) stays reachable by URL but is shown in the sidebar only when the role's list names it, so the admin can hide any
+ *  personal row for a role whose list is set. */
 export const inMenu = (menu: string[] | null, to: string): boolean => {
-  if (!menu || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))) return true
+  if (!menu || bare(to) === '/app' || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))) return true
   if (bare(to) === ATTENDANCE && menu.some(p => ATTENDANCE_OLD.includes(bare(p)))) return true
   if (bare(to) === ROUTE_PAGE && menu.some(p => bare(p) in ROUTE_OLD_PAGES)) return true
   const twin = beforeSplit(menu) ? officeTwin(bare(to)) : null; return !!twin && inMenu(menu, twin)
