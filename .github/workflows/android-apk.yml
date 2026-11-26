@@ -107,6 +107,14 @@ jobs:
           done
           sed -i -E "s/versionCode [0-9]+/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"1.${GITHUB_RUN_NUMBER}\"/" android/app/build.gradle
           grep -E "versionCode|versionName" android/app/build.gradle
+          # Smaller APK. The app opens the live site (server.url), so the copied pages (5 MB) are never shown:
+          # keep only offline.html (the "no internet" screen, served from inside the app) and a stub index.html.
+          pub=android/app/src/main/assets/public
+          find "$pub" -mindepth 1 -maxdepth 1 ! -name index.html ! -name offline.html -exec rm -rf {} +
+          test -f "$pub/offline.html" && test -f "$pub/index.html"
+          # Shrink code (R8) and unused resources in the release build. Capacitor and its plugins ship their own keep rules.
+          sed -i 's/minifyEnabled false/minifyEnabled true\n            shrinkResources true/' android/app/build.gradle
+          grep -q "shrinkResources true" android/app/build.gradle
 
       - name: Build and sign Android release
         if: github.event_name == 'workflow_dispatch'
@@ -142,6 +150,7 @@ jobs:
           for permission in POST_NOTIFICATIONS ACCESS_COARSE_LOCATION ACCESS_FINE_LOCATION; do
             grep -Fq "android.permission.$permission" <<< "$permissions"
           done
+          ls -l "$apk" | awk '{printf "APK size: %.1f MB\n", $5/1048576}'
           "$build_tools/aapt" dump badging "$apk" > "$RUNNER_TEMP/xzm-apk-badging.txt"
           grep -F "versionCode='$GITHUB_RUN_NUMBER'" "$RUNNER_TEMP/xzm-apk-badging.txt"
 
