@@ -10,6 +10,28 @@ import { ROUTE_CHECKS, runChecks } from '../src/lib/routeChecks.ts'
 import { assess, bulkToStops, nameFromLibrary, nameScore, norm, parseBulkRows, parseBulkText, resolveBulk, searchLocal, nearHub, LOCATION_SOURCES } from '../src/lib/routeLocation.ts'
 import { hasPageAccess, inMenu, pageAllowed, pageNeeds, pageState } from '../src/lib/navAccess.ts'
 
+import { parsePlanPdf } from '../src/lib/planPdf.ts'
+
+test('mobile delivery lists read both split and combined column headings after a summary page', () => {
+  const item = (s, x, y) => ({ s, x, y })
+  const page = (split, id) => [
+    item('ID', 46, 743),
+    item(split ? 'MERCHANT' : 'MERCHANT DETAILS', 122, 743),
+    ...(split ? [item('DETAILS', 180, 743)] : []),
+    item('INVOICE', 266, 743),
+    item(split ? 'CUSTOMER' : 'CUSTOMER DETAILS', 414, 743),
+    ...(split ? [item('DETAILS', 471, 743)] : []),
+    item('#' + id, 46, 692),
+    item('Demo Area', 414, 678),
+  ]
+  const areas = []
+  const result = parsePlanPdf([[item('Delivery List Information Date: Nov 26, 2026 Grand Total: 2', 46, 780)],
+    page(true, 123456789), page(false, 123456790)], areas)
+  assert.equal(result.counts.parcels, 2)
+  assert.deepEqual(result.warnings, [])
+  assert.deepEqual(areas, [{ id: 123456789, text: 'Demo Area' }, { id: 123456790, text: 'Demo Area' }])
+})
+
 const src = f => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')
 const canOf = (...p) => x => p.includes(x)
 const near = (a, b, d = 0.0005) => assert.ok(Math.abs(a - b) <= d, `${a} is not near ${b}`)
