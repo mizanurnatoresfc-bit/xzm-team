@@ -141,13 +141,16 @@ function deliveryList(pages: PdfItem[][], head: string, areaRows: PdfAreaRow[]) 
   const declared = Number(head.match(/\bGrand Total\s*:\s*(\d+)/)?.[1] ?? 0)
   const ids = new Set<number>()
   for (const page of pages) {
+    // Mobile exports can store each word of these headings in a separate PDF text item.
     const t = table(page, ['ID', 'MERCHANT DETAILS', 'INVOICE', 'CUSTOMER DETAILS'])
+      ?? table(page, ['ID', 'MERCHANT', 'INVOICE', 'CUSTOMER'])
     if (!t) continue
+    const customerColumn = t.col['CUSTOMER DETAILS'] ?? t.col.CUSTOMER
     const starts = t.body.filter(i => Math.abs(i.x - t.col.ID) < 4 && /^#\d{8,12}$/.test(i.s.trim()))
     for (const row of bands(t.body, starts, 2, 48)) {
       const id = Number(row.start.s.trim().slice(1))
       ids.add(id)
-      const items = inCol(row.items, t.col['CUSTOMER DETAILS'], Infinity)
+      const items = inCol(row.items, customerColumn, Infinity)
         .filter(i => i.y < row.start.y - 2 && row.start.y - i.y <= 42 && i.s.trim().toLowerCase() !== hubLabel)
       let address = ''
       let previous: PdfItem | undefined
