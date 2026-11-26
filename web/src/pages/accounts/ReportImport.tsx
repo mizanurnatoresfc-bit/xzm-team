@@ -22,8 +22,9 @@ export function ReportImport() {
   const { toast, node } = useToast()
   const status = useLoad(() => reportImport.status(date), [date])
   const hubs = status.data ?? []
-  const hub = hubs.some(h => h.hub_id === hubParam) ? hubParam : hubs.length === 1 ? hubs[0].hub_id : ''
-  const day = useLoad(() => reportImport.day(date, hub || null), [date, hub])
+  const hub = hubParam || (hubs.length === 1 ? hubs[0].hub_id : '')
+  const scopedHubAvailable = !hubParam || (!status.loading && !status.error && hubs.some(h => h.hub_id === hubParam))
+  const day = useLoad(() => scopedHubAvailable ? reportImport.day(date, hub || null) : Promise.resolve([]), [date, hub, scopedHubAvailable])
   const set = (k: 'hub' | 'date', v: string) => { const n = new URLSearchParams(sp); if (v) n.set(k, v); else n.delete(k); setSp(n, { replace: true }) }
 
   const [text, setText] = useState('')
@@ -74,9 +75,13 @@ export function ReportImport() {
           options={hubs.map(h => ({ value: h.hub_id, label: h.hub_name, sub: `${h.zone_name}${h.reports ? ` · ${num(h.reports)}টি রিপোর্ট` : ''}` }))} /></Field>}
       </section>
       <ErrorNote error={status.error} />
-      {!status.loading && !hubs.length && <div className="nv-empty"><Icon name="upload" size={34} /><p>আপনাকে কোনো হাবের রিপোর্ট দেখার বা তোলার অনুমতি দেওয়া হয়নি।</p></div>}
+      {hubParam && !status.loading && !status.error && !scopedHubAvailable && <div className="notice">
+        লিংকের হাবটির রিপোর্ট দেখার অনুমতি নেই বা হাবটি পাওয়া যায়নি।{' '}
+        <button type="button" className="link" onClick={() => set('hub', '')}>অনুমোদিত হাব দেখুন</button>
+      </div>}
+      {!hubParam && !status.loading && !hubs.length && <div className="nv-empty"><Icon name="upload" size={34} /><p>আপনাকে কোনো হাবের রিপোর্ট দেখার বা তোলার অনুমতি দেওয়া হয়নি।</p></div>}
 
-      {uploadHubs.length > 0 && <section className="panel ri-paste no-print">
+      {scopedHubAvailable && uploadHubs.length > 0 && <section className="panel ri-paste no-print">
         <div className="da-bar"><h2><Icon name="upload" size={18} /> রিপোর্ট পেস্ট করুন</h2>
           <div className="row" style={{ gap: 8 }}>
             <button type="button" className="secondary" onClick={() => void paste()}><Icon name="doc" size={16} /> পেস্ট</button>
@@ -131,7 +136,7 @@ export function ReportImport() {
         </>}
       </section>}
 
-      {hubs.length > 0 && <>
+      {scopedHubAvailable && hubs.length > 0 && <>
         <div className="da-stats">
           <Stat icon="upload" label={date === today ? 'আজ কয়টি রিপোর্ট' : 'রিপোর্ট'} value={num(reports)} />
           <Stat icon="ledger" label="খাতা (ম্যানেজার)" value={num(khatas.length)} />
