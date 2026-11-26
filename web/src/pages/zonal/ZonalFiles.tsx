@@ -1,6 +1,6 @@
 import { askConfirm } from '../../components/ask'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
@@ -25,9 +25,15 @@ const INACTIVE_TYPES = ['চাকরি ছেড়ে দিচ্ছি', '�
 
 /** Zonal file centre: mark many staff for transfer / active / inactive, then export every change in the company's Excel layout. */
 export function ZonalFiles() {
-  const [tab, setTab] = useState<'mark' | 'file'>('mark')
+  const [params, setParams] = useSearchParams()
+  const tab = params.get('tab') === 'mark' ? 'mark' : 'file'
+  const setTab = (next: 'mark' | 'file') => setParams(previous => {
+    const updated = new URLSearchParams(previous)
+    updated.set('tab', next)
+    return updated
+  })
   const { toast, node } = useToast()
-  return <AppShell title="জোনাল ফাইল — বদলি, চালু, বন্ধ" subtitle="অনেক কর্মীকে একসাথে বদলি / চালু / বন্ধের জন্য মার্ক করুন। সব পরিবর্তন (মার্ক করা ও সিস্টেমে করা) এক জায়গায় — কোম্পানির ফরম্যাটে Excel নিন।">
+  return <AppShell title="পরিবর্তনের রেজিস্টার" subtitle="অনেক কর্মীকে একসাথে বদলি / চালু / বন্ধের জন্য মার্ক করুন। সব পরিবর্তন (মার্ক করা ও সিস্টেমে করা) এক জায়গায় — কোম্পানির ফরম্যাটে Excel নিন।">
     {node}
     <nav className="emp-tabs no-print" role="tablist">
       <button role="tab" aria-selected={tab === 'mark'} className={tab === 'mark' ? 'on' : ''} onClick={() => setTab('mark')}><Icon name="checkall" size={16} />মার্ক করুন</button>
@@ -61,6 +67,7 @@ function Mark({ onDone }: { onDone: (m: string) => void }) {
     if (kind === 'id_transfer' && ids.some(id => !(picked[id] || common.to))) return setErr('নতুন হাব দিন (সবার জন্য বা প্রতিজনের পাশে)')
     setBusy(true)
     let ok = 0; const bad: string[] = []
+    const remaining = { ...picked }
     const people = (staff.data ?? []).filter(e => e.id in picked)
     for (const [i, e] of people.entries()) {
       setProgress(`${i + 1}/${people.length}`)
@@ -71,12 +78,16 @@ function Mark({ onDone }: { onDone: (m: string) => void }) {
       if (kind === 'id_transfer') Object.assign(base, { to_hub: picked[e.id] || common.to, effective_date: common.date })
       if (kind === 'id_active') Object.assign(base, { effective_date: common.date })
       if (kind === 'id_inactive') Object.assign(base, { last_date: common.date, reason_type: common.type })
-      try { await hrReq.submit({ format: fmt.id, employee: e.id, hub, data: base, note: common.reason.trim() }); ok++ }
+      try { await hrReq.submit({ format: fmt.id, employee: e.id, hub, data: base, note: common.reason.trim() }); delete remaining[e.id]; ok++ }
       catch (x) { bad.push(`${e.full_name}: ${hrFriendly(x)}`) }
     }
     setBusy(false); setProgress('')
-    if (bad.length) setErr(bad.join(' · '))
-    if (ok) { setPicked({}); onDone(`${ok.toLocaleString('bn-BD')} জনকে মার্ক করা হয়েছে — "ফাইল ও এক্সেল" থেকে কোম্পানির ফাইল নিন`) }
+    setPicked(remaining)
+    if (bad.length) {
+      setErr(`${ok.toLocaleString('bn-BD')} জনের আবেদন জমা হয়েছে। আবার জমা দেওয়ার জন্য ব্যর্থ আবেদনগুলো বাছাই করা আছে। ${bad.join(' · ')}`)
+      return
+    }
+    if (ok) { onDone(`${ok.toLocaleString('bn-BD')} জনকে মার্ক করা হয়েছে — "ফাইল ও এক্সেল" থেকে কোম্পানির ফাইল নিন`) }
   }
 
   return <section className="panel">

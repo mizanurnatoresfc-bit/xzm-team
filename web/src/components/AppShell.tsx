@@ -160,29 +160,29 @@ export const ROUTES: Group = panel('routes', 'map', 'অপারেশন স�
  * the manager, zonal and settings panels. Like হিসাব it is not a level panel: each row shows only to a role that may use it.
  * The staff member's own requests and leave stay in the staff panel.
  */
-export const HR: Group = panel('hr', 'users', 'এইচআর বিভাগ', 'HR department', [
+export const HR: Group = panel('hr', 'users', 'কর্মী ও এইচআর', 'People & HR', [
   { bn: 'কর্মী তালিকা ও প্রোফাইল', en: 'Staff & profiles', items: [
       { to: '/app/staff/list', icon: 'users', bn: 'কর্মী তালিকা', en: 'Staff list', hint: { bn: 'পুরো কর্মী তালিকা — পদ, এরিয়া, হাব; হাব ম্যানেজারের জন্য নিজ হাবের সক্রিয় স্টাফ', en: 'Full staff list — roles see their scope' }, perms: ['hr.employee.view', 'hr.application.create', 'hr.request.create'], count: 'team' },
       { to: '/app/hr/profile-gaps', icon: 'form', bn: 'প্রোফাইল পূর্ণতা (আইডির তথ্য)', en: 'Profile completeness', perms: ['hr.employee.view'] },
   ] },
   { bn: 'এইচআর অনুরোধ', en: 'HR requests', items: [
-      { to: '/app/zonal/requests', icon: 'form', bn: 'এইচআর অনুরোধ', en: 'HR requests', perms: ['hr.request.approve'], count: 'hrreq' },
+      { to: '/app/zonal/requests', icon: 'form', bn: 'আবেদন ও অনুমোদন', en: 'Requests & approvals', perms: ['hr.request.approve'], count: 'hrreq' },
   ] },
   { bn: 'হাজিরা ও দায়িত্ব', en: 'Attendance & duties', items: [
       { to: '/app/zonal/assistant', icon: 'cal', bn: 'হাজিরার ফাঁকা দিন', en: 'Attendance gaps', hint: { bn: 'জোনাল অ্যাসিস্ট্যান্ট — যেদিনের হাজিরা ওঠেনি', en: 'Zonal assistant — days with no attendance' }, perms: ['hr.attendance_gap.view'] },
       { to: '/app/hr/duties', icon: 'tasks', bn: 'কাজের দায়িত্ব', en: 'Duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
   ] },
-  { bn: 'নিয়োগ ও রেফারেন্স', en: 'Hiring & referrals', items: [
+  { bn: 'লোকবল ও রেফারেল', en: 'Staffing & referrals', items: [
       { to: '/app/manpower', icon: 'users', bn: 'লোক লাগবে', en: 'Manpower needed', perms: ['hr.employee.view', 'hr.request.create', 'hr.request.approve'] },
       { to: '/app/references', icon: 'users', bn: 'রেফারেন্স তালিকা', en: 'Reference list', perms: null },
       { to: '/app/hr/referrals', icon: 'users', bn: 'রেফারেন্স', en: 'Referrals', perms: ['hr.referral.view'] },
   ] },
-  { bn: 'এইচআর রেকর্ড ও ফাইল', en: 'HR records & files', items: [
+  { bn: 'ফাইল ও রেকর্ড', en: 'Files & records', items: [
       { to: '/app/zonal/hr-records', icon: 'xls', bn: 'এইচআর রেকর্ড', en: 'HR records', hint: { bn: 'এইচআর রেকর্ড (জয়েনিং / এক্সিট / ট্রান্সফার ফাইল)', en: 'HR records (joining / exit / transfer files)' }, perms: ['hr.request.approve'] },
-      { to: '/app/zonal/files', icon: 'xls', bn: 'জোনাল ফাইল', en: 'Zonal files', hint: { bn: 'জোনাল ফাইল (বদলি / চালু / বন্ধ)', en: 'Zonal files (transfer / on / off)' }, perms: ['hr.request.create', 'hr.request.approve'] },
+      { to: '/app/zonal/files', icon: 'xls', bn: 'পরিবর্তনের রেজিস্টার', en: 'Change register', hint: { bn: 'জোনাল ফাইল (বদলি / চালু / বন্ধ)', en: 'Zonal files (transfer / on / off)' }, perms: ['hr.request.create', 'hr.request.approve'] },
       { to: '/app/rollout', icon: 'key', bn: 'চালু করার অগ্রগতি (লগইন)', en: 'Launch progress (logins)', perms: ['hr.employee.view'] },
   ] },
-  { bn: 'এইচআর সেটআপ', en: 'HR setup', items: [
+  { bn: 'এইচআর সেটিংস', en: 'HR settings', items: [
       { to: '/app/hr/fields', icon: 'form', bn: 'প্রোফাইলের ঘর ও কলাম', en: 'Profile fields', perms: ['hr.profile_field.configure', 'hr.referral.configure'] },
       { to: '/app/hr/import', icon: 'upload', bn: 'কর্মী ইমপোর্ট (এক্সেল)', en: 'Import employees', perms: ['hr.import.create'] },
   ] },
@@ -562,6 +562,13 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <PulsePopup user={user} />
         <div className="da-head"><div><h1 ref={h1Ref} tabIndex={-1}>{title}</h1>{subtitle && <p className="muted">{subtitle}</p>}</div>
           {actions && <div className="da-actions no-print">{actions}</div>}</div>
+        {/^\/app\/(?:hr(?:\/|$)|staff\/list$|zonal\/(?:files|hr-records|requests|profile)$)/.test(here) &&
+          <nav className="row no-print" aria-label={L('দ্রুত এইচআর কাজ', 'Quick HR actions')} style={{ flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+            {canOpen('/app/staff/list') && here !== '/app/staff/list' && <NavLink className="secondary sm" to="/app/staff/list">{L('কর্মী খুঁজুন', 'Find staff')}</NavLink>}
+            {canOpen('/app/hr/requests?tab=new') && <NavLink className="secondary sm" to="/app/hr/requests?tab=new">{L('নতুন আবেদন', 'New request')}</NavLink>}
+            {can('hr.request.approve') && canOpen('/app/zonal/requests') && <NavLink className="secondary sm" to="/app/zonal/requests">{L('অনুমোদন বাকি', 'Pending approvals')}</NavLink>}
+            {(can('hr.request.create') || can('hr.request.approve')) && canOpen('/app/zonal/files') && <NavLink className="secondary sm" to="/app/zonal/files?tab=file">{L('এক্সেল নামান', 'Download Excel')}</NavLink>}
+          </nav>}
         {children}
       </main>
     </div>
