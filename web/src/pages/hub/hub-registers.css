@@ -1,0 +1,43 @@
+.hub-register-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+}
+.hub-register-card {
+  padding: 1rem;
+}
+.hub-register-card h2 {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  margin: 0 0 .75rem;
+  font-size: 1.05rem;
+}
+.hub-register-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: .4rem;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+.hub-register-month {
+  display: grid;
+  justify-items: start;
+  gap: .75rem;
+  margin-top: 1rem;
+}
+.hub-register-month > section {
+  width: 100%;
+  min-width: 0;
+}
+
+.hub-pending-rows {
+  list-style: none;
+  padding: 0;
+}
+.hub-pending-rows > li {
+  padding-block: .65rem;
+  border-top: 1px solid var(--line);
+}

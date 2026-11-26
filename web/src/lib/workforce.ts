@@ -198,7 +198,24 @@ type Range = { zone?: string | null; hub?: string | null }
 export type BookMode = { full_month: boolean; from_day: number; to_day: number; normal_from_day: number; normal_to_day: number
   can_set: boolean; changed_at: string | null; changed_by_name: string | null }
 
+export type PendingMonthDay = {
+  date: IsoDate; submissions: number; submitted_count: number
+  approvals: number; approved_count: number | null; returned: number
+}
+
+export type PendingHubRow = {
+  employee_id: string; name: string; snapshot: string | null; count: number | null
+  proxy_reason: string | null; approved: boolean; return_reason: string | null
+}
+
 export const wf = {
+  pendingMonth: (hub: string, month: IsoDate) =>
+    rpc<PendingMonthDay[]>('wf_pending_month', { p_hub: hub, p_month: month }),
+  pendingHubToday: (hub: string) => rpc<{ date: IsoDate; can_edit: boolean; rows: PendingHubRow[] }>(
+    'wf_pending_hub_today', { p_hub: hub }),
+  savePendingManager: (hub: string, employee: string, date: IsoDate, snapshot: string | null, count?: number, reason?: string, returned = false) =>
+    rpc<void>('wf_pending_manager_save', { p_hub: hub, p_employee: employee, p_date: date, p_snapshot: snapshot,
+      p_count: count ?? null, p_reason: reason ?? null, p_return: returned }),
   // staff — attendance book
   myBook: (month?: IsoDate | null) => rpc<MyBook | null>('wf_my_book', { p_month: month ?? null }),
   /** present, or absent with `appliedOnSite = true` plus the website application (its date and number, both required).
@@ -223,6 +240,10 @@ export const wf = {
   opsDeadlines: (zone?: string) => rpc<OpsDeadlines | null>('wf_ops_deadlines_get', { p_zone: zone ?? null }),
   saveOpsDeadlines: (zone: string, times: OpsDeadlineTimes) =>
     rpc<void>('wf_ops_deadlines_save', { p_zone: zone, p_times: times }),
+  pendingToday: () => rpc<{ date: IsoDate; count: number | null; return_reason: string | null } | null>('wf_pending_today'),
+  savePendingToday: (count: number, date: IsoDate) =>
+    rpc<{ date: IsoDate; count: number }>('wf_pending_today', { p_count: count, p_work_date: date }),
+  ownOpsMonth: (month: IsoDate) => rpc<DailyOps[]>('wf_ops_own_month', { p_month: month }),
   myOps: (days = 14) => rpc<MyOps | null>('wf_ops_mine', { p_days: days }),
   submitOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
     rpc<DailyOps>('wf_ops_submit', { p_pickup: v.pickup, p_pickup_return: v.pickup_return, p_delivery: v.delivery, p_delivery_return: v.delivery_return,

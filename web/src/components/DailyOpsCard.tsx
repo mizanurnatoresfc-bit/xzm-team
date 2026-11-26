@@ -75,7 +75,7 @@ export function DailyOpsCard() {
   const set = (k: keyof Form, v: string) => { setErr(''); setForm(f => ({ ...f, [k]: v })) }
   const pick = (i: number) => { setErr(''); setBack(i); setForm(EMPTY) }
   const typed = parse(form)
-  const anyTyped = FIELDS.some(({ key }) => form[key] !== '' && form[key] !== '0')
+  const anyTyped = FIELDS.some(({ key }) => form[key] !== '')
   const list = [d.entry, ...d.recent].filter((x): x is DailyOps => !!x).sort((a, b) => b.work_date.localeCompare(a.work_date))
   const hint = off === 0 && d.hint && d.hint.lines > 0 ? d.hint : null
   const ord = (k: number) => lang === 'bn' ? `${n(k)} নম্বর` : `#${k}`
@@ -84,7 +84,7 @@ export function DailyOpsCard() {
     setErr('')
     const v = parse(form)
     if (!v) { setErr(L(`সংখ্যা ${n(MAX)} এর বেশি হতে পারে না`, `A number cannot be above ${MAX}`)); return }
-    if (entry && !anyTyped) { setErr(L('অন্তত একটা ঘরে সংখ্যা লিখুন — যা লিখবেন তা মোটের সাথে যোগ হবে', 'Write at least one number — it is added to the total')); return }
+    if (!anyTyped) { setErr(L('অন্তত একটা ঘরে সংখ্যা লিখুন — যা লিখবেন তা মোটের সাথে যোগ হবে', 'Write at least one number — it is added to the total')); return }
     setBusy(true)
     try {
       await wf.addOps(v, form.note.trim() || null, off === 0 ? null : date)
@@ -133,16 +133,30 @@ export function DailyOpsCard() {
     {entry?.review_status !== 'returned' && <>
     <p className="wf-tap-lead">{count ? L('এবারের সংখ্যা লিখুন — মোটের সাথে যোগ হবে', 'Type this batch — it is added to the total') : L('সংখ্যা লিখে এক ক্লিকে সাবমিট দিন', 'Type the numbers and submit in one tap')}</p>
     <div className="wf-op-grid">
-      {FIELDS.map(f => <Field key={f.key} label={L(f.bn, f.en)}>
-        <input className="wf-op-in" inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint="done" maxLength={6} placeholder="0"
-          value={form[f.key]} onKeyDown={e => { if (e.key === 'Enter' && !busy) void submit() }}
-          onChange={e => set(f.key, toLatinDigits(e.target.value).replace(/\D/g, '').slice(0, 6).replace(/^0+(?=\d)/, ''))} />
-        {off === 0 && deadlines.data?.[f.key] && <small className="muted">
-          {L('জমার সময়', 'Due')} · {deadlines.data[f.key]} {L('(বাংলাদেশ সময়)', '(Bangladesh time)')}
-        </small>}
-        {count > 0 && <span className="wf-tap-after" aria-hidden={!(typed && typed[f.key] > 0) || undefined}>
-          {typed && typed[f.key] > 0 ? L(`মোট হবে ${n(total[f.key] + typed[f.key])}`, `Total becomes ${total[f.key] + typed[f.key]}`) : '\u00a0'}</span>}
-      </Field>)}
+      {FIELDS.map(f => <div key={f.key}>
+        <Field label={L(f.bn, f.en)}>
+          <input className="wf-op-in" inputMode="numeric" pattern="[0-9]*" autoComplete="off" enterKeyHint="done" maxLength={6} placeholder="0"
+            value={form[f.key]} onKeyDown={e => { if (e.key === 'Enter' && !busy) void submit() }}
+            onChange={e => set(f.key, toLatinDigits(e.target.value).replace(/\D/g, '').slice(0, 6).replace(/^0+(?=\d)/, ''))} />
+          {off === 0 && deadlines.data?.[f.key] && <small className="muted">
+            {L('জমার সময়', 'Due')} · {deadlines.data[f.key]} {L('(বাংলাদেশ সময়)', '(Bangladesh time)')}
+          </small>}
+          {count > 0 && <span className="wf-tap-after" aria-hidden={!(typed && typed[f.key] > 0) || undefined}>
+            {typed && typed[f.key] > 0 ? L(`মোট হবে ${n(total[f.key] + typed[f.key])}`, `Total becomes ${total[f.key] + typed[f.key]}`) : '\u00a0'}</span>}
+        </Field>
+        <div className="wf-number-steps" role="group" aria-label={L(f.bn, f.en)}>
+          {[0, 1, 5, 10].map(step => <button key={step} type="button" className="secondary" disabled={busy}
+            onClick={() => {
+              setErr('')
+              setForm(previous => ({
+                ...previous,
+                [f.key]: String(step === 0 ? 0 : Math.min(MAX, Number(previous[f.key]) + step)),
+              }))
+            }}>
+            {step === 0 ? n(0) : `+${n(step)}`}
+          </button>)}
+        </div>
+      </div>)}
     </div>
     <Field label={L('নোট (ইচ্ছা হলে)', 'Note (optional)')}>
       <input className="wf-op-note" type="text" maxLength={300} autoComplete="off" value={form.note} placeholder={L('কিছু জানানোর থাকলে লিখুন', 'Anything to tell your manager')} onChange={e => set('note', e.target.value)} />
