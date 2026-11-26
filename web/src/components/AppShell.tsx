@@ -151,6 +151,7 @@ export const ROUTES: Group = panel('routes', 'map', 'অপারেশন স�
   { bn: '', en: '', items: [
     { to: ROUTE_PAGE, icon: 'map', bn: 'রুট কেন্দ্র', en: 'Route centre', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সোর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
     { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'জোন অপারেশন', en: 'Zone Operations', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
+    { to: '/app/zonal/hub-ops?tab=collection', icon: 'doc', bn: 'তথ্য সংগ্রহ কেন্দ্র', en: 'Operations Data Collection', perms: ['zonal.hub_ops.view'] },
   ] },
 ])
 

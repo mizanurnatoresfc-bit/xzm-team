@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { hrReq } from '../lib/hrreq'
+import { OperationsQuestions } from './zonal/OperationsCollection'
 import { NodiGaps } from '../components/NodiGaps'
 import { Link, useSearchParams } from 'react-router-dom'
 import { panelLevel } from '../lib/menu'
@@ -59,6 +60,7 @@ export function Dashboard() {
     {home.error ? <p className="da-error">{dashboardFriendly(home.error)}</p> : null}
     {firstSteps && <FirstSteps photo={photo} />}
     <NodiGaps />
+    <OperationsQuestions />
     {home.loading && !d ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p> : null}
 
     <div className="greet">
