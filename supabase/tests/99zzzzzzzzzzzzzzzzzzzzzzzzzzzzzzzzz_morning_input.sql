@@ -173,12 +173,13 @@ select tests.ok((select p -> 'version' ->> 'no' = '2' and jsonb_array_length(p -
 
 -- ---------------------------------------------------------------- times and the server job
 select tests.logout();
-delete from public.wf_att_policy where zone_id = tests.id('zone_a');
+update public.wf_att_policy set morning_open = null where zone_id = tests.id('zone_a');
 select tests.login(tests.id('hub_mgr'));
 select tests.throws(format($$select public.wf_att_policy_save(%L, '{"morning_cutoff":"09:00"}')$$, tests.id('zone_a')), 'the hub manager cannot set the times', '42501');
-select tests.login(tests.id('zonal_a'));
+select tests.login(tests.id('super'));
 select tests.ok((select p ->> 'morning_open' = '07:00' and p ->> 'morning_cutoff' = '08:00' and (p ->> 'morning_extra')::int = 15 and not (p ->> 'own')::boolean and (p ->> 'can_edit')::boolean
-                   from public.wf_att_policy_get(tests.id('zone_a')) p), 'default times come from the settings');
+                   from public.wf_att_policy_get(tests.id('zone_b')) p), 'default times come from the settings');
+select tests.login(tests.id('zonal_a'));
 select tests.throws(format($$select public.wf_att_policy_save(%L, '{"morning_open":"09:00","morning_cutoff":"08:00","morning_extra":0}')$$, tests.id('zone_a')),
   'opening must be earlier than closing', '22023');
 select tests.throws(format($$select public.wf_att_policy_save(%L, '{"morning_cutoff":"23:50","morning_extra":30}')$$, tests.id('zone_a')), 'the cut-off and extra minutes must end on the same day', '22023');
