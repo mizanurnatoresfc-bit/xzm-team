@@ -2,6 +2,8 @@
 begin;
 select tests.fixture();
 select tests.hr_fixture();
+insert into public.wf_att_policy (zone_id, morning_open, morning_cutoff, morning_extra)
+  values (tests.id('zone_a'), '00:00', '23:59:59', 0);
 update public.system_settings set value = to_jsonb(((now() at time zone 'Asia/Dhaka')::date - 10)::text) where key = 'workforce.auto_submit_from';   -- this test is about the jobs themselves: start well before
 insert into tests.ids values
   ('r1', tests.active_employee('Route Rider', '881', tests.id('hub_a1'), '01711000881', '8810000000', 15000, tests.id('rider_login'))),
@@ -170,17 +172,32 @@ select tests.login(tests.id('hub_mgr'));
 select tests.ok((select p -> 'version' ->> 'no' = '2' and jsonb_array_length(p -> 'cancelled') = 1 and jsonb_array_length(p -> 'lines') = 2 from public.route_plan_published(tests.id('hub_a1')) p), 'the hub manager sees version two and who was taken off');
 
 -- ---------------------------------------------------------------- times and the server job
+select tests.logout();
+update public.wf_att_policy set morning_open = null where zone_id = tests.id('zone_a');
 select tests.login(tests.id('hub_mgr'));
 select tests.throws(format($$select public.wf_att_policy_save(%L, '{"morning_cutoff":"09:00"}')$$, tests.id('zone_a')), 'the hub manager cannot set the times', '42501');
+select tests.login(tests.id('super'));
+select tests.ok((select p ->> 'morning_open' = '07:00' and p ->> 'morning_cutoff' = '08:00' and (p ->> 'morning_extra')::int = 15 and not (p ->> 'own')::boolean and (p ->> 'can_edit')::boolean
+                   from public.wf_att_policy_get(tests.id('zone_b')) p), 'default times come from the settings');
 select tests.login(tests.id('zonal_a'));
-select tests.ok((select p ->> 'morning_cutoff' = '08:00' and (p ->> 'morning_extra')::int = 15 and not (p ->> 'own')::boolean and (p ->> 'can_edit')::boolean
-                   from public.wf_att_policy_get(tests.id('zone_a')) p), 'default times come from the settings');
+select tests.throws(format($$select public.wf_att_policy_save(%L, '{"morning_open":"09:00","morning_cutoff":"08:00","morning_extra":0}')$$, tests.id('zone_a')),
+  'opening must be earlier than closing', '22023');
 select tests.throws(format($$select public.wf_att_policy_save(%L, '{"morning_cutoff":"23:50","morning_extra":30}')$$, tests.id('zone_a')), 'the cut-off and extra minutes must end on the same day', '22023');
 select tests.throws(format($$select public.wf_att_policy_save(%L, '{"morning_extra":999}')$$, tests.id('zone_a')), 'extra minutes are at most 360', '22023');
 select tests.throws(format($$select public.wf_att_policy_save(%L, '{"speed":1}')$$, tests.id('zone_a')), 'an unknown time setting is refused', '22023');
 select tests.ok((select p ->> 'morning_cutoff' = '00:00' and (p ->> 'morning_extra')::int = 0 and (p ->> 'own')::boolean
                    from public.wf_att_policy_save(tests.id('zone_a'), '{"morning_cutoff":"00:00","morning_extra":0}') p), 'the zone''s times are saved');
 select tests.ok((select (public.wf_att_policy_get(tests.id('zone_a')) ->> 'morning_cutoff') = '00:00'), 'and read back');
+select tests.logout();
+-- The window is inclusive at opening, exclusive at closing, and uses the Dhaka date.
+select tests.ok(not private.wf_morning_window_open(tests.id('zone_b'), date '2026-11-26', timestamptz '2026-11-26 06:59:59+06')
+            and private.wf_morning_window_open(tests.id('zone_b'), date '2026-11-26', timestamptz '2026-11-26 07:00+06')
+            and private.wf_morning_window_open(tests.id('zone_b'), date '2026-11-26', timestamptz '2026-11-26 08:14:59+06')
+            and not private.wf_morning_window_open(tests.id('zone_b'), date '2026-11-26', timestamptz '2026-11-26 08:15+06')
+            and private.wf_morning_window_open(tests.id('zone_b'), date '2026-11-27', timestamptz '2026-11-27 07:00+06'),
+  'the Dhaka window opens and closes at the exact boundary each day');
+select tests.login(tests.id('zonal_a'));
+select tests.throws(format($$select public.wf_morning_return(%L, null, 'Check again')$$, tests.id('hub_a1')), 'a zonal manager cannot return a form once the window closes', '22023');
 select tests.logout();
 -- the cut-off (00:00 + 0) has passed. Hub A2 typed nothing: the job does NOT submit an empty morning input, it holds it and tells the managers once
 select tests.ok(private.wf_morning_autosubmit() = 0, 'the job does not submit an empty morning input');
@@ -190,10 +207,12 @@ select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = 
 select tests.ok((select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A2 · ' || to_char((now() at time zone 'Asia/Dhaka')::date, 'DD-MM-YYYY') || '%'), 'the zonal manager is told');
 select tests.ok(private.wf_morning_autosubmit() = 0 and (select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A2 · ' || to_char((now() at time zone 'Asia/Dhaka')::date, 'DD-MM-YYYY') || '%'),
   'and only once, however often the job runs');
--- once everybody is marked, the next run submits it by itself
+-- A complete draft is saved during the window, then the cutoff is advanced.
+update public.wf_att_policy set morning_open = '00:00', morning_cutoff = '23:59:59' where zone_id = tests.id('zone_a');
 select tests.login(tests.id('super'));
 select public.wf_morning_save(tests.id('hub_a2'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('other'), 'state', 'present')));
 select tests.logout();
+update public.wf_att_policy set morning_open = null, morning_cutoff = '00:00' where zone_id = tests.id('zone_a');
 select tests.ok(private.wf_morning_autosubmit() >= 1, 'a complete morning input is submitted by the server at the cut-off');
 select tests.ok((select s.submit_mode = 'auto' and s.submitted_by is null and s.revision = 1 from public.wf_morning_subs s where s.hub_id = tests.id('hub_a2') and s.work_date = current_date)
             and (select l.state = 'present' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a2') and s.work_date = current_date and l.employee_id = tests.id('other'))

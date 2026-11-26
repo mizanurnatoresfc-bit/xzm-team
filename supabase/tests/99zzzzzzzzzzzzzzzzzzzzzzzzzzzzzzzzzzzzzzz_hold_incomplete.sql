@@ -1,6 +1,5 @@
--- নিয়ম ৩: সকালের ফর্ম বা দৈনিক খাতা খালি বা অসম্পূর্ণ থাকলে সার্ভার জমা করে না — খোলা রাখে, হাব ও জোনাল ম্যানেজারকে একবার জানায়।
--- Rule 3: an empty or unfinished morning form or daily register is NOT submitted by the server. It stays open (the hub manager can still write it), the hub's managers and the zone's
--- managers are told once, and the job looks again every minute. When everybody has an answer (approved leave counts) the server submits it.
+-- Empty or unfinished morning forms are locked at cutoff and their managers are notified.
+-- The daily register keeps its existing hold and correction workflow.
 begin;
 select tests.fixture();
 select tests.hr_fixture();
@@ -28,35 +27,36 @@ select tests.ok((select count(*) = 2 and bool_and(submit_mode = 'auto' and submi
 select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a1')), 'hub A1''s empty forms are not touched: no form row, no line, nothing submitted');
 select tests.ok((select count(*) = 2 and bool_and(gap_count = 2 and resolved_at is null) from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a1'))
             and not exists (select 1 from public.wf_auto_holds where hub_id = tests.id('hub_a2')), 'hub A1 yesterday and today are held (two people without an answer; the one on leave is not counted); hub A2 is not held');
-select tests.ok(pg_temp.notes('hub_mgr', 'সকালের জনবল জমা আটকে%', '%' || :'ts' || '%') = 1 and pg_temp.notes('hub_mgr', 'সকালের জনবল জমা আটকে%', '%' || :'ys' || '%') = 1,
-  'the hub manager is told, once for each day');
+select tests.ok(pg_temp.notes('hub_mgr', 'সকালের জনবল জমা আটকে%', '%' || :'ts' || '%') = 1 and pg_temp.notes('hub_mgr', 'সকালের জনবল জমা আটকে%', '%' || :'ys' || '%') = 1
+    and (select link from public.notifications where profile_id = tests.id('hub_mgr') and title like 'সকালের জনবল জমা আটকে%' limit 1) like '/app?morningHub=%',
+  'the hub manager receives a dashboard link, once for each day');
 select tests.ok(pg_temp.notes('zonal_a', 'সকালের জনবল জমা আটকে%', '%' || :'ts' || '%') = 1 and pg_temp.notes('zonal_a', 'সকালের জনবল জমা আটকে%', '%' || :'ys' || '%') = 1
-            and (select link from public.notifications where profile_id = tests.id('zonal_a') and title like 'সকালের জনবল জমা আটকে%' limit 1) like '/app/attendance?view=hub&tab=morning&hub=%', 'and so is the zonal manager, with a link to the form');
+            and (select link from public.notifications where profile_id = tests.id('zonal_a') and title like 'সকালের জনবল জমা আটকে%' limit 1) like '/app/routes?tab=morning&zone=%', 'the zonal manager receives a link to the Routes review');
 select tests.ok(pg_temp.notes('hub_b_mgr', '%জমা আটকে আছে%', '%') = 0 and pg_temp.notes('rider_login', '%জমা আটকে আছে%', '%') = 0, 'nobody of another hub or zone is told');
 select tests.ok(private.wf_morning_autosubmit() = 0 and pg_temp.notes('hub_mgr', 'সকালের জনবল জমা আটকে%', '%') = 2 and pg_temp.notes('zonal_a', 'সকালের জনবল জমা আটকে%', '%') = 2,
   'the next minute changes nothing and tells nobody twice');
 select tests.login(tests.id('hub_mgr'));
-select tests.ok((select g ->> 'status' = 'open' and (g -> 'can' ->> 'fill')::boolean from public.wf_morning_get(tests.id('hub_a1')) g), 'the form is still open for the hub manager after the cut-off');
--- part of it typed: still unfinished
+select tests.ok((select not (g -> 'can' ->> 'fill')::boolean and g -> 'people' = 'null'::jsonb from public.wf_morning_get(tests.id('hub_a1')) g), 'the form is hidden and locked after cutoff');
+select tests.throws(format($$select public.wf_morning_submit(%L, null, '[]')$$, tests.id('hub_a1')), 'the hub manager cannot submit after cutoff', '22023');
+select tests.logout();
+-- Expand the test window, save a partial draft, then advance cutoff.
+update public.wf_att_policy set morning_open = '00:00', morning_cutoff = '23:59:59' where zone_id = tests.id('zone_a');
+select tests.login(tests.id('hub_mgr'));
 select public.wf_morning_save(tests.id('hub_a1'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('a'), 'state', 'present')));
 select tests.logout();
+update public.wf_att_policy set morning_open = null, morning_cutoff = '00:00' where zone_id = tests.id('zone_a');
 select tests.ok(private.wf_morning_autosubmit() = 0 and not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and status = 'submitted'), 'a form with one person still unchecked is not submitted by the server');
 select tests.ok((select gap_count = 1 from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a1') and work_date = :'t'::date)
             and pg_temp.notes('hub_mgr', 'সকালের জনবল জমা আটকে%', '%' || :'ts' || '%') = 1, 'the list now says one person is missing; nobody is told again');
 select tests.ok((select l.state = 'present' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a1') and s.work_date = :'t'::date and l.employee_id = tests.id('a'))
             and (select count(*) = 1 from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a1') and s.work_date = :'t'::date),
   'what the hub manager typed is kept, and the server added no "unchecked" line');
--- the manager may still submit late, by hand, and may leave people unchecked: that is her / his own submit, and it releases yesterday's hold
-select tests.login(tests.id('hub_mgr'));
-select tests.ok((s ->> 'mode' = 'manager') and not (s ->> 'already')::boolean, 'the hub manager submits yesterday by hand after the cut-off') from public.wf_morning_submit(tests.id('hub_a1'), :'y'::date, '[]') s;
-select tests.logout();
-select tests.ok((select resolved_at is not null from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a1') and work_date = :'y'::date)
-            and (select count(*) = 2 from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id where s.hub_id = tests.id('hub_a1') and s.work_date = :'y'::date and l.state = 'unknown'), 'that releases the hold; the people left blank are unchecked, as the manager sent it');
-select tests.ok(private.wf_morning_autosubmit() = 0, 'the job does not touch a form that has been submitted');
--- now everybody has an answer: the server submits it
+-- A completed draft saved during the window is submitted at cutoff.
+update public.wf_att_policy set morning_open = '00:00', morning_cutoff = '23:59:59' where zone_id = tests.id('zone_a');
 select tests.login(tests.id('hub_mgr'));
 select public.wf_morning_save(tests.id('hub_a1'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('b'), 'state', 'absent')));
 select tests.logout();
+update public.wf_att_policy set morning_open = null, morning_cutoff = '00:00' where zone_id = tests.id('zone_a');
 select tests.ok(private.wf_morning_autosubmit() = 1, 'when the last person has an answer the next run submits the form');
 select tests.ok((select s.submit_mode = 'auto' and s.status = 'submitted' from public.wf_morning_subs s where s.hub_id = tests.id('hub_a1') and s.work_date = :'t'::date)
             and (select string_agg(e.employee_code || ':' || l.state, ',' order by e.employee_code) = '991:present,992:absent,993:leave' from public.wf_morning_lines l join public.wf_morning_subs s on s.id = l.sub_id

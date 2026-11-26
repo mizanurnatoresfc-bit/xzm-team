@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell, refreshShellCounts } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
@@ -13,7 +13,7 @@ import { AttendanceBook } from './AttendanceBook'
 import { FinalSheetTab, MonthSheetTab } from './FinalSheet'
 import { HubReview } from './HubReview'
 import { AppsTab, OpsTab } from './HubTabs'
-import { MorningPolicy, MorningTab, PublishedPlanTab, ZoneMorningTab } from './Morning'
+import { MorningPolicy, PublishedPlanTab } from './Morning'
 import { MyExplanations } from './MyExplanations'
 import { ReopenPanel } from './Reopen'
 import { ZoneFinal } from './ZoneFinal'
@@ -33,8 +33,8 @@ import '../../workforce.css'
  * The old addresses (/app/workforce/hub, /zone, /attendance) lead here (see LegacyAttendanceRedirect in App.tsx).
  */
 type View = 'me' | 'hub' | 'zone'
-type HubTab = 'morning' | 'plan' | 'final' | 'month' | 'apps' | 'ops' | 'review'
-type ZoneTab = 'morning' | 'final' | 'ops' | 'setting' | 'ops-setting'
+type HubTab = 'plan' | 'final' | 'month' | 'apps' | 'ops' | 'review'
+type ZoneTab = 'final' | 'ops' | 'setting' | 'ops-setting'
 
 export function AttendancePage() {
   const { L } = usePrefs()
@@ -57,6 +57,19 @@ export function AttendancePage() {
     return q
   }, { replace: true })
 
+  if (sp.get('tab') === 'morning') {
+    const q = new URLSearchParams()
+    if (view === 'zone') {
+      q.set('tab', 'morning')
+      const zone = sp.get('zone')
+      if (zone) q.set('zone', zone)
+      return <Navigate replace to={`/app/routes?${q}`} />
+    }
+    const hub = sp.get('hub')
+    if (hub) q.set('morningHub', hub)
+    return <Navigate replace to={`/app?${q}`} />
+  }
+
   return <AppShell title={L('হাজিরা খাতা', 'Attendance register')}>
     {views.length > 1 && <div className="wm"><ChipTabs<View> tabs={views} value={view} onChange={v => put({ view: v, tab: null, date: null, give: null })} label={L('হাজিরা খাতার অংশ', 'Attendance sections')} /></div>}
     {view === 'me' && <div className="wf"><MyExplanations /><AttendanceBook /></div>}
@@ -68,7 +81,7 @@ export function AttendancePage() {
 type Put = (patch: Record<string, string | null>) => void
 
 // ====================================================================================== হাব
-const HUB_TABS: HubTab[] = ['morning', 'plan', 'final', 'month', 'apps', 'ops', 'review']
+const HUB_TABS: HubTab[] = ['plan', 'final', 'month', 'apps', 'ops', 'review']
 
 function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canResend: boolean }) {
   const { L, n, lang } = usePrefs()
@@ -84,9 +97,9 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   const can = ov?.can
   const today = ov?.date ?? todayDhaka()
 
-  const visible: Record<HubTab, boolean> = { morning: !!can?.attendance, plan: !!can?.attendance, final: !!can?.attendance, month: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops, review: !!(can?.decide || (can?.ops && can?.ops_edit)) }
+  const visible: Record<HubTab, boolean> = { plan: !!can?.attendance, final: !!can?.attendance, month: !!can?.attendance, apps: !!can?.attendance, ops: !!can?.ops, review: !!(can?.decide || (can?.ops && can?.ops_edit)) }
   const askedTab = sp.get('tab') as HubTab | null
-  const tab: HubTab = askedTab && HUB_TABS.includes(askedTab) && visible[askedTab] ? askedTab : can?.attendance ? 'morning' : 'ops'
+  const tab: HubTab = askedTab && HUB_TABS.includes(askedTab) && visible[askedTab] ? askedTab : can?.attendance ? 'final' : 'ops'
   const go = (t: HubTab) => put({ tab: t })
   const requestedDate = sp.get('date')
   const reviewDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && requestedDate <= today ? requestedDate : today
@@ -101,7 +114,6 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
 
   const tabs: Array<{ key: HubTab; label: string; count?: number; tone?: 'warn' | 'bad' }> = [
     { key: 'review', label: L('অনুমোদনের তালিকা', 'Approval queue') },
-    { key: 'morning', label: L('সকালের জনবল', 'Morning input') },
     { key: 'plan', label: L('পাওয়া রুট প্ল্যান', 'Route plan received') },
     { key: 'final', label: L('ফাইনাল খাতা', 'Final register'), count: backlog.length },
     { key: 'month', label: L('মাসিক খাতা', 'Monthly register') },
@@ -138,7 +150,6 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
       <div key={`${hubId}-${tab}`}>
         {tab === 'review' && <HubReview key={reviewDate} hubId={hubId} date={reviewDate} today={today}
           canAttendance={!!can.decide} canOps={!!(can.ops && can.ops_edit)} onDate={date => put({ date })} />}
-        {tab === 'morning' && <MorningTab hubId={hubId} />}
         {tab === 'plan' && <PublishedPlanTab hubId={hubId} canResend={canResend} />}
         {tab === 'final' && <FinalSheetTab hubId={hubId} />}
         {tab === 'month' && <MonthSheetTab hubId={hubId} />}
@@ -156,7 +167,7 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
   const hubsQ = useHubList()
   const tabAsked = sp.get('tab') as ZoneTab | null
   const configuring = canSet && (tabAsked === 'setting' || tabAsked === 'ops-setting')
-  const tab: ZoneTab = tabAsked === 'ops' || tabAsked === 'final' || configuring ? tabAsked : 'morning'
+  const tab: ZoneTab = tabAsked === 'ops' || tabAsked === 'final' || configuring ? tabAsked : 'final'
   const zones = (hubsQ.data?.zones ?? []).filter(z => !configuring || grants.some(grant =>
     grant.is_super || (grant.permission_code === 'hr.attendance.configure' &&
       (grant.scope_type === 'global' || (grant.scope_type === 'zone' && grant.zone_id === z.id)))))
@@ -164,7 +175,6 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
   const zone = zones.some(z => z.id === zoneAsked) ? zoneAsked : ''
   const policyZone = zone || zones[0]?.id || ''
   const tabs: Array<{ key: ZoneTab; label: string }> = [
-    { key: 'morning', label: L('জোনের সকাল', 'The zone’s morning') },
     { key: 'final', label: L('দৈনিক হাজিরা — হাব অনুযায়ী', 'Daily attendance — by hub') },
     { key: 'ops', label: L('পিকআপ · রিটার্ন · ডেলিভারি', 'Pickup · return · delivery') },
     ...(canSet ? [
@@ -184,11 +194,10 @@ function ZoneView({ sp, put, canSet }: { sp: URLSearchParams; put: Put; canSet: 
 
     <ChipTabs<ZoneTab> tabs={tabs} value={tab} onChange={t => put({ tab: t })} label={L('জোনের বিভাগ', 'Zone sections')} />
     <div key={`${zone}-${tab}`}>
-      {tab === 'morning' && <ZoneMorningTab zone={zone} />}
       {tab === 'final' && <><ZoneFinal zone={zone} onOpenHub={(hub, date) => put({ view: 'hub', hub, tab: 'final', date })} />{canSet && <ReopenPanel zone={zone} />}</>}
       {tab === 'ops' && <ZoneOps zone={zone} />}
       {tab === 'ops-setting' && <OpsDeadlineEditor key={policyZone} zone={policyZone} />}
-      {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} />{policyZone && <ZoneWindows key={`windows-${policyZone}`} zone={policyZone} />}</>}
+      {tab === 'setting' && <><MorningPolicy key={policyZone} zone={policyZone} register />{policyZone && <ZoneWindows key={`windows-${policyZone}`} zone={policyZone} />}</>}
     </div>
   </div>
 }

@@ -12,7 +12,7 @@ import { morning, type AttPolicy } from '../lib/morning'
 import { resolveWorkHub, useWorkHub } from '../lib/workHub'
 import { wfFriendly } from '../lib/workforce'
 import { useLoad } from './accounts/ui'
-import { fmtTime, useHubList } from './workforce/shared'
+import { useHubList } from './workforce/shared'
 
 type Level = 0 | 1 | 2 | 3
 type Row = [to: string, icon: string, bn: string, en: string, perms: string[], minimum?: Level]
@@ -155,7 +155,7 @@ export function Settings() {
 }
 
 function HubAttendanceTimes() {
-  const { L, lang } = usePrefs()
+  const { L } = usePrefs()
   const { grants, session } = useAuth()
   const saved = useWorkHub(session?.user.id ?? '')
   const list = useHubList()
@@ -174,7 +174,6 @@ function HubAttendanceTimes() {
     {list.error || policy.error
       ? <p className="da-error" role="alert">{wfFriendly(list.error || policy.error)}</p>
       : times ? <ul>
-        <li>{L('আজ সকালের ইনপুট জমা', 'Today’s morning input')}{' · '}{fmtTime(times.today_due, lang)}</li>
         <li>{L('পরদিন দৈনিক হাজিরা খাতা জমা', 'Next-day attendance register')}{' · '}{times.day_time}
           {times.day_extra > 0 && ` + ${times.day_extra} ${L('মিনিট', 'min')}`}</li>
       </ul>

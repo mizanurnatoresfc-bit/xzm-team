@@ -7,6 +7,8 @@ import { LoadTab } from '../zonal/RouteLoad'
 import { CoverageTab } from '../zonal/RouteCoverage'
 import { PlanTab } from '../zonal/RoutePlan'
 import { DayView, RouteTable, RulesForm, ZoneMap } from '../zonal/RouteSettings'
+import { useAuth } from '../../auth/AuthProvider'
+import { MorningPolicy, ZoneMorningTab } from '../workforce/Morning'
 import { usePrefs } from '../../lib/prefs'
 import { LocationsPane } from './LocationsPane'
 import type { PaneCtx } from './panes'
@@ -28,6 +30,13 @@ export function LoadView({ c }: P) {
   return <LoadTab zone={c.zone} o={zoneOf(c)} hub={c.hub} canEdit={c.canEdit} onSaved={() => c.toast(L('সেভ হয়েছে', 'Saved'))} onOpen={id => c.go('map', { route: id })} />
 }
 export function PlanView({ c }: P) { return <PlanTab zone={c.zone || undefined} hub={c.hub} onHub={c.setHub} /> }
+export function MorningView({ c }: P) {
+  const { can } = useAuth()
+  return <div className="wm">
+    <ZoneMorningTab zone={c.zone} />
+    {can('hr.attendance.configure') && <MorningPolicy key={c.zone} zone={c.zone} />}
+  </div>
+}
 export function DayPane({ c }: P) { return <DayView zone={c.zone} o={zoneOf(c)} hub={c.hub} /> }
 export function RulesView({ c }: P) {
   const { L } = usePrefs()

@@ -34,6 +34,7 @@ export const PANE_VIEWS: Record<string, LazyExoticComponent<PaneView>> = {
   places: view('PlacesView'),
   cover: view('CoverView'),
   plan: view('PlanView'),
+  morning: view('MorningView'),
   load: view('LoadView'),
   day: view('DayPane'),
   warn: view('WarnView'),

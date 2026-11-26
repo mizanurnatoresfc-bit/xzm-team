@@ -10,7 +10,7 @@ export type TypedState = 'present' | 'absent' | 'unknown'
 export type LeaveInfo = { ref: string; source: 'leave_request' | 'absence_application'; applied_on: IsoDate }
 export type MorningPerson = { id: string; code: string | null; name: string; post: string | null; state: MorningState; leave: LeaveInfo | null }
 export type MorningForm = {
-  hub: { id: string; name: string; zone_id: string }; date: IsoDate; today: IsoDate; now: string; due: string
+  hub: { id: string; name: string; zone_id: string }; date: IsoDate; today: IsoDate; now: string; opens_at: string; due: string
   status: 'open' | 'submitted'; revision: number
   can: { fill: boolean; review: boolean }
   receipt: null | { revision: number; mode: 'manager' | 'auto' | null; submitted_at: string; submitted_by_name: string | null }
@@ -21,7 +21,7 @@ export type MorningForm = {
 /** The server did not submit an empty or unfinished morning input; the managers were told. */
 export type MorningHold = { held_at?: string; reason: 'empty' | 'incomplete'; gap_count: number; total: number; gaps: Array<{ name: string; why: string | null }> }
 export type ZoneMorningHub = {
-  held: boolean; hold: null | MorningHold
+  held: boolean; window_open: boolean; hold: null | MorningHold
   id: string; name: string; zone_id: string; zone_name: string; staff: number; due: string
   state: 'submitted' | 'open' | 'none'; sub_id: string | null; revision: number | null; mode: 'manager' | 'auto' | null; submitted_at: string | null
   returned: null | { reason: string | null; at: string }
@@ -31,7 +31,7 @@ export type ZoneMorningHub = {
   plan: null | { id: string; status: 'draft' | 'sent' | 'approved'; published_version: number }
 }
 export type ZoneMorning = { date: IsoDate; today: IsoDate; now: string; hubs: ZoneMorningHub[] }
-export type AttPolicy = { zone_id: string; morning_cutoff: string; morning_extra: number; day_time: string; day_extra: number; own: boolean; today_due: string; can_edit: boolean }
+export type AttPolicy = { zone_id: string; morning_open: string; morning_cutoff: string; morning_extra: number; day_time: string; day_extra: number; own: boolean; today_due: string; can_edit: boolean }
 export type PlanMorning = {
   date: IsoDate; required: boolean; waiting: boolean; returned: boolean; plan_stale: boolean; published_stale: boolean
   morning: null | { id: string; revision: number; mode: 'manager' | 'auto' | null; submitted_at: string; present: number; absent: number; leave: number; unknown: number }
@@ -58,7 +58,7 @@ export const morning = {
   zone: (zone: string | null, date?: IsoDate | null) => rpc<ZoneMorning>('wf_morning_zone', { p_zone: zone, p_date: date ?? null }),
   sendBack: (hub: string, reason: string, date?: IsoDate | null) => rpc<number>('wf_morning_return', { p_hub: hub, p_date: date ?? null, p_reason: reason }),
   policy: (zone: string) => rpc<AttPolicy>('wf_att_policy_get', { p_zone: zone }),
-  savePolicy: (zone: string, p: Partial<Pick<AttPolicy, 'morning_cutoff' | 'morning_extra' | 'day_time' | 'day_extra'>>) => rpc<AttPolicy>('wf_att_policy_save', { p_zone: zone, p }),
+  savePolicy: (zone: string, p: Partial<Pick<AttPolicy, 'morning_open' | 'morning_cutoff' | 'morning_extra' | 'day_time' | 'day_extra'>>) => rpc<AttPolicy>('wf_att_policy_save', { p_zone: zone, p }),
   planMorning: (hub: string, date?: IsoDate | null) => rpc<PlanMorning>('route_plan_morning', { p_hub: hub, p_date: date ?? null }),
   published: (hub: string, date?: IsoDate | null) => rpc<PublishedPlan>('route_plan_published', { p_hub: hub, p_date: date ?? null }),
   resend: (plan: string) => rpc<number>('route_plan_resend', { p_plan: plan }),

@@ -2,6 +2,8 @@
 begin;
 select tests.fixture();
 select tests.hr_fixture();
+insert into public.wf_att_policy (zone_id, morning_open, morning_cutoff, morning_extra)
+  values (tests.id('zone_a'), '00:00', '23:59:59', 0);
 insert into tests.ids values
   ('r1', tests.active_employee('Route Rider', '871', tests.id('hub_a1'), '01711000871', '8710000000', 15000, tests.id('rider_login'))),
   ('r2', tests.active_employee('Second Rider', '872', tests.id('hub_a1'), '01711000872', '8720000000')),

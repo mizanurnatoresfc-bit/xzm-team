@@ -1,10 +1,13 @@
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { hrReq } from '../lib/hrreq'
 import { NodiGaps } from '../components/NodiGaps'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { panelLevel } from '../lib/menu'
 import { useAuth } from '../auth/AuthProvider'
 import { AppShell, useMyPhoto } from '../components/AppShell'
+import { org } from '../lib/hr'
+import { resolveWorkHub, useWorkHub } from '../lib/workHub'
+import { MorningTab } from './workforce/Morning'
 import { Icon } from '../components/Icon'
 import { NetworkPanel } from '../components/NetworkPanel'
 import { OfficeItemsPanel } from '../components/OfficeItemsPanel'
@@ -65,6 +68,7 @@ export function Dashboard() {
       {/* duties only — the waiting attendance and approvals have their own cards below, so no "0 open" next to them */}
       {d?.my_work && d.my_work.tasks_open > 0 && <div className="g-badge"><b>{n(d.my_work.tasks_open)}</b>{L('চলমান দায়িত্ব', 'open duties')}</div>}
     </div>
+    {panelLevel(can) === 1 && can('hr.attendance.create') && <DashboardMorning user={session?.user.id ?? ''} />}
     {/* the three personal entries under the name card, and what is waiting on me (attendance, daily numbers, approvals) */}
     <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
     {isSuperAdmin && !viewAs && <Link to="/app/role-dashboards" className="dash-edit"><Icon name="gear" size={15} />{L('ড্যাশবোর্ড সাজান', 'Arrange dashboard')}</Link>}
@@ -224,4 +228,17 @@ function FirstSteps({ photo }: { photo: string | null | undefined }) {
     <ul>{steps.map(([ok, text, to], i) => <li key={i} className={ok ? 'ok' : ''}><span className="fs-tick" aria-hidden="true">{ok ? '✓' : i + 1}</span>
       {ok || !to ? <span>{text}</span> : <Link to={to}>{text}</Link>}</li>)}</ul>
   </section>
+}
+
+function DashboardMorning({ user }: { user: string }) {
+  const { grants } = useAuth()
+  const [params] = useSearchParams()
+  const savedHub = useWorkHub(user)
+  const hubs = useLoad(() => org.hubs(), [user])
+  const allowed = (hubs.data ?? []).filter(h => !h.archived_at && h.status === 'active' && grants.some(g =>
+    g.is_super || (g.permission_code === 'hr.attendance.create' &&
+      (g.scope_type === 'global' || (g.scope_type === 'zone' && g.zone_id === h.zone_id) ||
+       (g.scope_type === 'hub' && g.hub_id === h.id)))))
+  const hub = resolveWorkHub(allowed, savedHub, params.get('morningHub'))
+  return hub ? <MorningTab key={hub.id} hubId={hub.id} /> : null
 }
