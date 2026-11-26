@@ -1219,8 +1219,8 @@ try {
         check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false && await page.locator('.rsend .rs-done').count() === 1,
           `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
-      check(await panels() === 'self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('self', 'রুট কেন্দ্র') === 1 && await inPanel('self', 'রোল ও অনুমতি') === 0,
-        `${size}: a rider gets one panel only, with everything they may open inside it`)
+      check((await panels()).split(',').sort().join() === 'routes,self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('routes', 'রুট কেন্দ্র') === 1 && await inPanel('routes', 'তথ্য সংগ্রহ কেন্দ্র') === 0 && await inPanel('self', 'রোল ও অনুমতি') === 0,
+        `${size}: a rider sees their personal panel and Route Centre under Operations Central`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
       permsNow = null; asEmployee = false }
     // arranging a role's home page: add, remove, put in order — and the home page follows the saved order
