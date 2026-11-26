@@ -1816,6 +1816,18 @@ try {
       { const t = await page.locator('main').innerText()
         check(t.includes('শহর পূর্ব') && t.includes('২/৩') && t.includes('Staff 01') && await page.locator('.osm-pin.num').count() >= 3, `${size}: route settings show the zone map with numbered stops, the route card and stops with location`) }
       await fits('route settings map')
+      await page.locator('[data-pane="routes"]').click()
+      await page.waitForURL(/tab=routes/)
+      await page.goBack()
+      await page.locator('[data-pane="map"][aria-current="page"]').waitFor()
+      check(true, `${size}: browser Back restores the map tab`)
+      await page.getByRole('button', { name: 'PDF থেকে রুট', exact: true }).click()
+      const pdf = page.locator('.da-modal .rm-pdf[open]')
+      await pdf.locator('input[type=file]').setInputFiles({ name: 'invalid.pdf', mimeType: 'application/pdf', buffer: Buffer.from('invalid PDF') })
+      await pdf.getByText(/invalid\.pdf/).waitFor()
+      check(await pdf.locator('input[type=file]').isEnabled(), `${size}: PDF shortcut opens the picker, and an invalid PDF allows retry`)
+      await page.locator('.da-modal-acts').getByRole('button', { name: 'বাতিল' }).click()
+
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-map-${size}.png`, fullPage: true })
       await page.locator('.rt-card button:has-text("এডিট / ম্যাপ")').click(); await page.waitForSelector('.rt-stop')
       check(await page.locator('.rt-stop').count() === 3, `${size}: the route editor lists the three stops in order`)

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Icon } from '../../components/Icon'
 import type { PdfAreaRow } from '../../lib/planPdf'
 import { hasGps, placeName, type Place, type RouteStop } from '../../lib/routes'
 import { usePrefs } from '../../lib/prefs'
@@ -75,10 +76,11 @@ async function previewFiles(files: File[], places: Place[]): Promise<Preview> {
     unresolved, total: historical.size + incoming.size, historicalDays: dates.size, errors }
 }
 
-export function RoutePdfDraft({ places, stops, maxStops, onAdd }: {
-  places: Place[]; stops: RouteStop[]; maxStops: number; onAdd: (stops: RouteStop[]) => void
+export function RoutePdfDraft({ places, stops, maxStops, initiallyOpen, loadingPlaces, retryPlaces, onAdd }: {
+  places: Place[]; stops: RouteStop[]; maxStops: number; initiallyOpen: boolean; loadingPlaces: boolean; retryPlaces?: () => Promise<void>; onAdd: (stops: RouteStop[]) => void
 }) {
   const { L, n, lang } = usePrefs()
+  const [open, setOpen] = useState(initiallyOpen)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
@@ -100,18 +102,20 @@ export function RoutePdfDraft({ places, stops, maxStops, onAdd }: {
     const stop = placeToStop(a.place, lang)
     return list.some(existing => sameStop(existing, stop)) ? list : [...list, stop]
   }, [])
-  return <details className="rt-card">
-    <summary><b>{L('PDF দিয়ে রুটের স্টপ বাছুন', 'Choose route stops from PDFs')}</b></summary>
+  return <details className="rt-card rm-pdf" open={open} onToggle={e => setOpen(e.currentTarget.open)}>
+    <summary><Icon name="upload" size={18} /><b>{L('PDF দিয়ে রুটের স্টপ বাছুন', 'Choose route stops from PDFs')}</b></summary>
     <p className="small">{L('এই হাবের রাইডার অ্যাসাইন ও ইনকামিং ডিসপ্যাচ PDF দিন। পরিচিত এলাকার মিল এই ডিভাইসেই দেখা হবে। এলাকা যাচাই করে স্টপ যোগ করুন।',
       'Upload the rider and incoming dispatch PDFs for this hub. Area matching runs on this device. Review the matches before adding stops.')}</p>
-    <label className="small">{L('রাইডার ও ডিসপ্যাচ PDF', 'Rider and dispatch PDFs')}
-      <input type="file" accept=".pdf,application/pdf" multiple disabled={busy}
+    <label className="rm-pdf-file small">{L('রাইডার ও ডিসপ্যাচ PDF', 'Rider and dispatch PDFs')}
+      <input type="file" accept=".pdf,application/pdf" multiple disabled={busy || loadingPlaces}
         onChange={e => { const files = Array.from(e.target.files ?? []); e.target.value = ''; void read(files) }} />
     </label>
-    {!places.length && <p className="small">{L('এলাকার তালিকা এখন পাওয়া যাচ্ছে না। PDF পড়া যাবে, তবে তালিকা লোড হলে মিল খুঁজতে আবার দিন।', 'The area catalog is unavailable. PDFs can be read now; reselect them after the catalog loads to match areas.')}</p>}
+    {loadingPlaces && <p role="status" className="small">{L('এলাকার তালিকা লোড হচ্ছে…', 'Loading the area catalog…')}</p>}
+    {retryPlaces && <button className="secondary sm" type="button" onClick={() => void retryPlaces()}>{L('এলাকার তালিকা আবার লোড করুন', 'Retry loading areas')}</button>}
+    {!loadingPlaces && !places.some(p => !p.hidden && hasGps(p)) && <p className="small">{L('এলাকার তালিকা এখন পাওয়া যাচ্ছে না। PDF পড়া যাবে, তবে তালিকা লোড হলে মিল খুঁজতে আবার দিন।', 'The area catalog is unavailable. PDFs can be read now; reselect them after the catalog loads to match areas.')}</p>}
     {busy && <p role="status">{L('PDF পড়া হচ্ছে…', 'Reading PDFs…')}</p>}
     {error && <p className="da-error" role="alert">{error}</p>}
-    {preview && <>
+    {preview && <div className="rm-pdf-results">
       {preview.errors.map((text, i) => <p key={i} className="da-error">{text}</p>)}
       <p className="small">{L('পড়া পার্সেল', 'Parcels read')} <b>{n(preview.total)}</b>{' · '}{L('এলাকা যাচাই বাকি', 'Area pending verification')} <b>{n(preview.unresolved)}</b></p>
       <p className="small">{L('বর্তমান স্টপে ইনকামিং', 'Incoming for current stops')} <b>{n(totals.incoming)}</b>
@@ -126,8 +130,8 @@ export function RoutePdfDraft({ places, stops, maxStops, onAdd }: {
       </table></div>
       {areas.length === 0 && <p>{L('পরিচিত কোনো এলাকা মেলেনি।', 'No catalogued areas matched.')}</p>}
       <button type="button" disabled={!add.length || stops.length + add.length > maxStops}
-        onClick={() => { onAdd(add); setSelected([]) }}>{L('বাছাই করা এলাকা স্টপে যোগ করুন', 'Add selected areas as stops')}</button>
+        onClick={() => { onAdd(add); setSelected([]) }}>{add.length ? L(`বাছাই করা ${n(add.length)}টি স্টপ যোগ করুন`, `Add ${n(add.length)} selected stops`) : L('বাছাই করা স্টপ যোগ করুন', 'Add selected stops')}</button>
       {stops.length + add.length > maxStops && <p className="da-error">{L('রুটের সর্বোচ্চ স্টপের সীমা ছাড়িয়েছে।', 'The route stop limit would be exceeded.')}</p>}
-    </>}
+    </div>}
   </details>
 }
