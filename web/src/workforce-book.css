@@ -265,3 +265,14 @@ button.wf-tap-send em{font-style:normal;font-size:13px;font-weight:700;padding:2
 .wf-tap-list .no{font-weight:700;font-size:14px;padding:2px 9px;border-radius:999px;background:var(--primary-50);color:var(--primary);white-space:nowrap}
 .wf-tap-list .tm{font-size:13.5px;color:var(--muted);white-space:nowrap}
 .wf-tap-list .nums{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 10px;font-weight:700;font-variant-numeric:tabular-nums}
+
+.wf-number-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .25rem;
+  margin-top: .35rem;
+}
+.wf-number-steps button {
+  min-height: 44px;
+  padding: .25rem;
+}

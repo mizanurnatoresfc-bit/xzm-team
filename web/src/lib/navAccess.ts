@@ -10,7 +10,7 @@ import { ROUTE_ANY, ROUTE_OLD_PAGES, ROUTE_PAGE } from './routeAccess.ts'
  *  These show only the person's own things; a role's page list limits the work pages. */
 const ALWAYS = ['/app', '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/me', '/app/me/complete', '/app/me/permissions', '/app/notifications', '/app/notices', '/app/references', '/app/password', '/app/settings',
   // My Workforce: a person's own people lists and attendance book (the hub and zone report pages follow the role's page list)
-  '/app/workforce', '/app/workforce/given', '/app/workforce/hand', '/app/workforce/attendance']
+  '/app/hub-registers', '/app/workforce', '/app/workforce/given', '/app/workforce/hand', '/app/workforce/attendance']
 /** The same list, for pages that explain which pages a role can be limited to. */
 export const ALWAYS_OPEN: readonly string[] = ALWAYS
 /** The one attendance page. It opens for everybody (a person's own book; its hub and zone parts follow the person's permissions),

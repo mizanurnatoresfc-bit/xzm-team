@@ -390,7 +390,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   usePageFocus(loc.pathname, title, h1Ref)
   // One rule for every link (sidebar row, phone tab, quick action, alert, shortcut) — the same one the page routes use (lib/navAccess.ts).
   const access = { can, menu, menuUnavailable }
-  const dailyRegister: Item = { to: '/app/attendance', icon: 'table', bn: 'দৈনিক খাতা', en: 'Daily register', perms: null }
+  const dailyRegister: Item = { to: '/app/hub-registers', icon: 'table', bn: 'হাবের খাতা', en: 'Hub registers', perms: null }
   const canOpen = (to: string) => linkAllowed(to, access)
   const forMe = (i: Item) => (!nativeApp || i.to !== '/app/attendance') && linkAllowed(i.to, access, i.perms) && (!i.only || (i.only === 'web') === advancedAccessHere())
   const here = typeof location !== 'undefined' ? location.pathname : ''
@@ -476,7 +476,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
         <div style={{ minWidth: 0 }}><b>{name}</b><div style={{ marginTop: 3, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {roles.slice(0, 2).map((r, i) => <span key={i} className={`rb ${roleClass(r.code)}`}><Icon name="shield" size={12} />{r.name}</span>)}</div></div></div>
       <PersonalMenu variant="side" hideAttendance={nativeApp} onNavigate={() => setOpen(false)} />
-      {nativeApp && canOpen(dailyRegister.to) && hit(dailyRegister) && link(dailyRegister)}
+      {canOpen(dailyRegister.to) && hit(dailyRegister) && link(dailyRegister)}
       {layoutItems(HOME, layout).filter(i => forMe(i) && hit(i)).map(link)}
       {/* Divisions (owner, 23 Nov 2026): departments, my own panels, then system — each with a heading, so the menu reads like an org chart. */}
       {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: routesG, secs: routesSecs }, { g: sortingG, secs: sortingSecs }] },

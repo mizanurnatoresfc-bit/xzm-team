@@ -81,6 +81,7 @@ const References = lazy(() => import('./pages/References').then(m => ({ default:
 const Notifications = lazy(() => import('./pages/Notifications').then(m => ({ default: m.Notifications })))
 const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })))
 const MyWorkforce = lazy(() => import('./pages/workforce/MyWorkforce').then(m => ({ default: m.MyWorkforce })))
+const HubRegisters = lazy(() => import('./pages/hub/HubRegisters').then(m => ({ default: m.HubRegisters })))
 const AttendancePage = lazy(() => import('./pages/workforce/AttendancePage').then(m => ({ default: m.AttendancePage })))
 
 // After the first screen is shown, quietly fetch the pages so later taps open at once (an app does not wait on each tap).
@@ -281,6 +282,7 @@ export default function App() {
       <Route path="/app/hr/fields" element={<FieldSettings />} />
       {/* হাজিরা খাতা: one page for staff, hub manager and zonal manager; what it shows follows the person's permissions.
           The old addresses (also inside saved notifications) lead here. */}
+      <Route path="/app/hub-registers" element={<HubRegisters />} />
       <Route path="/app/attendance" element={<AttendancePage />} />
       <Route path="/app/workforce" element={<Navigate to="/app/attendance" replace />} />
       <Route path="/app/workforce/attendance" element={<LegacyAttendanceRedirect view="me" />} />
