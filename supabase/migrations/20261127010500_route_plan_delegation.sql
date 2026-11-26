@@ -1,3 +1,16 @@
+-- Install the operations role on databases whose initial role presets omitted it.
+-- Preserve existing role permissions wherever the role is already configured.
+with added as (
+  insert into public.roles (code, name, name_bn, description, is_system)
+  values ('zonal_manager', 'Zonal Manager', 'জোনাল ম্যানেজার', 'Operations decisions within an assigned zone', true)
+  on conflict (code) do nothing returning id
+)
+insert into public.role_permissions (role_id, permission_id)
+select added.id, p.id from added cross join public.permissions p
+where p.code in ('zonal.hub_ops.view', 'zonal.hub_ops.create',
+  'ops.route_plan.view', 'ops.route_plan.edit', 'ops.route_plan.approve')
+on conflict do nothing;
+
 alter table public.user_permission_overrides
   add column delegated_zone_id uuid references public.zones(id);
 create index user_permission_overrides_delegated_zone_idx on public.user_permission_overrides(delegated_zone_id);
