@@ -81,9 +81,17 @@ far from the hub (> 50 km), rough phone GPS (> 100 m), outside Bangladesh, no lo
 * **Save to library.** A stop placed by hand can be kept in the place library (`ops.route_setting.edit`) so other routes find it.
 * **Phone GPS** shows its accuracy and warns when it is rough.
 
+## Two people editing one route, and the road lines (26 Nov 2026)
+* **Save lock.** The editor sends `expected_updated_at` (the route's `updated_at` when it was opened) to `route_save`. If someone saved the route meanwhile the database refuses (SQLSTATE `40001`)
+  and the editor shows "changed by someone else — reload". Not sending it keeps the old behaviour. Any write to the route row (even the typed parcel average) changes `updated_at`, so a refusal can be a false alarm: reopen and edit again.
+* **Light zone data.** `route_zone_overview` no longer carries `road_path` (only `has_road`). `routeApi.roadPaths(zone)` → `route_road_paths` returns the lines; `RouteModule` fetches them only while the map tab or the editor is open
+  and merges them into `o.routes[].road_path`, so every part keeps reading `route.road_path` as before. A new part that draws road lines should be placed in the "needs roads" rule in `RouteModule.tsx` (`needRoads`).
+* **Plan arithmetic** lives in `lib/routePlanCore.ts` (pure, tested by `npm run test:plan`); `lib/routePlan.ts` keeps the database calls and re-exports it.
+
 ## Tests
 ```
 npm run test:routes   # lib/routeGeo, routeModule, routeChecks, routeLocation + wiring (App.tsx, AppShell, panes ↔ views)   — 22 tests
+npm run test:plan     # lib/routePlanCore: capacity, sharing whole parcels, the suggestion, the spread over routes — 16 tests
 npm run test:nav      # the one navigation rule (also covers /app/routes and the old addresses)
 npm run build && CHROME=<chromium> npm run test:smoke   # the route scenario of the smoke test now runs on /app/routes
 ```

@@ -26,9 +26,9 @@ export function RouteModule() {
   const zones = useLoad(() => routeApi.zones(), [])
   const zone = zones.data?.find(z => z.id === sp.get('zone'))?.id ?? zones.data?.[0]?.id ?? ''
   const ov = useLoad(async () => zone ? { zone, overview: await routeApi.overview(zone) } : null, [zone])
-  const o = ov.data?.zone === zone ? ov.data.overview : null
+  const base = ov.data?.zone === zone ? ov.data.overview : null
   const want = sp.get('tab')
-  const hub = o?.hubs.find(h => h.id === sp.get('hub'))?.id ?? ''
+  const hub = base?.hubs.find(h => h.id === sp.get('hub'))?.id ?? ''
   const sel = sp.get('route')
   const [edit, setEdit] = useState<ZoneRoute | NewDraft | null>(null)
   const [riders, setRiders] = useState<ZoneRoute | null>(null)
@@ -40,9 +40,14 @@ export function RouteModule() {
 
   const zonesReady = zones.data !== null || zones.error !== null
   const hasZone = (zones.data?.length ?? 0) > 0
-  const panes = useMemo(() => panesFor({ can, menu, hasZone, visits: o ? o.can.visits : undefined }), [can, menu, hasZone, o])
+  const panes = useMemo(() => panesFor({ can, menu, hasZone, visits: base ? base.can.visits : undefined }), [can, menu, hasZone, base])
   const cur = zonesReady ? pickPane(panes, want) : undefined
   const zonePane = cur?.needs === 'zone'
+  // The road lines (thousands of points a route) are not in the zone data: they are fetched only while something draws or keeps them (the map, the route editor).
+  const needRoads = !!base && (cur?.id === 'map' || !!edit)
+  const roads = useLoad(async () => needRoads && zone ? { src: ov.data, paths: await routeApi.roadPaths(zone) } : null, [zone, needRoads, ov.data])
+  const paths = roads.data && roads.data.src === ov.data ? roads.data.paths : null
+  const o = useMemo(() => base && paths ? { ...base, routes: base.routes.map(r => ({ ...r, road_path: paths[r.id] ?? null })) } : base, [base, paths])
 
   function navigate(patch: Partial<Record<'tab' | 'zone' | 'hub' | 'route', string | null>>, replace = false) {
     const next = new URLSearchParams(sp)

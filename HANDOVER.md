@@ -1039,3 +1039,25 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `npm run test:routes` (22, new; added to website.yml), tsc clean, build ok, whole browser smoke test passes (route scenario moved to `/app/routes`, new checks for locations, undo, many-at-once, redirects).
   `npm run test:nav`: the same 2 failures as before this change (phone tab for `/app/hr/leave`; a bare `<Navigate to="/app/staff/list">` in App.tsx) — not touched here.
 - Not done: dragging a pin on the map, resolving short Google links (browser cannot follow the redirect), a map for sorting → hub routes, route rules switchable per zone (`runChecks` has the hook).
+
+## 2026-11-26 — রুট কেন্দ্র, ধাপ ১: একসাথে এডিটের লক, হালকা জোন ডাটা, পরিকল্পনার টেস্ট (Route centre step 1: save lock, light overview, plan tests)
+
+- **Why:** a review of the route centre found three weak spots before the company-wide launch: two managers editing one route overwrote each other (last save won), the zone data
+  carried every route's road line (up to 3000 points each) on every tab, and the plan suggestion (`suggestPlan`) had no test.
+- **Migration `20261127030000_route_lock_and_light_overview.sql`** (additive; **not applied to live Supabase yet — the owner must say yes first**). It replaces `route_save` and
+  `route_zone_overview` with the same text plus one change each, and adds `route_road_paths(zone)`:
+  - `route_save`: an optional `expected_updated_at` in the payload. If the route was saved by someone else since (its `updated_at` differs), nothing is written and the call fails with SQLSTATE `40001`
+    ("This route was changed by someone else"). A caller that does not send it behaves exactly as before; a new route ignores it.
+  - `route_zone_overview`: each route has no `road_path` any more, only `has_road` (boolean).
+  - `route_road_paths(zone)`: `{route_id: [[lat,lng],…]}` for the routes with a line; same right as the overview (`ops.route_setting.view`), signed-out and other zones refused.
+  - **Order is safe either way:** the web code works with the old database too (the old `route_save` ignores `expected_updated_at`; the old overview still carries `road_path`, and if
+    `route_road_paths` does not exist yet its failure is ignored and the lines from the overview are used). Still apply the migration first so the lock and the lighter data take effect.
+- **Web:** `RouteEditor` sends the `updated_at` it opened with; `routeFriendly` shows a Bangla "someone else changed this route — reload" message. `RouteModule` asks for the road lines only
+  while the map tab or the editor is open and merges them into the zone data (the other tabs never ask). `lib/routePlanCore.ts` is new: the pure plan arithmetic (`capacityOf`, `capacityToday`,
+  `isHere`, `share`, `suggestPlan`, `spreadRoutes`) moved out of `routePlan.ts` unchanged, which re-exports it, so tests can run without the browser.
+- **Tests:** `99…_route_lock_light_overview.sql` (15 assertions; the rest of the SQL suite passes on local PostgreSQL 16, 2793 assertions in the run before this file was fixed), `npm run test:plan` (16 new tests, added to website.yml), `test:routes` 22 and
+  `test:nav` 16 pass, typecheck and build clean, browser smoke test passes (new check: the map asks for the road lines once, the route list does not ask again).
+- **Known edges:** any other write to `hub_routes` (e.g. the typed parcel average on "পার্সেল ও পরামর্শ") also changes `updated_at`, so an open editor can be refused once and must be reopened — the message says so.
+  The first moment of the map tab draws dashed straight lines until the road lines arrive.
+- **Next (from the review, not started):** one map-provider layer with an Edge Function proxy and cache (tiles, geocoding, OSRM), drag-a-pin editing, offline check-in, realtime check-ins tab,
+  splitting `pages/zonal/RoutePlan.tsx` (517 lines), per-zone switches for the warning rules.

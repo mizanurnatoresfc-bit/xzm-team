@@ -11,7 +11,9 @@ export type RouteRider = { employee_id: string; code: string | null; name: strin
 export type Shift = 'day' | 'morning' | 'evening' | 'night'
 export type ZoneRoute = {
   id: string; hub_id: string; zone_id: string; code: string; name: string; note: string | null; color: string | null; shift: Shift
-  distance_km: number | null; road_km: number | null; road_minutes: number | null; road_path: Array<[number, number]> | null; stops_gps: number
+  distance_km: number | null; road_km: number | null; road_minutes: number | null; road_path: Array<[number, number]> | null
+  /** the zone overview leaves the (heavy) road line out and says only whether there is one; routeApi.roadPaths fetches the lines */
+  has_road?: boolean; stops_gps: number
   updated_at: string; stops: RouteStop[]; riders: RouteRider[]
 }
 export type RouteRules = { max_stops: number; max_riders: number; max_routes_per_rider: number; stop_radius_m: number; speed_kmh: number
@@ -37,7 +39,7 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
   return data as T
 }
 const numOrNull = (v: unknown) => (v === null || v === undefined || v === '' || isNaN(Number(v)) ? null : Number(v))
-const fixRoute = <T extends ZoneRoute>(r: T): T => ({ ...r, distance_km: numOrNull(r.distance_km), road_km: numOrNull(r.road_km),
+const fixRoute = <T extends ZoneRoute>(r: T): T => ({ ...r, road_path: r.road_path ?? null, distance_km: numOrNull(r.distance_km), road_km: numOrNull(r.road_km),
   stops: (r.stops ?? []).map(s => ({ ...s, lat: numOrNull(s.lat), lng: numOrNull(s.lng) })), riders: r.riders ?? [] })
 
 export const routeApi = {
@@ -46,8 +48,11 @@ export const routeApi = {
     const o = await rpc<ZoneOverview>('route_zone_overview', { p_zone: zone })
     return { ...o, hubs: o.hubs.map(h => ({ ...h, lat: numOrNull(h.lat), lng: numOrNull(h.lng) })), routes: o.routes.map(fixRoute) }
   },
+  /** The road lines of the zone's routes, by route id (the overview does not carry them: they are the heavy part). */
+  roadPaths: (zone: string) => rpc<Record<string, Array<[number, number]>>>('route_road_paths', { p_zone: zone }),
   saveRules: (zone: string, rules: Partial<RouteRules>) => rpc<RouteRules>('route_settings_save', { p_zone: zone, p: rules }),
-  save: (p: { id?: string; hub_id: string; code?: string; name: string; note?: string | null; color?: string | null; shift: Shift; stops: RouteStop[]
+  /** `expected_updated_at` = the route's updated_at when it was opened: if someone saved it since, the database refuses instead of overwriting. */
+  save: (p: { id?: string; expected_updated_at?: string | null; hub_id: string; code?: string; name: string; note?: string | null; color?: string | null; shift: Shift; stops: RouteStop[]
     road?: { km: number; minutes: number; path: Array<[number, number]> } | null }) => rpc<string>('route_save', { p }),
   archive: (route: string, reason: string) => rpc<void>('route_archive', { p_route: route, p_reason: reason }),
   setRiders: (route: string, employees: string[]) => rpc<{ added: number; ended: number }>('route_riders_set', { p_route: route, p_employees: employees }),
@@ -58,6 +63,7 @@ export const routeApi = {
 }
 
 const BN: Array<[RegExp, string]> = [
+  [/changed by someone else/i, 'এই রুট এইমাত্র অন্য কেউ বদলেছেন — আপনার বদল সেভ হয়নি। এডিটর বন্ধ করে পেজ রিলোড করুন, তারপর আবার বদলান'],
   [/outside Bangladesh/i, 'লোকেশন বাংলাদেশের বাইরে পড়ছে — অক্ষাংশ (lat) আর দ্রাঘিমাংশ (lng) উল্টো হয়নি তো?'],
   [/Too many stops/i, 'এই জোনে এক রুটে এর বেশি স্টপ রাখা যায় না (জোনের নিয়ম)'],
   [/Too many riders/i, 'এই জোনে এক রুটে এর বেশি রাইডার দেওয়া যায় না (জোনের নিয়ম)'],

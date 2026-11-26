@@ -38,6 +38,8 @@ jobs:
         run: npm run typecheck
       - name: Route module tests
         run: npm run test:routes
+      - name: Parcel plan tests
+        run: npm run test:plan
       - name: Build app
         run: npm run build
       # The browser download is kept between runs (free cache); only its system packages are installed each time.
