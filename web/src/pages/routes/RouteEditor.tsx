@@ -14,6 +14,7 @@ import {
   bestOrder, estimate, fmtKm, fmtMin, hasGps, lineKm, parseLocation, placesApi, roadLine, routeApi, routeColor, routeFriendly, ROUTE_COLORS, SHIFT, STOP_KIND, upazilaNear,
   type LatLng, type Place, type RouteHub, type RouteStop, type Shift, type StopKind, type ZoneOverview, type ZoneRoute,
 } from '../../lib/routes'
+import { RoutePdfDraft } from './RoutePdfDraft'
 import { GpsButton, LocationAdder, NoteList } from './LocationUI'
 
 export type NewDraft = { hub_id: string; name?: string; color?: string; stops?: RouteStop[] }
@@ -208,6 +209,8 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
           <button type="button" className="secondary sm" onClick={() => setBulk(b => !b)}><Icon name="note" size={13} />{L('একসাথে অনেক', 'Many at once')}</button>
           <button type="button" className="secondary sm" onClick={() => addStop({ lat: null, lng: null })}><Icon name="plus" size={13} />{L('লোকেশন ছাড়া স্টপ', 'Stop without location')}</button>
         </div>
+        <RoutePdfDraft key={f.hub_id} places={pl.places} stops={f.stops} maxStops={o.rules.max_stops}
+          onAdd={stops => { setF(d => ({ ...d, stops: [...d.stops, ...stops] })); setAdded(null) }} />
         {bulk && <BulkPanel env={env} onAdd={stops => { setF(d => ({ ...d, stops: [...d.stops, ...stops] })); setBulk(false); setAdded(null) }} onClose={() => setBulk(false)} />}
         {!f.stops.length && <p className="rt-hint">{L('ম্যাপে চাপ দিয়ে স্টপ বসান, জায়গা খুঁজুন, অথবা "একসাথে অনেক" দিয়ে তালিকা বা ফাইল দিন। ক্রম = রাইডার যে ক্রমে যাবেন।', 'Tap the map, search a place, or paste a list / upload a file. The order is the order the rider goes.')}</p>}
         <div className="rt-stops">{f.stops.map((s, i) => <div key={i} className={`rt-stop${sel === i ? ' on' : ''}`} onClick={() => setSel(i)}>
