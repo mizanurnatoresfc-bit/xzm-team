@@ -214,11 +214,11 @@ export function PlaceChip({ g }: { g: { scope_type: string; zone?: string | null
 }
 
 /** Whole company, or whole zones (zone-wise limit) plus single hubs (hub-wise limit), on one screen. */
-export function PlacePicker({ value, onChange, onlyAll }: { value: PlacePick; onChange: (v: PlacePick) => void; onlyAll?: boolean }) {
+export function PlacePicker({ value, onChange, onlyAll, onlyZones }: { value: PlacePick; onChange: (v: PlacePick) => void; onlyAll?: boolean; onlyZones?: boolean }) {
   const { L, n } = usePrefs()
   const o = useOrg()
   const [q, setQ] = useState('')
-  const zones = o.data?.zones ?? [], hubs = o.data?.hubs ?? []
+  const zones = (o.data?.zones ?? []).filter(z => !onlyZones || z.status === 'active'), hubs = o.data?.hubs ?? []
   const s = q.trim().toLowerCase()
   const flip = (list: string[], id: string) => (list.includes(id) ? list.filter(x => x !== id) : [...list, id])
   const groups = [...zones.map(z => ({ id: z.id, name: z.name, hubs: hubs.filter(h => h.zone_id === z.id) })),
@@ -228,18 +228,18 @@ export function PlacePicker({ value, onChange, onlyAll }: { value: PlacePick; on
   const zoneFlip = (id: string) => { const zs = flip(value.zones, id)
     onChange({ ...value, zones: zs, hubs: zs.includes(id) ? value.hubs.filter(h => hubs.find(x => x.id === h)?.zone_id !== id) : value.hubs }) }
   return <div className="ax-place">
-    <div className="da-seg" role="group" aria-label={L('তথ্যের সীমা', 'Data limit')}>
+    {!onlyZones && <div className="da-seg" role="group" aria-label={L('তথ্যের সীমা', 'Data limit')}>
       <button type="button" className={value.all ? '' : 'secondary'} aria-pressed={value.all} onClick={() => onChange({ ...value, all: true })}><Icon name="globe" size={15} />{L('পুরো কোম্পানি', 'Whole company')}</button>
       <button type="button" className={value.all ? 'secondary' : ''} aria-pressed={!value.all} disabled={onlyAll} onClick={() => onChange({ ...value, all: false })}><Icon name="map" size={15} />{L('নির্দিষ্ট জোন / হাব', 'Chosen zones / hubs')}</button>
-    </div>
+    </div>}
     {value.all ? <p className="muted small">{L('সব জোন ও সব হাবের তথ্য দেখবে ও কাজ করতে পারবে — কোনো সীমা থাকবে না।', 'Sees and works on every zone and hub — no limit.')}</p> : <>
-      <fieldset className="ax-zone"><legend><Icon name="map" size={14} />{L('জোন অনুযায়ী সীমা', 'Zone-wise limit')}</legend>
+      <fieldset className="ax-zone"><legend><Icon name="map" size={14} />{onlyZones ? L('দায়িত্বের এরিয়া', 'Assigned areas') : L('জোন অনুযায়ী সীমা', 'Zone-wise limit')}</legend>
         <p className="muted small">{L('টিক দেওয়া জোনের সব হাবের তথ্য দেখবে — এর বাইরের কিছু নয়।', 'Every hub of a ticked zone — nothing outside.')}</p>
         <div className="ax-chips">{zones.map(z => { const on = value.zones.includes(z.id)
           return <label key={z.id} className={`chip-toggle${on ? ' on' : ''}`}><input type="checkbox" checked={on} onChange={() => zoneFlip(z.id)} />{z.name}</label> })}
           {!zones.length && <span className="muted small">{o.loading ? L('লোড হচ্ছে…', 'Loading…') : L('কোনো জোন নেই', 'No zones')}</span>}</div>
       </fieldset>
-      <fieldset className="ax-zone"><legend><Icon name="hub" size={14} />{L('হাব অনুযায়ী সীমা', 'Hub-wise limit')}</legend>
+      {!onlyZones && <fieldset className="ax-zone"><legend><Icon name="hub" size={14} />{L('হাব অনুযায়ী সীমা', 'Hub-wise limit')}</legend>
         <p className="muted small">{L('শুধু টিক দেওয়া হাবের তথ্য দেখবে — অন্য হাবের কিছুই নয়।', 'Only the ticked hubs — nothing of any other hub.')}</p>
         {hubs.length > 8 && <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('হাব খুঁজুন (নাম বা নম্বর)…', 'Search hubs (name or number)…')} />}
         {groups.map(g => { const whole = !!g.id && value.zones.includes(g.id), ids = g.hubs.map(h => h.id), all = ids.every(id => value.hubs.includes(id))
@@ -249,8 +249,10 @@ export function PlacePicker({ value, onChange, onlyAll }: { value: PlacePick; on
               return <label key={h.id} className={`chip-toggle${on ? ' on' : ''}${whole ? ' fixed' : ''}`}><input type="checkbox" checked={on} disabled={whole} onChange={() => onChange({ ...value, hubs: flip(value.hubs, h.id) })} />{h.name}</label> })}</div>
           </div> })}
         {!groups.length && <p className="muted small">{o.loading ? L('লোড হচ্ছে…', 'Loading…') : L('কোনো হাব পাওয়া যায়নি', 'No hubs found')}</p>}
-      </fieldset>
-      <p className="ax-picked">{n(value.zones.length)}{L('টি জোন', ' zones')} + {n(value.hubs.length)}{L('টি হাব বাছা হয়েছে', ' hubs chosen')}</p>
+      </fieldset>}
+      <p className="ax-picked">{onlyZones
+        ? L(`${n(value.zones.length)}টি এরিয়া বাছা হয়েছে`, `${n(value.zones.length)} areas chosen`)
+        : <>{n(value.zones.length)}{L('টি জোন', ' zones')} + {n(value.hubs.length)}{L('টি হাব বাছা হয়েছে', ' hubs chosen')}</>}</p>
     </>}
   </div>
 }

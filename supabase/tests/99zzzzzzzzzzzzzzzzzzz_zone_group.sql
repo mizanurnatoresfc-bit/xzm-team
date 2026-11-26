@@ -5,7 +5,38 @@ select tests.hr_fixture();
 
 -- a rider at hub A1 (zone A) with a login; the zonal manager of zone A has a staff record with a phone
 select tests.active_employee('Rider A', '501', tests.id('hub_a1'), '01711000001', '1111111111', 15000, tests.id('rider_login'));
-select tests.active_employee('Zonal A Person', '502', tests.id('hub_a2'), '01711000002', '2222222222', 30000, tests.id('zonal_a'));
+insert into tests.ids values
+  ('zonal_employee', tests.active_employee('Zonal A Person', '502', tests.id('hub_a1'), '01711000002', '2222222222', 30000, tests.id('zonal_a'))),
+  ('zonal_role', (select id from public.roles where code = 'zonal_manager'));
+
+select tests.login(tests.id('super'));
+select tests.ok(exists (select 1 from public.user_admin_assignable_roles('zone', tests.id('zone_a')) where code = 'zonal_manager')
+  and not exists (select 1 from public.user_admin_assignable_roles('global') where code = 'zonal_manager')
+  and not exists (select 1 from public.user_admin_assignable_roles('hub', null, tests.id('hub_a1')) where code = 'zonal_manager'),
+  'the existing role picker offers Zonal Manager only at area scope');
+select tests.throws(format($$select public.user_admin_assign_role(%L, %L, 'global')$$,
+  tests.id('noroles'), tests.id('zonal_role')), 'the role API rejects a company-wide zonal grant', '22023');
+select tests.throws(format($$insert into public.user_roles (user_id, role_id, scope_type, hub_id) values (%L, %L, 'hub', %L)$$,
+  tests.id('noroles'), tests.id('zonal_role'), tests.id('hub_a1')), 'a direct hub-scope zonal grant is rejected', '22023');
+select tests.ok(public.user_admin_assign_role(tests.id('noroles'), tests.id('zonal_role'), 'zone', tests.id('zone_b')) is not null,
+  'the admin can assign the role to a selected active area');
+select public.user_admin_revoke_role((select id from public.user_roles where user_id = tests.id('noroles')), 'Remove test assignment');
+select tests.ok(exists (select from public.employees where id = tests.id('zonal_employee')), 'the super admin sees the zonal employee record');
+
+select tests.login(tests.id('zonal_a'));
+select tests.ok(public.staff_profile_get(tests.id('zonal_employee')) -> 'person' ->> 'name' = 'Zonal A Person',
+  'the zonal manager can still open their own work profile');
+select tests.login(tests.id('hub_mgr'));
+select tests.ok(not exists (select from public.employees where id = tests.id('zonal_employee')),
+  'even the manager of the same hub cannot select the zonal employee row');
+select tests.ok(not exists (select from jsonb_array_elements(public.staff_profile_people(tests.id('hub_a1'))) person
+  where person ->> 'id' = tests.id('zonal_employee')::text), 'the hub work-profile picker hides the zonal manager');
+select tests.throws(format($$select public.staff_profile_get(%L)$$, tests.id('zonal_employee')),
+  'knowing the employee ID does not let a hub manager open the zonal work profile', '42501');
+select tests.throws(format($$select public.hr_hub_profile_get(%L)$$, tests.id('zonal_employee')),
+  'the hub manager cannot open the personal details form', '42501');
+select tests.ok(public.zone_contacts(tests.id('zone_a')) -> 'managers' = '[]'::jsonb,
+  'the hub manager also receives no personal contact data');
 
 -- who is in the group
 select tests.login(tests.id('rider_login'));
@@ -47,8 +78,10 @@ select tests.ok((select count(*) from public.zone_posts) = 0, 'and cannot read z
 -- the zonal manager's contact
 select tests.login(tests.id('rider_login'));
 select tests.ok(public.zone_contacts() ->> 'zone_id' = tests.id('zone_a')::text, 'with no zone given, the rider''s own zone is used');
-select tests.ok(jsonb_array_length(public.zone_contacts() -> 'managers') = 1, 'zone A has one zonal manager');
-select tests.ok(public.zone_contacts() -> 'managers' -> 0 ->> 'phone' = '01711000002', 'the zonal manager''s phone comes from the staff record');
+select tests.ok((public.zone_contacts() ->> 'can_message')::boolean, 'zone A has a zonal manager who can receive a note');
+select tests.ok(public.zone_contacts() -> 'managers' = '[]'::jsonb, 'staff see no name, phone or profile ID in the contact response');
+select tests.throws(format($$select public.staff_profile_get(%L)$$, tests.id('zonal_employee')),
+  'a rider cannot open the zonal manager work profile', '42501');
 select tests.throws(format($$select public.zone_contacts(%L)$$, tests.id('zone_b')), 'the rider cannot read zone B''s contacts', '42501');
 select tests.login(tests.id('noroles'));
 select tests.ok(public.zone_contacts() is null, 'a login without a staff record gets nothing');
@@ -66,17 +99,17 @@ select tests.logout();
 select tests.throws($$delete from public.zone_manager_notes$$, 'a note is never deleted (not even by the owner)', 'P0001');
 select tests.throws($$delete from public.zone_posts$$, 'a zone post is never deleted', 'P0001');
 
--- no zonal manager role: a zone-level post stands in; nobody with a login → the note is refused
+-- Only an assigned Zonal Manager receives messages, even with a legacy zone-level post.
 select tests.logout();
 update public.user_roles set revoked_at = now() where user_id = tests.id('zonal_a');
 select tests.login(tests.id('rider_login'));
-select tests.ok(jsonb_array_length(public.zone_contacts() -> 'managers') = 0, 'without the role and without a zone-level post, nobody is listed');
+select tests.ok(not (public.zone_contacts() ->> 'can_message')::boolean, 'without the area role there is no recipient');
 select tests.throws(format($$select public.zone_manager_tell(%L, 'কেউ আছেন?')$$, tests.id('zone_a')), 'with nobody to receive it the note is refused', '22023');
 select tests.logout();
 insert into public.positions (department_id, code, name, level) values (tests.id('dept_ops'), 'ZM', 'Zonal Manager', 'zone');
 update public.employees set position_id = (select id from public.positions where code = 'ZM') where employee_code = '502';
 select tests.login(tests.id('rider_login'));
-select tests.ok(public.zone_contacts() -> 'managers' -> 0 ->> 'full_name' = 'Zonal A Person', 'a zone-level post in the zone is shown instead');
+select tests.ok(not (public.zone_contacts() ->> 'can_message')::boolean, 'a zone-level post alone does not receive messages');
 
 -- anon cannot run any of it
 select tests.login_anon();

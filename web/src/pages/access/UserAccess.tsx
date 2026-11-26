@@ -109,10 +109,12 @@ function ScopeModal({ u, roleId, base, onClose, onDone }: { u: UserRow; roleId: 
   const current = useMemo(() => u.roles.filter(g => g.role_id === role), [u, role])
   const start = (rows: RoleGrant[]): PlacePick => ({ all: !rows.length ? false : rows.some(g => g.scope_type === 'global'),
     zones: rows.filter(g => g.scope_type === 'zone' && g.zone_id).map(g => g.zone_id!), hubs: rows.filter(g => g.scope_type === 'hub' && g.hub_id).map(g => g.hub_id!) })
-  const [pick, setPick] = useState<PlacePick>(() => start(u.roles.filter(g => g.role_id === (roleId ?? ''))))
+  const [savedPick, setPick] = useState<PlacePick>(() => start(u.roles.filter(g => g.role_id === (roleId ?? ''))))
   const [until, setUntil] = useState(''); const [reason, setReason] = useState('')
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const r = base.roleById[role]
+  const onlyZones = (r?.code ?? current[0]?.code) === 'zonal_manager'
+  const pick = onlyZones ? { all: false, zones: savedPick.zones, hubs: [] } : savedPick
   const choices = (base.data?.list ?? []).filter(x => !x.archived_at && x.status === 'active')
   const want = pick.all ? [{ s: 'global' as const, z: null as string | null, h: null as string | null }]
     : [...pick.zones.map(z => ({ s: 'zone' as const, z, h: null as string | null })), ...pick.hubs.map(h => ({ s: 'hub' as const, z: null as string | null, h }))]
@@ -123,7 +125,8 @@ function ScopeModal({ u, roleId, base, onClose, onDone }: { u: UserRow; roleId: 
   async function go() {
     setErr('')
     if (!role) return setErr(L('রোল বেছে নিন', 'Choose a role'))
-    if (!want.length) return setErr(L('অন্তত একটি জোন বা হাব বাছুন — অথবা “পুরো কোম্পানি”', 'Choose at least one zone or hub — or “Whole company”'))
+    if (!want.length) return setErr(onlyZones ? L('অন্তত একটি এরিয়া বাছুন', 'Choose at least one area')
+      : L('অন্তত একটি জোন বা হাব বাছুন — অথবা “পুরো কোম্পানি”', 'Choose at least one zone or hub — or “Whole company”'))
     if (!add.length && !remove.length) return setErr(L('কিছু বদলানো হয়নি', 'Nothing changed'))
     if (remove.length && !reason.trim()) return setErr(L('কোনো জায়গা বাদ দিলে কারণ লিখতে হবে', 'Removing a place needs a reason'))
     setBusy(true)
@@ -146,7 +149,7 @@ function ScopeModal({ u, roleId, base, onClose, onDone }: { u: UserRow; roleId: 
     {!roleId && <Field label={L('রোল', 'Role')}><select value={role} onChange={e => chooseRole(e.target.value)}><option value="">{L('বেছে নিন…', 'Choose…')}</option>
       {choices.map(x => <option key={x.id} value={x.id}>{roleName(x, lang)}{x.is_super ? ` — ${L('সব ক্ষমতা', 'full control')}` : ''}</option>)}</select></Field>}
     {r?.is_super && <p className="notice">{L('সুপার অ্যাডমিন শুধু পুরো কোম্পানির জন্যই দেওয়া যায় — এই রোলে কোনো সীমা খাটে না।', 'Super Admin can only be given for the whole company — no limit applies to it.')}</p>}
-    <PlacePicker value={r?.is_super ? { all: true, zones: [], hubs: [] } : pick} onChange={setPick} onlyAll={!!r?.is_super} />
+    <PlacePicker value={r?.is_super ? { all: true, zones: [], hubs: [] } : pick} onChange={setPick} onlyAll={!!r?.is_super} onlyZones={onlyZones} />
     <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', marginTop: 10 }}>
       <Field label={L('নতুন জায়গার শেষ তারিখ (ঐচ্ছিক)', 'End date for new places (optional)')} hint={L('অস্থায়ী দায়িত্ব হলে', 'For temporary duty')}><input type="date" value={until} onChange={e => setUntil(e.target.value)} /></Field>
       {remove.length > 0 && <Field label={L('বাদ দেওয়ার কারণ', 'Reason for removing')} required><input value={reason} onChange={e => setReason(e.target.value)} placeholder={L('যেমন: অন্য হাবে বদলি', 'e.g. transferred to another hub')} /></Field>}
