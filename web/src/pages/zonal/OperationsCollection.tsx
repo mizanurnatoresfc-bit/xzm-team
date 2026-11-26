@@ -179,15 +179,16 @@ function PlanningSuggestions({ hub, questions, loading }: { hub: Hub; questions:
   const routeReview = delivery > 0 || pickup > 0
   const suggestions = [
     extra > 0 && L(`গড়ের চেয়ে ${n(extra)}টি বেশি পার্সেল এসেছে। আজকের সোর্টিং ও রুটের সক্ষমতা মিলিয়ে দেখুন।`, `${n(extra)} parcels above average. Review today’s sorting and route capacity.`),
-    delivery > 0 && L(`সর্বশেষ উত্তরে ${n(delivery)}টি ডেলিভারি পেন্ডিং। এলাকা ও বর্তমান অ্যাসাইনমেন্ট দেখে রুটের কাজ ভাগ করুন।`, `The latest reply reports ${n(delivery)} pending deliveries. Review areas and existing assignments to split the work.`),
-    pickup > 0 && L(`সর্বশেষ উত্তরে ${n(pickup)}টি পিকআপ বাকি। মার্চেন্টের এলাকা দেখে পিকআপ রুটের কাজ ভাগ করুন।`, `The latest reply reports ${n(pickup)} pending pickups. Review merchant locations to share the pickup work.`),
-    routeReview && capacity > 0 && L(`একটি উত্তরে আরও ${n(capacity)}টি পার্সেল নেওয়ার সক্ষমতা জানানো হয়েছে। এলাকা, বর্তমান দায়িত্ব ও উপস্থিতি যাচাই করে কাজে লাগান।`, `One reply reports spare capacity for ${n(capacity)} parcels. Check area, current assignments and attendance before using it.`),
-    sorting > 0 && L(`সর্বশেষ উত্তরে ${n(sorting)}টি সোর্টিং বাকি। শিফটের লোকবল দেখে সোর্টিংয়ে সহায়তা দিন।`, `The latest reply reports ${n(sorting)} awaiting sorting. Review shift staffing for sorting support.`),
-    backup > 0 && L(`সর্বশেষ উত্তরে ${n(backup)} জন ব্যাকআপ চাওয়া হয়েছে। দায়িত্ব ও উপস্থিতি দেখে অনুমোদন করুন।`, `The latest reply requests ${n(backup)} backup workers. Review duties and availability before approval.`),
+    delivery > 0 && L(`সর্বশেষ উত্তরে ${n(delivery)}টি ডেলিভারি পেন্ডিং। এলাকা ও বর্তমান অ্যাসাইনমেন্ট দেখে কাজ ভাগ করার প্রস্তাব।`, `The latest reply reports ${n(delivery)} pending deliveries. Review areas and existing assignments to split the work.`),
+    pickup > 0 && L(`সর্বশেষ উত্তরে ${n(pickup)}টি পিকআপ বাকি। মার্চেন্টের এলাকা ধরে পিকআপের কাজ ভাগ করার প্রস্তাব।`, `The latest reply reports ${n(pickup)} pending pickups. Review merchant locations to share the pickup work.`),
+    routeReview && capacity > 0 && L(`একটি উত্তরে আরও ${n(capacity)}টি পার্সেল নেওয়ার সক্ষমতা জানানো হয়েছে। এলাকা, বর্তমান দায়িত্ব ও উপস্থিতি মিলিয়ে দেখার জন্য এই তথ্য ব্যবহার করা যাবে।`, `One reply reports spare capacity for ${n(capacity)} parcels. Check area, current assignments and attendance before using it.`),
+    sorting > 0 && L(`সর্বশেষ উত্তরে ${n(sorting)}টি সোর্টিং বাকি। শিফটের লোকবল দেখে সোর্টিংয়ে সহায়তা দেওয়ার প্রস্তাব।`, `The latest reply reports ${n(sorting)} awaiting sorting. Review shift staffing for sorting support.`),
+    backup > 0 && L(`সর্বশেষ উত্তরে ${n(backup)} জন ব্যাকআপ চাওয়া হয়েছে। দায়িত্ব ও উপস্থিতি দেখে জোনাল ম্যানেজার সিদ্ধান্ত দেবেন।`, `The latest reply requests ${n(backup)} backup workers. The Zonal Manager decides after reviewing duties and availability.`),
   ].filter((item): item is string => typeof item === 'string')
 
   return <section className="panel">
     <h2>{L('রুট ও জনবলের প্রস্তাব', 'Route and staffing suggestions')} · {hub.name}</h2>
+    <p>{L('রুট পরিবর্তন, কাজ পুনর্বণ্টন, জনবল ও ব্যাকআপের চূড়ান্ত সিদ্ধান্ত সংশ্লিষ্ট জোনাল ম্যানেজার নেবেন।', 'The assigned Zonal Manager makes the final decision on route changes, work redistribution, staffing and backup.')}</p>
     {received === null && <p>{avg === undefined ? L('আজকের রিসিভ ও ফিক্সড গড় বাকি।', 'Today’s receipts and the fixed average are pending.')
       : L(`আজকের রিসিভ বাকি। নিয়মিত পরিকল্পনার ভিত্তি ${n(avg)} পার্সেল।`, `Today’s receipts are pending. The regular planning baseline is ${n(avg)} parcels.`)}</p>}
     {received !== null && avg === undefined && <p>{L('রিসিভ তুলনা করতে হাবের ফিক্সড গড় সেট করুন।', 'Set the hub’s fixed average to compare receipts.')}</p>}
