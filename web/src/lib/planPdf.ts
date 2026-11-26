@@ -137,6 +137,7 @@ function dispatch(pages: PdfItem[][], head: string, areaRows?: PdfAreaRow[]): Pa
 function deliveryList(pages: PdfItem[][], head: string, areaRows: PdfAreaRow[]) {
   const date = head.match(/\bDate\s*:\s*([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/)
   const hub = head.match(/\bHub\s*:\s*(.+?)\s+Assigned By\s*:/)?.[1] ?? null
+  const hubLabel = hub?.split('(')[0].trim().toLowerCase()
   const declared = Number(head.match(/\bGrand Total\s*:\s*(\d+)/)?.[1] ?? 0)
   const ids = new Set<number>()
   for (const page of pages) {
@@ -147,7 +148,7 @@ function deliveryList(pages: PdfItem[][], head: string, areaRows: PdfAreaRow[]) 
       const id = Number(row.start.s.trim().slice(1))
       ids.add(id)
       const items = inCol(row.items, t.col['CUSTOMER DETAILS'], Infinity)
-        .filter(i => i.y < row.start.y - 2 && row.start.y - i.y <= 42)
+        .filter(i => i.y < row.start.y - 2 && row.start.y - i.y <= 42 && i.s.trim().toLowerCase() !== hubLabel)
       let address = ''
       let previous: PdfItem | undefined
       for (const item of items) {
