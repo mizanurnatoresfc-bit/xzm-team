@@ -87,7 +87,7 @@ export function MyRouteCard() {
         <ol>{loop.legs.map((leg, i) => <li key={i}>
           {i === 0 ? r.hub.name : gps[i - 1].name} → {i === gps.length ? r.hub.name : gps[i].name} · {fmtKm(leg.km, fmt)} · {n(leg.minutes)} {L('মিনিট', 'min')}
         </li>)}</ol>
-      </details>
+      </details>}
       {loopError?.key === loopKey && <p className="da-error" role="alert">{loopError.text}</p>}
       {!loop && !outbound.road && <p className="muted small">{L('ভাঙা লাইন স্টপের ক্রম দেখায়। সড়কপথ দেখতে ওপরের বাটন চাপুন।', 'The dashed line shows stop order. Use the button above to calculate the road route.')}</p>}
       <OsmMap pins={pins} circles={circles} lines={[{ id: 'l', color, points: loop?.path ?? outbound.points, dashed: !loop && !outbound.road, width: 4 }]}
