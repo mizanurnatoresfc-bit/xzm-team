@@ -7,22 +7,61 @@ import { STATE_META, morning, type AttPolicy, type MorningForm, type MorningPers
 import { usePrefs } from '../../lib/prefs'
 import { useLiveLoad, wfFriendly } from '../../lib/workforce'
 import { Badge, Field, Stat, useLoad, useToast } from '../accounts/ui'
-import { Empty, Loading, Section, Who, fmtDay, fmtLong, fmtStamp, fmtTime } from './shared'
+import { Empty, Loading, Section, Who, fmtDay, fmtStamp, fmtTime } from './shared'
 import '../../morning.css'
 
-/**
- * সকালের জনবল — step one of the day. The hub manager says who came, who did not and who is still unchecked, and submits it to the
- * zonal manager. Approved leave sits in by itself. At the cut-off the server submits whatever is typed (blank rows stay unchecked).
- * After the submit the hub manager sees a receipt only; the lines are for the zonal manager, who may send the form back with a reason.
- * Every rule is in the database (wf_morning_*); this page only shows and calls it.
- */
 const TYPED: TypedState[] = ['present', 'absent', 'unknown']
 
 export function MorningTab({ hubId }: { hubId: string }) {
-  const { L, n, lang } = usePrefs()
+  const { L } = usePrefs()
   const { toast, node } = useToast()
-  const q = useLiveLoad<MorningForm>(() => morning.get(hubId), [hubId])
-  const f = q.data && q.data.hub.id === hubId ? q.data : null
+  const { data: form, reload, error } = useLoad(() => morning.get(hubId), [hubId])
+  const [expired, setExpired] = useState<MorningForm | null>(null)
+  const [submitted, setSubmitted] = useState('')
+  const formKey = form ? `${form.date}:${form.revision}` : ''
+  const clock = form ? Date.parse(form.now) : 0
+  const opensAt = form ? Date.parse(form.opens_at) : 0
+  const dueAt = form ? Date.parse(form.due) : 0
+
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void reload() }
+    const poll = window.setInterval(refresh, 60_000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      window.clearInterval(poll)
+      document.removeEventListener('visibilitychange', refresh)
+    }
+  }, [reload])
+
+  useEffect(() => {
+    if (!form) return
+    const beforeOpen = clock < opensAt
+    const boundary = beforeOpen ? opensAt : dueAt
+    if (boundary <= clock || !Number.isFinite(boundary - clock)) return
+    const timer = window.setTimeout(() => {
+      if (!beforeOpen) setExpired(form)
+      void reload()
+    }, boundary - clock)
+    return () => window.clearTimeout(timer)
+  }, [form, clock, opensAt, dueAt, reload])
+
+  if (error && !form) return <p className="da-error" role="alert">{wfFriendly(error)}</p>
+
+  const active = form?.can.fill && form.status === 'open' && clock >= opensAt && clock < dueAt &&
+    expired !== form && submitted !== formKey
+  return <>
+    {node}
+    {active && <MorningFormCard key={formKey} f={form} onReload={reload} onSubmitted={already => {
+      setSubmitted(formKey)
+      toast(already ? L('এটি আগেই জমা হয়ে গেছে।', 'Already submitted.') : L('সকালের ইনপুট জমা হয়েছে।', 'Morning input submitted.'))
+      void reload()
+    }} />}
+  </>
+}
+
+function MorningFormCard({ f, onReload, onSubmitted }: { f: MorningForm; onReload: () => Promise<void>; onSubmitted: (already: boolean) => void }) {
+  const { L, n, lang } = usePrefs()
+  const hubId = f.hub.id
   const [marks, setMarks] = useState<Record<string, TypedState>>({})
   const [dirty, setDirty] = useState(false)
   const [saved, setSaved] = useState<'' | 'saving' | 'saved' | 'failed'>('')
@@ -32,20 +71,20 @@ export function MorningTab({ hubId }: { hubId: string }) {
 
   // what the server holds is the truth until the manager types something
   useEffect(() => {
-    if (!f?.people || dirty) return
+    if (!f.people || dirty) return
     setMarks(Object.fromEntries(f.people.filter(p => p.state !== 'leave').map(p => [p.id, p.state as TypedState])))
   }, [f, dirty])
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
   const lines = useMemo(() => Object.entries(marks).map(([employee_id, state]) => ({ employee_id, state })), [marks])
-  const people = f?.people ?? []
+  const people = f.people ?? []
   const stateOf = (p: MorningPerson): MorningState => p.state === 'leave' ? 'leave' : marks[p.id] ?? 'unknown'
   const count = (s: MorningState) => people.filter(p => stateOf(p) === s).length
 
   function change(next: Record<string, TypedState>) {
     setMarks(next); setDirty(true); setSaved('saving'); window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
-      morning.save(hubId, Object.entries(next).map(([employee_id, state]) => ({ employee_id, state })))
+      morning.save(hubId, Object.entries(next).map(([employee_id, state]) => ({ employee_id, state })), f.date)
         .then(() => setSaved('saved')).catch(() => setSaved('failed'))
     }, 700)
   }
@@ -55,40 +94,25 @@ export function MorningTab({ hubId }: { hubId: string }) {
   async function submit() {
     const left = people.filter(p => stateOf(p) === 'unknown').length
     const sure = await askConfirm(left ? L(`${n(left)} জনের অবস্থা বাকি থাকছে। তবুও জোনে জমা দেবেন?`, `${left} people stay unchecked. Submit to the zone anyway?`) : L('জোনাল ম্যানেজারের কাছে সকালের ইনপুট জমা দেবেন?', 'Submit the morning input to the zonal manager?'),
-      { ok: L('জমা দিন', 'Submit'), detail: L('জমার পর এই ফর্ম লক হবে। জোনাল ম্যানেজার ফেরত না দিলে বদলানো যাবে না।', 'The form locks. It can only change if the zonal manager sends it back.') })
+      { ok: L('জমা দিন', 'Submit'), detail: L('জমার পর এই ফর্ম লক হবে। বন্ধের আগে জোনাল ম্যানেজার ফেরত দিলে সংশোধন করা যাবে।', 'The form locks. The zonal manager can send it back for correction before closing.') })
     if (!sure) return
     window.clearTimeout(timer.current); setBusy(true); setErr('')
-    try { const r = await morning.submit(hubId, lines); setDirty(false); toast(r.already ? L('এটি আগেই জমা হয়ে গেছে।', 'Already submitted.') : L('সকালের ইনপুট জমা হয়েছে।', 'Morning input submitted.')); await q.reload() }
-    catch (e) { setErr(wfFriendly(e)) } finally { setBusy(false) }
+    try {
+      const r = await morning.submit(hubId, lines, f.date)
+      onSubmitted(r.already)
+    } catch (e) {
+      setErr(wfFriendly(e))
+      void onReload()
+    } finally { setBusy(false) }
   }
 
-  if (q.error && !f) return <p className="da-error" role="alert">{wfFriendly(q.error)}</p>
-  if (!f) return <Loading />
   const due = fmtTime(f.due, lang)
 
-  // after the submit: a receipt (and, for the zone, the lines)
-  if (f.status === 'submitted' && f.receipt) return <>
-    {node}
-    <Section title={L('সকালের ইনপুট জমা হয়েছে', 'Morning input submitted')}>
-      <div className="mo-receipt" role="status">
-        <Icon name="checkall" size={22} />
-        <div><b>{fmtLong(f.date, lang)}</b>
-          <p className="muted small">{f.receipt.mode === 'auto' ? L(`কাট-অফ সময় পেরোনোয় সার্ভার নিজে জমা দিয়েছে (${fmtStamp(f.receipt.submitted_at, lang)})`, `Submitted by the server at the cut-off (${fmtStamp(f.receipt.submitted_at, lang)})`)
-            : L(`${f.receipt.submitted_by_name ?? 'ম্যানেজার'} জমা দিয়েছেন (${fmtStamp(f.receipt.submitted_at, lang)})`, `Submitted by ${f.receipt.submitted_by_name ?? 'the manager'} (${fmtStamp(f.receipt.submitted_at, lang)})`)}
-            {f.receipt.revision > 1 && ` · ${L('সংস্করণ', 'Revision')} ${n(f.receipt.revision)}`}</p></div>
-      </div>
-      <p className="muted small">{L('ফর্ম এখন লক। জোনাল ম্যানেজার কারণসহ ফেরত দিলে এখানে আবার খুলবে।', 'The form is locked. It opens here again if the zonal manager sends it back with a reason.')}</p>
-      {f.can.review && f.people && <MorningLines people={f.people.map(p => ({ id: p.id, name: p.name, code: p.code, post: p.post, state: p.state, ref: p.leave?.ref ?? null }))} />}
-    </Section>
-  </>
-
-  return <>
-    {node}
-    <Section title={`${L('সকালের জনবল', 'Morning input')} — ${fmtLong(f.date, lang)}`}
-      hint={L(`কে এসেছে, কে আসেনি, কার তথ্য এখনও যাচাই বাকি — বেছে জোনাল ম্যানেজারের কাছে জমা দিন। ${due}-এর পর সবার অবস্থা বসানো থাকলে সার্ভার নিজে জমা করবে; খালি বা অসম্পূর্ণ থাকলে ফর্ম খোলা থাকবে এবং আপনাকে ও জোনাল ম্যানেজারকে জানানো হবে।`,
-        `Say who came, who did not and who is still unchecked, then submit to the zonal manager. After ${due} the server submits it only when everybody has an answer; if it is empty or unfinished it stays open and you and the zonal manager are told.`)}
-      tools={f.can.fill ? <button type="button" className="secondary sm" onClick={allCame}><Icon name="checkall" size={14} />{L('সবাইকে "এসেছে" দিন', 'Mark everyone as came')}</button> : null}>
-      {f.hold && <p className="da-error" role="alert"><Icon name="alert" size={16} /> <b>{L('সার্ভার সকালের ইনপুট জমা দেয়নি', 'The server did not submit the morning input')}</b> — {f.hold.reason === 'empty' ? L('কিছুই লেখা হয়নি।', 'nothing was written.') : L(`${n(f.hold.gap_count)} জনের অবস্থা বসানো হয়নি`, `${f.hold.gap_count} people are not marked`)}. {L('সবার অবস্থা বসিয়ে জমা দিন। হাব ও জোনাল ম্যানেজারকে জানানো হয়েছে।', 'Mark everybody and submit. The hub and zonal managers were told.')}</p>}
+  return <div className="wm">
+    <Section title={`${L('রুটের সকালের হাজিরা', 'Morning route attendance')} · ${f.hub.name}`}
+      hint={L(`উপস্থিতি যাচাই করে জোনাল ম্যানেজারের কাছে জমা দিন। বাংলাদেশ সময় ${due}-এ ফর্ম বন্ধ হবে।`,
+        `Check attendance and submit to the zonal manager. The form closes at ${due} Bangladesh time.`)}
+      tools={<button type="button" className="secondary sm" disabled={busy} onClick={allCame}><Icon name="checkall" size={14} />{L('সবাইকে "এসেছে" দিন', 'Mark everyone as came')}</button>}>
       {f.returned && <p className="notice wm-note" role="status"><b>{L('জোনাল ম্যানেজার ফেরত পাঠিয়েছেন', 'Sent back by the zonal manager')}:</b> {f.returned.reason} <span className="muted small">({fmtStamp(f.returned.at, lang)})</span></p>}
       <div className="da-stats">
         <Stat icon="users" label={L('এসেছে', 'Came')} value={n(count('present'))} tone="ok" />
@@ -104,16 +128,16 @@ export function MorningTab({ hubId }: { hubId: string }) {
             <td data-label={L('পদ', 'Position')}>{p.post ?? '—'}</td>
             <td data-label={L('সকালের অবস্থা', 'Morning state')}>{p.state === 'leave'
               ? <span><Badge tone="info">{L(STATE_META.leave.bn, STATE_META.leave.en)}</Badge> <span className="muted small">{p.leave?.ref}{p.leave?.applied_on ? ` · ${L('আবেদন', 'applied')} ${fmtDay(p.leave.applied_on, lang)}` : ''}</span></span>
-              : <select className={`mo-state s-${stateOf(p)}`} value={stateOf(p)} disabled={!f.can.fill || busy} aria-label={`${p.name} — ${L('সকালের অবস্থা', 'morning state')}`} onChange={e => set(p.id, e.target.value as TypedState)}>
+              : <select className={`mo-state s-${stateOf(p)}`} value={stateOf(p)} disabled={busy} aria-label={`${p.name} — ${L('সকালের অবস্থা', 'morning state')}`} onChange={e => set(p.id, e.target.value as TypedState)}>
                 {TYPED.map(s => <option key={s} value={s}>{L(STATE_META[s].bn, STATE_META[s].en)}</option>)}</select>}</td>
           </tr>)}</tbody></table></div>}
       {err && <p className="da-error" role="alert">{err}</p>}
-      {f.can.fill && <div className="mo-bar">
+      <div className="mo-bar">
         <button type="button" disabled={busy || !people.length} onClick={() => void submit()}><Icon name="bell" size={16} />{busy ? L('জমা হচ্ছে…', 'Submitting…') : L('জোনে জমা দিন', 'Submit to the zone')}</button>
         <span className="muted small" role="status">{saved === 'saving' ? L('সেভ হচ্ছে…', 'Saving…') : saved === 'saved' ? L('খসড়া সেভ হয়েছে', 'Draft saved') : saved === 'failed' ? L('সেভ করা যায়নি — আবার চেষ্টা করুন', 'Could not save — try again') : ''}</span>
-      </div>}
+      </div>
     </Section>
-  </>
+  </div>
 }
 
 /** The lines of a submitted morning input — only the zonal side ever gets them. */
@@ -167,9 +191,10 @@ export function ZoneMorningTab({ zone }: { zone: string }) {
           <header><h3>{h.name}</h3>
             {h.held ? <Badge tone="bad">{h.hold?.reason === 'empty' ? L('জমা আটকে — কিছুই লেখা হয়নি', 'Held — nothing written') : L(`জমা আটকে — ${n(h.hold?.gap_count ?? 0)} জন বাকি`, `Held — ${h.hold?.gap_count ?? 0} not marked`)}</Badge>
               : h.state === 'submitted' ? <Badge tone="ok">{h.mode === 'auto' ? L('অটো জমা', 'Auto-submitted') : L('জমা দিয়েছে', 'Submitted')} · {fmtTime(h.submitted_at!, lang)}{(h.revision ?? 1) > 1 ? ` · ${L('সংস্করণ', 'rev')} ${n(h.revision!)}` : ''}</Badge>
+              : !h.window_open && Date.parse(d.now) >= Date.parse(h.due) ? <Badge tone="bad">{L('সময় শেষ · জমা হয়নি', 'Closed without submission')}</Badge>
               : h.state === 'open' ? <Badge tone="warn">{h.returned ? L('ফেরত — সংশোধন চলছে', 'Sent back — being corrected') : L('লেখা চলছে', 'Being typed')}</Badge>
               : <Badge tone="bad">{L('শুরু হয়নি', 'Not started')}</Badge>}</header>
-          {h.state !== 'submitted' && <p className="muted small">{L(`${n(h.staff)} জন কর্মী · অটো জমা ${fmtTime(h.due, lang)}-এ`, `${h.staff} staff · auto-submit at ${fmtTime(h.due, lang)}`)}{h.returned?.reason ? ` · ${L('কারণ', 'Reason')}: ${h.returned.reason}` : ''}</p>}
+          {h.state !== 'submitted' && <p className="muted small">{L(`${n(h.staff)} জন কর্মী · বন্ধ ${fmtTime(h.due, lang)}-এ`, `${h.staff} staff · closes at ${fmtTime(h.due, lang)}`)}{h.returned?.reason ? ` · ${L('কারণ', 'Reason')}: ${h.returned.reason}` : ''}</p>}
           {h.state === 'submitted' && <>
             <div className="mo-counts"><span className="ok">{L('এসেছে', 'Came')} <b>{n(h.present)}</b></span><span className="bad">{L('আসেনি', 'Not came')} <b>{n(h.absent)}</b></span>
               <span>{L('ছুটি', 'Leave')} <b>{n(h.leave)}</b></span><span className="warn">{L('যাচাই বাকি', 'Unchecked')} <b>{n(h.unknown)}</b></span></div>
@@ -180,7 +205,7 @@ export function ZoneMorningTab({ zone }: { zone: string }) {
           </>}
           <div className="mo-acts">
             <button type="button" className="secondary sm" onClick={() => nav(`/app/routes?tab=plan&hub=${h.id}`)}><Icon name="map" size={14} />{L('রুট প্ল্যান খুলুন', 'Open the route plan')}</button>
-            {h.state === 'submitted' && <button type="button" className="secondary sm" onClick={() => void sendBack(h)}><Icon name="back" size={14} />{L('সংশোধনের জন্য ফেরত', 'Send back')}</button>}
+            {h.state === 'submitted' && h.window_open && <button type="button" className="secondary sm" onClick={() => void sendBack(h)}><Icon name="back" size={14} />{L('সংশোধনের জন্য ফেরত', 'Send back')}</button>}
             {h.plan && <Badge tone={h.plan.status === 'approved' ? 'ok' : h.plan.status === 'sent' ? 'warn' : 'info'}>{h.plan.status === 'approved' ? `${L('রুট প্ল্যান প্রকাশিত', 'Plan published')} · ${L('সংস্করণ', 'v')}${n(h.plan.published_version)}` : h.plan.status === 'sent' ? L('প্ল্যান অনুমোদনের অপেক্ষায়', 'Plan waiting for approval') : L('প্ল্যান খসড়া', 'Plan draft')}</Badge>}
           </div>
         </article>)}</div>
@@ -190,32 +215,53 @@ export function ZoneMorningTab({ zone }: { zone: string }) {
 }
 
 // ====================================================================================== সময় সেটিং
-/** Zone setting: the morning cut-off and the extra minutes (the day-close time is kept beside it for the daily register). */
-export function MorningPolicy({ zone }: { zone: string }) {
-  const { L, lang } = usePrefs()
+export function MorningPolicy({ zone, register = false }: { zone: string; register?: boolean }) {
+  const { L } = usePrefs()
   const { toast, node } = useToast()
   const q = useLoad<AttPolicy | null>(() => zone ? morning.policy(zone) : Promise.resolve(null), [zone])
   const p = q.data
-  const [cut, setCut] = useState(''); const [extra, setExtra] = useState(''); const [day, setDay] = useState(''); const [dayExtra, setDayExtra] = useState('')
-  useEffect(() => { if (p) { setCut(p.morning_cutoff); setExtra(String(p.morning_extra)); setDay(p.day_time); setDayExtra(String(p.day_extra)) } }, [p])
-  if (!zone) return <Section title={L('সকালের ইনপুটের সময়', 'Morning input time')}><Empty>{L('উপরে একটি জোন বেছে নিন।', 'Pick a zone above.')}</Empty></Section>
+  const [open, setOpen] = useState('')
+  const [close, setClose] = useState('')
+  const [day, setDay] = useState('')
+  const [dayExtra, setDayExtra] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (!p) return
+    setOpen(p.morning_open)
+    const [hour, minute] = p.morning_cutoff.split(':').map(Number)
+    const total = hour * 60 + minute + p.morning_extra
+    setClose(`${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`)
+    setDay(p.day_time)
+    setDayExtra(String(p.day_extra))
+  }, [p])
+  if (!zone) return null
   if (q.error) return <p className="da-error" role="alert">{wfFriendly(q.error)}</p>
   if (!p) return <Loading />
   async function save() {
-    try { await morning.savePolicy(zone, { morning_cutoff: cut, morning_extra: Number(extra), day_time: day, day_extra: Number(dayExtra) }); toast(L('সময় সেভ হয়েছে।', 'Times saved.')); await q.reload() }
-    catch (e) { toast(wfFriendly(e)) }
+    setBusy(true)
+    try {
+      await morning.savePolicy(zone, register ? { day_time: day, day_extra: Number(dayExtra) }
+        : { morning_open: open, morning_cutoff: close, morning_extra: 0 })
+      toast(L('সময় সেভ হয়েছে।', 'Times saved.'))
+      await q.reload()
+    } catch (e) { toast(wfFriendly(e)) }
+    finally { setBusy(false) }
   }
-  return <Section title={L('অটো সাবমিটের সময়', 'Auto-submit times')}
-    hint={L(`সকালের ইনপুট কাট-অফ ও অতিরিক্ত মিনিটের পর, আর ঢাকার তারিখ বদলালে দৈনিক খাতা পরদিনের নির্ধারিত সময়ের পর সার্ভার নিজে জমা করে (ঢাকার সময়) — শুধু যদি প্রতিজনের অবস্থা বসানো থাকে; খালি বা অসম্পূর্ণ হলে খোলা রাখে এবং হাব ও জোনাল ম্যানেজারকে জানায়। আজকের সকালের অটো জমা: ${fmtTime(p.today_due, lang)}।`,
-      `The server submits the morning input after the cut-off plus the extra minutes, and a daily register after the set time of the next day (Dhaka time) — only when everybody has an answer; an empty or unfinished one stays open and the hub and zonal managers are told. Today’s morning: ${fmtTime(p.today_due, lang)}.`)}>
+  const disabled = !p.can_edit || busy
+  return <Section title={register ? L('দৈনিক খাতার সময়', 'Daily register times') : L('রুটের সকালের হাজিরার সময়', 'Morning route attendance hours')}
+    hint={register ? L('সম্পূর্ণ দৈনিক খাতা পরদিন নির্ধারিত সময়ে স্বয়ংক্রিয়ভাবে জমা হয়।', 'Complete daily registers submit automatically at the scheduled time the next day.')
+      : L('এই জোনের প্রতিটি হাবে প্রতিদিন বাংলাদেশ সময় অনুযায়ী ফর্ম খুলবে ও বন্ধ হবে।', 'The form opens and closes daily in Bangladesh time for every hub in this zone.')}>
     {node}
-    <div className="hr-form" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-      <Field label={L('সকালের কাট-অফ', 'Morning cut-off')}><input type="time" value={cut} disabled={!p.can_edit} onChange={e => setCut(e.target.value)} /></Field>
-      <Field label={L('অতিরিক্ত মিনিট (০–৩৬০)', 'Extra minutes (0–360)')}><input type="number" min={0} max={360} value={extra} disabled={!p.can_edit} onChange={e => setExtra(e.target.value)} /></Field>
-      <Field label={L('পরদিন দৈনিক খাতা বন্ধের সময়', 'Daily register closes (next day)')}><input type="time" value={day} disabled={!p.can_edit} onChange={e => setDay(e.target.value)} /></Field>
-      <Field label={L('খাতায় অতিরিক্ত মিনিট (০–৩৬০)', 'Register extra minutes (0–360)')}><input type="number" min={0} max={360} value={dayExtra} disabled={!p.can_edit} onChange={e => setDayExtra(e.target.value)} /></Field>
+    <div className="hr-form">
+      {register ? <>
+        <Field label={L('পরদিন দৈনিক খাতা বন্ধের সময়', 'Daily register closes (next day)')}><input type="time" value={day} disabled={disabled} onChange={e => setDay(e.target.value)} /></Field>
+        <Field label={L('খাতায় অতিরিক্ত মিনিট (০–৩৬০)', 'Register extra minutes (0–360)')}><input type="number" min={0} max={360} value={dayExtra} disabled={disabled} onChange={e => setDayExtra(e.target.value)} /></Field>
+      </> : <>
+        <Field label={L('খোলার সময়', 'Opening time')}><input type="time" value={open} disabled={disabled} onChange={e => setOpen(e.target.value)} /></Field>
+        <Field label={L('বন্ধের সময়', 'Closing time')}><input type="time" value={close} disabled={disabled} onChange={e => setClose(e.target.value)} /></Field>
+      </>}
     </div>
-    {p.can_edit ? <p><button type="button" onClick={() => void save()}>{L('সময় সেভ করুন', 'Save the times')}</button></p> : <p className="muted small">{L('সময় বদলানোর অনুমতি আপনার নেই।', 'You may not change the times.')}</p>}
+    {p.can_edit && <p><button type="button" disabled={disabled || (register ? !day : !open || !close || open >= close)} onClick={() => void save()}>{L('সময় সেভ করুন', 'Save the times')}</button></p>}
   </Section>
 }
 

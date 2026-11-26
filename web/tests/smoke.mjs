@@ -22,7 +22,7 @@ const register = Array.from({ length: 60 }, (_, i) => ({ source: i % 2 ? 'system
   to_hub: 'Bogura', from_status: 'active', to_status: 'inactive', reason: 'test', request_no: i % 2 ? null : `R-${i}`, request_status: 'done', reference: null, done_by: 'Owner', recorded_at: `2026-11-10T00:00:${String(i).padStart(2, '0')}Z` }))
 
 const hubNames = ['Natore Sadar', 'Lalpur', 'Singra', 'Boraigram', 'Gurudaspur', 'Bagatipara', 'Naldanga', 'Pabna', 'Bogura', 'Rajshahi']
-const hubRows = hubNames.map((name, i) => ({ id: `h${i + 1}`, name, code: String(80 + i), zone_id: 'z1', archived_at: null }))
+const hubRows = hubNames.map((name, i) => ({ id: `h${i + 1}`, name, code: String(80 + i), zone_id: 'z1', status: 'active', archived_at: null }))
 const staffRows = Array.from({ length: 12 }, (_, i) => ({ id: `e${String(i).padStart(2, '0')}`, employee_code: String(1000 + i), full_name: `Staff ${String(i).padStart(2, '0')}`,
   hub_id: 'h2', position_id: 'p1', mobile: `017110000${String(i).padStart(2, '0')}`, status: 'active' }))
 
@@ -110,6 +110,8 @@ try {
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
     let morningDone = false
+    let morningWindow = 'open'
+    let morningBoundary = 0
     const created = [], accounts = [], mobiles = [], removed = [], recoded = [], exported = [], acted = [], posted = [], started = [], pwChanged = [], flowCalls = []
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, menuFail = false, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false, staffSecs = null
     let opsDeadlines = { zone_id: 'z1', pickup: '18:00', pickup_return: null, delivery_return: '19:20', delivery: '21:00' }
@@ -330,16 +332,21 @@ try {
         if (fn === 'wf_morning_submit') { morningDone = true; return j({ revision: 1, mode: 'manager', submitted_at: '2026-11-24T02:00:00Z', already: false }) }
         if (fn === 'wf_morning_return') return j(2)
         if (fn === 'wf_morning_save') return j(null)
-        return j({ hub: { id: 'h1', name: 'Natore Sadar', zone_id: 'z1' }, date: '2026-11-24', today: '2026-11-24', now: '2026-11-24T01:00:00Z', due: '2026-11-24T02:15:00Z',
-          status: morningDone ? 'submitted' : 'open', revision: 1, can: { fill: !morningDone, review: false },
-          hold: morningDone ? null : { held_at: '2026-11-24T02:15:00Z', reason: 'incomplete', gap_count: 2, total: 2, gaps: [{ name: 'Alamin Sarker', why: 'অবস্থা বসানো হয়নি' }] },
+        const instant = Date.now()
+        if (!morningBoundary) morningBoundary = instant + 1400
+        const cutoff = morningWindow === 'closing' ? morningBoundary : instant + 3600_000
+        const opening = morningWindow === 'opening' ? morningBoundary : instant - 60_000
+        const canFill = !morningDone && instant >= opening && instant < cutoff
+        return j({ hub: { id: 'h1', name: 'Natore Sadar', zone_id: 'z1' }, date: dhakaToday, today: dhakaToday,
+          now: new Date(instant).toISOString(), opens_at: new Date(opening).toISOString(), due: new Date(cutoff).toISOString(),
+          status: morningDone ? 'submitted' : 'open', revision: 1, can: { fill: canFill, review: false }, hold: null,
           receipt: morningDone ? { revision: 1, mode: 'manager', submitted_at: '2026-11-24T02:00:00Z', submitted_by_name: 'Owner' } : null, returned: null,
-          people: morningDone ? null : [
+          people: !canFill ? null : [
             { id: 'e02', code: '7982', name: 'Alamin Sarker', post: 'Rider', state: 'unknown', leave: null },
             { id: 'e03', code: '6799', name: 'Md Mahin', post: 'Rider', state: 'unknown', leave: null },
             { id: 'e04', code: '6800', name: 'Karim Uddin', post: 'Hub Staff', state: 'leave', leave: { ref: 'LR-1A2B3C4D', source: 'leave_request', applied_on: '2026-11-20' } }] }) }
       if (u.includes('rpc/wf_morning_zone')) return j({ date: r.request().postDataJSON().p_date, today: r.request().postDataJSON().p_date, now: '2026-11-24T01:00:00Z', hubs: [
-        { id: 'h1', name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore Area', staff: 3, due: '2026-11-24T02:15:00Z', held: false, hold: null, state: 'submitted', sub_id: 's1', revision: 1, mode: 'auto', submitted_at: '2026-11-24T02:15:00Z', returned: null,
+        { id: 'h1', name: 'Natore Sadar', zone_id: 'z1', zone_name: 'Natore Area', staff: 3, due: '2026-11-24T02:15:00Z', window_open: true, held: false, hold: null, state: 'submitted', sub_id: 's1', revision: 1, mode: 'auto', submitted_at: '2026-11-24T02:15:00Z', returned: null,
           present: 1, absent: 1, leave: 1, unknown: 0, people: [{ id: 'e02', name: 'Alamin Sarker', code: '7982', state: 'absent', leave_ref: null }],
           cover: [{ id: 'rt1', code: 'R-1', name: 'Town East', regular: ['Alamin Sarker'] }], plan: { id: 'p1', status: 'approved', published_version: 2 } },
         { id: 'h2', name: 'Lalpur', zone_id: 'z1', zone_name: 'Natore Area', staff: 4, due: '2026-11-24T02:15:00Z', state: 'none', sub_id: null, revision: null, mode: null, submitted_at: null, returned: null,
@@ -353,8 +360,8 @@ try {
       }
       if (withOpsDeadlineCard && u.includes('rpc/wf_ops_mine')) return j({ today: dhakaToday, backdate_days: 0, entry: null, recent: [], hint: null })
       if (withOpsDeadlineCard && u.includes('rpc/wf_ops_taps')) return j({ date: dhakaToday, count: 0, total: null, taps: [] })
-      if (u.includes('rpc/wf_att_policy_get')) return j({ zone_id: 'z1', morning_cutoff: '08:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: false, today_due: '2026-11-24T02:15:00Z', can_edit: true })
-      if (u.includes('rpc/wf_att_policy_save')) { flowCalls.push({ fn: 'wf_att_policy_save', ...r.request().postDataJSON() }); return j({ zone_id: 'z1', morning_cutoff: '09:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: true, today_due: '2026-11-24T03:15:00Z', can_edit: true }) }
+      if (u.includes('rpc/wf_att_policy_get')) return j({ zone_id: 'z1', morning_open: '07:00', morning_cutoff: '08:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: false, today_due: '2026-11-24T02:15:00Z', can_edit: true })
+      if (u.includes('rpc/wf_att_policy_save')) { flowCalls.push({ fn: 'wf_att_policy_save', ...r.request().postDataJSON() }); return j({ zone_id: 'z1', morning_open: '07:00', morning_cutoff: '09:00', morning_extra: 15, day_time: '00:00', day_extra: 0, own: true, today_due: '2026-11-24T03:15:00Z', can_edit: true }) }
       if (u.includes('rpc/route_plan_published')) return j({ date: r.request().postDataJSON().p_date, plan_id: 'p1', version: { no: 2, published_at: '2026-11-24T03:00:00Z', by: 'Zonal', morning_revision: 1 }, reopened: false,
         lines: [{ employee_id: 'e03', name: 'Md Mahin', role: 'rider', parcels: 40, pickups: 0, routes: ['R-1 · Town East'], sent_count: 1, last_sent_at: '2026-11-24T03:00:00Z' }],
         cancelled: [{ employee_id: 'e02', name: 'Alamin Sarker', cancelled_at: '2026-11-24T03:00:00Z', in_version: 2 }],
@@ -881,7 +888,7 @@ try {
     { const parts = await page.locator('.wm .wm-tabs').first().innerText().catch(() => '')
       const tabs = await page.locator('.wm .wm-tabs').last().innerText().catch(() => '')
       check(['আমার হাজিরা', 'হাব', 'জোন'].every(x => parts.includes(x)), `${size}: the attendance page offers my attendance, hub and zone to a person who may see them (${parts.replace(/\s+/g, ' ')})`)
-      check(['অনুমোদনের তালিকা', 'ফাইনাল খাতা', 'মাসিক খাতা', 'আবেদন', 'দৈনিক রিপোর্ট'].every(x => tabs.includes(x)) && !tabs.includes('হাজিরা বই') && !tabs.includes('ইতিহাস'),
+      check(['অনুমোদনের তালিকা', 'ফাইনাল খাতা', 'মাসিক খাতা', 'আবেদন', 'দৈনিক রিপোর্ট'].every(x => tabs.includes(x)) && !tabs.includes('হাজিরা বই') && !tabs.includes('ইতিহাস') && !tabs.includes('সকালের জনবল'),
         `${size}: the hub part has the queue, final register, monthly register, applications and daily report (${tabs.replace(/\s+/g, ' ')})`)
       await page.waitForSelector('.wm-chip b.plain', { timeout: 10000 }).catch(() => {})
       const chips = await page.locator('section[aria-label="ফাইনাল খাতা বাকি"] .wm-chip').allInnerTexts().catch(() => [])
@@ -895,11 +902,30 @@ try {
     check(await page.locator('section[aria-label="অপেক্ষমাণ হাজিরা"] li').count() === 2
       && await page.locator('section[aria-label="অপেক্ষমাণ অপারেশন"]').count() === 1,
       `${size}: the queue groups attendance and daily operations for the selected day`)
-    // the morning input: the first part of the hub's page. Approved leave is in by itself, what is typed is saved, the submit locks it to a receipt
-    await page.goto(`${BASE}/app/attendance?view=hub`); await page.waitForSelector('.mo-table', { timeout: 10000 }).catch(() => {})
-    { check(await page.locator('.mo-table tbody tr').count() === 3 && await page.locator('.mo-table select').count() === 2 && (await page.locator('.mo-table tbody tr').last().innerText()).includes('LR-1A2B3C4D'),
-        `${size}: the hub page opens on the morning input — two people to mark, the person on approved leave is already in`)
-      check((await page.locator('.wm-sec', { hasText: 'সার্ভার সকালের ইনপুট জমা দেয়নি' }).count()) === 1 && (await page.locator('.wm-sec', { hasText: 'সার্ভার সকালের ইনপুট জমা দেয়নি' }).innerText()).includes('২ জনের অবস্থা বসানো হয়নি'), `${size}: a morning input the server refused to submit says so and how many are not marked`)
+    // The manager dashboard opens and closes the form on the server's schedule.
+    permsNow = ['hr.attendance.view', 'hr.attendance.create', 'hr.employee.view']
+    const morningForm = page.locator('.wm-sec', { hasText: 'রুটের সকালের হাজিরা' })
+    const startMorning = async phase => {
+      morningWindow = phase
+      morningBoundary = 0
+      const firstRead = page.waitForResponse(r => r.url().includes('/rpc/wf_morning_get') && r.request().method() === 'POST')
+      await page.goto(`${BASE}/app?morningHub=h1`)
+      await firstRead
+    }
+    await startMorning('opening')
+    check(await morningForm.count() === 0, `${size}: morning form is hidden before opening`)
+    await morningForm.waitFor()
+    check(await morningForm.count() === 1, `${size}: morning form appears automatically at opening`)
+    await startMorning('closing')
+    await morningForm.waitFor()
+    await morningForm.waitFor({ state: 'hidden' })
+    check(await morningForm.count() === 0, `${size}: morning form closes at cutoff without a submission or page reload`)
+    morningWindow = 'open'
+    await page.goto(`${BASE}/app/attendance?view=hub&tab=morning&hub=h1`)
+    await morningForm.waitFor()
+    {
+      check(new URL(page.url()).pathname === '/app' && await page.locator('.mo-table tbody tr').count() === 3 && await page.locator('.mo-table select').count() === 2 && (await page.locator('.mo-table tbody tr').last().innerText()).includes('LR-1A2B3C4D'),
+        `${size}: the old morning link opens the manager dashboard, with approved leave already marked`)
       const before = flowCalls.length
       await page.locator('.mo-table select').nth(0).selectOption('present'); await page.locator('.mo-table select').nth(1).selectOption('absent')
       await page.waitForFunction(n => document.body.innerText.includes('খসড়া সেভ হয়েছে') && n >= 0, before, { timeout: 8000 }).catch(() => {})
@@ -907,12 +933,13 @@ try {
         check(JSON.stringify(c.p_lines) === JSON.stringify([{ employee_id: 'e02', state: 'present' }, { employee_id: 'e03', state: 'absent' }]) && !JSON.stringify(c.p_lines).includes('leave'), `${size}: what is typed is saved as a draft, leave is never sent`) }
       await fits('morning input')
       await page.locator('.mo-bar button').first().click(); await page.waitForSelector('.da-modal-acts button', { timeout: 8000 }).catch(() => {}); await page.locator('.da-modal-acts button').last().click()
-      await page.waitForSelector('.mo-receipt', { timeout: 8000 }).catch(() => {})
+      await morningForm.waitFor({ state: 'hidden' })
       { const c = flowCalls.filter(x => x.fn === 'wf_morning_submit').at(-1) ?? {}
-        check(c.p_hub === 'h1' && c.p_lines?.length === 2 && await page.locator('.mo-receipt').count() === 1 && await page.locator('.mo-table').count() === 0,
-          `${size}: the submit sends the lines once and the hub manager is left with a receipt, no lines`) } }
+        check(c.p_hub === 'h1' && c.p_date === dhakaToday && c.p_lines?.length === 2 && await morningForm.count() === 0,
+          `${size}: successful submission closes the dashboard form immediately`) } }
     // the zone's morning: each hub's submission, the route that needs cover, send back with a reason
-    await page.goto(`${BASE}/app/attendance?view=zone`); await page.waitForSelector('.mo-hub', { timeout: 10000 }).catch(() => {})
+    permsNow = null
+    await page.goto(`${BASE}/app/attendance?view=zone&tab=morning&zone=z1`); await page.waitForSelector('.mo-hub', { timeout: 10000 }).catch(() => {})
     { const cards = page.locator('.mo-hub')
       check(await cards.count() === 2 && (await cards.first().innerText()).includes('R-1') && (await cards.first().innerText()).includes('অটো জমা') && (await cards.last().innerText()).includes('জমা আটকে — কিছুই লেখা হয়নি'),
         `${size}: the zone page opens on the zone's morning — a hub that auto-submitted shows the route to cover, another is held because nothing was written`)
@@ -922,11 +949,11 @@ try {
       await page.waitForFunction(() => !document.querySelector('.da-modal'), null, { timeout: 8000 }).catch(() => {})
       { const c = flowCalls.filter(x => x.fn === 'wf_morning_return').at(-1) ?? {}
         check(c.p_hub === 'h1' && c.p_reason === 'আলামিন এসেছে', `${size}: sending back needs a written reason and goes with it`) } }
-    await page.goto(`${BASE}/app/attendance?view=zone&tab=setting`); await page.waitForSelector('input[type=time]', { timeout: 10000 }).catch(() => {})
-    { await page.locator('input[type=time]').first().fill('09:00'); await page.locator('button', { hasText: 'সময় সেভ করুন' }).first().click()
+    await page.goto(`${BASE}/app/routes?tab=morning&zone=z1`); await page.waitForSelector('input[type=time]', { timeout: 10000 }).catch(() => {})
+    { await page.locator('input[type=time]').nth(1).fill('09:00'); await page.locator('button', { hasText: 'সময় সেভ করুন' }).first().click()
       await page.waitForTimeout(600)
       const c = flowCalls.filter(x => x.fn === 'wf_att_policy_save').at(-1) ?? {}
-      check(c.p_zone === 'z1' && c.p?.morning_cutoff === '09:00' && c.p?.morning_extra === 15, `${size}: the zone's morning cut-off and extra minutes are saved from the setting tab`) }
+      check(c.p_zone === 'z1' && c.p?.morning_open === '07:00' && c.p?.morning_cutoff === '09:00' && c.p?.morning_extra === 0, `${size}: the zonal manager saves opening and closing times from Routes`) }
     // the daily register shows when the server will submit it; the month names a missing day and cannot be submitted until it is there
     await page.goto(`${BASE}/app/attendance?view=hub&tab=final`); await page.waitForSelector('.as-due', { timeout: 10000 }).catch(() => {})
     check((await page.locator('.as-due').first().innerText().catch(() => '')).includes('সার্ভার'), `${size}: the daily register says when the server submits it`)

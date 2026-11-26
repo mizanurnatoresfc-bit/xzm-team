@@ -51,6 +51,8 @@ export const ROUTE_PANES: readonly RoutePane[] = [
     group: 'places', needs: 'zone', perms: ROUTE_PERMS.zone, legacy: ZONE_PAGES },
   { id: 'plan', icon: 'box', bn: 'আজকের পরিকল্পনা', en: "Today's plan", hint: { bn: 'আজ কোন রাইডার কোন রুটে কয়টা পার্সেল নেবেন', en: 'Who takes how many parcels on which route today' },
     group: 'plan', needs: 'none', perms: ROUTE_PERMS.plan, legacy: ['/app/routes/plan', ...ZONE_PAGES], menu: true },
+  { id: 'morning', icon: 'users', bn: 'সকালের রুট হাজিরা', en: 'Morning route attendance',
+    group: 'plan', needs: 'zone', perms: ['ops.route_plan.approve'], legacy: ['/app/routes/plan', ...ZONE_PAGES] },
   { id: 'load', icon: 'chart', bn: 'পার্সেল ও পরামর্শ', en: 'Parcels & suggestions', hint: { bn: 'রুটে পার্সেল কত, রাইডার কয়জন লাগে', en: 'Parcels per route and riders needed' },
     group: 'plan', needs: 'zone', perms: ROUTE_PERMS.zone, legacy: ZONE_PAGES },
   { id: 'day', icon: 'check', bn: 'চেক-ইন', en: 'Check-ins', hint: { bn: 'কোন রাইডার কোন স্টপে পৌঁছালেন', en: 'Which rider reached which stop' },
