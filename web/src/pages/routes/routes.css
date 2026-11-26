@@ -29,9 +29,8 @@
 .lc-bulk-row input[type=text]{min-height:32px;padding:3px 8px}
 .lc-tag{font-size:.75rem;padding:1px 7px;border-radius:999px;border:1px solid var(--border);color:var(--muted);white-space:nowrap}
 .lc-tag.ok{color:#15803d;border-color:#86efac}.lc-tag.warn{color:#c2410c;border-color:#fdba74}
-/* module tab bar: the parts in groups, always on a row of their own above the zone / hub pickers */
-.rm-tabs{display:flex;flex-direction:column;gap:6px;min-width:0}
-.da-filters>.rm-tabs{flex:1 1 100%;order:-1;grid-column:1 / -1}
+/* Route navigation sits above the zone and hub filters. */
+.rm-tabs{display:flex;flex-direction:column;gap:5px;min-width:0}
 .rm-group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .rm-group>.t{font-size:.78rem;font-weight:600;color:var(--muted);min-width:110px}
 .rm-fix{display:flex;flex-direction:column;gap:6px}
@@ -45,4 +44,66 @@
   .lc-row{flex-wrap:wrap}
   .lc-acts{width:100%}
   .lc-acts button{flex:1}
+}
+
+.rm-toolbar {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+.rm-toolbar p { margin: 0; }
+.rm-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.rm-filters label { min-width: 0; }
+.rm-filters select { width: 100%; min-height: 42px; }
+.rm-group > .t { flex: 0 0 132px; padding-inline: 4px; }
+.rm-tabs button { min-height: 40px; border-radius: 10px; }
+.rm-tabs button[aria-current="page"] { box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 25%, transparent); }
+.rm-tabs button:focus-visible, .rm-pdf summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.rm-load-error { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.rm-load-error p { margin: 0; }
+.rm-stats { margin-block: 14px; }
+.rm-pdf {
+  margin-block: 12px;
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface));
+}
+.rm-pdf summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  cursor: pointer;
+  list-style: none;
+}
+.rm-pdf summary::-webkit-details-marker { display: none; }
+.rm-pdf summary::after { content: '+'; margin-inline-start: auto; font-size: 1.25rem; }
+.rm-pdf[open] summary::after { content: '−'; }
+.rm-pdf-file {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 460px);
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.rm-pdf-file input { width: 100%; min-width: 0; }
+.rm-pdf-results { min-width: 0; overflow-wrap: anywhere; }
+.rm-pdf-results label { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
+.rm-pdf-results input[type="checkbox"] { width: 18px; height: 18px; flex: none; }
+
+@media (max-width: 640px) {
+  .rm-tabs { padding: 4px 4px 8px; }
+  .rm-tabs button { min-height: 44px; }
+  .rm-filters { grid-template-columns: repeat(auto-fit, minmax(min(100%, 135px), 1fr)); }
+  .rm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

@@ -1271,9 +1271,10 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.eb-chips .chip-toggle').count() >= 2, `${size}: the staff list opens from a limited menu and shows a chip per post`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    const hubTabs = await page.locator('.hub-tabs a').count(), ownPages = ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].filter(x => sideLinks.includes(x))
-    const limitedMenuOk = sideLinks.includes('/app/staff/list') && sideLinks.includes('/app/attendance') && !sideLinks.includes('/app/hub/pickup') && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
-    check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length}: ${sideLinks.join(' ')}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
+    const expectedSideLinks = ['/app/staff/list', '/app/attendance', '/app/accounts/khata', '/app/hub-registers',
+      '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references', '/app/notices']
+    check(sideLinks.length === expectedSideLinks.length && expectedSideLinks.every(path => sideLinks.includes(path)),
+      `${size}: the limited menu shows its assigned pages, hub registers and personal shortcuts (${sideLinks.join(' ')})`)
     { await page.goto(`${BASE}/app/hub/days`); await page.waitForURL(/\/app\/attendance/, { timeout: 10000 }).catch(() => {})
       check(/\/app\/attendance/.test(page.url()) && await page.locator('.center-screen .notice').count() === 0, `${size}: the old attendance days address opens the one attendance page (${page.url()})`) }
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
@@ -1816,6 +1817,18 @@ try {
       { const t = await page.locator('main').innerText()
         check(t.includes('শহর পূর্ব') && t.includes('২/৩') && t.includes('Staff 01') && await page.locator('.osm-pin.num').count() >= 3, `${size}: route settings show the zone map with numbered stops, the route card and stops with location`) }
       await fits('route settings map')
+      await page.locator('[data-pane="routes"]').click()
+      await page.waitForURL(/tab=routes/)
+      await page.goBack()
+      await page.locator('[data-pane="map"][aria-current="page"]').waitFor()
+      check(true, `${size}: browser Back restores the map tab`)
+      await page.getByRole('button', { name: 'PDF থেকে রুট', exact: true }).click()
+      const pdf = page.locator('.da-modal .rm-pdf[open]')
+      await pdf.locator('input[type=file]').setInputFiles({ name: 'invalid.pdf', mimeType: 'application/pdf', buffer: Buffer.from('invalid PDF') })
+      await pdf.getByText(/invalid\.pdf/).waitFor()
+      check(await pdf.locator('input[type=file]').isEnabled(), `${size}: PDF shortcut opens the picker, and an invalid PDF allows retry`)
+      await page.locator('.da-modal-acts').getByRole('button', { name: 'বাতিল' }).click()
+
       if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/routes-map-${size}.png`, fullPage: true })
       await page.locator('.rt-card button:has-text("এডিট / ম্যাপ")').click(); await page.waitForSelector('.rt-stop')
       check(await page.locator('.rt-stop').count() === 3, `${size}: the route editor lists the three stops in order`)

@@ -17,7 +17,7 @@ import {
 import { RoutePdfDraft } from './RoutePdfDraft'
 import { GpsButton, LocationAdder, NoteList } from './LocationUI'
 
-export type NewDraft = { hub_id: string; name?: string; color?: string; stops?: RouteStop[] }
+export type NewDraft = { hub_id: string; name?: string; color?: string; stops?: RouteStop[]; fromPdf?: boolean }
 type Draft = { id?: string; hub_id: string; code: string; name: string; note: string; color: string; shift: Shift; stops: RouteStop[] }
 const blank = (name: string): RouteStop => ({ name, kind: 'area', lat: null, lng: null, radius_m: null, minutes: null, note: null })
 const sig = (hub: { lat: number | null; lng: number | null } | undefined, stops: RouteStop[]) =>
@@ -26,7 +26,7 @@ const sig = (hub: { lat: number | null; lng: number | null } | undefined, stops:
 const isDefaultName = (s: string) => /^(স্টপ|Stop)\s*[0-9০-৯]+$/.test(s.trim())
 
 export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
-  o: ZoneOverview; start: ZoneRoute | NewDraft; hubOf: Record<string, RouteHub>; onClose: () => void; onSaved: (id: string) => void
+  o: ZoneOverview; start: ZoneRoute | NewDraft; hubOf: Record<string, RouteHub>; onClose: () => void; onSaved: (id: string, hubId: string) => void
 }) {
   const { L, n, lang } = usePrefs()
   const { can } = useAuth()
@@ -63,8 +63,17 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
   const canPlaces = can('ops.route_setting.edit')
 
   const setStop = (i: number, p: Partial<RouteStop>) => setF(d => ({ ...d, stops: d.stops.map((s, j) => j === i ? { ...s, ...p } : s) }))
-  const move = (i: number, by: number) => setF(d => { const s = [...d.stops]; const j = i + by; if (j < 0 || j >= s.length) return d; [s[i], s[j]] = [s[j], s[i]]; return { ...d, stops: s } })
-  const remove = (i: number) => { setF(d => ({ ...d, stops: d.stops.filter((_, j) => j !== i) })); setSel(null); setOpen(null); setAdded(null) }
+  function move(i: number, by: number) {
+    const j = i + by
+    if (j < 0 || j >= f.stops.length) return
+    reorder(stops => {
+      const next = [...stops]
+      next[i] = stops[j]
+      next[j] = stops[i]
+      return next
+    })
+  }
+  const remove = (i: number) => { setF(d => ({ ...d, stops: d.stops.filter((_, j) => j !== i) })); setSel(null); setOpen(null); setMode('add'); setAdded(null) }
 
   /** Adds one stop and tells the person what is worth a look about it. Returns its place in the list. */
   function addStop(p: { name?: string; lat: number | null; lng: number | null; kind?: StopKind; accuracy?: number | null }): number {
@@ -78,8 +87,8 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
   /** The stop at `at` is renamed only while it still has the editor's own default name (the person may have typed one meanwhile). */
   const nameLater = (at: number, lat: number, lng: number) => {
     const here = nameFromLibrary({ lat, lng }, pl.places, lang)
-    if (here) { setF(d => ({ ...d, stops: d.stops.map((s, j) => j === at && isDefaultName(s.name) ? { ...s, name: here.name, kind: here.kind } : s) })); return }
-    void reverseName({ lat, lng }).then(nm => { if (nm) setF(d => ({ ...d, stops: d.stops.map((s, j) => j === at && isDefaultName(s.name) ? { ...s, name: nm } : s) })) })
+    if (here) { setF(d => ({ ...d, stops: d.stops.map((s, j) => j === at && s.lat === lat && s.lng === lng && isDefaultName(s.name) ? { ...s, name: here.name, kind: here.kind } : s) })); return }
+    void reverseName({ lat, lng }).then(nm => { if (nm) setF(d => ({ ...d, stops: d.stops.map((s, j) => j === at && s.lat === lat && s.lng === lng && isDefaultName(s.name) ? { ...s, name: nm } : s) })) })
   }
   function pick(lat: number, lng: number) {
     if (mode === 'move' && sel !== null) {
@@ -120,7 +129,10 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
     setBusy('road'); setErr('')
     try { const r = await roadLine(pts); setRoad({ ...r, sig: now }) } catch (e) { setErr(e instanceof Error ? e.message : String(e)) } finally { setBusy('') }
   }
-  function optimize() { setF(d => ({ ...d, stops: bestOrder(hubPt, d.stops) })); setSel(null) }
+  function reorder(order: (stops: RouteStop[]) => RouteStop[]) {
+    setF(d => ({ ...d, stops: order(d.stops) }))
+    setSel(null); setOpen(null); setMode('add'); setAdded(null)
+  }
   async function toLibrary(i: number) {
     const s = f.stops[i]
     if (!hasGps(s) || !pl.data) return
@@ -139,7 +151,7 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
     try {
       const id = await routeApi.save({ id: f.id, hub_id: f.hub_id, code: f.code.trim() || undefined, name: f.name.trim(), note: f.note.trim() || null, color: f.color, shift: f.shift,
         stops: f.stops.map(s => ({ ...s, name: s.name.trim() })), road: roadFresh ? { km: roadFresh.km, minutes: roadFresh.minutes, path: roadFresh.path } : null })
-      onSaved(id)
+      onSaved(id, f.hub_id)
     } catch (e) { setErr(routeFriendly(e)) } finally { setBusy('') }
   }
 
@@ -169,6 +181,9 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
       <Field label={L('নোট', 'Note')}><input value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Field>
     </div>
     {hub && !hasGps(hub) && <p className="da-error">{L('এই হাবের GPS বসানো নেই — দূরত্ব হাব থেকে মাপা যাবে না। হাব তালিকা ও ম্যাপ থেকে হাবের লোকেশন দিন।', 'This hub has no GPS yet.')}</p>}
+    <RoutePdfDraft key={f.hub_id} places={pl.places} stops={f.stops} maxStops={o.rules.max_stops}
+      initiallyOpen={'fromPdf' in start && !!start.fromPdf} loadingPlaces={pl.loading} retryPlaces={pl.error ? pl.reload : undefined}
+      onAdd={stops => { setF(d => ({ ...d, stops: [...d.stops, ...stops] })); setAdded(null) }} />
     <div className="rt-layout">
       <div style={{ minWidth: 0 }}>
         <div className="rt-bar" style={{ marginBottom: 6 }}>
@@ -203,14 +218,12 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
           onShow={(pins, lines, add) => setExtra({ pins, lines, add })} />}
         {side === 'stops' && <>
         <div className="rt-bar">
-          <button type="button" className="secondary sm" disabled={gpsCount < 2} onClick={optimize} title={L('হাব থেকে সবচেয়ে কম দূরত্বের ক্রমে সাজায়', 'Shortest order from the hub')}><Icon name="swap" size={13} />{L('ছোট পথে সাজান', 'Shortest order')}</button>
-          <button type="button" className="secondary sm" disabled={f.stops.length < 2} onClick={() => setF({ ...f, stops: [...f.stops].reverse() })}><Icon name="swap" size={13} />{L('উল্টো ক্রম', 'Reverse')}</button>
+          <button type="button" className="secondary sm" disabled={gpsCount < 2} onClick={() => reorder(stops => bestOrder(hubPt, stops))} title={L('হাব থেকে সবচেয়ে কম দূরত্বের ক্রমে সাজায়', 'Shortest order from the hub')}><Icon name="swap" size={13} />{L('ছোট পথে সাজান', 'Shortest order')}</button>
+          <button type="button" className="secondary sm" disabled={f.stops.length < 2} onClick={() => reorder(stops => [...stops].reverse())}><Icon name="swap" size={13} />{L('উল্টো ক্রম', 'Reverse')}</button>
           <button type="button" className="secondary sm" disabled={busy === 'road' || gpsCount + (hubPt ? 1 : 0) < 2} onClick={() => void draw()}><Icon name="truck" size={13} />{busy === 'road' ? L('আঁকা হচ্ছে…', 'Drawing…') : L('রাস্তা ধরে আঁকুন', 'Draw by road')}</button>
           <button type="button" className="secondary sm" onClick={() => setBulk(b => !b)}><Icon name="note" size={13} />{L('একসাথে অনেক', 'Many at once')}</button>
           <button type="button" className="secondary sm" onClick={() => addStop({ lat: null, lng: null })}><Icon name="plus" size={13} />{L('লোকেশন ছাড়া স্টপ', 'Stop without location')}</button>
         </div>
-        <RoutePdfDraft key={f.hub_id} places={pl.places} stops={f.stops} maxStops={o.rules.max_stops}
-          onAdd={stops => { setF(d => ({ ...d, stops: [...d.stops, ...stops] })); setAdded(null) }} />
         {bulk && <BulkPanel env={env} onAdd={stops => { setF(d => ({ ...d, stops: [...d.stops, ...stops] })); setBulk(false); setAdded(null) }} onClose={() => setBulk(false)} />}
         {!f.stops.length && <p className="rt-hint">{L('ম্যাপে চাপ দিয়ে স্টপ বসান, জায়গা খুঁজুন, অথবা "একসাথে অনেক" দিয়ে তালিকা বা ফাইল দিন। ক্রম = রাইডার যে ক্রমে যাবেন।', 'Tap the map, search a place, or paste a list / upload a file. The order is the order the rider goes.')}</p>}
         <div className="rt-stops">{f.stops.map((s, i) => <div key={i} className={`rt-stop${sel === i ? ' on' : ''}`} onClick={() => setSel(i)}>
