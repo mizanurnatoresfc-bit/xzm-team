@@ -39,7 +39,7 @@ export function MyRouteCard() {
     const next = gps.find(s => !done.has(s.id!))
     const hub = hasGps(r.hub) ? { lat: r.hub.lat, lng: r.hub.lng } : null
     const waypoints = hub && gps.length === r.stops.length
-      ? [hub, ...gps.map(s => ({ lat: s.lat, lng: s.lng })), hub] : null
+      ? [hub, ...gps.map(s => ({ lat: s.lat!, lng: s.lng! })), hub] : null
     const loopKey = r.id + ':' + JSON.stringify(waypoints)
     const loop = loops[loopKey]
     const selected = focusByRoute[r.id] ?? next?.id ?? 'hub'
