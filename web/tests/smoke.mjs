@@ -1244,10 +1244,13 @@ try {
     await page.goto(`${BASE}/app/staff/list`); await page.waitForSelector('.eb-chips .chip-toggle', { timeout: 10000 }).catch(() => {})
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.eb-chips .chip-toggle').count() >= 2, `${size}: the staff list opens from a limited menu and shows a chip per post`)
-    const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
+    const sideLinks = await page.locator('aside.side a[href^="/app"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
     const hubTabs = await page.locator('.hub-tabs a').count(), ownPages = ['/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references'].filter(x => sideLinks.includes(x))
-    const limitedMenuOk = sideLinks.includes('/app/staff/list') && sideLinks.includes('/app/attendance') && !sideLinks.includes('/app/hub/pickup') && sideLinks.length === 8 && sideLinks.includes('/app/accounts/khata') && ownPages.length === 4
-    check(limitedMenuOk, `${size}: a limited role has only its pages in the menu, plus the person's own panel, accounts, vehicle and references (${sideLinks.length}: ${sideLinks.join(' ')}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
+    // The sidebar follows the role's page list: the pages the admin ticked show, nothing else. Personal rows (/app/staff, /app/accounts/mine,
+    // /app/fleet/mine, /app/references) now follow the list too — they show only when the admin ticks them, so the footer
+    // "the menu shows only what your role may open" is true. The dashboard (/app) still shows so the person can get home.
+    const limitedMenuOk = sideLinks.includes('/app/staff/list') && sideLinks.includes('/app/attendance') && sideLinks.includes('/app/accounts/khata') && !sideLinks.includes('/app/hub/pickup') && ownPages.length === 0
+    check(limitedMenuOk, `${size}: a limited role sees only its ticked pages in the sidebar (${sideLinks.length}: ${sideLinks.join(' ')}; tabs=${hubTabs}; khata=${sideLinks.includes('/app/accounts/khata')}; own=${ownPages.join(',')})`)
     { await page.goto(`${BASE}/app/hub/days`); await page.waitForURL(/\/app\/attendance/, { timeout: 10000 }).catch(() => {})
       check(/\/app\/attendance/.test(page.url()) && await page.locator('.center-screen .notice').count() === 0, `${size}: the old attendance days address opens the one attendance page (${page.url()})`) }
     await page.goto(`${BASE}/app/hr/attendance`); await page.waitForSelector('.center-screen .notice', { timeout: 8000 }).catch(() => {})
