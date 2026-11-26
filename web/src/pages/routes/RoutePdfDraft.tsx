@@ -5,7 +5,7 @@ import { usePrefs } from '../../lib/prefs'
 import { placeToStop } from '../zonal/RoutePlaces'
 
 type AreaCount = { place: Place; historical: number; incoming: number }
-type Preview = { areas: AreaCount[]; unresolved: number; historicalDays: number; errors: string[] }
+type Preview = { areas: AreaCount[]; unresolved: number; total: number; historicalDays: number; errors: string[] }
 type Parcel = { matches: Set<string>; day: string | null }
 const words = (text: string) => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim()
 const sameStop = (a: RouteStop, b: RouteStop) => a.lat === b.lat && a.lng === b.lng
@@ -21,17 +21,24 @@ async function previewFiles(files: File[], places: Place[]): Promise<Preview> {
       ids.add(place.id); names.set(key, ids)
     }
   }
-  const longest = Math.max(1, ...[...names.keys()].map(name => name.split(' ').length))
+  const aliases = [...names].map(([name, ids]) => ({ name, ids, compact: name.replace(/ /g, '') }))
   function match(text: string) {
-    const tokens = words(text).split(' ')
-    for (let size = Math.min(longest, tokens.length); size > 0; size--) {
-      const ids = new Set<string>()
-      for (let i = 0; i <= tokens.length - size; i++) {
-        for (const id of names.get(tokens.slice(i, i + size).join(' ')) ?? []) ids.add(id)
-      }
-      if (ids.size) return ids
+    const normalized = words(text)
+    const whole = ' ' + normalized + ' '
+    const compact = normalized.replace(/ /g, '')
+    let best = 0
+    const matches = new Set<string>()
+    for (const alias of aliases) {
+      const size = alias.compact.length
+      if (size < best) continue
+      const exact = whole.includes(' ' + alias.name + ' ')
+      // Mobile PDFs can insert spaces inside Bangla place names.
+      const joined = size >= 5 && /[\u0980-\u09ff]/.test(alias.name) && compact.includes(alias.compact)
+      if (!exact && !joined) continue
+      if (size > best) { matches.clear(); best = size }
+      for (const id of alias.ids) matches.add(id)
     }
-    return new Set<string>()
+    return matches
   }
   const historical = new Map<number, Parcel>()
   const incoming = new Map<number, Parcel>()
@@ -65,7 +72,7 @@ async function previewFiles(files: File[], places: Place[]): Promise<Preview> {
     }
   }
   return { areas: [...counts.values()].filter(a => a.historical || a.incoming).sort((a, b) => b.incoming - a.incoming || b.historical - a.historical),
-    unresolved, historicalDays: dates.size, errors }
+    unresolved, total: historical.size + incoming.size, historicalDays: dates.size, errors }
 }
 
 export function RoutePdfDraft({ places, stops, maxStops, onAdd }: {
@@ -98,14 +105,15 @@ export function RoutePdfDraft({ places, stops, maxStops, onAdd }: {
     <p className="small">{L('এই হাবের রাইডার অ্যাসাইন ও ইনকামিং ডিসপ্যাচ PDF দিন। পরিচিত এলাকার মিল এই ডিভাইসেই দেখা হবে। এলাকা যাচাই করে স্টপ যোগ করুন।',
       'Upload the rider and incoming dispatch PDFs for this hub. Area matching runs on this device. Review the matches before adding stops.')}</p>
     <label className="small">{L('রাইডার ও ডিসপ্যাচ PDF', 'Rider and dispatch PDFs')}
-      <input type="file" accept=".pdf,application/pdf" multiple disabled={busy || !places.length}
+      <input type="file" accept=".pdf,application/pdf" multiple disabled={busy}
         onChange={e => { const files = Array.from(e.target.files ?? []); e.target.value = ''; void read(files) }} />
     </label>
+    {!places.length && <p className="small">{L('এলাকার তালিকা এখন পাওয়া যাচ্ছে না। PDF পড়া যাবে, তবে তালিকা লোড হলে মিল খুঁজতে আবার দিন।', 'The area catalog is unavailable. PDFs can be read now; reselect them after the catalog loads to match areas.')}</p>}
     {busy && <p role="status">{L('PDF পড়া হচ্ছে…', 'Reading PDFs…')}</p>}
     {error && <p className="da-error" role="alert">{error}</p>}
     {preview && <>
       {preview.errors.map((text, i) => <p key={i} className="da-error">{text}</p>)}
-      <p className="small">{L('এলাকা যাচাই বাকি', 'Area pending verification')} <b>{n(preview.unresolved)}</b></p>
+      <p className="small">{L('পড়া পার্সেল', 'Parcels read')} <b>{n(preview.total)}</b>{' · '}{L('এলাকা যাচাই বাকি', 'Area pending verification')} <b>{n(preview.unresolved)}</b></p>
       <p className="small">{L('বর্তমান স্টপে ইনকামিং', 'Incoming for current stops')} <b>{n(totals.incoming)}</b>
         {' · '}{L('দৈনিক গড়', 'Daily average')} <b>{preview.historicalDays ? n(Math.round(totals.historical / preview.historicalDays)) : '—'}</b>
         {' · '}{L('অ্যাসাইন PDF-এর দিন', 'Rider PDF days')} {n(preview.historicalDays)}</p>
