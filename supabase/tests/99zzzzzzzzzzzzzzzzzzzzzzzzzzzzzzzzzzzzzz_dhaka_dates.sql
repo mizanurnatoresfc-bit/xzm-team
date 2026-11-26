@@ -53,12 +53,15 @@ select pg_temp.form_checks('UTC-11');
 set local timezone to 'Pacific/Kiritimati';
 select pg_temp.form_checks('UTC+14');
 -- saving with no date means the Dhaka day
+update public.wf_att_policy set morning_open = '00:00', morning_cutoff = '23:59:59' where zone_id = tests.id('zone_a');
 set local timezone to 'Pacific/Pago_Pago';
 select tests.login(tests.id('hub_mgr'));
 select public.wf_morning_save(tests.id('hub_a1'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('a'), 'state', 'present')));
 select tests.logout();
 select tests.ok(exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = :'t'::date and status = 'open'), 'a save with no date lands on the Dhaka day');
 select tests.ok(not exists (select 1 from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date <> :'t'::date), 'and on no other day');
+
+update public.wf_att_policy set morning_open = null, morning_cutoff = '00:00' where zone_id = tests.id('zone_a');
 
 -- ---------------------------------------------------------------- the jobs, in both session zones
 -- hub A2: complete forms of the three days before, today and tomorrow; complete registers of three days back, yesterday and today. Run in UTC-11.

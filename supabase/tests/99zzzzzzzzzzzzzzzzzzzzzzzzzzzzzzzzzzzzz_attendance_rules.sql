@@ -82,25 +82,32 @@ select tests.ok((select count(*) = 4 from public.wf_auto_holds where kind = 'mor
 select tests.ok((select count(*) = 1 from public.notifications where profile_id = tests.id('hub_mgr') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A1 · ' || to_char(:'t'::date, 'DD-MM-YYYY') || '%')
             and (select count(*) = 1 from public.notifications where profile_id = tests.id('zonal_a') and title = 'সকালের জনবল জমা আটকে আছে' and body like '%Hub A1 · ' || to_char(:'t'::date, 'DD-MM-YYYY') || '%'), 'the hub manager and the zonal manager are told, once');
 select tests.login(tests.id('hub_mgr'));
-select tests.ok((select g -> 'hold' ->> 'reason' = 'empty' and g ->> 'status' = 'open' and (g -> 'can' ->> 'fill')::boolean from public.wf_morning_get(tests.id('hub_a1')) g), 'the form shows the hold and stays open');
+select tests.ok((select g -> 'hold' ->> 'reason' = 'empty' and g ->> 'status' = 'open' and not (g -> 'can' ->> 'fill')::boolean from public.wf_morning_get(tests.id('hub_a1')) g), 'the form shows the hold and is locked after cutoff');
+select tests.throws(format($$select public.wf_morning_save(%L, null, '[]')$$, tests.id('hub_a1')), 'a manager cannot save after cutoff', '22023');
+select tests.logout();
+update public.wf_att_policy set morning_open = '00:00', morning_cutoff = '23:59:59' where zone_id = tests.id('zone_a');
+select tests.login(tests.id('hub_mgr'));
 select public.wf_morning_save(tests.id('hub_a1'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('p1'), 'state', 'present')));
 select tests.login(tests.id('zonal_a'));
 select tests.ok((select (h ->> 'held')::boolean and h -> 'hold' ->> 'reason' = 'empty' from public.wf_morning_zone(tests.id('zone_a')) z, jsonb_array_elements(z -> 'hubs') h where h ->> 'id' = tests.id('hub_a1')::text), 'the zonal manager sees which hub is held');
 select tests.logout();
+update public.wf_att_policy set morning_open = null, morning_cutoff = '00:00' where zone_id = tests.id('zone_a');
 select private.wf_morning_autosubmit();
 select tests.ok((select reason = 'incomplete' and gap_count = 1 from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a1') and work_date = :'t'::date),
   'one person marked, one not: still not submitted — "incomplete"');
+update public.wf_att_policy set morning_open = '00:00', morning_cutoff = '23:59:59' where zone_id = tests.id('zone_a');
 select tests.login(tests.id('hub_mgr'));
 select public.wf_morning_save(tests.id('hub_a1'), null, jsonb_build_array(jsonb_build_object('employee_id', tests.id('p2'), 'state', 'absent')));
 select tests.logout();
+update public.wf_att_policy set morning_open = null, morning_cutoff = '00:00' where zone_id = tests.id('zone_a');
 select tests.ok(private.wf_morning_autosubmit() = 1, 'everybody marked: the server submits it');
 select tests.ok((select submit_mode = 'auto' from public.wf_morning_subs where hub_id = tests.id('hub_a1') and work_date = :'t'::date and status = 'submitted')
             and (select resolved_at is not null from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a1') and work_date = :'t'::date), 'submitted by the server, the hold is over');
--- the manager may still submit by hand and leave someone "not checked" on purpose (his own explicit answer)
+-- A missed previous day remains held.
 select tests.login(tests.id('hub_mgr'));
-select tests.ok((select (r ->> 'revision')::int = 1 from public.wf_morning_submit(tests.id('hub_a1'), :'y'::date, jsonb_build_array(jsonb_build_object('employee_id', tests.id('p1'), 'state', 'present'))) r), 'by hand, with one person left "not checked" on purpose: accepted');
+select tests.throws(format($$select public.wf_morning_submit(%L, %L, '[]')$$, tests.id('hub_a1'), :'y'::date), 'a manager cannot submit a past morning', '22023');
 select tests.logout();
-select tests.ok((select resolved_at is not null from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a1') and work_date = :'y'::date), 'and the hold is over');
+select tests.ok((select resolved_at is null from public.wf_auto_holds where kind = 'morning' and hub_id = tests.id('hub_a1') and work_date = :'y'::date), 'the hold is still visible for the missed day');
 
 -- ---------------------------------------------------------------- the day is the Asia/Dhaka day, whatever the database clock says
 -- the older function of the same family (whoever may mark a hub's attendance) is not ours and is still as it was

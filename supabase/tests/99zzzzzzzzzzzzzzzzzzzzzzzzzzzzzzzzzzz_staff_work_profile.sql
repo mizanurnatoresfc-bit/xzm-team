@@ -2,6 +2,8 @@
 begin;
 select tests.fixture();
 select tests.hr_fixture();
+insert into public.wf_att_policy (zone_id, morning_open, morning_cutoff, morning_extra)
+  values (tests.id('zone_a'), '00:00', '23:59:59', 0);
 select (now() at time zone 'Asia/Dhaka')::date as t \gset
 insert into public.positions (department_id, code, name, name_bn) values (tests.id('dept_ops'), 'MANAGER', 'Manager', 'ম্যানেজার');
 insert into tests.ids values
