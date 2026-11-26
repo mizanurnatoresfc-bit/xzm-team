@@ -161,7 +161,7 @@ export function share(total: number, weights: number[], room: number[]): { got: 
   return { got, left }
 }
 
-export type PlanInput = { toDeliver: number; routeParcels: Record<string, number>; present: Record<string, boolean | null>; pickups: Record<string, number>; extra: string[] }
+export type PlanInput = { toDeliver: number; routeParcels: Record<string, number>; present: Record<string, boolean | null>; pickups: Record<string, number>; extra: string[]; roadKm?: RoadKm }
 export type PlanTip =
   | { kind: 'cover'; absent: string; parcels: number; to: Array<{ name: string; parcels: number; how: 'same' | 'free' | 'near' | 'helper' | 'stretch' }> }
   | { kind: 'unassigned'; parcels: number; riders: number | null }
@@ -170,6 +170,31 @@ export type PlanTip =
   | { kind: 'noroute'; parcels: number }
   | { kind: 'routeless'; route: string }
 export type Suggestion = { rows: Record<string, { kind: 'rider' | 'helper'; capacity: number | null; parcels: number; detail: PlanPart[] }>; unassigned: number; tips: PlanTip[] }
+
+type RoadKm = Record<string, Record<string, number | null>>
+
+export async function nearbyRouteRoadKm(routes: PlanRoute[]): Promise<RoadKm> {
+  const points = routes.flatMap(route => {
+    const stop = route.stops.find(hasGps)
+    return stop ? [{ id: route.id, lat: stop.lat!, lng: stop.lng! }] : []
+  })
+  if (points.length < 2) return {}
+  const coords = points.map(p => `${p.lng},${p.lat}`).join(';')
+  const response = await fetch(`https://router.project-osrm.org/table/v1/driving/${coords}?annotations=distance`, {
+    signal: AbortSignal.timeout(12000),
+  })
+  if (!response.ok) throw new Error('Road distances unavailable')
+  const data = await response.json() as { code: string; distances?: Array<Array<number | null>> }
+  const distances = data.distances
+  if (data.code !== 'Ok' || !distances || distances.length !== points.length
+      || distances.some(row => !Array.isArray(row) || row.length !== points.length)) {
+    throw new Error('Road distances unavailable')
+  }
+  return Object.fromEntries(points.map((from, i) => [from.id, Object.fromEntries(points.map((to, j) => {
+    const meters = distances[i][j]
+    return [to.id, typeof meters === 'number' && Number.isFinite(meters) && meters >= 0 ? meters / 1000 : null]
+  }))]))
+}
 
 const centre = (r: PlanRoute): LatLng | null => { const g = r.stops.filter(hasGps); return g.length ? { lat: g.reduce((t, s) => t + s.lat!, 0) / g.length, lng: g.reduce((t, s) => t + s.lng!, 0) / g.length } : null }
 
@@ -245,8 +270,8 @@ export function suggestPlan(d: PlanData, inp: PlanInput): Suggestion {
     }
     const c = pool.route ? centre(pool.route) : null
     const same = pool.route ? onRoute(pool.route).map(p => p.id) : []
-    const near = pool.route ? d.routes.filter(r => r.id !== pool.route!.id).map(r => { const x = centre(r); return { r, km: c && x ? meters(c, x) / 1000 : null } })
-      .filter(x => x.km === null || x.km <= d.rules.near_km).sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9)) : d.routes.map(r => ({ r, km: null }))
+    const near = pool.route ? d.routes.filter(r => r.id !== pool.route!.id).map(r => { const x = centre(r); return { r, km: inp.roadKm ? inp.roadKm[r.id]?.[pool.route!.id] ?? null : c && x ? meters(c, x) / 1000 : null } })
+      .filter(x => x.km === null ? !inp.roadKm : x.km <= d.rules.near_km).sort((a, b) => (a.km ?? 1e9) - (b.km ?? 1e9)) : d.routes.map(r => ({ r, km: null }))
     hand(same, 'same')
     hand(riders.filter(p => p.routes.length === 0).map(p => p.id), 'free')
     for (const x of near) hand(onRoute(x.r).map(p => p.id).filter(id => !same.includes(id)), 'near')
