@@ -29,8 +29,7 @@ export type Post = {
 }
 /** A zone's group: everyone at every hub of the zone. */
 export type ZoneGroup = { zone_id: string; zone_name: string; zone_code: string; hubs: number; unseen: number; last_at: string | null; mine: boolean }
-export type ZoneManager = { profile_id: string | null; full_name: string; employee_code: string | null; position: string | null; phone: string | null; has_login: boolean; is_me: boolean }
-export type ZoneContacts = { zone_id: string; zone_name: string; zone_code: string; managers: ZoneManager[]; sent_today: number }
+export type ZoneContacts = { zone_id: string; zone_name: string; zone_code: string; can_message: boolean; sent_today: number }
 export type Who = { full_name: string; employee_code: string | null; seen_at?: string; at?: string; emoji?: string }
 
 export const KIND_BN: Record<IssueKind, string> = { parcel: 'পার্সেল', vehicle: 'গাড়ি', staff: 'স্টাফ', cash: 'টাকা', other: 'অন্যান্য', store: 'স্টোর অর্ডার', it: 'আইটি অর্ডার' }

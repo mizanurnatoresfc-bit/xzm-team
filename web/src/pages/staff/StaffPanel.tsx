@@ -155,7 +155,6 @@ export function StaffPanel() {
   const zoneList = v?.zones ?? []
   const myZone = zoneList.find(z => z.zone_id === v?.zm?.zone_id) ?? zoneList.find(z => z.mine) ?? (zoneList.length === 1 ? zoneList[0] : null)
   const zm = v?.zm ?? null
-  const managers = (zm?.managers ?? []).filter(m => !m.is_me)
   const [zmOpen, setZmOpen] = useState(false)
   const people = (c: number) => (c ? L(`${n(c)} জন`, `${c} people`) : L('এখনো কেউ নেই', 'Nobody yet'))
 
@@ -268,8 +267,8 @@ export function StaffPanel() {
             myZone.unseen ? L(`${n(myZone.unseen)}টি নতুন মেসেজ`, `${myZone.unseen} new messages`) : L(`জোনের ${n(myZone.hubs)}টি হাবের সবার সাথে কথা`, `Talk with all ${myZone.hubs} hubs of the zone`), cnt(myZone.unseen, 'info'))
           : row(null, 'b', 'map', L('জোন গ্রুপ', 'Zone group'), L('আপনার প্রোফাইলে কোনো জোন নেই', 'No zone on your profile'), <span className="sp-soon">{L('নেই', 'None')}</span>)}
         {zm
-          ? act('p', 'phone', managers.length === 1 ? `${L('জোনাল ম্যানেজার', 'Zonal manager')} — ${managers[0].full_name}` : L('জোনাল ম্যানেজার', 'Zonal manager'),
-            managers.length ? L('ফোন, SMS, WhatsApp বা লিখে সরাসরি জানান', 'Call, SMS, WhatsApp or write to them directly') : L(`${zm.zone_name}-এ এখনো কোনো জোনাল ম্যানেজার দেওয়া নেই`, `No zonal manager set for ${zm.zone_name} yet`),
+          ? act('p', 'user', L('জোনাল ম্যানেজার', 'Zonal manager'),
+            zm.can_message ? L('অ্যাপ থেকে বার্তা পাঠান', 'Send a message in the app') : L(`${zm.zone_name}-এ বার্তা পাঠানোর জন্য জোনাল ম্যানেজার পাওয়া যায়নি`, `No zonal manager available for messages in ${zm.zone_name}`),
             () => setZmOpen(true))
           : row(null, 'p', 'phone', L('জোনাল ম্যানেজার', 'Zonal manager'), L('আপনার প্রোফাইলে কোনো জোন নেই', 'No zone on your profile'), <span className="sp-soon">{L('নেই', 'None')}</span>)}
       </div>
@@ -327,16 +326,12 @@ export function StaffPanel() {
 }
 
 /** Phone number as WhatsApp wants it: 01XXXXXXXXX → 8801XXXXXXXXX. */
-const waNumber = (p: string) => { const d = p.replace(/\D/g, ''); return d.startsWith('880') ? d : d.startsWith('0') ? '88' + d : d }
-
-/** The zonal manager(s) of my zone: call, SMS, WhatsApp, or a written note that reaches them as a notification. */
 function ZonalManagerSheet({ zm, onClose, onSent }: { zm: ZoneContacts; onClose: () => void; onSent: (k: number) => void }) {
   const { L } = usePrefs()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const list = zm.managers.filter(m => !m.is_me)
-  const canWrite = list.some(m => m.has_login)
+  const canWrite = zm.can_message
   async function send() {
     setBusy(true); setErr('')
     try { onSent(await issues.tellZoneManager(zm.zone_id, text.trim())) }
@@ -345,17 +340,7 @@ function ZonalManagerSheet({ zm, onClose, onSent }: { zm: ZoneContacts; onClose:
   return <Modal title={`${L('জোনাল ম্যানেজার', 'Zonal manager')} — ${zm.zone_name}`} onClose={onClose}
     actions={<>{canWrite && <button disabled={busy || text.trim().length < 2} onClick={() => void send()}>{busy ? L('পাঠানো হচ্ছে…', 'Sending…') : L('লিখে পাঠান', 'Send note')}</button>}
       <button className="secondary" onClick={onClose}>{L('বন্ধ', 'Close')}</button></>}>
-    {!list.length && <p className="notice small">{L('এই জোনে এখনো কোনো জোনাল ম্যানেজার দেওয়া নেই। হাব ম্যানেজারকে বা হেড অফিসে জানান।', 'No zonal manager is set for this zone yet. Tell your hub manager or head office.')}</p>}
-    <div className="nv-rows">
-      {list.map((m, i) => <div key={i} className="nv-row zm-card">
-        <span className="nv-av sd-i p"><Icon name="user" size={22} /></span>
-        <span className="tx"><b>{m.full_name}{m.employee_code ? ` · ${m.employee_code}` : ''}</b><span>{[m.position, m.phone].filter(Boolean).join(' · ') || L('ফোন নম্বর দেওয়া নেই', 'No phone number')}</span></span>
-        {m.phone && <span className="zm-acts">
-          <a className="btn-ghost sm" href={`tel:${m.phone}`} aria-label={L('ফোন করুন', 'Call')}><Icon name="phone" size={16} /> {L('কল', 'Call')}</a>
-          <a className="btn-ghost sm" href={`sms:${m.phone}`}>SMS</a>
-          <a className="btn-ghost sm" href={`https://wa.me/${waNumber(m.phone)}`} target="_blank" rel="noreferrer">WhatsApp</a></span>}
-      </div>)}
-    </div>
+    {!canWrite && <p className="notice small">{L('এই এরিয়ায় বার্তা পাঠানোর জন্য জোনাল ম্যানেজার পাওয়া যায়নি।', 'No zonal manager is available for messages in this area.')}</p>}
     {canWrite && <Field label={L('লিখে জানান', 'Write to them')} hint={L('জোনাল ম্যানেজারের নোটিফিকেশনে যাবে, আপনার নাম ও হাবসহ', 'Goes to their notifications with your name and hub')}>
       <textarea rows={3} maxLength={500} value={text} onChange={e => setText(e.target.value)} placeholder={L('যেমন: হাবে আজ ৩ জন রাইডার কম, পার্সেল জমে আছে', 'e.g. three riders short today, parcels piling up')} /></Field>}
     {zm.sent_today > 0 && <p className="muted small">{L(`গত ২৪ ঘণ্টায় ${zm.sent_today}টি বার্তা পাঠিয়েছেন`, `${zm.sent_today} notes sent in the last 24 hours`)}</p>}
