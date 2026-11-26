@@ -98,7 +98,6 @@ export const GROUPS: Group[] = [
   panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
     { bn: 'জোন ও হাব', en: 'Zone & hubs', items: [
       { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
-      { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'হাব অপারেশন ড্যাশবোর্ড', en: 'Hub Operations Dashboard', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
       { to: '/app/org/hubs', icon: 'map', bn: 'হাব তালিকা ও ম্যাপ', en: 'Hub list & map', perms: ['org.hub.view'] },
       { to: '/app/org', icon: 'org', bn: 'এরিয়া, হাব ও পদ', en: 'Areas, hubs & posts', perms: ['org.zone.view', 'org.hub.view', 'org.department.view'] },
     ] },
@@ -149,9 +148,10 @@ export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং স
  * The first row opens the module; the others jump to one of its parts. Rows come from the module's part list (lib/routeModule.ts), so a new part
  * with `menu: true` shows up here by itself, and each row shows only to a role that may use that part.
  */
-export const ROUTES: Group = panel('routes', 'map', 'রুট', 'Routes', [
+export const ROUTES: Group = panel('routes', 'map', 'অপারেশন সেন্ট্রাল', 'Operations Central', [
   { bn: '', en: '', items: [
     { to: ROUTE_PAGE, icon: 'map', bn: 'রুট কেন্দ্র', en: 'Route centre', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সোর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
+    { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'জোন অপারেশন', en: 'Zone Operations', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
     ...ROUTE_MENU_PANES.map(p => ({ to: paneLink(p.id), icon: p.icon, bn: p.bn, en: p.en, hint: p.hint, perms: [...p.perms] })),
   ] },
 ])
