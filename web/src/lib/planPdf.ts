@@ -2,7 +2,7 @@
 // (what a sorting centre sent to the hub). The file is read in the browser; only numbers, parcel ids and the rider's
 // id leave the device — never a customer's name, phone or address.
 
-export type PdfItem = { s: string; x: number; y: number }
+export type PdfItem = { s: string; x: number; y: number; w?: number }
 export type PdfAreaRow = { id: number; text: string }
 export type PdfKind = 'update_list' | 'dispatch'
 export type ParsedPdf = {
@@ -132,9 +132,46 @@ function dispatch(pages: PdfItem[][], head: string, areaRows?: PdfAreaRow[]): Pa
     rider_code: null, rider_name: null, counts, parcel_ids: [...parcels.keys()], warnings }
 }
 
+
+/** The rider panel's mobile print layout is separate from the Update list report. */
+function deliveryList(pages: PdfItem[][], head: string, areaRows: PdfAreaRow[]) {
+  const date = head.match(/\bDate\s*:\s*([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/)
+  const hub = head.match(/\bHub\s*:\s*(.+?)\s+Assigned By\s*:/)?.[1] ?? null
+  const declared = Number(head.match(/\bGrand Total\s*:\s*(\d+)/)?.[1] ?? 0)
+  const ids = new Set<number>()
+  for (const page of pages) {
+    const t = table(page, ['ID', 'MERCHANT DETAILS', 'INVOICE', 'CUSTOMER DETAILS'])
+    if (!t) continue
+    const starts = t.body.filter(i => Math.abs(i.x - t.col.ID) < 4 && /^#\d{8,12}$/.test(i.s.trim()))
+    for (const row of bands(t.body, starts, 2, 48)) {
+      const id = Number(row.start.s.trim().slice(1))
+      ids.add(id)
+      const items = inCol(row.items, t.col['CUSTOMER DETAILS'], Infinity)
+        .filter(i => i.y < row.start.y - 2 && row.start.y - i.y <= 42)
+      let address = ''
+      let previous: PdfItem | undefined
+      for (const item of items) {
+        if (previous && (Math.abs(previous.y - item.y) > 2
+          || item.x - (previous.x + (previous.w ?? 0)) > 1.2)) address += ' '
+        address += item.s.replace(/\x00/g, '')
+        previous = item
+      }
+      areaRows.push({ id, text: address.trim() })
+    }
+  }
+  if (!ids.size) throw new Error('No parcel rows found in the delivery list')
+  return {
+    kind: 'update_list', doc_no: '', doc_date: date ? iso(date[2], date[1], date[3]) : null,
+    hub_text: hub, from_text: null, rider_code: null, rider_name: null,
+    counts: { parcels: ids.size, declared_parcels: declared },
+    parcel_ids: [...ids], warnings: declared && declared !== ids.size ? ['rows'] : [],
+  } satisfies ParsedPdf
+}
+
 /** What a Steadfast panel PDF says, from its text items (page by page). Throws when it is neither an Update list nor a Dispatch sheet. */
 export function parsePlanPdf(pages: PdfItem[][], areaRows?: PdfAreaRow[]): ParsedPdf {
   const head = (pages[0] ?? []).map(i => i.s).join(' ').replace(/\s+/g, ' ')
+  if (areaRows && /Delivery List Information/i.test(head)) return deliveryList(pages, head, areaRows)
   if (/Update\s+list\s+#/.test(head)) return updateList(pages, head, areaRows)
   if (/DISPATCH\s+#/.test(head)) return dispatch(pages, head, areaRows)
   throw new Error('Not an Update list or a Dispatch sheet')
@@ -151,7 +188,7 @@ export async function readPlanPdf(file: File, areaRows?: PdfAreaRow[]): Promise<
     const pages: PdfItem[][] = []
     for (let n = 1; n <= doc.numPages; n++) {
       const text = await (await doc.getPage(n)).getTextContent()
-      pages.push(text.items.flatMap(i => 'str' in i && i.str.trim() ? [{ s: i.str, x: i.transform[4], y: i.transform[5] }] : []))
+      pages.push(text.items.flatMap(i => 'str' in i && i.str.trim() ? [{ s: i.str, x: i.transform[4], y: i.transform[5], w: i.width }] : []))
     }
     if (!pages.some(page => page.length)) throw new Error('This PDF has no readable text. Use a text-based export.')
     return parsePlanPdf(pages, areaRows)
