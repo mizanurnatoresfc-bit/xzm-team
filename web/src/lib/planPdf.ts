@@ -3,6 +3,7 @@
 // id leave the device — never a customer's name, phone or address.
 
 export type PdfItem = { s: string; x: number; y: number }
+export type PdfAreaRow = { id: number; text: string }
 export type PdfKind = 'update_list' | 'dispatch'
 export type ParsedPdf = {
   kind: PdfKind; doc_no: string; doc_date: string | null; hub_text: string | null; from_text: string | null
@@ -37,7 +38,7 @@ function bands(body: PdfItem[], starts: PdfItem[], above: number, lastDepth: num
 const inCol = (items: PdfItem[], from: number, to: number) => items.filter(i => i.x >= from - 2 && i.x < to - 2).sort((a, b) => b.y - a.y || a.x - b.x)
 const words = (items: PdfItem[]) => tidy(items.map(i => i.s).join(' '))
 
-function updateList(pages: PdfItem[][], head: string): ParsedPdf {
+function updateList(pages: PdfItem[][], head: string, areaRows?: PdfAreaRow[]): ParsedPdf {
   const warnings: string[] = []
   const no = head.match(/Update\s+list\s+#\s*(\d{5,12})/)
   if (!no) throw new Error('Update list number not found')
@@ -59,6 +60,7 @@ function updateList(pages: PdfItem[][], head: string): ParsedPdf {
       const line = row.items.filter(i => Math.abs(i.y - row.start.y) < 2)
       const cod = money(words(line.filter(i => i.x > t.col.CUSTOMER + 120 && i.x < t.col.OUTCOME - 2)))
       const outcome = words(inCol(row.items, t.col.OUTCOME, 9999).filter(i => row.start.y - i.y < 30)) || 'unknown'
+      if (areaRows) areaRows.push({ id: Number(row.start.s.trim()), text: words(inCol(row.items, t.col.CUSTOMER, t.col.COD)) })
       ids.push(Number(row.start.s.trim())); counts.parcels++; counts.cod_total += cod
       add(counts, statusKey(outcome))
       if (/^deliver/i.test(outcome)) counts.delivered++
@@ -75,7 +77,7 @@ function updateList(pages: PdfItem[][], head: string): ParsedPdf {
     rider_code, rider_name, counts, parcel_ids: ids, warnings }
 }
 
-function dispatch(pages: PdfItem[][], head: string): ParsedPdf {
+function dispatch(pages: PdfItem[][], head: string, areaRows?: PdfAreaRow[]): ParsedPdf {
   const warnings: string[] = []
   const no = head.match(/DISPATCH\s+#\s*(\d{5,12})\s+(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})/) ?? head.match(/DISPATCH\s+#\s*(\d{5,12})/)
   if (!no) throw new Error('Dispatch number not found')
@@ -94,6 +96,7 @@ function dispatch(pages: PdfItem[][], head: string): ParsedPdf {
     const starts = t.body.filter(i => Math.abs(i.x - t.col.PARCEL) < 3 && /^#\d{8,10}$/.test(i.s.trim()))
     for (const row of bands(t.body, starts, 6, 50)) {
       const id = Number(row.start.s.trim().slice(1))
+      if (areaRows) areaRows.push({ id, text: words(inCol(row.items, t.col.CUSTOMER, t.col.DESTINATION)) })
       const status = words(inCol(row.items, t.col.STATUS, rx).filter(i => row.start.y + 6 - i.y < 20)) || 'unknown'
       const got = words(inCol(row.items, rx, 9999))
       const received = /Rece/i.test(got) && !/^Not/i.test(got)
@@ -123,15 +126,15 @@ function dispatch(pages: PdfItem[][], head: string): ParsedPdf {
 }
 
 /** What a Steadfast panel PDF says, from its text items (page by page). Throws when it is neither an Update list nor a Dispatch sheet. */
-export function parsePlanPdf(pages: PdfItem[][]): ParsedPdf {
+export function parsePlanPdf(pages: PdfItem[][], areaRows?: PdfAreaRow[]): ParsedPdf {
   const head = (pages[0] ?? []).map(i => i.s).join(' ').replace(/\s+/g, ' ')
-  if (/Update\s+list\s+#/.test(head)) return updateList(pages, head)
-  if (/DISPATCH\s+#/.test(head)) return dispatch(pages, head)
+  if (/Update\s+list\s+#/.test(head)) return updateList(pages, head, areaRows)
+  if (/DISPATCH\s+#/.test(head)) return dispatch(pages, head, areaRows)
   throw new Error('Not an Update list or a Dispatch sheet')
 }
 
 /** Read a PDF file in the browser (the reader is loaded only when a file is picked). */
-export async function readPlanPdf(file: File): Promise<ParsedPdf> {
+export async function readPlanPdf(file: File, areaRows?: PdfAreaRow[]): Promise<ParsedPdf> {
   const pdfjs = await import('pdfjs-dist')
   const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
@@ -143,6 +146,7 @@ export async function readPlanPdf(file: File): Promise<ParsedPdf> {
       const text = await (await doc.getPage(n)).getTextContent()
       pages.push(text.items.flatMap(i => 'str' in i && i.str.trim() ? [{ s: i.str, x: i.transform[4], y: i.transform[5] }] : []))
     }
-    return parsePlanPdf(pages)
+    if (!pages.some(page => page.length)) throw new Error('This PDF has no readable text. Use a text-based export.')
+    return parsePlanPdf(pages, areaRows)
   } finally { void doc.destroy() }
 }
