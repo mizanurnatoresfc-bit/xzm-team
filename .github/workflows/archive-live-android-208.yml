@@ -1,0 +1,47 @@
+name: Archive signed Android build 208
+on:
+  push:
+    branches: [ops/archive-live-android-208]
+    paths: ['.github/workflows/archive-live-android-208.yml']
+permissions:
+  contents: write
+concurrency: archive-live-android-208
+jobs:
+  release:
+    if: github.repository == 'mizanurnatoresfc-bit/xzm-team' && github.ref == 'refs/heads/ops/archive-live-android-208'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: android-v1.208
+    steps:
+      - name: Download and verify the existing live APK
+        run: |
+          cd "$RUNNER_TEMP"
+          found=0
+          for host in https://xzmteam.com https://xzm-team-erp.netlify.app; do
+            if curl -fsSL --retry 2 --max-time 60 "$host/download/apk.json" -o apk.json &&
+              jq -e '.build == 208 and .version == "1.208" and .url == "/download/XZM-TEAM.apk"' apk.json >/dev/null &&
+              curl -fsSL --retry 2 --max-time 120 "$host/download/XZM-TEAM.apk" -o XZM-TEAM.apk; then
+              found=1
+              break
+            fi
+          done
+          test "$found" = 1
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          "$signer" verify --print-certs XZM-TEAM.apk
+          "$(dirname "$signer")/aapt" dump badging XZM-TEAM.apk > apk-badging.txt
+          grep -F "package: name='com.xzmteam.erp' versionCode='208' versionName='1.208'" apk-badging.txt
+          sha256sum XZM-TEAM.apk apk.json > SHA256SUMS
+          cat SHA256SUMS
+      - name: Publish the verified assets
+        run: |
+          cd "$RUNNER_TEMP"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            mkdir existing
+            gh release download "$TAG" --pattern XZM-TEAM.apk --pattern apk.json --dir existing
+            (cd existing && sha256sum -c ../SHA256SUMS)
+          else
+            gh release create "$TAG" XZM-TEAM.apk apk.json SHA256SUMS --target "$GITHUB_SHA" --title 'XZM TEAM Android 1.208' --notes 'Archive of the existing signed Android production build 208. The APK is unchanged.' --latest=false
+          fi
