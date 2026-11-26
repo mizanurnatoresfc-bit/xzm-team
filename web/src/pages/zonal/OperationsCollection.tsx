@@ -120,6 +120,7 @@ function HubCollection({ hub, refresh }: { hub: Hub; refresh: () => Promise<unkn
   }
   return <>
     <PlanningSuggestions hub={hub} questions={questions.error ? null : questions.data} loading={questions.loading} />
+    <RoutePlanDelegations hub={hub} recipients={recipients.data ?? []} />
     {feedback && <p role="status">{feedback}</p>}
     {hub.can_edit && <form className="panel" onSubmit={e => void submit(e, save, L('ফিক্সড গড় সংরক্ষিত।', 'Fixed averages saved.'))}>
       <h2>{L('হাবের ফিক্সড গড় বদলান', 'Edit hub averages')}</h2>
@@ -155,6 +156,63 @@ function HubCollection({ hub, refresh }: { hub: Hub; refresh: () => Promise<unkn
       </li>)}</ul>
     </section>
   </>
+}
+
+const delegationLabels: Record<string, [string, string]> = {
+  'ops.route_plan.view': ['রুট প্ল্যান দেখা', 'View route plans'],
+  'ops.route_plan.edit': ['খসড়া রুট প্ল্যান সম্পাদনা', 'Edit draft route plans'],
+  'ops.route_plan.approve': ['রুট প্ল্যান অনুমোদন, ফেরত বা পুনরায় খোলা', 'Approve, return, or reopen route plans'],
+}
+type Delegations = { permissions: string[]; grants: { id: string; name: string; permission: string; until: string | null; active: boolean }[] }
+
+function RoutePlanDelegations({ hub, recipients }: { hub: Hub; recipients: Recipient[] }) {
+  const { L } = usePrefs()
+  const q = useLoad(() => rpc<Delegations>('route_plan_delegations', { p_hub: hub.id }), [hub.id])
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState('')
+  const label = (key: string) => delegationLabels[key] ? L(...delegationLabels[key]) : key
+  const permissions = q.data?.permissions ?? []
+  async function run(action: () => Promise<unknown>, success: string) {
+    setBusy(true)
+    setFeedback('')
+    try { await action(); await q.reload(); setFeedback(success) }
+    catch (error) { setFeedback(message(error)) }
+    finally { setBusy(false) }
+  }
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    void run(() => rpc('route_plan_delegate', {
+      p_hub: hub.id, p_employee: data.get('employee'), p_permission: data.get('permission'), p_until: data.get('until') || null,
+    }), L('অনুমতি দেওয়া হয়েছে।', 'Permission granted.'))
+  }
+  if (!permissions.length) return null
+  return <section className="panel">
+    <h2>{L('রুট প্ল্যানের অনুমতি দিন', 'Delegate route plan permissions')} · {hub.name}</h2>
+    <p>{L('একবারে এই হাবের একটি অনুমতি দিন। অনুমোদনের অনুমতি দিলে রুট প্ল্যান ফেরত দেওয়া ও পুনরায় খোলাও যাবে।',
+      'Grant one permission at a time for this hub. Approval access also allows returning and reopening plans.')}</p>
+    <form onSubmit={submit}>
+      <div className="da-filters">
+        <Field label={L('কর্মী', 'Employee')}><select name="employee" required defaultValue="">
+          <option value="">{L('কর্মী বাছুন', 'Choose an employee')}</option>
+          {recipients.map(r => <option key={r.id} value={r.id}>{[r.name, r.code, r.position].filter(Boolean).join(' · ')}</option>)}
+        </select></Field>
+        <Field label={L('অনুমতি', 'Permission')}><select name="permission" required defaultValue="">
+          <option value="">{L('অনুমতি বাছুন', 'Choose a permission')}</option>
+          {permissions.map(key => <option key={key} value={key}>{label(key)}</option>)}
+        </select></Field>
+        <Field label={L('শেষ তারিখ (ঐচ্ছিক)', 'Expiry date (optional)')}><input name="until" type="date" /></Field>
+      </div>
+      <button disabled={busy || !recipients.length}>{L('অনুমতি দিন', 'Grant permission')}</button>
+    </form>
+    {feedback && <p role="status">{feedback}</p>}
+    <ul>{q.data?.grants.map(g => <li key={g.id}>
+      {g.name} · {label(g.permission)} · {g.active ? (g.until ?? L('মেয়াদ নির্ধারিত নেই', 'No expiry')) : L('মেয়াদ শেষ', 'Expired')}{' '}
+      <button type="button" className="secondary" disabled={busy} onClick={() => void run(
+        () => rpc('route_plan_revoke_delegation', { p_id: g.id }), L('অনুমতি প্রত্যাহার করা হয়েছে।', 'Permission revoked.')
+      )}>{L('প্রত্যাহার', 'Revoke')}</button>
+    </li>)}</ul>
+  </section>
 }
 
 function PlanningSuggestions({ hub, questions, loading }: { hub: Hub; questions: Question[] | null; loading: boolean }) {
