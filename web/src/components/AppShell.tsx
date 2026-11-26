@@ -24,7 +24,6 @@ import { MyFace } from './MyAvatar'
 import { menuKeys, useDialog, usePageFocus } from '../lib/a11y'
 import { secKey, useMenuLayout, type MenuLayout } from '../lib/menuLayout'
 import { ROUTE_ANY, ROUTE_PAGE } from '../lib/routeAccess'
-import { paneLink, ROUTE_MENU_PANES } from '../lib/routeModule'
 
 type Item = { to: string; icon: string; bn: string; en: string; perms: string[] | null; count?: CountKey
   /** The longer description, shown when the mouse rests on the menu row (the row itself keeps a short name). */ hint?: { bn: string; en: string }
@@ -152,7 +151,6 @@ export const ROUTES: Group = panel('routes', 'map', 'অপারেশন স�
   { bn: '', en: '', items: [
     { to: ROUTE_PAGE, icon: 'map', bn: 'রুট কেন্দ্র', en: 'Route centre', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সোর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
     { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'জোন অপারেশন', en: 'Zone Operations', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
-    ...ROUTE_MENU_PANES.map(p => ({ to: paneLink(p.id), icon: p.icon, bn: p.bn, en: p.en, hint: p.hint, perms: [...p.perms] })),
   ] },
 ])
 
@@ -432,9 +430,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   if (level === 0 && shown[0]) { shown[0].secs.push(...hrAll) }
   const hrSecs = level === 0 ? [] : hrAll
   // the same for the route module: a rider who may open their hub's routes finds the row inside their one panel
-  const routesAll = own(routesG)
-  if (level === 0 && shown[0]) { shown[0].secs.push(...routesAll) }
-  const routesSecs = level === 0 ? [] : routesAll
+  const routesSecs = own(routesG)
   const accSecs = own(accG), officeSecs = own(officeG), sortingSecs = own(sortingG), adminSecs = own(adminG)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
   // a link with ?tab=… / ?p=… is "on" only for that part; the page itself only when no part is picked
