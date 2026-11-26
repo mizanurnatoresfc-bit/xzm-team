@@ -233,8 +233,7 @@ try {
       if (u.includes('rpc/zone_feed')) return j([{ id: 'zp1', author_name: 'Zonal Karim', is_nodi: false, mine: false, kind: 'text', body: 'আজ সবাই সময়মতো রিপোর্ট দিন', photo_path: null,
         created_at: '2026-11-15T05:00:00Z', issue: null, reactions: {}, seen_count: 4, seen_by_me: false }])
       if (u.includes('rpc/zone_posts_seen')) return j(1)
-      if (u.includes('rpc/zone_contacts')) return j({ zone_id: 'z1', zone_name: 'Natore Area', zone_code: 'NAT', sent_today: 0,
-        managers: [{ profile_id: 'u3', full_name: 'Zonal Karim', employee_code: '900', position: 'Zonal Manager', phone: '01711999999', has_login: true, is_me: false }] })
+      if (u.includes('rpc/zone_contacts')) return j({ zone_id: 'z1', zone_name: 'Natore Area', zone_code: 'NAT', sent_today: 0, can_message: true })
       if (u.includes('rpc/zone_manager_tell')) { flowCalls.push({ fn: 'zone_manager_tell', ...r.request().postDataJSON() }); return j(1) }
       if (u.includes('rpc/hub_group_hubs')) return j([{ hub_id: 'h1', hub_name: 'Natore Sadar', hub_code: '80', open_issues: 3, unseen: 2 }])
       if (u.includes('rpc/issue_order_incharge_set')) return j(null)
@@ -1609,8 +1608,8 @@ try {
       check(await page.locator('.sp a.nv-row[href="/app/workforce/hand"]').count() === 1 && await page.locator('.sp a.nv-row[href="/app/workforce/given"]').count() === 1 && await page.locator('.sp .nv-row.none', { hasText: 'হাবে এসেছি' }).count() === 0, `${size}: staff panel people rows open their personal workforce pages`)
       check(await page.locator('.sp a.nv-row[href="/app/issues?tab=zone&z=z1"]', { hasText: 'জোন গ্রুপ — Natore Area' }).count() === 1 && await page.locator('.sp .sp-soon').count() === 0,
         `${size}: the zone group row opens my zone's group, with nothing left marked "soon"`)
-      await page.locator('.sp button.nv-row', { hasText: 'জোনাল ম্যানেজার — Zonal Karim' }).click(); await page.waitForSelector('.da-modal .zm-acts')
-      check(await page.locator('.da-modal a[href="tel:01711999999"]').count() === 1 && await page.locator('.da-modal a[href="https://wa.me/8801711999999"]').count() === 1, `${size}: the zonal manager sheet calls, texts and WhatsApps the right number`)
+      await page.locator('.sp button.nv-row', { hasText: 'জোনাল ম্যানেজার' }).click(); await page.waitForSelector('.da-modal textarea')
+      check(await page.locator('.da-modal a[href^="tel:"], .da-modal a[href*="wa.me"]').count() === 0 && !(await page.locator('.da-modal').innerText()).includes('Zonal Karim'), `${size}: the zonal manager sheet keeps contact details private`)
       await fits('zonal manager sheet')
       await page.locator('.da-modal textarea').fill('হাবে ফ্যান নষ্ট'); await page.locator('.da-modal-acts button').first().click(); await page.waitForTimeout(400)
       check(flowCalls.at(-1)?.fn === 'zone_manager_tell' && flowCalls.at(-1)?.p_zone === 'z1' && flowCalls.at(-1)?.p_body === 'হাবে ফ্যান নষ্ট', `${size}: a written note goes to the zonal manager`)
