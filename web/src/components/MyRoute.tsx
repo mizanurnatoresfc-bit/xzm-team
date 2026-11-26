@@ -82,6 +82,12 @@ export function MyRouteCard() {
       </div>
       {!waypoints && <p className="muted small">{L('ফেরতসহ সড়কপথের জন্য হাব ও সব স্টপের লোকেশন লাগবে।', 'A hub location and every stop location are needed for the round trip.')}</p>}
       {loop && <p className="small">{L('হাবে ফেরাসহ সড়কপথ', 'Road route including return to hub')} · {fmtKm(loop.km, fmt)} · {n(loop.minutes)} {L('মিনিট', 'min')}</p>}
+      {loop && loop.legs.length === gps.length + 1 && <details className="small">
+        <summary>{L('স্টপ ধরে সড়ক দূরত্ব দেখুন', 'Show road distance by stop')}</summary>
+        <ol>{loop.legs.map((leg, i) => <li key={i}>
+          {i === 0 ? r.hub.name : gps[i - 1].name} → {i === gps.length ? r.hub.name : gps[i].name} · {fmtKm(leg.km, fmt)} · {n(leg.minutes)} {L('মিনিট', 'min')}
+        </li>)}</ol>
+      </details>}
       {loopError?.key === loopKey && <p className="da-error" role="alert">{loopError.text}</p>}
       {!loop && !outbound.road && <p className="muted small">{L('ভাঙা লাইন স্টপের ক্রম দেখায়। সড়কপথ দেখতে ওপরের বাটন চাপুন।', 'The dashed line shows stop order. Use the button above to calculate the road route.')}</p>}
       <OsmMap pins={pins} circles={circles} lines={[{ id: 'l', color, points: loop?.path ?? outbound.points, dashed: !loop && !outbound.road, width: 4 }]}

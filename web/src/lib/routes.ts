@@ -105,17 +105,18 @@ export async function searchPlace(q: string): Promise<Array<LatLng & { name: str
 }
 
 /** Road line through the points in order (public OSRM service). Path thinned to at most 1500 points. */
-export async function roadLine(points: LatLng[]): Promise<{ km: number; minutes: number; path: Array<[number, number]> }> {
+export async function roadLine(points: LatLng[]): Promise<{ km: number; minutes: number; path: Array<[number, number]>; legs: Array<{ km: number; minutes: number }> }> {
   if (points.length < 2) throw new Error('রাস্তা আঁকতে অন্তত দুটো লোকেশন লাগে')
   const coords = points.map(p => `${p.lng},${p.lat}`).join(';')
   const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson&steps=false`)
   if (!r.ok) throw new Error('রাস্তার লাইন পাওয়া যায়নি (সার্ভার ব্যস্ত) — একটু পরে আবার চেষ্টা করুন')
-  const j = await r.json() as { code: string; routes?: Array<{ distance: number; duration: number; geometry: { coordinates: Array<[number, number]> } }> }
+  const j = await r.json() as { code: string; routes?: Array<{ distance: number; duration: number; legs?: Array<{ distance: number; duration: number }>; geometry: { coordinates: Array<[number, number]> } }> }
   const rt = j.routes?.[0]
   if (j.code !== 'Ok' || !rt) throw new Error('এই লোকেশনগুলোর মধ্যে রাস্তা পাওয়া যায়নি')
   let pts = rt.geometry.coordinates.map(([lng, lat]) => [+lat.toFixed(5), +lng.toFixed(5)] as [number, number])
   if (pts.length > 1500) { const step = pts.length / 1500; pts = Array.from({ length: 1500 }, (_, i) => pts[Math.floor(i * step)]).concat([pts[pts.length - 1]]) }
-  return { km: +(rt.distance / 1000).toFixed(2), minutes: Math.round(rt.duration / 60), path: pts }
+  return { km: +(rt.distance / 1000).toFixed(2), minutes: Math.round(rt.duration / 60), path: pts,
+    legs: (rt.legs ?? []).map(leg => ({ km: +(leg.distance / 1000).toFixed(2), minutes: Math.round(leg.duration / 60) })) }
 }
 
 export const STOP_KIND: Record<StopKind, { bn: string; en: string }> = {
