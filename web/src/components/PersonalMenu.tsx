@@ -92,7 +92,7 @@ const ITEMS = [
  * Shown to everyone with an active staff profile (all three). A login without a staff profile that still has an employee id
  * gets the two people lists; a login with neither gets nothing. The attendance entry carries a badge: days still to give + days returned.
  */
-export function PersonalMenu({ variant = 'card', onNavigate }: { variant?: 'card' | 'side'; onNavigate?: () => void }) {
+export function PersonalMenu({ variant = 'card', hideAttendance = false, onNavigate }: { variant?: 'card' | 'side'; hideAttendance?: boolean; onNavigate?: () => void }) {
   const { L, n } = usePrefs()
   const { session } = useAuth()
   const user = session?.user.id ?? ''
@@ -104,6 +104,7 @@ export function PersonalMenu({ variant = 'card', onNavigate }: { variant?: 'card
   const count = !settled ? null : mine ? 3 : hasEmployee === null ? null : hasEmployee ? 2 : 0
   useEffect(() => { if (count !== null && user) rememberCount(user, count) }, [count, user])
   const items = ITEMS.slice(0, count ?? (user ? lastCount(user) : null) ?? 0)
+    .filter(item => !hideAttendance || item.key !== 'attendance')
   if (!items.length) return null
   const waiting = mine ? mine.missing_days + mine.returned_days : 0
   const badge = (key: string) => (key === 'attendance' && waiting > 0 ? waiting : 0)
