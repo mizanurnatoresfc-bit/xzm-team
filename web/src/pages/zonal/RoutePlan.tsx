@@ -5,7 +5,7 @@ import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { MorningBanner } from '../workforce/Morning'
 import {
-  capacityOf, capacityToday, doesPickup, isHere, planApi, planFriendly, spreadRoutes, suggestPlan,
+  capacityOf, capacityToday, doesPickup, isHere, nearbyRouteRoadKm, planApi, planFriendly, spreadRoutes, suggestPlan,
   type CapSource, type MyParcels, type PlanFile, type PlanFiles, type PickupMode, type PlanData, type PlanHub, type PlanPart, type PlanPerson, type PlanRules, type PlanSave, type PlanStatus, type PlanTip, type StaffSetup,
 } from '../../lib/routePlan'
 
@@ -96,6 +96,9 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
   const files = useLoad(() => planApi.files(hub, date), [hub, date])
   const [f, setF] = useState<Form | null>(null)
   const [tips, setTips] = useState<PlanTip[]>([])
+  const [road, setRoad] = useState<{ plan: PlanData; km: Awaited<ReturnType<typeof nearbyRouteRoadKm>> } | null>(null)
+  const [roadBusy, setRoadBusy] = useState(false)
+  const [roadError, setRoadError] = useState('')
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
   const [setup, setSetup] = useState(false); const [add, setAdd] = useState('')
@@ -126,6 +129,22 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
   const routeName = (id?: string | null) => { const r = data.routes.find(x => x.id === id); return r ? r.code : L('রুট ছাড়া', 'No route') }
   const who = (id?: string | null) => data.people.find(p => p.id === id)?.name ?? ''
 
+  const roadKm = road?.plan === data ? road.km : undefined
+  async function loadDistances() {
+    if (!data || roadBusy) return
+    setRoadBusy(true); setRoadError('')
+    try {
+      const km = await nearbyRouteRoadKm(data.routes)
+      if (Object.keys(km).length < 2) {
+        setRoadError(L('সড়ক দূরত্বের জন্য অন্তত দুই রুটে লোকেশন দিন।', 'Add a stop location to at least two routes.'))
+        return
+      }
+      setRoad({ plan: data, km })
+    } catch {
+      setRoadError(L('সড়ক দূরত্ব আনা যায়নি। আবার চেষ্টা করুন।', 'Could not load road distances. Try again.'))
+    } finally { setRoadBusy(false) }
+  }
+
   function suggest() {
     if (todo === null || todo <= 0) return setErr(L('আগে লিখুন আজ হাবে কয়টা পার্সেল এসেছে।', 'First type how many parcels reached the hub today.'))
     setErr('')
@@ -135,7 +154,7 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
     const typedPick = people.some(p => (int(f!.rows[p.id].pickups) ?? 0) > 0)
     const each = !typedPick && pickers.length ? (int(f!.pickups) ?? 0) / pickers.length : 0
     const pickups = Object.fromEntries(people.map(p => [p.id, typedPick ? int(f!.rows[p.id].pickups) ?? 0 : pickers.includes(p) ? Math.round(each) : 0]))
-    const s = suggestPlan(data!, { toDeliver: todo, routeParcels: routes, present: Object.fromEntries(people.map(p => [p.id, f!.rows[p.id].present])), pickups, extra: people.map(p => p.id) })
+    const s = suggestPlan(data!, { toDeliver: todo, routeParcels: routes, present: Object.fromEntries(people.map(p => [p.id, f!.rows[p.id].present])), pickups, extra: people.map(p => p.id), roadKm })
     const rows = { ...f!.rows }
     for (const p of people) { const r = s.rows[p.id]; if (r) rows[p.id] = { ...rows[p.id], kind: r.kind, parcels: String(r.parcels), detail: r.detail, capacity: r.capacity, pickups: pickups[p.id] ? String(pickups[p.id]) : '' } }
     setF({ ...f!, rows, routes: Object.fromEntries(Object.entries(routes).map(([k, v]) => [k, v ? String(v) : ''])), unassigned: s.unassigned })
@@ -228,7 +247,14 @@ function HubPlan({ hub, date, toast, onChanged }: { hub: string; date: string; t
 
     <section className="panel">
       <div className="da-bar"><h2>{L('কে কয়টা নেবেন', 'Who takes how many')}</h2>
-        {canWrite && <button onClick={suggest}><Icon name="chart" size={15} />{L('পরামর্শ বসান', 'Fill the suggestion')}</button>}</div>
+        {canWrite && <>
+          <button type="button" className="secondary" disabled={roadBusy} onClick={() => { if (roadKm) setRoad(null); else void loadDistances() }}>
+            {roadBusy ? L('সড়ক দূরত্ব আনা হচ্ছে…', 'Loading road distances…') : roadKm ? L('সড়ক দূরত্ব বন্ধ', 'Turn off road distances') : L('সড়ক দূরত্ব আনুন', 'Load road distances')}
+          </button>
+          <button onClick={suggest} disabled={roadBusy}><Icon name="chart" size={15} />{roadKm ? L('সড়ক দূরত্ব ধরে পরামর্শ বসান', 'Fill road-distance suggestion') : L('পরামর্শ বসান', 'Fill the suggestion')}</button>
+        </>}</div>
+      {roadError && <p className="da-error" role="alert">{roadError}</p>}
+      {roadKm && <p className="rt-hint">{L('পাশের রুট বাছাইয়ে প্রতিটি রুটের প্রথম লোকেশনযুক্ত স্টপের মধ্যকার সড়ক দূরত্ব ধরা হবে। যেসব রুটের সড়ক দূরত্ব পাওয়া যায়নি, সেগুলো পাশের রুট হিসেবে ধরা হবে না।', 'Nearby routes are ranked by road distance between their first located stops. Routes without a measured distance are excluded from nearby coverage.')}</p>}
       <p className="rt-hint">{L(`পরামর্শ: প্রতিটা রুটের পার্সেল তার রাইডারদের সামর্থ্য অনুযায়ী ভাগ হয়। কেউ না এলে তাঁর ভাগ যায় — একই রুটের রাইডার → রুট ছাড়া রাইডার → পাশের রুটের রাইডার (${n(data.rules.near_km)} কিমির মধ্যে) → হাবের অন্য স্টাফ → শেষে সামর্থ্যের ${n(data.rules.over_pct)}% পর্যন্ত। সংখ্যা নিজে বদলাতে পারেন; সিস্টেম নিজে কিছু চূড়ান্ত করে না।`,
         `Suggestion: a route's parcels are shared by what its riders can take. An absent rider's part goes to the same route, riders without a route, the nearest routes (within ${data.rules.near_km} km), other hub staff, then up to ${data.rules.over_pct}% of capacity. You may change every number; nothing is final by itself.`)}</p>
       {tips.length > 0 && <ul className="rt-warn" style={{ padding: 0, margin: '10px 0' }}>{tips.map((t, i) => <li key={i} className={t.kind === 'unassigned' ? 'bad' : t.kind === 'cover' && t.to.length ? '' : 'warn'}>{tipText(t)}</li>)}</ul>}
