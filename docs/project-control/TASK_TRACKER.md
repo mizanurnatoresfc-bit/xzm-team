@@ -580,7 +580,7 @@
 | Acceptance Criteria | Shared header, per-user persistence, safe switching, server-enforced access and verified web/Android module coverage |
 | Test Evidence | TEST_REPORT.md, XZM-012 |
 | Owner Approval | ✅ Development approved in the XZM-012 request |
-| Commit / PR Link | `fix/xzm-012-hub-switching` |
+| Commit / PR Link | `6506ef3` / [Draft #219](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/219) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
 | Blockers | Data Entry development is in #207. Complete module authorization verification needs an isolated database and Android runtime. |

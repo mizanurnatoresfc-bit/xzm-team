@@ -110,6 +110,7 @@ try {
     await ctx.addInitScript(({ key, data }) => { localStorage.setItem(key, data) }, { key: authStorageKey, data: JSON.stringify(session) })
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
+    let authenticatedUser = session.user
     let permittedHubs = hubRows
     let scopedGrants = null
     let morningDone = false
@@ -166,7 +167,13 @@ try {
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
       const j = d => r.fulfill({ status: 200, contentType: 'application/json', headers: { ...cors, 'content-range': '0-0/0' }, body: JSON.stringify(d) })
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
-      if (u.includes('/auth/v1/user')) return j(session.user)
+      if (u.includes('/auth/v1/user')) return j(authenticatedUser)
+      if (u.includes('/auth/v1/logout')) return r.fulfill({ status: 204, headers: cors })
+      if (u.includes('/functions/v1/auth-login') && r.request().postDataJSON()?.email === 'second@example.test') {
+        authenticatedUser = { ...session.user, id: 'u2', email: 'second@example.test', user_metadata: { full_name: 'Second user' } }
+        const token = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'u2', role: 'authenticated', exp: 4102444800 })}.sig`
+        return j({ access_token: token, refresh_token: 'second-fixture-refresh' })
+      }
       if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
       if (u.includes('rpc/my_permissions') && scopedGrants) return j(scopedGrants)
       if (u.includes('rpc/my_permissions') && permsNow) return j(permsNow.map(c => ({ permission_code: c, scope_type: 'global', zone_id: null, hub_id: null, is_super: false })))
@@ -582,6 +589,19 @@ try {
           await workHub.selectOption('h1')
         }
       }
+      scopedGrants = null
+      permittedHubs = hubRows
+      await page.evaluate(() => localStorage.setItem('xzm_work_hub:u2', 'h2'))
+      await page.getByRole('button', { name: 'প্রোফাইল মেনু' }).click()
+      await page.getByRole('menuitem', { name: 'লগআউট' }).click()
+      await page.waitForURL(/\/staff\/login/)
+      check(await workHub.count() === 0, `${size}: logout removes the working hub selector`)
+      await page.getByRole('textbox', { name: 'এমপ্লয়ি আইডি, মোবাইল বা ইমেইল' }).fill('second@example.test')
+      await page.getByLabel('পাসওয়ার্ড', { exact: true }).fill('fixture-password')
+      await page.getByRole('button', { name: 'সাইন ইন', exact: true }).click()
+      await workHub.waitFor()
+      check(await workHub.inputValue() === 'h2' && await page.evaluate(() => localStorage.getItem('xzm_work_hub:u1')) === 'h1',
+        `${size}: the next account loads its own saved hub while preserving the previous preference`)
       await ctx.close()
       continue
     }
