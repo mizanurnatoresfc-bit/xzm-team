@@ -2,7 +2,7 @@
 begin;
 set local time zone 'Asia/Dhaka';
 create or replace function private.data_entry_shift_now() returns timestamptz
-language sql stable set search_path='' as $ select (current_date + time '21:00') at time zone 'Asia/Dhaka' $;
+language sql stable set search_path='' as $clock$ select (current_date + time '21:00') at time zone 'Asia/Dhaka' $clock$;
 select tests.fixture();
 select tests.hr_fixture();
 insert into tests.ids values

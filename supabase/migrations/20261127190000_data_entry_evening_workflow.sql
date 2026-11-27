@@ -1,9 +1,4 @@
 -- Simplified Data Entry workflow. Reuses the existing team, target engine and audit trail.
-insert into public.role_permissions (role_id, permission_id)
-select r.id, p.id from public.roles r cross join public.permissions p
-where r.code = 'zonal_manager' and p.code = 'data_entry.team.edit'
-on conflict do nothing;
-
 create table private.data_entry_heads (
   hub_id uuid primary key references public.hubs(id),
   employee_id uuid not null references public.employees(id),
@@ -232,8 +227,8 @@ begin
           select snapshot->'workers'->target::text worker from private.data_entry_target_runs
           where hub_id=p_hub and work_date=p_day order by id desc limit 1
         ) latest where latest.worker->>'attendance' in ('present','late','half_day') and (
-         owner or (latest.worker->'actual_remaining'->>'parcels')::integer=0))
-    then raise exception 'Choose an available worker in the current shift; a Head may assign only when the target is complete' using errcode = '22023'; end if;
+         (owner and coalesce((p_values->>'override')::boolean,false)) or (latest.worker->'actual_remaining'->>'parcels')::integer=0))
+    then raise exception 'Choose an available worker with zero remaining quota, or use an explicit Zonal Manager exception' using errcode = '22023'; end if;
     if duration is null or duration>day_window.open_minutes-day_window.elapsed then
       raise exception 'Duty must fit within the time remaining in this shift' using errcode = '22023';
     end if;

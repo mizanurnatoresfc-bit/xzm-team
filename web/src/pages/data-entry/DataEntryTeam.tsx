@@ -37,11 +37,11 @@ export function DataEntryTeam({ page = 'team' }: { page?: EntryPage }) {
   const [selection, setSelection] = useState('')
   const zone = zones.data?.find(item => item.id === selection) ?? zones.data?.[0]
 
-  if (preview) return <AppShell title={L(...dataEntryPages[page])}>
+  if (preview) return <AppShell title={L(dataEntryPages[page][0], dataEntryPages[page][1])}>
     <p>{L('টিম পরিচালনার জন্য নিজের অ্যাকাউন্টের ভিউতে ফিরুন।', 'Return to your own account view to manage the team.')}</p>
   </AppShell>
 
-  return <AppShell title={L(...dataEntryPages[page])}>
+  return <AppShell title={L(dataEntryPages[page][0], dataEntryPages[page][1])}>
     {zones.loading && <p role="status">{L('জোন লোড হচ্ছে…', 'Loading zones…')}</p>}
     {zones.error ? <p className="da-error" role="alert">{errorText(zones.error)}</p> : null}
     {!zones.loading && !zones.error && !zone && <p>{L('এই টিম পরিচালনার জন্য কোনো জোনে আপনার অনুমতি নেই।', 'You do not have access to manage this team in a zone.')}</p>}

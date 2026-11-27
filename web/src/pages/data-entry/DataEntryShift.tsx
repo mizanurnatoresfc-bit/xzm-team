@@ -65,7 +65,7 @@ const numberValue = (data: FormData, key: string) => {
 }
 const fieldValue = (data: FormData, key: string) => String(data.get(key) ?? '')
 
-function ActionForm({ onSave, children, label }: { onSave: (data: FormData) => Promise<void>; children: ReactNode; label?: string }) {
+function ActionForm({ onSave, children, label }: { onSave: (data: FormData) => Promise<void>; children?: ReactNode; label?: string }) {
   const { L } = usePrefs()
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -158,10 +158,12 @@ function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; de
     </li>)}</ul>}
     {(page === 'team' || delegated) && data.can_assign && <>
       {data.running && <details><summary>{L('অতিরিক্ত দায়িত্ব দিন', 'Assign an extra duty')}</summary>
-        <ActionForm onSave={form => save('assign_duty',{member_id:fieldValue(form,'member'),kind:fieldValue(form,'kind'),entry_minutes:numberValue(form,'minutes'),note:fieldValue(form,'note')})}>
+        <ActionForm onSave={form => save('assign_duty',{member_id:fieldValue(form,'member'),kind:fieldValue(form,'kind'),entry_minutes:numberValue(form,'minutes'),note:fieldValue(form,'note'),override:form.has('override')})}>
           <Choose name="member" label={L('কর্মী', 'Employee')} choices={data.team.filter(p => data.is_owner || p.remaining === 0)} />
           <Choose name="kind" label={L('দায়িত্ব', 'Duty')} choices={labels(dutyNames)} />
           <Count name="minutes" label={L('সময় (মিনিট)', 'Time in minutes')} min={1} max={480} />
+          {data.is_owner && <label className="data-entry-check"><input type="checkbox" name="override" />
+            {L('বিশেষ প্রয়োজনে মূল টার্গেট বাকি থাকলেও দায়িত্ব দিন', 'Allow an exception when the base quota remains')}</label>}
           <Notes label={L('কারণ বা নির্দেশনা', 'Reason or instruction')} required />
         </ActionForm>
       </details>}
@@ -320,7 +322,7 @@ function OwnShift() {
     {!!state.data?.heads.length && <details><summary>Data Entry Head</summary>
       <DataEntryShiftHub hubs={state.data.heads} page="live" delegated />
     </details>}
-    {popup && popup.next_slot && <Modal key={hubKey(popup)}
+    {popup && popup.next_slot && <Modal key={hubKey(popup)} actions={null}
       title={popup.name + ' · ' + L(...stages[popup.next_slot-1])}
       onClose={() => setDismissed(items => [...items,hubKey(popup)])}>
       <p>{L('এই হাবে শিফটের শুরু থেকে এখন পর্যন্ত মোট সংখ্যা দিন।', 'Enter totals for this hub since the start of this shift.')}</p>

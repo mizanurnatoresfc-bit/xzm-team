@@ -17,11 +17,16 @@ with morning as (
   values(tests.id('hub_a1'),tests.id('zone_a'),current_date,'submitted','manager',now()) returning id
 )
 insert into public.wf_morning_lines(sub_id,employee_id,state)
-select morning.id,tests.id(id), 'present' from morning cross join unnest(array['evening_a','evening_b']) id;
+select morning.id,tests.id(person.key), 'present' from morning cross join unnest(array['evening_a','evening_b']) person(key);
 with merchant as (
   insert into public.merchants(code,name,hub_id) values('EV1','Evening Merchant',tests.id('hub_a1')) returning id
 )
 insert into tests.ids select 'evening_merchant',id from merchant;
+
+insert into public.role_permissions (role_id, permission_id)
+select r.id, p.id from public.roles r cross join public.permissions p
+where r.code = 'zonal_manager' and p.code = 'data_entry.team.edit'
+on conflict do nothing;
 
 select tests.login(tests.id('hub_mgr'));
 select tests.throws(format('select public.data_entry_shift_control(%L,null)', tests.id('hub_a1')),
@@ -93,6 +98,11 @@ select public.data_entry_shift_action(tests.id('hub_a1'),current_date,'limit',
   jsonb_build_object('member_id',tests.id('evening_member_a'),'maximum',44));
 select tests.ok(public.data_entry_shift_control(tests.id('hub_a1'),null)#>>'{team,0,remaining}'='0',
   'manager cap preserves 44 verified entries and gives that worker no new allocation');
+select public.data_entry_shift_action(tests.id('hub_a1'),current_date,'availability',
+  jsonb_build_object('member_id',tests.id('evening_member_b'),'state','absent','note','Away for the evening'));
+select tests.ok(public.data_entry_shift_control(tests.id('hub_a1'),null)#>>'{team,1,attendance}'='absent'
+  and public.data_entry_shift_control(tests.id('hub_a1'),null)->>'unassigned'='76',
+  'evening absence removes the only remaining available allocation and preserves verified completed work');
 select tests.ok(public.data_entry_shift_control(tests.id('hub_a1'),null)#>>'{performance,0,correct}'='44',
   'verified closing report feeds the performance profile');
 select tests.ok(public.data_entry_shift_control(tests.id('hub_a1'),null)#>'{performance,1,accuracy}'='null'::jsonb,
