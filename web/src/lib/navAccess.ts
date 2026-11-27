@@ -104,6 +104,7 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/nodi/chat': ['nodi.assistant.view', 'nodi.settings.configure'],
   '/app/rollout': ['hr.employee.view'],
   '/app/branding': ['system.settings.configure'],
+  '/app/data-entry/team': ['data_entry.team.edit'],
   '/app/menu': ['system.settings.configure'],
   '/app/menu-roles': ['system.role.edit'],
   '/app/role-dashboards': ['system.role.edit'],

@@ -1,0 +1,11 @@
+.data-entry-panel { margin-block: 1rem; }
+.data-entry-panel fieldset { min-width: 0; margin: 0 0 1rem; }
+.data-entry-panel fieldset:disabled { opacity: .75; }
+.data-entry-field { display: grid; gap: .35rem; margin-block: .5rem; max-width: 28rem; }
+.data-entry-field > :is(input, select) { width: 100%; min-height: 44px; }
+.data-entry-search, .data-entry-actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: end; }
+.data-entry-search .data-entry-field { flex: 1 1 15rem; margin: 0; }
+.data-entry-search { margin-block-end: .65rem; }
+.data-entry-check { display: flex; align-items: center; gap: .65rem; min-height: 44px; }
+.data-entry-member { padding-block: .65rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem; }
+.data-entry-panel button { min-height: 44px; }

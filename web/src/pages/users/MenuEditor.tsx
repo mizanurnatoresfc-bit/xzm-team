@@ -1,7 +1,7 @@
 import { askConfirm } from '../../components/ask'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
-import { ACCOUNTS, ADMIN, AppShell, GROUPS, HOME, HR, NEW_UNTIL, OFFICE, ROUTES, SORTING, type MenuGroup, type MenuItem } from '../../components/AppShell'
+import { ACCOUNTS, ADMIN, AppShell, DATA_ENTRY, GROUPS, HOME, HR, NEW_UNTIL, OFFICE, ROUTES, SORTING, type MenuGroup, type MenuItem } from '../../components/AppShell'
 import { hasIcon, Icon, ICON_NAMES } from '../../components/Icon'
 import { useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
@@ -10,7 +10,7 @@ import { cleanLayout, EMPTY_LAYOUT, loadMenuLayout, saveMenuLayout, secKey, type
 /** The panels in the order the sidebar shows them; the two home rows are a panel of their own here. */
 const PANELS: MenuGroup[] = [
   { key: 'home', icon: 'dash', bn: 'উপরের সারি', en: 'Top rows', secs: [{ bn: '', en: '', items: HOME }], items: HOME },
-  ACCOUNTS, HR, OFFICE, ROUTES, SORTING, ...GROUPS, ADMIN,
+  ACCOUNTS, HR, OFFICE, ROUTES, SORTING, DATA_ENTRY, ...GROUPS, ADMIN,
 ]
 
 /** Rows of one section in the saved order (hidden rows stay in the list so they can be shown again). */
