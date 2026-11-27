@@ -6,6 +6,9 @@
 
 ## 2026-11-27
 
+- **XZM-004R:** Central Documentation Recovery & Synchronization — consolidated `docs/project-control-init` + `docs/xzm-005-task-tracker` + durable `claude/*` reports। নতুন ফাইল: `RISK_REGISTER.md`, `audits/XZM-006_BACKUP_RECOVERY.md`, `audits/XZM-007AB-3_BATCH3_ZONAL_DUTY_AUDIT.md`, `audits/XZM-007AB-3_BATCH3_CORRECTION.md`। `TASK_TRACKER.md`-এ XZM-006..017 যোগ। `AI_HANDOVER.md` verified-environment snapshot + risks + in-flight tasks। Owner decision: `docs/project-control/` = single source of truth; `claude/` = scratch। Draft PR, docs-only (web/**, supabase/** CI trigger নয়)।
+- **XZM-007A/B-3:** Batch 3 Zonal Management & Employee Duty Audit (read-only at HEAD `2836a07`) — 29-item matrix, 5 gap items, 3 new findings, 3 folder-hygiene findings। Correction report after ChatGPT review।
+- **XZM-006:** Backup & Recovery Verification (read-only) — 18-asset matrix, 14-migration drift, 7 recovery scenarios, 8 action items। CRITICAL: Android signing key single-point-of-failure flagged।
 - **XZM-005:** `TASK_TRACKER.md` 15-field schema + 14 categories + XZM-001…009 records; `AI_HANDOVER.md` section 4.1 (Shared Task Tracker) added। Separate branch + Draft PR।
 - **XZM-004:** `docs/project-control/` ফোল্ডার তৈরি — PROJECT_MASTER, PROJECT_CONNECTIONS, CURRENT_SYSTEM_MAP, COMPANY_RULES, REPORT_FORMATS, REQUIREMENTS, TASK_TRACKER, DECISION_LOG, AUDIT_REPORT, BUG_REGISTER, TEST_REPORT, CHANGELOG, DEPLOYMENT_LOG, AI_HANDOVER — 14 ফাইল seed। Existing `docs/` অপরিবর্তিত।
 - **XZM-003 (partial):** GitHub + Supabase connection verified; Netlify / Cloudflare / Figma+Subframe pending।
