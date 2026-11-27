@@ -21,6 +21,7 @@ const SETUP: Array<[bn: string, en: string, minimum: Level, rows: Row[]]> = [
     ['/app/users', 'key', 'ইউজার ও রোল দেওয়া', 'Users & their roles', ['system.user.view']],
     ['/app/roles', 'shield', 'রোল ও অনুমতি', 'Roles & permissions', ['system.role.view']],
     ['/app/role-dashboards', 'chart', 'রোল অনুযায়ী ড্যাশবোর্ড', 'Dashboard by role', ['system.role.edit']],
+    ['/app/menu-roles', 'menu', 'রোল অনুযায়ী মেনু', 'Menu by role', ['system.role.edit']],
     ['/app/branding', 'form', 'নাম, লোগো ও রঙ', 'Name, logo & colour', ['system.settings.configure']],
     ['/app/nodi', 'gear', 'নদী AI (API ও সীমা)', 'Nodi AI (API & limits)', ['nodi.settings.configure']],
   ]],

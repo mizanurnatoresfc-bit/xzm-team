@@ -49,6 +49,7 @@ const RoleDashboards = lazy(() => import('./pages/users/RoleDashboards').then(m 
 const NodiChat = lazy(() => import('./pages/nodi/NodiChat').then(m => ({ default: m.NodiChat })))
 const NodiSettings = lazy(() => import('./pages/users/NodiSettings').then(m => ({ default: m.NodiSettings })))
 const BrandingSettings = lazy(() => import('./pages/users/BrandingSettings').then(m => ({ default: m.BrandingSettings })))
+const RoleMenuMatrix = lazy(() => import('./pages/users/RoleMenuMatrix').then(m => ({ default: m.RoleMenuMatrix })))
 const MenuEditor = lazy(() => import('./pages/users/MenuEditor').then(m => ({ default: m.MenuEditor })))
 const MyProfileComplete = lazy(() => import('./pages/MyProfileComplete').then(m => ({ default: m.MyProfileComplete })))
 const MyProfile = lazy(() => import('./pages/MyProfile').then(m => ({ default: m.MyProfile })))
@@ -118,6 +119,7 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/users/NodiSettings', () => import('./pages/users/NodiSettings')],
   ['./pages/users/BrandingSettings', () => import('./pages/users/BrandingSettings')],
   ['./pages/users/MenuEditor', () => import('./pages/users/MenuEditor')],
+  ['./pages/users/RoleMenuMatrix', () => import('./pages/users/RoleMenuMatrix')],
   ['./pages/MyProfileComplete', () => import('./pages/MyProfileComplete')],
   ['./pages/MyProfile', () => import('./pages/MyProfile')],
   ['./pages/hub/HubManagement', () => import('./pages/hub/HubManagement')],
@@ -306,6 +308,7 @@ export default function App() {
       <Route path="/app/nodi" element={<NodiSettings />} />
       <Route path="/app/branding" element={<BrandingSettings />} />
       <Route path="/app/menu" element={<MenuEditor />} />
+      <Route path="/app/menu-roles" element={<RoleMenuMatrix />} />
       <Route path="/app/accounts/reports" element={<AccountsReports />} />
       <Route path="/app/accounts/settings" element={<AccountsSettings />} />
       <Route path="/secure-control" element={<Dashboard />} />

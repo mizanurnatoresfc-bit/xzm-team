@@ -105,6 +105,7 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/rollout': ['hr.employee.view'],
   '/app/branding': ['system.settings.configure'],
   '/app/menu': ['system.settings.configure'],
+  '/app/menu-roles': ['system.role.edit'],
   '/app/role-dashboards': ['system.role.edit'],
   '/app/roles': ['system.role.view'],
   '/app/access': ['system.role.view'],
