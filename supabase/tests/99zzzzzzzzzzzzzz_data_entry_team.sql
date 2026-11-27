@@ -6,14 +6,9 @@ insert into tests.ids values
 
 select tests.login_anon();
 select tests.throws('select public.data_entry_team_zones()', 'anonymous cannot list zones', '42501');
-select tests.login(tests.id('zonal_a'));
-select tests.ok((select count(*) = 0 from public.data_entry_team_zones()), 'existing roles have no automatic grant');
+select tests.login(tests.id('hub_mgr'));
+select tests.ok((select count(*) = 0 from public.data_entry_team_zones()), 'Hub Managers have no default control grant');
 select tests.logout();
-
--- The role grant in this fixture applies only within the transaction.
-insert into public.role_permissions (role_id, permission_id)
-select r.id, p.id from public.roles r cross join public.permissions p
-where r.code = 'zonal_manager' and p.code = 'data_entry.team.edit';
 
 select tests.login(tests.id('zonal_a'));
 select tests.ok((select array_agg(id) = array[tests.id('zone_a')] from public.data_entry_team_zones()), 'zonal manager can list only their zone');

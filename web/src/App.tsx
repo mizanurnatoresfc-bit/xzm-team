@@ -262,7 +262,12 @@ export default function App() {
       <Route path="/app/office/residential/:section" element={<Office key="residential" scope="residential" />} />
       <Route path="/app/issues" element={<Issues />} />
       <Route path="/app/fleet" element={<Fleet />} />
-      <Route path="/app/data-entry/team" element={<DataEntryTeam />} />
+      <Route path="/app/data-entry/live" element={<DataEntryTeam page="live" />} />
+      <Route path="/app/data-entry/team" element={<DataEntryTeam page="team" />} />
+      <Route path="/app/data-entry/targets" element={<DataEntryTeam page="targets" />} />
+      <Route path="/app/data-entry/reports" element={<DataEntryTeam page="reports" />} />
+      <Route path="/app/data-entry/updates" element={<DataEntryTeam page="updates" />} />
+      <Route path="/app/data-entry/performance" element={<DataEntryTeam page="performance" />} />
       <Route path="/app/fleet/mine" element={<FleetMine />} />
       {/* the old vehicle pages were replaced by /app/fleet (owner, 16 Nov) */}
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />

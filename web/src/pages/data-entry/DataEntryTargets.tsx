@@ -11,15 +11,15 @@ type Allocation = { parcels: number; capacity: number; share: number }
 type Totals = { assignable: number; total_capacity: number; unassigned: number }
 type History = { id: number; recorded_at: string; reason: string; forecast_pickups?: number | null; actual_pickups?: number | null; forecast_target: number | null; actual_remaining: number | null }
 type Summary = {
-  forecast_pickups: number | null; forecast_sample_days: number
-  forecast_days: { date: string; verified_parcels: number | null }[]
+  forecast_pickups: number | null; forecast_sample_days: number; forecast_work_points: number | null
+  forecast_days: { date: string; verified_parcels: number | null; merchants?: number | null; source?: string | null }[]
   actual_pickups: number | null; actual_merchants: number; complex_parcels: number | null
   actual_work_points: number | null; verified_completed: number
   forecast_summary: Totals; actual_summary: Totals | null
 }
 type Detail = {
   attendance: string; hub_count: number; working_minutes: number | null; break_minutes: number | null
-  duty_minutes: number; entry_minutes: number; duty_detail: Record<string, number>
+  duty_minutes: number; assigned_duty_minutes?: number; daily_limit?: number | null; entry_minutes: number; duty_detail: Record<string, number>
   forecast_hub_minutes: number | null; remaining_hub_minutes: number | null; worked_minutes: number
   parcel_rate: number | null; point_rate: number | null; parcel_rate_source: string; point_rate_source: string
   parcel_sample_days: number; parcel_sample_minutes: number; point_sample_days: number; point_sample_minutes: number
@@ -47,17 +47,12 @@ export function MyDataEntryTarget() {
 
 function OwnTargets() {
   const { L } = usePrefs()
-  const [today, setToday] = useState(dhakaDay)
-  const targets = useLoad(() => targetRpc<Report[]>('data_entry_target_mine', { p_day: today }), [today])
+  const targets = useLoad(() => targetRpc<Report[]>('data_entry_target_mine', { p_day: null }), [])
   const { reload } = targets
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      const date = dhakaDay()
-      if (date === today) void reload()
-      else setToday(date)
-    }, 60_000)
+    const timer = window.setInterval(() => void reload(), 60_000)
     return () => window.clearInterval(timer)
-  }, [today, reload])
+  }, [reload])
   if (!targets.data?.length) return null
   return <section className="panel data-entry-panel">
     <h2>{L('আজকের ডাটা এন্ট্রি টার্গেট', 'Today’s data entry target')}</h2>
@@ -77,6 +72,10 @@ const attendanceNames: Record<string, [string, string]> = {
   weekly_off: ['সাপ্তাহিক ছুটি', 'Weekly off'], pending: ['হাজিরা নিশ্চিত হয়নি', 'Attendance pending'],
 }
 const reasonNames: Record<string, [string, string]> = {
+  limit: ['জোনাল ম্যানেজার সীমা বদলেছেন', 'Zonal Manager changed the limit'],
+  seed_pickups: ['শুরুর পিকআপ তথ্য বদলেছে', 'Opening pickup history changed'],
+  shift_report_verified: ['শিফট রিপোর্ট যাচাই হয়েছে', 'Shift report verified'],
+  extra_duty_assigned: ['অতিরিক্ত দায়িত্ব দেওয়া হয়েছে', 'Extra duty assigned'],
   first_calculation: ['প্রথম হিসাব', 'First calculation'],
   verified_pickup_changed: ['যাচাইকৃত পিকআপ বদলেছে', 'Verified pickup changed'],
   verified_history_changed: ['যাচাইকৃত পিকআপের ইতিহাস বদলেছে', 'Verified pickup history changed'],
@@ -98,15 +97,15 @@ function TargetExplanation({ report }: { report: Report }) {
   const show = (value: number | string | null | undefined) => value == null ? '—' : typeof value === 'number' ? n(value) : value
   const localized = (dict: Record<string, [string, string]>, key: string | number | null) => key && dict[key] ? L(...dict[key]) : '—'
   return <section>
-    <h3>{report.hub}</h3>
+    <h3>{report.hub} · {report.date}</h3>
     {!report.enabled && <p>{L('এই হাবে অটো বণ্টন বন্ধ। এখানে সর্বশেষ হিসাবের ইতিহাস দেখা যাচ্ছে।', 'Automatic distribution is paused at this hub. The last calculation is shown for reference.')}</p>}
     <p>{L('সম্ভাব্য টার্গেট', 'Forecast target')} <strong>{show(w?.forecast?.parcels)}</strong>
       {' · '}{L('প্রকৃত বরাদ্দ বাকি', 'Actual allocation remaining')} <strong>{show(w?.actual_remaining?.parcels)}</strong>
       {' · '}{L('যাচাইকৃত সম্পন্ন', 'Verified complete')} <strong>{show(w?.completed)}</strong></p>
     <details>
       <summary>{L('আমাকে কেন এই টার্গেট দেওয়া হয়েছে?', 'Why did I receive this target?')}</summary>
-      <p>{L('গত ৭ দিনের যাচাইকৃত পিকআপ থেকে হাবের সম্ভাব্য পিকআপ', 'Hub forecast from verified pickups in the last 7 days')} <strong>{show(s.forecast_pickups)}</strong> · {n(s.forecast_sample_days)}/7</p>
-      <ul>{s.forecast_days.map(day => <li key={day.date}>{day.date} · {day.verified_parcels == null ? L('যাচাইকৃত হিসাব পাওয়া যায়নি', 'No verified count available') : n(day.verified_parcels)}</li>)}</ul>
+      <p>{L('গত ৭ দিনের যাচাইকৃত পিকআপ থেকে হাবের সম্ভাব্য পিকআপ', 'Hub forecast from verified pickups in the last 7 days')} <strong>{show(s.forecast_pickups)}</strong> · {n(s.forecast_sample_days)}/7 {s.forecast_work_points != null && <> · {L('সম্ভাব্য ওয়ার্ক পয়েন্ট', 'Forecast Work Points')} {n(s.forecast_work_points)}</>}</p>
+      <ul>{s.forecast_days.map(day => <li key={day.date}>{day.date} · {day.verified_parcels == null ? L('যাচাইকৃত হিসাব পাওয়া যায়নি', 'No verified count available') : n(day.verified_parcels)}{day.merchants != null && <> · {L('মার্চেন্ট', 'Merchants')} {n(day.merchants)}</>}{day.source === 'opening_history' && <> · {L('শুরুর রেকর্ড', 'Opening record')}</>}</li>)}</ul>
       <p>{L('প্রকৃত পিকআপ', 'Actual pickups')} {show(s.actual_pickups)} · {L('মার্চেন্ট', 'Merchants')} {show(s.actual_pickups == null ? null : s.actual_merchants)}
         {' · '}{L('জটিল পার্সেল', 'Complex parcels')} {show(s.complex_parcels)} · {L('ওয়ার্ক পয়েন্ট', 'Work Points')} {show(s.actual_work_points)}</p>
       <p>{L('ওয়ার্ক পয়েন্ট = পার্সেল + (প্রতি মার্চেন্ট × ৫) + (প্রতি অনুমোদিত জটিল পার্সেল × ২)।', 'Work Points = parcels + (5 per merchant) + (2 per approved complex parcel).')}</p>
@@ -115,6 +114,8 @@ function TargetExplanation({ report }: { report: Report }) {
           {' · '}{L('হাবের সংখ্যা', 'Assigned hubs')} {show(w.hub_count)}</p>
         <p>{L('উপলব্ধ মিনিট = কাজের মিনিট − বিরতি − অনুমোদিত দায়িত্ব', 'Available minutes = shift − breaks − approved duties')}
           {' · '}{show(w.working_minutes)} − {show(w.break_minutes)} − {show(w.duty_minutes)} → {show(w.entry_minutes)}</p>
+        {w.daily_limit != null && <p>{L('জোনাল ম্যানেজারের নির্ধারিত সীমা', 'Limit set by the Zonal Manager')} {show(w.daily_limit)}</p>}
+        {!!w.assigned_duty_minutes && <p>{L('এই শিফটে অতিরিক্ত দায়িত্বের মিনিট', 'Extra duty minutes assigned this shift')} {show(w.assigned_duty_minutes)}</p>}
         <ul>{duties.map(([key, bn, en]) => <li key={key}>{L(bn, en)} · {show(w.duty_detail[key.replace(/_minutes$/, '')])}</li>)}</ul>
         <p>{L('এই হাবের সম্ভাব্য মিনিট', 'Forecast minutes at this hub')} {show(w.forecast_hub_minutes)}
           {' · '}{L('ইতিমধ্যে এন্ট্রিতে ব্যয়', 'Time already spent on entry')} {show(w.worked_minutes)}
@@ -182,13 +183,13 @@ export function DataEntryTargetSettings({ hubs }: { hubs: Choice[] }) {
   if (!selected) return null
   return <section className="panel data-entry-panel">
     <details onToggle={e => setOpen(e.currentTarget.open)}>
-      <summary>{L('স্মার্ট কাজ বণ্টন', 'Smart work distribution')}</summary>
+      <summary>{L('সক্ষমতা ও কর্মীদের শুরুর তথ্য', 'Capacity and opening employee records')}</summary>
       {open && <>
-        <label className="data-entry-field">{L('হাব', 'Hub')}
+        {hubs.length > 1 && <label className="data-entry-field">{L('হাব', 'Hub')}
           <select value={selected.id} onChange={e => setHub(e.currentTarget.value)}>
             {hubs.map(h => <option value={h.id} key={h.id}>{h.name}</option>)}
           </select>
-        </label>
+        </label>}
         <label className="data-entry-field">{L('তারিখ', 'Date')}
           <input type="date" value={date} max={dhakaDay()} onChange={e => setDate(e.currentTarget.value)} />
         </label>

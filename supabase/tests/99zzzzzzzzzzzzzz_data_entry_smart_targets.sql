@@ -1,6 +1,8 @@
 -- Isolated DEMO Hub fixtures. No live records or jobs are touched.
 begin;
 set local time zone 'Asia/Dhaka';
+create or replace function private.data_entry_shift_now() returns timestamptz
+language sql stable set search_path='' as $ select (current_date + time '21:00') at time zone 'Asia/Dhaka' $;
 select tests.fixture();
 select tests.hr_fixture();
 insert into tests.ids values
@@ -10,7 +12,7 @@ insert into tests.ids values
   ('smart_d', tests.active_employee('DEMO Dipa', '714', tests.id('hub_a1'), '01711000714', '7140101010'));
 insert into public.role_permissions (role_id, permission_id)
 select r.id, p.id from public.roles r cross join public.permissions p
-where r.code = 'zonal_manager' and p.code = 'data_entry.team.edit';
+where r.code = 'zonal_manager' and p.code = 'data_entry.team.edit' on conflict do nothing;
 
 select tests.login(tests.id('zonal_a'));
 insert into tests.ids
@@ -55,11 +57,11 @@ select tests.ok(public.data_entry_target_admin(tests.id('hub_a1'), current_date,
 select tests.ok(public.data_entry_target_admin(tests.id('hub_a1'), current_date, null)#>'{latest,actual_pickups}' = 'null'::jsonb,
   'estimate remains separate before the first actual pickup');
 select tests.login(tests.id('rider_login'));
-select tests.ok(public.data_entry_target_mine()#>>'{0,worker,forecast,parcels}' = '150',
+select tests.ok(public.data_entry_target_mine(current_date)#>>'{0,worker,forecast,parcels}' = '150',
   'employee sees own 150 parcel forecast and approved initial capacity');
-select tests.ok(public.data_entry_target_mine()#>>'{0,worker,parcel_rate_source}' = 'approved_initial',
+select tests.ok(public.data_entry_target_mine(current_date)#>>'{0,worker,parcel_rate_source}' = 'approved_initial',
   'one-tap data explains approved initial capacity');
-select tests.ok(not (public.data_entry_target_mine()#>'{0,summary}') ? 'workers', 'self report omits names and rows for other workers');
+select tests.ok(not (public.data_entry_target_mine(current_date)#>'{0,summary}') ? 'workers', 'self report omits names and rows for other workers');
 select tests.throws(format('select public.data_entry_target_admin(%L, current_date, null)', tests.id('hub_a1')),
   'employee cannot read manager settings', '42501');
 select tests.logout();
@@ -71,8 +73,8 @@ insert into public.pickup_consolidations (
 select private.wf_today(), tests.id('hub_a1'), tests.id('zone_a'), tests.id('smart_merchant_' || x), 1, 80,
   0, 0, gen_random_uuid(), 1, false, tests.id('zonal_a')
 from generate_series(1, 10) x;
-select tests.ok(private.data_entry_target_tick() = 1, 'scheduled tick applies actual pickup changes');
-select tests.ok(private.data_entry_target_tick() = 0, 'retry does not create duplicate history');
+select tests.ok(private.data_entry_target_refresh(tests.id('hub_a1'), current_date, 'schedule'), 'scheduled tick applies actual pickup changes');
+select tests.ok(not private.data_entry_target_refresh(tests.id('hub_a1'), current_date, 'schedule'), 'retry does not create duplicate history');
 select tests.ok((select snapshot->>'actual_pickups' = '800' and snapshot->>'actual_merchants' = '10'
  and snapshot->>'actual_work_points' = '850' and snapshot->>'forecast_pickups' = '500'
  and reason = 'verified_pickup_changed' from private.data_entry_target_runs order by id desc limit 1),
@@ -90,10 +92,10 @@ select public.data_entry_target_save(tests.id('hub_a1'), current_date, tests.id(
 select tests.ok(public.data_entry_target_admin(tests.id('hub_a1'), current_date, tests.id('smart_member_a'))#>>'{profile,reference_count}' = '100',
   'performance profile is stored separately');
 select tests.login(tests.id('rider_login'));
-select tests.ok(public.data_entry_target_mine()#>>'{0,worker,entry_minutes}' = '30'
- and (public.data_entry_target_mine()#>>'{0,worker,remaining_hub_minutes}')::numeric = 15
- and public.data_entry_target_mine()#>>'{0,worker,completed}' = '27'
- and public.data_entry_target_mine()#>>'{0,summary,actual_work_points}' = '890',
+select tests.ok(public.data_entry_target_mine(current_date)#>>'{0,worker,entry_minutes}' = '30'
+ and (public.data_entry_target_mine(current_date)#>>'{0,worker,remaining_hub_minutes}')::numeric = 15
+ and public.data_entry_target_mine(current_date)#>>'{0,worker,completed}' = '27'
+ and public.data_entry_target_mine(current_date)#>>'{0,summary,actual_work_points}' = '890',
   'approved duties and elapsed time reduce remaining capacity and completed counts stay separate');
 
 select tests.logout();
@@ -101,7 +103,7 @@ update public.wf_morning_lines set state = 'absent' where employee_id = tests.id
 insert into public.leave_requests(employee_id, leave_type_id, from_date, to_date, reason, status, decided_by, decided_at)
 select tests.id('smart_c'), id, private.wf_today(), private.wf_today(), 'DEMO approved leave', 'approved', tests.id('zonal_a'), now()
 from public.leave_types where code = 'casual';
-select private.data_entry_target_tick();
+select private.data_entry_target_refresh(tests.id('hub_a1'), current_date, 'schedule');
 select tests.ok((select snapshot->'workers'->tests.id('smart_member_b')::text->>'attendance' = 'absent'
  and snapshot->'workers'->tests.id('smart_member_c')::text->>'attendance' = 'leave'
  and (snapshot#>>'{actual_summary,unassigned}')::integer > 0
@@ -113,10 +115,10 @@ select public.data_entry_target_save(tests.id('hub_a1'), current_date - offset_d
   '{"senior_minutes":0,"loading_minutes":0,"big_parcel_minutes":0,"training_minutes":0,"other_minutes":0,"entry_minutes":60,"attempted":100,"correct":90,"merchants":10,"complex":5}')
 from generate_series(1, 3) offset_days;
 select tests.login(tests.id('rider_login'));
-select tests.ok(public.data_entry_target_mine()#>>'{0,worker,point_rate_source}' = 'verified'
- and (public.data_entry_target_mine()#>>'{0,worker,point_rate}')::numeric = 144
- and (public.data_entry_target_mine()#>>'{0,worker,prior_accuracy_pct}')::numeric = 90,
+select tests.ok(public.data_entry_target_mine(current_date)#>>'{0,worker,point_rate_source}' = 'verified'
+ and (public.data_entry_target_mine(current_date)#>>'{0,worker,point_rate}')::numeric = 144
+ and (public.data_entry_target_mine(current_date)#>>'{0,worker,prior_accuracy_pct}')::numeric = 90,
   'three verified hours derive a complexity and accuracy adjusted hourly rate');
 select tests.login(tests.id('noroles'));
-select tests.ok(public.data_entry_target_mine() = '[]'::jsonb, 'other account sees no employee target data');
+select tests.ok(public.data_entry_target_mine(current_date) = '[]'::jsonb, 'other account sees no employee target data');
 rollback;

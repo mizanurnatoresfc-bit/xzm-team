@@ -1,3 +1,82 @@
+-- Injectable only by the database owner. Tests replace the clock inside a rolled-back transaction.
+create function private.data_entry_shift_now() returns timestamptz
+language sql stable set search_path='' as 'select now()';
+revoke execute on function private.data_entry_shift_now() from public, anon, authenticated;
+
+create table private.data_entry_shift_reports (
+  hub_id uuid not null references public.hubs(id),
+  work_date date not null,
+  member_id uuid not null references public.data_entry_team_members(id),
+  slot smallint not null check (slot between 1 and 3),
+  attempted integer not null check (attempted between 0 and 100000),
+  merchants integer check (merchants between 0 and attempted),
+  entry_minutes integer check (entry_minutes between 0 and 720),
+  note text not null check (char_length(note) <= 250),
+  submitted_at timestamptz not null default clock_timestamp(),
+  correct integer check (correct between 0 and attempted),
+  reviewed_by uuid,
+  reviewed_at timestamptz,
+  primary key (hub_id, work_date, member_id, slot)
+);
+create index data_entry_shift_reports_member_idx on private.data_entry_shift_reports(member_id, work_date);
+create table private.data_entry_extra_duties (
+  id uuid primary key default gen_random_uuid(),
+  hub_id uuid not null references public.hubs(id),
+  member_id uuid not null references public.data_entry_team_members(id),
+  work_date date not null,
+  kind text not null check (kind in ('extra_entry','big_parcel','loading','assist','training','senior','other')),
+  minutes integer not null check (minutes between 1 and 480),
+  note text not null check (length(btrim(note)) between 1 and 250),
+  assigned_by uuid not null,
+  completed_at timestamptz,
+  approved_at timestamptz,
+  approved_by uuid
+);
+create index data_entry_extra_duties_hub_idx on private.data_entry_extra_duties(hub_id, work_date);
+create index data_entry_extra_duties_member_idx on private.data_entry_extra_duties(member_id, work_date);
+create table private.data_entry_target_limits (
+  hub_id uuid not null references public.hubs(id),
+  work_date date not null,
+  member_id uuid not null references public.data_entry_team_members(id),
+  maximum integer not null check (maximum between 0 and 100000),
+  approved_by uuid not null,
+  primary key (hub_id,work_date,member_id)
+);
+create index data_entry_target_limits_member_idx on private.data_entry_target_limits(member_id);
+create table private.data_entry_shift_settings (
+  hub_id uuid primary key references public.hubs(id),
+  start_time time not null default '18:00',
+  open_minutes integer not null default 480 check (open_minutes between 180 and 720),
+  first_minute integer not null default 0,
+  second_minute integer not null default 90,
+  third_minute integer not null default 180,
+  pickup_only boolean not null default false,
+  check (start_time between '16:00' and '23:59'),
+  check (0 <= first_minute and first_minute < second_minute and second_minute < third_minute and third_minute < open_minutes)
+);
+create table private.data_entry_seed_pickups (
+  hub_id uuid not null references public.hubs(id),
+  work_date date not null,
+  parcels integer not null check (parcels between 0 and 1000000),
+  merchants integer check (merchants between 0 and parcels),
+  approved_by uuid not null,
+  primary key (hub_id, work_date)
+);
+create function private.data_entry_shift_window(p_hub uuid, p_now timestamptz)
+returns table (day date, elapsed integer, open_minutes integer, checkpoints integer[], pickup_only boolean)
+language sql stable set search_path = '' as $$
+  with local_clock as (select p_now at time zone 'Asia/Dhaka' as local_now),
+  defaults as (select coalesce(cfg.start_time, '18:00'::time) as start_time,
+    coalesce(cfg.open_minutes, 480) as duration,
+    array[coalesce(cfg.first_minute, 0),coalesce(cfg.second_minute, 90),coalesce(cfg.third_minute, 180)] as checks,
+    coalesce(cfg.pickup_only, false) as pickup_only, local_now
+    from local_clock left join private.data_entry_shift_settings cfg on cfg.hub_id = p_hub),
+  shift_clock as (select *, local_now::date + start_time as today_start from defaults),
+  shift as (select *, case when local_now < today_start and local_now < today_start - interval '1 day' + duration * interval '1 minute'
+    then today_start - interval '1 day' else today_start end as starts_at from shift_clock)
+  select starts_at::date, floor(extract(epoch from local_now - starts_at) / 60)::integer, duration, checks, pickup_only from shift
+$$;
+
 -- Phase 2: Smart Auto is the default distribution algorithm for enabled hubs.
 -- Keep the scheduler and data writes inside the database. Existing pickup approvals stay independent.
 create table private.data_entry_target_hubs (
@@ -127,14 +206,22 @@ create function private.data_entry_target_snapshot(p_hub uuid, p_day date)
 returns jsonb
 language sql stable set search_path = '' as $$
   with pickup_days as (
-    select d::date as day, sum(c.parcel_count) as parcels
+    select d.day, coalesce(a.parcels, b.parcels) as parcels,
+           case when a.parcels is not null then a.merchants else b.merchants end as merchants,
+           case when a.parcels is not null then 'approved_pickup' when b.parcels is not null then 'opening_history' end as source,
+           least(coalesce(a.parcels,b.parcels,0),coalesce(cx.complex_parcels,0)) as complexity
     from generate_series(1, 7) as lookback(days)
-    cross join lateral (select p_day - lookback.days as d) calendar
-    left join public.pickup_consolidations c on c.hub_id = p_hub and c.pickup_date = d and c.voided_at is null
-    group by d
+    cross join lateral (select p_day - lookback.days as day) d
+    left join lateral (
+      select sum(c.parcel_count) as parcels, count(distinct c.merchant_id) as merchants from public.pickup_consolidations c
+      where c.hub_id = p_hub and c.pickup_date = d.day and c.voided_at is null
+    ) a on true
+    left join private.data_entry_seed_pickups b on b.hub_id = p_hub and b.work_date = d.day
+    left join private.data_entry_target_complexity cx on cx.hub_id = p_hub and cx.work_date = d.day
   ), forecast as (
     select round(avg(parcels))::bigint as parcels, count(parcels) as samples,
-           jsonb_agg(jsonb_build_object('date', day, 'verified_parcels', parcels) order by day) as days
+           case when count(merchants) = count(parcels) then avg(parcels + 5 * merchants + 2 * complexity) end as points,
+           jsonb_agg(jsonb_build_object('date', day, 'verified_parcels', parcels, 'merchants', merchants, 'source', source) order by day) as days
     from pickup_days
   ), current_pickup as (
     select sum(parcel_count) filter (where voided_at is null) as parcels,
@@ -142,17 +229,30 @@ language sql stable set search_path = '' as $$
            count(*) as observed_rows
     from public.pickup_consolidations
     where hub_id = p_hub and pickup_date = p_day
+  ), observed_work as (
+    select member_id, hub_id,
+           greatest(coalesce(max(correct) filter (where source = 0), 0), coalesce((array_agg(correct order by source desc) filter (where source > 0))[1], 0)) as completed,
+           greatest(coalesce(max(entry_minutes) filter (where source = 0), 0), coalesce((array_agg(entry_minutes order by source desc) filter (where source > 0 and entry_minutes is not null))[1], 0)) as elapsed
+    from (
+      select o.member_id, o.hub_id, o.correct, o.entry_minutes, 0 as source
+      from private.data_entry_target_observations o where o.work_date = p_day
+      union all
+      select r.member_id, r.hub_id, r.correct, r.entry_minutes, r.slot
+      from private.data_entry_shift_reports r where r.work_date = p_day and r.reviewed_at is not null
+    ) work
+    group by member_id, hub_id
   ), rates as (
     select t.member_id, t.employee_id, t.hub_id as attendance_hub, r.working_minutes, r.break_minutes,
            r.initial_parcels_per_hour, r.initial_points_per_hour,
            past.parcel_days, past.parcel_minutes, past.point_days, past.point_minutes,
            past.parcel_rate, past.point_rate, past.accuracy,
-           day.attendance, coalesce(done.correct, 0) as completed,
+           day.attendance, coalesce(done.completed, 0) as completed, limit_cfg.maximum,
            duties.duty_detail, duties.duty_minutes, duties.spent_minutes, active_hubs.count as hub_count
     from private.data_entry_target_team(p_hub) t
     left join private.data_entry_target_rules r using (member_id)
-    left join private.data_entry_target_observations done
-      on done.member_id = t.member_id and done.hub_id = p_hub and done.work_date = p_day
+    left join observed_work done on done.member_id = t.member_id and done.hub_id = p_hub
+    left join private.data_entry_target_limits limit_cfg
+      on limit_cfg.member_id = t.member_id and limit_cfg.hub_id = p_hub and limit_cfg.work_date = p_day
     left join public.attendance_records ar on ar.employee_id = t.employee_id and ar.work_date = p_day
     left join lateral (
       select l.state from public.wf_morning_subs s join public.wf_morning_lines l on l.sub_id = s.id
@@ -173,7 +273,9 @@ language sql stable set search_path = '' as $$
     ) active_hubs
     cross join lateral (
       select coalesce(sum(senior_minutes::bigint + loading_minutes + big_parcel_minutes + training_minutes + other_minutes), 0) as duty_minutes,
-             coalesce(sum(entry_minutes), 0) as spent_minutes,
+             coalesce((select sum(ow.elapsed) from observed_work ow where ow.member_id = t.member_id), 0) as spent_minutes,
+             coalesce((select sum(d.minutes) from private.data_entry_extra_duties d where d.member_id = t.member_id
+               and d.work_date = p_day and d.kind <> 'extra_entry'), 0) as assigned_duty_minutes,
              jsonb_build_object('senior', coalesce(sum(senior_minutes), 0), 'loading', coalesce(sum(loading_minutes), 0),
                'big_parcel', coalesce(sum(big_parcel_minutes), 0), 'training', coalesce(sum(training_minutes), 0),
                'other', coalesce(sum(other_minutes), 0)) as duty_detail
@@ -181,11 +283,11 @@ language sql stable set search_path = '' as $$
     ) duties
     cross join lateral (
       select count(distinct work_date) as parcel_days, coalesce(sum(entry_minutes), 0) as parcel_minutes,
-             count(distinct work_date) filter (where merchants is not null and complex is not null) as point_days,
-             coalesce(sum(entry_minutes) filter (where merchants is not null and complex is not null), 0) as point_minutes,
+             count(distinct work_date) filter (where merchants is not null) as point_days,
+             coalesce(sum(entry_minutes) filter (where merchants is not null), 0) as point_minutes,
              round(60 * sum(correct)::numeric / nullif(sum(entry_minutes), 0), 4) as parcel_rate,
-             round(60 * sum((attempted + 5 * merchants + 2 * complex) * correct::numeric / nullif(attempted, 0))
-                / nullif(sum(entry_minutes) filter (where merchants is not null and complex is not null), 0), 4) as point_rate,
+             round(60 * sum((attempted + 5 * merchants + 2 * coalesce(complex,0)) * correct::numeric / nullif(attempted, 0))
+                / nullif(sum(entry_minutes) filter (where merchants is not null), 0), 4) as point_rate,
              round(100 * sum(correct)::numeric / nullif(sum(attempted), 0), 2) as accuracy
       from private.data_entry_target_observations o
       where o.member_id = t.member_id and o.work_date between p_day - 28 and p_day - 1 and o.entry_minutes > 0
@@ -199,17 +301,22 @@ language sql stable set search_path = '' as $$
   ), capacity as (
     select *,
       case when attendance in ('present','late','half_day') and effective_shift is not null then
-        greatest(0, effective_shift - break_minutes - duty_minutes) else 0 end as entry_minutes
+        greatest(0, effective_shift - break_minutes - duty_minutes - assigned_duty_minutes) else 0 end as entry_minutes
     from timings
   ), weights as (
-    select *,
-      coalesce((entry_minutes / nullif(hub_count, 0)) * applied_parcel_rate / 60, 0) as forecast_capacity,
-      coalesce((greatest(0, entry_minutes - spent_minutes) / nullif(hub_count, 0)) * applied_point_rate / 60, 0) as actual_capacity
-    from capacity
+    select c.*,
+      least(coalesce((entry_minutes / nullif(hub_count, 0))
+        * case when f.points is not null then applied_point_rate else applied_parcel_rate end / 60, 0),
+        maximum * coalesce(f.points / nullif(f.parcels,0), 1)) as forecast_capacity,
+      least(coalesce((greatest(0, entry_minutes - spent_minutes) / nullif(hub_count, 0)) * applied_point_rate / 60, 0),
+        greatest(0, maximum - completed) * (cp.parcels + 5 * cp.merchants + 2 * least(cp.parcels,coalesce(cx.complex_parcels,0))) / nullif(cp.parcels,0))
+            as capped_actual_capacity,
+      coalesce((greatest(0, entry_minutes - spent_minutes) / nullif(hub_count, 0)) * applied_point_rate / 60, 0) as raw_actual_capacity
+    from capacity c cross join forecast f cross join current_pickup cp
+    left join private.data_entry_target_complexity cx on cx.hub_id = p_hub and cx.work_date = p_day
   ), sums as (
     select coalesce((select sum(completed) from weights), 0) as active_completed,
-      coalesce((select sum(o.correct) from private.data_entry_target_observations o
-        where o.hub_id = p_hub and o.work_date = p_day), 0) as completed
+      coalesce((select sum(o.completed) from observed_work o where o.hub_id = p_hub), 0) as completed
   ), actual as (
     select case when cp.observed_rows > 0 then coalesce(cp.parcels, 0) end as parcels, cp.merchants,
       least(coalesce(cp.parcels, 0), coalesce(cx.complex_parcels, 0)) as complex,
@@ -222,24 +329,25 @@ language sql stable set search_path = '' as $$
       a.parcels + 5 * a.merchants + 2 * a.complex as points from actual a
   ), splits as (
     select f.*, s.parcels as actual_parcels, s.merchants, s.complex, s.complexity_known,
-      s.completed, s.active_completed, s.points, s.outstanding,
-      private.data_entry_target_split(coalesce(f.parcels, 0), coalesce(f.parcels, 0), coalesce((
+      s.completed, s.active_completed, s.points as actual_points, s.outstanding,
+      private.data_entry_target_split(coalesce(f.parcels, 0), coalesce(f.points, f.parcels, 0), coalesce((
         select jsonb_agg(jsonb_build_object('member', member_id, 'capacity', forecast_capacity)) from weights), '[]'::jsonb)) as plan,
       private.data_entry_target_split(s.outstanding, s.points * s.outstanding / nullif(s.parcels, 0), coalesce((
-        select jsonb_agg(jsonb_build_object('member', member_id, 'capacity', actual_capacity)) from weights), '[]'::jsonb)) as actual
+        select jsonb_agg(jsonb_build_object('member', member_id, 'capacity', case when maximum is null then raw_actual_capacity else capped_actual_capacity end)) from weights), '[]'::jsonb)) as actual
     from forecast f cross join supply s
   )
   select jsonb_build_object(
     'rule', 'smart_auto_v1', 'forecast_days', s.days, 'forecast_sample_days', s.samples, 'forecast_pickups', s.parcels,
+    'forecast_work_points', s.points,
     'actual_pickups', s.actual_parcels, 'actual_merchants', s.merchants,
     'complex_parcels', case when s.complexity_known then s.complex end,
-    'actual_work_points', case when s.actual_parcels is not null then s.points end, 'verified_completed', s.completed,
+    'actual_work_points', case when s.actual_parcels is not null then s.actual_points end, 'verified_completed', s.completed,
     'completed_outside_roster', s.completed - s.active_completed,
     'forecast_summary', s.plan - 'workers',
     'actual_summary', case when s.actual_parcels is not null then s.actual - 'workers' end,
     'workers', coalesce((select jsonb_object_agg(w.member_id::text, jsonb_build_object(
       'attendance', attendance, 'working_minutes', effective_shift, 'break_minutes', break_minutes,
-      'duty_minutes', duty_minutes, 'duty_detail', duty_detail, 'entry_minutes', entry_minutes,
+      'duty_minutes', duty_minutes + assigned_duty_minutes, 'assigned_duty_minutes', assigned_duty_minutes, 'daily_limit', maximum, 'duty_detail', duty_detail, 'entry_minutes', entry_minutes,
       'forecast_hub_minutes', entry_minutes / nullif(hub_count, 0),
       'remaining_hub_minutes', greatest(0, entry_minutes - spent_minutes) / nullif(hub_count, 0),
       'worked_minutes', spent_minutes, 'hub_count', hub_count, 'prior_accuracy_pct', accuracy,
@@ -403,8 +511,9 @@ begin
       return;
     else raise exception 'Unknown Data Entry setting' using errcode = '22023';
   end case;
-  -- Today's run incorporates settings or historical evidence immediately. Other hubs refresh on the minute.
-  perform private.data_entry_target_refresh(p_hub, today, p_kind || '_updated');
+  -- Apply manager changes to the operating date, which may still be yesterday after midnight.
+  perform private.data_entry_target_refresh(p_hub, (select day from private.data_entry_shift_window(p_hub,private.data_entry_shift_now())),
+    p_kind || '_updated');
 end $$;
 
 create function public.data_entry_target_mine(p_day date default null)
@@ -416,13 +525,13 @@ returns jsonb language sql stable security definer set search_path = '' as $$
   ), latest as (
     select distinct on (r.hub_id) r.*, me.member_id
     from private.data_entry_target_runs r cross join me
-    where work_date = coalesce(p_day, private.wf_today()) and work_date between private.wf_today() - 90 and private.wf_today()
+    where work_date = coalesce(p_day, (select w.day from private.data_entry_shift_window(r.hub_id, private.data_entry_shift_now()) w)) and work_date between private.wf_today() - 90 and private.wf_today()
       and exists (select 1 from private.data_entry_target_runs prior where prior.hub_id = r.hub_id and prior.work_date = r.work_date
                   and (prior.snapshot->'workers') ? me.member_id::text)
     order by r.hub_id, r.id desc
   )
   select coalesce(jsonb_agg(jsonb_build_object('hub', coalesce(h.name_bn, h.name), 'hub_id', h.id, 'date', latest.work_date,
-    'enabled', latest.work_date <> private.wf_today() or exists (select 1 from private.data_entry_target_hubs c where c.hub_id = h.id and c.enabled),
+    'enabled', p_day is not null and p_day < private.wf_today() or exists (select 1 from private.data_entry_target_hubs c where c.hub_id = h.id and c.enabled),
     'summary', snapshot - 'workers', 'worker', (snapshot->'workers')->member_id::text,
     'history', (select jsonb_agg(to_jsonb(x) order by id desc) from (
       select r.id, r.recorded_at, r.reason, (r.snapshot->'workers')->member_id::text->'forecast'->'parcels' as forecast_target,
@@ -447,3 +556,5 @@ begin
     perform cron.schedule('data-entry-smart-targets', '* * * * *', 'select private.data_entry_target_tick()');
   end if;
 end $cron$;
+
+revoke execute on function private.data_entry_shift_window(uuid,timestamptz) from public, anon, authenticated;

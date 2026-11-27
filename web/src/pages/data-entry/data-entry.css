@@ -13,3 +13,8 @@
 .data-entry-target-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0 1rem; }
 .data-entry-panel details > summary { cursor: pointer; min-height: 44px; padding-block: .65rem; }
 .data-entry-panel details { margin-block: .35rem; }
+
+.data-entry-action { border: 0; padding: 0; }
+.data-entry-record { padding-block: .65rem; border-bottom: 1px solid var(--border, #e5e7eb); }
+.data-entry-rows { padding-inline-start: 1.25rem; }
+.data-entry-rows li { padding-block: .5rem; }

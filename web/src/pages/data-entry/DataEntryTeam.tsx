@@ -5,6 +5,7 @@ import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { useLoad } from '../accounts/ui'
 import { DataEntryTargetSettings } from './DataEntryTargets'
+import { DataEntryShiftHub, dataEntryPages, type EntryPage } from './DataEntryShift'
 import './data-entry.css'
 
 type Choice = { id: string; name: string }
@@ -28,7 +29,7 @@ async function teamRpc<T>(name: string, args: Record<string, unknown> = {}) {
 }
 const errorText = (error: unknown) => error instanceof Error ? error.message : String(error)
 
-export function DataEntryTeam() {
+export function DataEntryTeam({ page = 'team' }: { page?: EntryPage }) {
   const { L } = usePrefs()
   const { viewAs } = useAuth()
   const preview = Boolean(viewAs)
@@ -36,11 +37,11 @@ export function DataEntryTeam() {
   const [selection, setSelection] = useState('')
   const zone = zones.data?.find(item => item.id === selection) ?? zones.data?.[0]
 
-  if (preview) return <AppShell title={L('ডাটা এন্ট্রি টিম', 'Data Entry Team')}>
+  if (preview) return <AppShell title={L(...dataEntryPages[page])}>
     <p>{L('টিম পরিচালনার জন্য নিজের অ্যাকাউন্টের ভিউতে ফিরুন।', 'Return to your own account view to manage the team.')}</p>
   </AppShell>
 
-  return <AppShell title={L('ডাটা এন্ট্রি টিম', 'Data Entry Team')}>
+  return <AppShell title={L(...dataEntryPages[page])}>
     {zones.loading && <p role="status">{L('জোন লোড হচ্ছে…', 'Loading zones…')}</p>}
     {zones.error ? <p className="da-error" role="alert">{errorText(zones.error)}</p> : null}
     {!zones.loading && !zones.error && !zone && <p>{L('এই টিম পরিচালনার জন্য কোনো জোনে আপনার অনুমতি নেই।', 'You do not have access to manage this team in a zone.')}</p>}
@@ -50,19 +51,19 @@ export function DataEntryTeam() {
           {zones.data?.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
       </label>
-      <ZoneTeam key={zone.id} zone={zone.id} />
+      <ZoneTeam key={zone.id + page} zone={zone.id} page={page} />
     </>}
   </AppShell>
 }
 
-function ZoneTeam({ zone }: { zone: string }) {
+function ZoneTeam({ zone, page }: { zone: string; page: EntryPage }) {
   const { L } = usePrefs()
   const team = useLoad(() => teamRpc<Snapshot>('data_entry_team_snapshot', { p_zone: zone }), [zone])
   const [term, setTerm] = useState('')
   const [query, setQuery] = useState('')
-  const results = useLoad(() => query
+  const results = useLoad(() => page === 'team' && query
     ? teamRpc<Candidate[]>('data_entry_team_candidates', { p_zone: zone, p_search: query })
-    : Promise.resolve([]), [zone, query])
+    : Promise.resolve([]), [zone, page, query])
   const [candidate, setCandidate] = useState<Candidate | null>(null)
   const [editing, setEditing] = useState<Member | null>(null)
   const [notice, setNotice] = useState('')
@@ -81,6 +82,12 @@ function ZoneTeam({ zone }: { zone: string }) {
     await Promise.all([team.reload(), results.reload()])
   }
 
+  if (page !== 'team') {
+    if (team.error) return <p role="alert">{errorText(team.error)}</p>
+    if (!team.data) return <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
+    return <DataEntryShiftHub hubs={team.data.hubs.filter(hub => hub.available)} page={page}
+      renderTargetSettings={page === 'targets' ? hub => <DataEntryTargetSettings key={hub.id} hubs={[hub]} /> : undefined} />
+  }
   return <>
     {notice && <p role="status">{notice}</p>}
     <section className="panel data-entry-panel">
@@ -104,7 +111,7 @@ function ZoneTeam({ zone }: { zone: string }) {
     {team.loading && <p role="status">{L('টিম লোড হচ্ছে…', 'Loading team…')}</p>}
     {team.error ? <p className="da-error" role="alert">{errorText(team.error)}</p> : null}
     {team.data && <>
-      <DataEntryTargetSettings hubs={team.data.hubs.filter(hub => hub.available)} />
+      <DataEntryShiftHub hubs={team.data.hubs.filter(hub => hub.available)} page="team" />
       {(candidate || editing) && <MemberForm
         key={editing?.id ?? candidate?.id}
         zone={zone} member={editing} candidate={candidate} hubs={team.data.hubs}

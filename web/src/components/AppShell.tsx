@@ -124,7 +124,12 @@ export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অন�
 /** Sorting work is its own department and should not sit under the zonal manager heading. */
 export const DATA_ENTRY: Group = panel('data-entry', 'ledger', 'ডাটা এন্ট্রি', 'Data Entry', [
   { bn: '', en: '', items: [
-    { to: '/app/data-entry/team', icon: 'users', bn: 'ডাটা এন্ট্রি টিম', en: 'Data Entry Team', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/live', icon: 'activity', bn: 'লাইভ কন্ট্রোল', en: 'Live control', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/team', icon: 'users', bn: 'টিম ও দায়িত্ব', en: 'Team and duties', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/targets', icon: 'tasks', bn: 'টার্গেট ও কাজ বণ্টন', en: 'Targets and allocation', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/reports', icon: 'ledger', bn: 'দৈনিক রিপোর্ট', en: 'Daily reports', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/updates', icon: 'message', bn: 'কর্মীদের আপডেট', en: 'Employee updates', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/performance', icon: 'chart', bn: 'পারফরম্যান্স ও লিডারবোর্ড', en: 'Performance and leaderboard', perms: ['data_entry.team.edit'] },
   ] },
 ])
 

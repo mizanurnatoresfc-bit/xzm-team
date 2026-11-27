@@ -85,7 +85,12 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/sorting/centers', codes: ['sorting.center.view', 'sorting.center.create', 'sorting.center.edit', 'sorting.center.archive'] },
   ] },
   { key: 'data-entry', icon: 'ledger', bn: 'ডাটা এন্ট্রি', en: 'Data Entry', db: ['data_entry'], subs: [
+    { to: '/app/data-entry/live', codes: ['data_entry.team.edit'] },
     { to: '/app/data-entry/team', res: ['data_entry.team'] },
+    { to: '/app/data-entry/targets', codes: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/reports', codes: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/updates', codes: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/performance', codes: ['data_entry.team.edit'] },
   ] },
   { key: 'office', icon: 'home', bn: 'আমার অফিস', en: 'My office', db: ['office'], subs: [
     { to: '/app/office/overview', codes: ['office.property.view'] },

@@ -6,6 +6,7 @@ import { browserStore, readMine } from '../../lib/routeOffline'
 import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { MyDataEntryTarget } from '../data-entry/DataEntryTargets'
+import { MyDataEntryShift } from '../data-entry/DataEntryShift'
 import { Icon } from '../../components/Icon'
 import { OperationsQuestions } from '../zonal/OperationsCollection'
 import { NodiGaps } from '../../components/NodiGaps'
@@ -292,6 +293,7 @@ export function StaffPanel() {
     <div className="sd sp">
       <OperationsQuestions />
       <MyDataEntryTarget />
+      <MyDataEntryShift />
       {node}
       <div className="sp-hero">
         <MyAvatarUpload className="sp-av" onDone={m => { toast(m); void d.reload() }} />
