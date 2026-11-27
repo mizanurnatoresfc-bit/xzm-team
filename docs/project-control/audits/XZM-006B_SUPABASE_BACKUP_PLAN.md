@@ -219,6 +219,57 @@ RPO / RTO targets are collected under **XZM-006G** and measured under **XZM-006I
 
 ---
 
+## 8a. New finding observed during this PR — Cloudflare Workers Git integration **IS** active (contradicts XZM-006 §5.1)
+
+**Discovered 2026-11-27 ~22:57 Asia/Dhaka during PR #215 review.** When this docs-only branch was pushed, the `cloudflare-workers-and-pages[bot]` posted a "Deployment successful!" comment carrying a Branch Preview URL `https://docs-xzm-006ab-critical-backup-recovery-xzm-team.mizanurnatore-sfc.workers.dev` and a Commit Preview URL `https://bb159153-xzm-team.mizanurnatore-sfc.workers.dev`. Preview was built from commit `73a4fa08` with no change to any workflow file.
+
+**This contradicts** the already-merged XZM-006 §5.1 Preview Isolation row which asserted:
+
+> Cloudflare Workers Git-integration preview | **NO — path not used** | `wrangler deploy` runs only from `android-apk.yml` on push main + `web/**`; Cloudflare's own Git auto-build is not configured
+
+### Correct current state (from this observation + repo re-read)
+
+| Fact | Source | Interpretation |
+|---|---|---|
+| Cloudflare Workers Git integration IS connected to `mizanurnatoresfc-bit/xzm-team` | `cloudflare-workers-and-pages[bot]` posting on PR #215 head `73a4fa08` | Configured in Cloudflare Dashboard, not in repo files |
+| Preview deploys on every push, regardless of path filters | Same bot comment on a docs-only branch with no `web/**` change | Cloudflare's Git builds do not honor the repo's workflow `paths:` filters — those filters only govern GitHub Actions |
+| `wrangler.jsonc` contains no env bindings, secrets, or Supabase refs | `cat wrangler.jsonc` on `73a4fa08` — pure static-assets config | The preview serves whatever `web/dist` the Cloudflare build produced |
+| `web/dist` is built from the committed `web/` source + build-time env | Cloudflare Workers Git build logs (not fetched this session) | If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are present in the Cloudflare project's build env, the preview SPA will connect to **production Supabase** from users' browsers using anon-key + RLS — the same binding the live site uses; if absent, the SPA cannot reach Supabase |
+| `android-apk.yml` also runs `wrangler deploy` manually | `.github/workflows/android-apk.yml` | This is a **separate, workflow-driven** production deploy; it co-exists with the Git-integration preview builds, not in place of them |
+
+### Isolation posture — actual
+
+- **Production domain (`xzmteam.com`) is NOT served by preview builds.** The preview URLs are on the `*.mizanurnatore-sfc.workers.dev` subdomain only. Production custom hostname + Cloudflare DNS still routes only to the production deployment.
+- **However**, from the browser's point of view, a user visiting a preview URL runs the frontend SPA that calls `VITE_SUPABASE_URL` directly — so if the Cloudflare project's build env has the production `VITE_SUPABASE_URL`, a preview visitor's actions (including writes under their logged-in RLS grants) **do touch the production Supabase database**. The preview is isolated at the domain layer but **not at the data layer**.
+- The same risk applies to the already-existing Netlify production build whenever anyone visits a non-production URL for it (not currently an issue because `netlify.toml [context.deploy-preview] ignore = "exit 0"` turns Netlify previews off).
+- Supabase preview DB branches remain `[]` — no preview DB branch is involved.
+
+### Required follow-ups (opened outside this PR)
+
+- **XZM-006J (new)** — Revise XZM-006 §5.1 on `main` to reflect the actual Cloudflare Workers Git integration behavior. Replace the "NO — path not used" row with the five-row posture table above. Owned by Claude under a separate docs-only PR after this one is reviewed.
+- **XZM-006K (new)** — Decide the policy for preview builds reaching the production Supabase:
+  1. Disable Cloudflare Workers Git integration in the Cloudflare Dashboard (Owner action, one toggle) — matches the Netlify-side stance and gives true isolation at the data layer; or
+  2. Keep Git previews but set `VITE_SUPABASE_URL` in the Cloudflare project's build env to point at the staging Supabase project (`mbpjvqeizwjjsvnbjerb`) rather than production — isolates the preview at the data layer; or
+  3. Accept the current behavior and document it explicitly, including the "do not test writes on preview URLs" rule for Owner + team.
+  Owner picks between 1/2/3; Claude implements the chosen option under XZM-006K-impl.
+
+### Why this is NOT a blocker for PR #215 approval
+
+- PR #215 is docs-only and changes no `web/`, no workflow, no `wrangler.jsonc`.
+- The Cloudflare preview was triggered by the branch push itself, not by any change this PR introduces.
+- The three-layer backup plan in §3 does not depend on the isolation posture — it works whether preview builds reach production Supabase or not.
+- The finding is flagged here so ChatGPT's Independent Review sees it and the Owner can decide the XZM-006J / XZM-006K path alongside XZM-006A / XZM-006B.
+
+### Compliance for this appendix
+
+- ✅ No preview URL opened or fetched from this session.
+- ✅ No Cloudflare dashboard change.
+- ✅ No build env read.
+- ✅ No production Supabase write.
+- ✅ Added to `docs/project-control/` only.
+
+---
+
 ## 8. What the follow-up implementation PR will add
 
 (Opened as **XZM-006B-impl** once §7 items 1–5 are decided.)
