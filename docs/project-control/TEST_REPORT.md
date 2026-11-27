@@ -1,5 +1,10 @@
 # TEST_REPORT
 
+## XZM-010 Problem Center
+
+See the [XZM-010 audit](audits/XZM-010_PROBLEM_CENTER.md) for verification scope. Live database checks used read-only catalog queries. No production or production-preview writes.
+
+
 > Per-task test evidence। প্রতিটি approved task-এর test result এখানে append হবে।
 
 Format:

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## XZM-010 Problem Center
+
+Added workflow navigation, issue history and on-demand reports to the existing Issues route. Deadline submissions now interpret local inputs in Asia/Dhaka. SQL draft and rollback are filed under the XZM-010 audit.
+
+
 > Human-readable change log, reverse chronological। Follows task IDs।
 
 ---

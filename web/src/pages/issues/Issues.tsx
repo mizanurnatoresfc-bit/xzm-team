@@ -6,6 +6,8 @@ import { Icon } from '../../components/Icon'
 import { PersonPicker, type RefPerson } from '../../components/PersonPicker'
 import { hrFriendly } from '../../lib/hr'
 import { ACTION_BN, EMOJIS, KIND_BN, ORDER_ACTION_BN, ORDER_STATUS_BN, PRIORITY_BN, isOrder, issues, type GroupHub, type ZoneGroup, type InCharge, type IssueDetail, type IssueKind, type IssueRow, type OrderKind, type Panels, type Post, type Priority, type Who } from '../../lib/issues'
+import { dhakaInstant, PROBLEM_VIEWS } from '../../lib/problemCenter'
+import { ProblemReport } from './ProblemReport'
 import { readLabel } from '../../lib/ocr'
 import { duplicates, matches } from '../../lib/validate'
 import { Combo, DupNote, useDuplicates } from '../../components/inputs'
@@ -71,22 +73,26 @@ export function Issues() {
   const [q, setQ] = useState('')
   const [settings, setSettings] = useState(false)
   const [desk, setDesk] = useState(false)
+  const [reportRevision, setReportRevision] = useState(0)
   const p: Panels = panels.data ?? { mine: [], to_check: [], given: [], waiting_for_check_of_mine: [], hub: [] }
   const hubs = groups.data ?? []
   const asked = sp.get('tab') as Filter | null
   const filter: Filter = asked && FILTERS.includes(asked) ? asked : ui.first
+  const problemView = PROBLEM_VIEWS.find(([key]) => key === sp.get('problem'))?.[0]
+  const showReport = problemView && ['unassigned', 'working', 'late', 'resolved', 'history', 'hub-report', 'employee-report'].includes(problemView)
   const open = sp.get('id')
   const group = hubs.find(h => h.hub_id === sp.get('g')) ?? null
   const zoneList = zones.data ?? []
   const zone = zoneList.find(z => z.zone_id === sp.get('z')) ?? null
   const put = (f: (n: URLSearchParams) => void) => { const n = new URLSearchParams(sp); f(n); setSp(n, { replace: true }) }
-  const go = (t: Filter) => put(n => n.set('tab', t))
+  const go = (t: Filter) => put(n => { n.set('tab', t); n.delete('problem') })
   const openIssue = (id: string | null) => put(n => { n.delete('g'); n.delete('z'); if (id) n.set('id', id); else n.delete('id') })
   const openGroup = (h: string) => put(n => { n.delete('id'); n.delete('z'); n.set('g', h) })
   const openZone = (z: string) => put(n => { n.delete('id'); n.delete('g'); n.set('z', z) })
   const closeChat = () => put(n => { n.delete('id'); n.delete('g'); n.delete('z') })
   const refresh = () => { void panels.reload(); void groups.reload(); void zones.reload() }
-  const changed = () => { refresh(); toast('হয়েছে') }
+  const refreshReport = () => setReportRevision(revision => revision + 1)
+  const changed = () => { refresh(); refreshReport(); toast('হয়েছে') }
   useEvery(ui.refresh, refresh)
   // A shortcut link (/app/issues?new=1) opens the new-issue form at once.
   useEffect(() => {
@@ -147,9 +153,20 @@ export function Issues() {
     : group ? <GroupChat key={group.hub_id} room={hubRoom(group)} ui={ui} onBack={closeChat} onOpenIssue={openIssue} onNew={() => setCreating(group.hub_id)} onSeen={() => void groups.reload()} />
     : open ? <IssueChat key={open} id={open} row={everything.find(r => r.id === open)} refresh={ui.refresh} onBack={closeChat} onChanged={changed} /> : null
 
-  return <AppShell title="ইস্যু ও ফলো-আপ" subtitle="কাজ দিন, সমাধান চেক করে অনুমোদন দিন — অনুমোদন না হলে ইস্যু তালিকাতেই থাকে">
+  return <AppShell title="প্রভলেম সেন্টার">
+    <nav className="mg-chips" aria-label="প্রভলেম সেন্টার">
+      <button type="button" className="mg-chip" disabled={!hubs.length} onClick={() => put(n => n.set('new', '1'))}>নতুন সমস্যা</button>
+      {PROBLEM_VIEWS.map(([key, label]) => <button key={key} type="button" className={`mg-chip${(problemView ?? (filter === 'all' ? 'summary' : null)) === key ? ' on' : ''}`}
+        aria-pressed={(problemView ?? (filter === 'all' ? 'summary' : null)) === key} onClick={() => put(n => {
+          n.set('problem', key)
+          n.set('tab', key === 'mine' ? 'mine' : key === 'review' ? 'check' : 'all')
+          n.delete('g'); n.delete('z'); n.delete('id')
+        })}>{label}</button>)}
+      <button type="button" className="mg-chip" onClick={() => setSettings(true)}>সেটিংস</button>
+    </nav>
+    {showReport && problemView && <ProblemReport key={problemView} view={problemView} hubs={hubs} onOpen={openIssue} revision={reportRevision} />}
     {panels.error ? <p className="da-error">{errText(panels.error)}</p> : null}
-    {ui.view === 'chat' ? <div className={`mg${chat ? ' has-open' : ''}${ui.dense ? ' dense' : ''}`}>
+    {showReport ? (chat && <><div className="mg-shade" onClick={closeChat} /><aside className="mg-drawer">{chat}</aside></>) : ui.view === 'chat' ? <div className={`mg${chat ? ' has-open' : ''}${ui.dense ? ' dense' : ''}`}>
       <aside className="mg-side">
         {bar}{chipRow}
         <div className="mg-list">
@@ -174,8 +191,8 @@ export function Issues() {
     {settings && <UiSettings ui={ui} onChange={setUi} onClose={() => setSettings(false)} />}
     {desk && <Modal wide title="স্টোর / আইটি অর্ডার কে পাবেন" onClose={() => setDesk(false)} actions={<button type="button" onClick={() => setDesk(false)}>বন্ধ</button>}>
       <OrderDesk canOrder={hubs.length > 0} onOrder={k => { setDesk(false); setOrdering(k) }} /></Modal>}
-    {creating && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
-    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('g'); n.set('id', id) }) }} />}
+    {creating && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); refreshReport(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
+    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('problem'); n.delete('g'); n.set('id', id) }) }} />}
     {node}
   </AppShell>
 }
@@ -230,8 +247,8 @@ function IssueChat({ id, row, refresh, onBack, onChanged }: { id: string; row?: 
   const body = useRef<HTMLDivElement>(null)
   const x: IssueDetail | null = d.data
   const i = x?.issue
-  const mine = !!row?.is_mine
-  const giver = !!row?.is_giver
+  const mine = i?.is_mine ?? !!row?.is_mine
+  const giver = i?.is_giver ?? !!row?.is_giver
   const order = !!i && isOrder(i.kind)
   const reviewer = i?.can_review ?? row?.can_review ?? giver
   const n = x?.events.length ?? 0
@@ -441,7 +458,7 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
     setErr('')
     if (img && !img.type.startsWith('image/')) { setErr('শুধু ছবি দিন (JPG / PNG)'); return }
     latest.current = img; setFile(img)
-    if (residential) return
+    if (residential || f.kind !== 'parcel') { setScan({ state: 'idle', ids: [], pct: 0 }); return }
     if (!img) { setScan({ state: 'idle', ids: [], pct: 0 }); return }
     setScan({ state: 'reading', ids: [], pct: 0 })
     void readLabel(img, pct => { if (latest.current === img) setScan(v => v.state === 'reading' ? { ...v, pct } : v) }).then(ids => {
@@ -450,7 +467,7 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
       // Only fills an empty box: an ID the person typed is never replaced.
       if (ids.length) setF(v => v.parcel.trim() ? v : { ...v, parcel: ids[0] })
     }).catch(() => { if (latest.current === img) setScan({ state: 'failed', ids: [], pct: 0 }) })
-  }, [residential])
+  }, [residential, f.kind])
   useEffect(() => {
     if (!file) { setPreview(''); return }
     const u = URL.createObjectURL(file); setPreview(u); return () => URL.revokeObjectURL(u)
@@ -467,12 +484,12 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
   async function save() {
     setErr('')
     if (residential && (!room.trim() || !f.title.trim() || !f.body.trim())) { setErr('ফ্ল্যাট ও রুম, সমস্যার নাম এবং বিস্তারিত লিখুন'); return }
-    if (!f.title.trim() && !f.parcel.trim() && !file) { setErr('লেবেলের ছবি দিন, পার্সেল আইডি দিন বা কী সমস্যা লিখুন'); return }
+    if (!f.title.trim() && !(f.kind === 'parcel' && f.parcel.trim()) && !file) { setErr('লেবেলের ছবি দিন, পার্সেল আইডি দিন বা কী সমস্যা লিখুন'); return }
     setBusy(true)
     try {
       const photo = file ? await issues.uploadPhoto(hub, file) : null
-      onDone(await issues.create({ hub, title: residential ? 'আবাসিক: ' + f.title.trim() : f.title, body: residential ? room.trim() + '\n' + f.body.trim() : f.body, kind: residential ? 'other' : f.kind, parcel_ref: residential ? '' : f.parcel, photo, assignee: person?.kind === 'employee' ? person.id : null,
-        due: f.due ? new Date(f.due).toISOString() : null, priority: f.priority }))
+      onDone(await issues.create({ hub, title: residential ? 'আবাসিক: ' + f.title.trim() : f.title, body: residential ? room.trim() + '\n' + f.body.trim() : f.body, kind: residential ? 'other' : f.kind, parcel_ref: !residential && f.kind === 'parcel' ? f.parcel : '', photo, assignee: person?.kind === 'employee' ? person.id : null,
+        due: f.due ? dhakaInstant(f.due) : null, priority: f.priority }))
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
   return <Modal wide title={residential ? "আবাসিক ইস্যু জানান" : "নতুন ইস্যু / কাজ দিন"} onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : person ? 'ইস্যু তৈরি করে কাজ দিন' : 'ইস্যু তৈরি করুন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
@@ -491,7 +508,7 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
       {scan.state === 'done' && scan.ids.map(id => <button key={id} type="button" className={`secondary sm${f.parcel === id ? ' on' : ''}`} onClick={() => setF({ ...f, parcel: id })}>{id}</button>)}
     </div>
     <div className="da-form">
-      {!residential && <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} />
+      {!residential && f.kind === 'parcel' && <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} />
         {same.length > 0 && <DupNote>এই পার্সেলে আগে থেকেই ইস্যু খোলা আছে: {same.map(x => `${x.issue_no} (${STATUS_BN[x.status as keyof typeof STATUS_BN] ?? x.status})`).join(', ')} — আবার দিলে দুটো হবে।</DupNote>}</Field>}
       <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
       {residential && <Field label="ফ্ল্যাট ও রুম" required wide><input value={room} onChange={e => setRoom(e.target.value)} /></Field>}
@@ -502,7 +519,7 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
     {more && <div className="da-form">
       <Field label="ধরন"><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as IssueKind })}>{Object.entries(KIND_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
       <Field label="গুরুত্ব"><select value={f.priority} onChange={e => setF({ ...f, priority: e.target.value as Priority })}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-      <Field label="শেষ সময় (ঐচ্ছিক)"><input type="datetime-local" value={f.due} onChange={e => setF({ ...f, due: e.target.value })} /></Field>
+      <Field label="শেষ সময় (ঢাকা, ঐচ্ছিক)"><input type="datetime-local" value={f.due} onChange={e => setF({ ...f, due: e.target.value })} /></Field>
       <Field label="বিস্তারিত" wide><textarea rows={2} value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></Field>
     </div>}
     {err && <p className="da-error" role="alert">{err}</p>}
@@ -574,7 +591,7 @@ function NewOrder({ hubs, kind: k0, onClose, onDone }: { hubs: GroupHub[]; kind:
       const photo = file ? await issues.uploadPhoto(hub, file) : null
       const first = body.split('\n')[0].trim()
       onDone(await issues.create({ hub, kind, title: `${KIND_BN[kind]}: ${first.length > 60 ? first.slice(0, 58) + '…' : first}`, body, photo, priority,
-        assignee: pickSomeone && person?.kind === 'employee' ? person.id : null, due: due ? new Date(`${due}T18:00:00`).toISOString() : null }))
+        assignee: pickSomeone && person?.kind === 'employee' ? person.id : null, due: due ? dhakaInstant(`${due}T18:00:00`) : null }))
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
   return <Modal wide title="স্টোর / আইটি অর্ডার" onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : 'অর্ডার দিন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
@@ -583,7 +600,7 @@ function NewOrder({ hubs, kind: k0, onClose, onDone }: { hubs: GroupHub[]; kind:
       <Field label="কোন হাবের জন্য" required><Combo value={hub} onChange={setHub} clearable={false} options={hubs.map(h => ({ value: h.hub_id, label: h.hub_name }))} /></Field>
       <Field label="গুরুত্ব"><select value={priority} onChange={e => setPriority(e.target.value as Priority)}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
       <Field label="কী কী লাগবে" wide required hint="যেভাবে বলেন সেভাবেই লিখুন — জিনিসের নাম আর পরিমাণ"><textarea rows={4} value={text} onChange={e => setText(e.target.value)} placeholder={ORDER_HINT[kind]} /></Field>
-      <Field label="কবে লাগবে (ঐচ্ছিক)"><input type="date" value={due} onChange={e => setDue(e.target.value)} /></Field>
+      <Field label="কবে লাগবে (ঢাকা, ঐচ্ছিক)"><input type="date" value={due} onChange={e => setDue(e.target.value)} /></Field>
       <Field label="ছবি (ঐচ্ছিক)"><EvidencePicker accept="image/*" onFile={setFile} />{file && <small>{file.name}</small>}</Field>
     </div>
     <div className="od-to">

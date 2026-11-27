@@ -99,3 +99,35 @@ export const issues = {
     const { data, error } = await supabase.storage.from('issue-photos').createSignedUrl(path, 300); fail(error as { message: string } | null); return data!.signedUrl
   },
 }
+
+export type IssueHistoryRow = Pick<IssueRow, 'id' | 'issue_no' | 'title' | 'kind' | 'priority' | 'status' | 'hub_id' | 'due_at' | 'created_at' | 'reopen_count'> & {
+  assignee_id: string | null
+  hub_info: { name: string } | null
+  employee_info: { full_name: string; employee_code: string | null } | null
+}
+
+export const ISSUE_REPORT_LIMIT = 500
+
+/** Uses the same issue RLS as the detail screen. Filters run before limiting rows. */
+export async function issueHistory(filters: {
+  from?: string; through?: string; hub?: string; employee?: string
+  kind?: string; priority?: string; status?: string; queue?: string
+}) {
+  let query = supabase.from('issues')
+    .select('id,issue_no,title,kind,priority,status,hub_id,due_at,created_at,reopen_count,assignee_id,hub_info:hubs!hub_id(name),employee_info:employees!assignee_id(full_name,employee_code)')
+  if (filters.from) query = query.gte('created_at', filters.from)
+  if (filters.through) query = query.lt('created_at', filters.through)
+  if (filters.hub) query = query.eq('hub_id', filters.hub)
+  if (filters.employee) query = query.eq('assignee_id', filters.employee)
+  if (filters.kind) query = query.eq('kind', filters.kind)
+  if (filters.priority) query = query.eq('priority', filters.priority)
+  if (filters.status) query = query.eq('status', filters.status)
+  if (filters.queue === 'unassigned') query = query.eq('status', 'open').is('assignee_id', null)
+  if (filters.queue === 'unresolved') query = query.in('status', ['open', 'in_progress', 'solved'])
+  if (filters.queue === 'late') query = query.in('status', ['open', 'in_progress']).lt('due_at', new Date().toISOString())
+  if (filters.queue === 'review') query = query.eq('status', 'solved')
+  if (filters.queue === 'returned') query = query.gt('reopen_count', 0)
+  const { data, error } = await query.order('created_at', { ascending: false }).order('id').limit(ISSUE_REPORT_LIMIT + 1).returns<IssueHistoryRow[]>()
+  fail(error)
+  return { rows: (data ?? []).slice(0, ISSUE_REPORT_LIMIT), truncated: (data?.length ?? 0) > ISSUE_REPORT_LIMIT }
+}

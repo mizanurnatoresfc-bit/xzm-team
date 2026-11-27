@@ -103,7 +103,8 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 - **XZM-006** UNDER_REVIEW — backup & recovery.
 - **XZM-007A/B-1, -2** EVIDENCE NOT ON FILE — re-audit pending.
 - **XZM-007A/B-3, -4** UNDER_REVIEW — Batch 3 & Batch 4 audits (both reports now in `docs/project-control/audits/`; Batch 4 ported in XZM-004R Review-Response).
-- **XZM-010..013** PROPOSED — from Batch 3 G-1..G-4.
+- **XZM-010 IN REVIEW** — Existing Issues route now has Problem Center views and reports. SQL draft, rollback and outstanding Owner decisions are in [XZM-010 audit](audits/XZM-010_PROBLEM_CENTER.md).
+- **XZM-011..013** PROPOSED — from Batch 3 G-2..G-4.
 - **XZM-014..017** PROPOSED — new from Batch 3 Correction G-6..G-8 + Q.3.11.
 - **XZM-006A UNDER_REVIEW** — Android Signing Key audit doc delivered (`docs/project-control/audits/XZM-006A_ANDROID_SIGNING_KEY.md`); procedure covers (a) six-location Owner search checklist, (b) `apksigner verify --print-certs` fingerprint extraction + `keytool -list -v` match verification, (c) GPG-AES256 encrypted bundle in two independent locations. Awaiting Owner execution of §2 location checks; follow-up XZM-006A-impl opens helper scripts + PROJECT_CONNECTIONS.md §11.
 - **XZM-006B IN_PROGRESS** — ChatGPT Work owns implementation and verification in [#216](https://github.com/mizanurnatoresfc-bit/xzm-team/issues/216), following Claude's merged audit in #215. Owner approved Supabase Free and private R2 with 14 daily, 12 weekly and 12 monthly copies on 2026-11-27 (Asia/Dhaka). R2 is active and the Standard backup bucket was verified private. Scoped backup credentials and effective Supabase URL verification are pending. Backup workflow and first run remain pending. Full restore drill stays under XZM-006I.
@@ -113,7 +114,7 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 ## 8. Current Blockers
 
 - ChatGPT Independent Review pending on XZM-006 and XZM-007A/B-3.
-- Owner decision pending on: Batch 1/2 re-audit vs cancel; XZM-010..017 approvals; XZM-006 §5 action items.
+- Owner decision pending on: Batch 1/2 re-audit vs cancel; XZM-010 policy and release and XZM-011..017 approvals; XZM-006 §5 action items.
 
 ## 9. Next Action
 
