@@ -93,7 +93,7 @@ export function DeskSets({ ctx }: { ctx: Ctx }) {
   return <section className="panel">{node}
     <div className="da-bar"><h2>{L('ডেস্ক সেট', 'Desk sets')}</h2>
       <span className="row-acts">
-        {(pkgs.length > 0 || can('office.package.manage')) && <button type="button" className="secondary sm" onClick={() => setPkgOpen(true)}>{L('প্যাকেজ', 'Packages')}{pkgs.length > 0 && ` (${n(pkgs.length)})`}</button>}
+        {(pkgs.length > 0 || can('office.package.edit')) && <button type="button" className="secondary sm" onClick={() => setPkgOpen(true)}>{L('প্যাকেজ', 'Packages')}{pkgs.length > 0 && ` (${n(pkgs.length)})`}</button>}
         {canAssign && <button type="button" className="secondary sm" onClick={() => { setError(''); setTemplate(defaults); setAddKind('') }}>
           {L('ডিফল্ট সেট সম্পাদনা', 'Edit default set')}
         </button>}</span>

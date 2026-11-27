@@ -509,7 +509,7 @@ export function Notices({ ctx }: { ctx: Ctx }) {
           : (x.status === 'open' || x.status === 'seen') && <div className="small"><Badge tone="warn">{L('হাব ম্যানেজারের যাচাই বাকি', 'Waiting for the hub manager')}</Badge></div>}
         {x.reply && <div className="small oo-reply"><Icon name="check" size={12} /> {x.decided_by_name}: {x.reply}</div>}</div>
       <div className="row-acts"><Badge tone={NOTICE_STATUS[x.status][2]}>{L(NOTICE_STATUS[x.status][0], NOTICE_STATUS[x.status][1])}</Badge>
-        {can('office.notice.verify') && !x.hub_verified_at && (x.status === 'open' || x.status === 'seen') && <button className="sm" onClick={() => void verify(x)}><Icon name="check" size={14} />{L('যাচাই করুন', 'Verify')}</button>}
+        {can('office.notice_verify.approve') && !x.hub_verified_at && (x.status === 'open' || x.status === 'seen') && <button className="sm" onClick={() => void verify(x)}><Icon name="check" size={14} />{L('যাচাই করুন', 'Verify')}</button>}
         {can('office.notice.approve') && (x.status === 'open' || x.status === 'seen') && <>
           {x.status === 'open' && <button className="secondary sm" onClick={() => void act(x, 'seen')}>{L('দেখেছি', 'Seen')}</button>}
           <RowMenu label={L('সিদ্ধান্ত দিন', 'Give a decision')} items={[

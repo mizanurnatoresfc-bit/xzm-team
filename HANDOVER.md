@@ -1094,11 +1094,11 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 ### 2026-11-27 (later) — রিসোর্স: প্যাকেজ, দায়িত্ব একসাথে, সমস্যার যাচাই, ধারে দুই হাব
 
 - **Migration `20261127150000_office_packages_assign_verify.sql` (NOT applied to the live database — apply after `20261127140000_…`):**
-  - *Packages* `private.office_packages` (zone, name, `items` = { kind: count }); the **zonal manager** makes them (`office.package.manage`: admin, head office, zonal, operations); everyone who may view a place of the zone reads
+  - *Packages* `private.office_packages` (zone, name, `items` = { kind: count }); the **zonal manager** makes them (`office.package.edit`: admin, head office, zonal, operations); everyone who may view a place of the zone reads
     them (`office_package_list`). A desk can follow one (`office_desks.package_id`, `office_desk_package_set`); picking a package in "সেট অ্যাসাইন" fills the quantities from stock.
   - *Responsibility in bulk* `office_assign_assets(property, employee, 'items' | 'kind' | 'all', ids, kind)`: the ticked items, every item of one kind, or everything of the hub (items on a desk follow the
     desk's own set and are left out). A null person takes responsibility away.
-  - *Verification* `office_notices.hub_verified_by / _by_name / _at / hub_verify_note`, `office_notice_verify` (permission `office.notice.verify`: hub manager, zonal, admin, head office). A report still goes to the
+  - *Verification* `office_notices.hub_verified_by / _by_name / _at / hub_verify_note`, `office_notice_verify` (permission `office.notice_verify.approve`: hub manager, zonal, admin, head office). A report still goes to the
     zonal manager at once and now also notifies the hub's verifiers (`private.office_notify_hub_verifiers`); the old rule is kept: an item reported broken is marked broken at once (an existing SQL test
     asserts it). The notices page shows "যাচাই বাকি" / the verifier's name and time, with a filter ("যাচাই হয়েছে" = the verify list).
   - *Loans* keep both hubs and an optional person on each side: `office_lend(…, p_from_person, p_to_person)` (old 4-argument calls still work), `office_loan_list` now also returns `from_hub_name`, `to_hub_name`, `from_person`, `to_person`.

@@ -8,14 +8,14 @@
 --  * A loan keeps who gave and who took (the hub of each side is read from the place), and an optional person on each side.
 
 insert into public.permissions (code, module, resource, action, description) values
-  ('office.package.manage', 'office', 'package', 'manage', 'Make, change and remove the zone''s resource packages'),
-  ('office.notice.verify',  'office', 'notice',  'verify', 'Verify a problem report of the own hub (the name is kept on the verify list)')
+  ('office.package.edit', 'office', 'package', 'edit', 'Make, change and remove the zone''s resource packages'),
+  ('office.notice_verify.approve',  'office', 'notice_verify', 'approve', 'Verify a problem report of the own hub (the name is kept on the verify list)')
 on conflict (code) do nothing;
 
 insert into public.role_permissions (role_id, permission_id)
 select r.id, p.id from public.roles r join public.permissions p on (
-     (r.code in ('admin', 'head_office_manager', 'zonal_manager', 'operations_manager') and p.code in ('office.package.manage', 'office.notice.verify'))
-  or (r.code = 'hub_manager' and p.code = 'office.notice.verify')
+     (r.code in ('admin', 'head_office_manager', 'zonal_manager', 'operations_manager') and p.code in ('office.package.edit', 'office.notice_verify.approve'))
+  or (r.code = 'hub_manager' and p.code = 'office.notice_verify.approve')
 ) on conflict do nothing;
 
 -- ---------------------------------------------------------------- packages
@@ -44,7 +44,7 @@ returns uuid
 language plpgsql security definer set search_path = '' as $$
 declare v_id uuid; k text; v jsonb;
 begin
-  if auth.uid() is null or not coalesce(private.has_permission('office.package.manage', p_zone, null), false) then
+  if auth.uid() is null or not coalesce(private.has_permission('office.package.edit', p_zone, null), false) then
     raise exception 'প্যাকেজ বানানোর অনুমতি নেই' using errcode = '42501'; end if;
   if nullif(trim(coalesce(p_name, '')), '') is null then raise exception 'প্যাকেজের নাম দিন' using errcode = '22023'; end if;
   if p_items is null or jsonb_typeof(p_items) <> 'object' or p_items = '{}'::jsonb then raise exception 'অন্তত একটা পার্ট দিন' using errcode = '22023'; end if;
@@ -74,7 +74,7 @@ declare pk private.office_packages;
 begin
   select * into pk from private.office_packages where id = p_id and archived_at is null;
   if not found then raise exception 'প্যাকেজটা পাওয়া যায়নি' using errcode = 'P0002'; end if;
-  if auth.uid() is null or not coalesce(private.has_permission('office.package.manage', pk.zone_id, null), false) then
+  if auth.uid() is null or not coalesce(private.has_permission('office.package.edit', pk.zone_id, null), false) then
     raise exception 'প্যাকেজ সরানোর অনুমতি নেই' using errcode = '42501'; end if;
   if nullif(trim(coalesce(p_reason, '')), '') is null then raise exception 'সরানোর কারণ লিখুন' using errcode = '22023'; end if;
   perform set_config('app.change_reason', p_reason, true);
@@ -86,7 +86,7 @@ create function public.office_package_list(p_property uuid)
 returns jsonb
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_agg(jsonb_build_object('id', k.id, 'zone_id', k.zone_id, 'name', k.name, 'items', k.items, 'note', k.note,
-           'can_manage', coalesce(private.has_permission('office.package.manage', k.zone_id, null), false)) order by k.name), '[]'::jsonb)
+           'can_manage', coalesce(private.has_permission('office.package.edit', k.zone_id, null), false)) order by k.name), '[]'::jsonb)
   from public.office_properties p join private.office_packages k on k.zone_id = p.zone_id and k.archived_at is null
   where p.id = p_property and auth.uid() is not null and private.office_can('office.property.view', p.id)
 $$;
@@ -141,7 +141,7 @@ alter table public.office_notices
   add column hub_verified_by uuid, add column hub_verified_by_name text, add column hub_verified_at timestamptz, add column hub_verify_note text;
 create index office_notices_unverified on public.office_notices (hub_id) where hub_verified_at is null and status in ('open', 'seen');
 
--- Who at the hub hears about a report: the holders of office.notice.verify for the place's hub.
+-- Who at the hub hears about a report: the holders of office.notice_verify.approve for the place's hub.
 create function private.office_notify_hub_verifiers(p_property uuid, p_title text, p_body text) returns integer
 language plpgsql security definer set search_path = '' as $$
 declare v_hub uuid; u uuid; v_n integer := 0;
@@ -154,7 +154,7 @@ begin
     join public.roles r on r.id = ur.role_id and r.status = 'active' and r.archived_at is null
     join public.profiles pr on pr.id = ur.user_id and pr.status = 'active' and pr.archived_at is null
     join public.role_permissions rp on rp.role_id = r.id
-    join public.permissions p on p.id = rp.permission_id and p.code = 'office.notice.verify'
+    join public.permissions p on p.id = rp.permission_id and p.code = 'office.notice_verify.approve'
     where ur.revoked_at is null and ur.valid_from <= current_date and (ur.valid_to is null or ur.valid_to >= current_date)
       and ur.scope_type = 'hub' and ur.hub_id = v_hub and ur.user_id is distinct from auth.uid()
   loop
@@ -211,7 +211,7 @@ declare n public.office_notices; v_name text := private.my_display_name();
 begin
   select * into n from public.office_notices where id = p_id;
   if not found then raise exception 'রিপোর্টটা পাওয়া যায়নি' using errcode = 'P0002'; end if;
-  if not private.office_can('office.notice.verify', n.property_id) then raise exception 'রিপোর্ট যাচাইয়ের অনুমতি নেই' using errcode = '42501'; end if;
+  if not private.office_can('office.notice_verify.approve', n.property_id) then raise exception 'রিপোর্ট যাচাইয়ের অনুমতি নেই' using errcode = '42501'; end if;
   if n.status in ('done', 'rejected') then raise exception 'এই রিপোর্টের কাজ আগেই শেষ' using errcode = '22023'; end if;
   if n.hub_verified_at is not null then raise exception 'আগেই যাচাই হয়েছে (%)', coalesce(n.hub_verified_by_name, '—') using errcode = '22023'; end if;
   perform set_config('app.change_reason', 'হাব ম্যানেজারের যাচাই ' || n.notice_no, true);

@@ -240,9 +240,9 @@ const rpcCall = async <T,>(fn: string, args: Record<string, unknown> = {}): Prom
   const { data, error } = await supabase.rpc(fn, args); fail(error); return data as T
 }
 export const autos = {
-  list: (property: string, month: string) => rpcCall<Auto[]>('office_autos', { p_property: property, p_month: month }),
-  mine: () => rpcCall<MyAuto[]>('office_my_autos'),
-  totals: (month: string) => rpcCall<AutoTotal[]>('office_auto_month_totals', { p_month: month }),
+  list: async (property: string, month: string) => (await rpcCall<Auto[] | null>('office_autos', { p_property: property, p_month: month })) ?? [],
+  mine: async () => (await rpcCall<MyAuto[] | null>('office_my_autos')) ?? [],
+  totals: async (month: string) => (await rpcCall<AutoTotal[] | null>('office_auto_month_totals', { p_month: month })) ?? [],
   save: (property: string, a: { name: string; rate: number; responsible: string | null; reg?: string | null; note?: string | null }, id?: string) =>
     rpcCall<string>('office_auto_save', { p_property: property, p_name: a.name, p_rate: a.rate, p_responsible: a.responsible, p_reg: a.reg ?? null, p_note: a.note ?? null, p_id: id ?? null }),
   archive: (id: string, reason: string) => rpcCall<void>('office_auto_archive', { p_id: id, p_reason: reason }),
@@ -253,7 +253,7 @@ export const autos = {
 /** A package: a named set of parts ("manager desk = PC + monitor + chair …"), made by the zonal manager for the zone. `items` is { kind: count }. */
 export type OfficePackage = { id: string; zone_id: string; name: string; items: Record<string, number>; note: string | null; can_manage: boolean }
 export const packages = {
-  list: (property: string) => rpcCall<OfficePackage[]>('office_package_list', { p_property: property }),
+  list: async (property: string) => (await rpcCall<OfficePackage[] | null>('office_package_list', { p_property: property })) ?? [],
   save: (zone: string, name: string, items: Record<string, number>, note?: string | null, id?: string) =>
     rpcCall<string>('office_package_save', { p_zone: zone, p_name: name, p_items: items, p_note: note ?? null, p_id: id ?? null }),
   archive: (id: string, reason: string) => rpcCall<void>('office_package_archive', { p_id: id, p_reason: reason }),
