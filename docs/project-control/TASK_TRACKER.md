@@ -576,14 +576,14 @@
 | Priority | P1 |
 | Assigned AI | ChatGPT |
 | Dependencies | XZM-007A/B-3 Finding G-3 |
-| Current Status | **REVIEW** (partial implementation) |
+| Current Status | **REVIEW** (independent review fixes on draft #219) |
 | Acceptance Criteria | Shared header, per-user persistence, safe switching, server-enforced access and verified web/Android module coverage |
 | Test Evidence | TEST_REPORT.md, XZM-012 |
 | Owner Approval | ✅ Development approved in the XZM-012 request |
 | Commit / PR Link | `6506ef3` / [Draft #219](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/219) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
-| Blockers | Data Entry development is in #207. Complete module authorization verification needs an isolated database and Android runtime. |
+| Blockers | Data Entry depends on open draft #207 and its route/RPC contracts. Physical Android WebView and production authorization parity remain unverified. Existing offline route SQL fixture can fail across Dhaka midnight. |
 | Next Action | Review draft, coordinate open PR overlap and complete the remaining module and role checks before requesting deployment approval. |
 
 ### XZM-013 — Employee Duty Evidence *(proposed)*

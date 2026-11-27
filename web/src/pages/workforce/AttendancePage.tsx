@@ -125,7 +125,7 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   ]
 
   return <div className="wm">
-    {hub && <div className="da-bar no-print"><span className="muted small">{hub.name}</span><LiveDot on={ovQ.live} /></div>}
+    {hub && <div className="da-bar no-print"><span className="muted small">{linkedHub && linkedHub !== preferred ? L('রেকর্ডের হাব', 'Record hub') + ' · ' : ''}{hub.name}</span><LiveDot on={ovQ.live} /></div>}
     {hubs.length > 0 && !hub && <Notice>{linkedHub
       ? <Link to="/app/attendance?view=hub">{L('লিংকের হাবটি দেখা যাচ্ছে না। কাজের হাব খুলুন।', 'This link’s hub is unavailable. Open your working hub.')}</Link>
       : L('হেডার থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in the header.')}</Notice>}

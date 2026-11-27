@@ -73,13 +73,17 @@ function MorningFormCard({ f, onReload, onSubmitted }: { f: MorningForm; onReloa
   const [err, setErr] = useState('')
   const timer = useRef(0)
   const revision = useRef(0)
+  const pendingSave = useRef(Promise.resolve())
 
   // what the server holds is the truth until the manager types something
   useEffect(() => {
     if (!f.people || dirty) return
     setMarks(Object.fromEntries(f.people.filter(p => p.state !== 'leave').map(p => [p.id, p.state as TypedState])))
   }, [f, dirty])
-  useEffect(() => () => window.clearTimeout(timer.current), [])
+  useEffect(() => () => {
+    window.clearTimeout(timer.current)
+    revision.current++
+  }, [])
 
   const lines = useMemo(() => Object.entries(marks).map(([employee_id, state]) => ({ employee_id, state })), [marks])
   const people = f.people ?? []
@@ -87,27 +91,41 @@ function MorningFormCard({ f, onReload, onSubmitted }: { f: MorningForm; onReloa
   const count = (s: MorningState) => people.filter(p => stateOf(p) === s).length
 
   function change(next: Record<string, TypedState>) {
+    if (busy) return
     setMarks(next); setDirty(true); setSaved('saving'); window.clearTimeout(timer.current)
     const changeId = ++revision.current
     timer.current = window.setTimeout(() => {
-      morning.save(hubId, Object.entries(next).map(([employee_id, state]) => ({ employee_id, state })), f.date)
-        .then(() => { if (changeId === revision.current) setSaved('saved') })
-        .catch(() => { if (changeId === revision.current) setSaved('failed') })
+      // Serialize writes so an older server transaction cannot overwrite a newer draft.
+      pendingSave.current = pendingSave.current.then(async () => {
+        if (changeId !== revision.current) return
+        try {
+          await morning.save(hubId, Object.entries(next).map(([employee_id, state]) => ({ employee_id, state })), f.date)
+          if (changeId === revision.current) setSaved('saved')
+        } catch {
+          if (changeId === revision.current) setSaved('failed')
+        }
+      })
     }, 700)
   }
   const set = (id: string, s: TypedState) => change({ ...marks, [id]: s })
   const allCame = () => change({ ...marks, ...Object.fromEntries(people.filter(p => p.state !== 'leave').map(p => [p.id, 'present' as TypedState])) })
 
   async function submit() {
+    if (busy) return
+    setBusy(true)
     const left = people.filter(p => stateOf(p) === 'unknown').length
     const sure = await askConfirm(left ? L(`${n(left)} জনের অবস্থা বাকি থাকছে। তবুও জোনে জমা দেবেন?`, `${left} people stay unchecked. Submit to the zone anyway?`) : L('জোনাল ম্যানেজারের কাছে সকালের ইনপুট জমা দেবেন?', 'Submit the morning input to the zonal manager?'),
       { ok: L('জমা দিন', 'Submit'), detail: L('জমার পর এই ফর্ম লক হবে। বন্ধের আগে জোনাল ম্যানেজার ফেরত দিলে সংশোধন করা যাবে।', 'The form locks. The zonal manager can send it back for correction before closing.') })
-    if (!sure) return
-    window.clearTimeout(timer.current); setBusy(true); setErr('')
+    if (!sure) { setBusy(false); return }
+    window.clearTimeout(timer.current)
+    revision.current++
+    setErr('')
     try {
+      await pendingSave.current
       const r = await morning.submit(hubId, lines, f.date)
       onSubmitted(r.already)
     } catch (e) {
+      if (dirty && saved !== 'saved') setSaved('failed')
       setErr(wfFriendly(e))
       void onReload()
     } finally { setBusy(false) }

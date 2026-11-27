@@ -1,4 +1,4 @@
-import { useWorkHub } from '../../lib/workHub'
+import { useWorkHub, useWorkHubBlocker } from '../../lib/workHub'
 import { EvidencePicker } from '../../components/EvidencePicker'
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -76,7 +76,7 @@ export function Issues() {
   const [desk, setDesk] = useState(false)
   const p: Panels = panels.data ?? { mine: [], to_check: [], given: [], waiting_for_check_of_mine: [], hub: [] }
   const hubs = groups.data ?? []
-  const defaultHub = hubs.find(h => h.hub_id === workHub)?.hub_id ?? hubs[0]?.hub_id ?? ''
+  const defaultHub = hubs.find(h => h.hub_id === workHub)?.hub_id ?? ''
   const asked = sp.get('tab') as Filter | null
   const filter: Filter = asked && FILTERS.includes(asked) ? asked : ui.first
   const open = sp.get('id')
@@ -96,7 +96,9 @@ export function Issues() {
   useEffect(() => {
     if (!sp.get('new') || !hubs.length) return
     setResidential(sp.get('new') === 'residential')
-    setCreating(c => c ?? hubs.find(h => h.hub_id === sp.get('hub'))?.hub_id ?? defaultHub)
+    const linkedHub = sp.get('hub')
+    const target = linkedHub ? hubs.find(h => h.hub_id === linkedHub)?.hub_id ?? '' : defaultHub
+    setCreating(c => c ?? target)
     const n = new URLSearchParams(sp); n.delete('new'); n.delete('hub'); setSp(n, { replace: true })
   }, [sp, hubs, defaultHub, setSp])
   // ...and /app/issues?order=store (or it) opens the order form.
@@ -178,7 +180,7 @@ export function Issues() {
     {settings && <UiSettings ui={ui} onChange={setUi} onClose={() => setSettings(false)} />}
     {desk && <Modal wide title="স্টোর / আইটি অর্ডার কে পাবেন" onClose={() => setDesk(false)} actions={<button type="button" onClick={() => setDesk(false)}>বন্ধ</button>}>
       <OrderDesk canOrder={hubs.length > 0} onOrder={k => { setDesk(false); setOrdering(k) }} /></Modal>}
-    {creating && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
+    {creating !== null && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
     {ordering && <NewOrder hubs={hubs} initialHub={defaultHub} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('g'); n.set('id', id) }) }} />}
     {node}
   </AppShell>
@@ -269,7 +271,7 @@ function IssueChat({ id, row, refresh, onBack, onChanged }: { id: string; row?: 
       <button type="button" className="mg-ic back" aria-label="ফিরে যান" onClick={onBack}><Icon name="back" size={18} /></button>
       <span className="mg-av">{i ? KIND_ICON[i.kind] : '…'}</span>
       <div className="mg-tx"><b>{i ? i.title : 'ইস্যু'}</b>
-        {i && <small>{i.issue_no} · {KIND_BN[i.kind]} · {i.hub} · কাকে: {i.assignee ?? 'কাউকে দেওয়া হয়নি'}{i.assignee_code ? ` (${i.assignee_code})` : ''}</small>}</div>
+        {i && <small>{i.issue_no} · {KIND_BN[i.kind]} · রেকর্ডের হাব {i.hub} · কাকে: {i.assignee ?? 'কাউকে দেওয়া হয়নি'}{i.assignee_code ? ` (${i.assignee_code})` : ''}</small>}</div>
       {i && <Badge tone={TONE[i.status]}>{order ? ORDER_STATUS_BN[i.status] : i.status_bn}</Badge>}
     </header>
     <div className="mg-body" ref={body}>
@@ -438,6 +440,9 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
   const [more, setMore] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const { session } = useAuth()
+  useWorkHubBlocker(session?.user.id ?? '', true)
+  const allowedHub = hubs.find(item => item.hub_id === hub)?.hub_id ?? ''
   const latest = useRef<File | null>(null)
   const same = useDuplicates(f.parcel, duplicates.openIssuesByParcel, v => v.trim().length >= 4)
 
@@ -469,6 +474,7 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
   }, [take])
 
   async function save() {
+    if (busy || !allowedHub) return
     setErr('')
     if (residential && (!room.trim() || !f.title.trim() || !f.body.trim())) { setErr('ফ্ল্যাট ও রুম, সমস্যার নাম এবং বিস্তারিত লিখুন'); return }
     if (!f.title.trim() && !f.parcel.trim() && !file) { setErr('লেবেলের ছবি দিন, পার্সেল আইডি দিন বা কী সমস্যা লিখুন'); return }
@@ -479,7 +485,7 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
         due: f.due ? new Date(f.due).toISOString() : null, priority: f.priority }))
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
-  return <Modal wide title={residential ? "আবাসিক ইস্যু জানান" : "নতুন ইস্যু / কাজ দিন"} onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : person ? 'ইস্যু তৈরি করে কাজ দিন' : 'ইস্যু তৈরি করুন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
+  return <Modal wide title={residential ? "আবাসিক ইস্যু জানান" : "নতুন ইস্যু / কাজ দিন"} onClose={() => { if (!busy) onClose() }} actions={<><button type="button" disabled={busy || !allowedHub} onClick={() => void save()}>{busy ? 'হচ্ছে…' : person ? 'ইস্যু তৈরি করে কাজ দিন' : 'ইস্যু তৈরি করুন'}</button><button type="button" className="secondary" disabled={busy} onClick={onClose}>বাতিল</button></>}>
     <label className={`is-drop${preview ? ' has' : ''}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); take(e.dataTransfer.files?.[0] ?? null) }}>
       <input type="file" accept="image/*" className="is-file" onChange={e => { take(e.target.files?.[0] ?? null); e.target.value = '' }} />
       {preview ? <img src={preview} alt="লেবেলের ছবি" /> : <><Icon name="scan" size={30} /><b>{residential ? "সমস্যার ছবি দিন (ঐচ্ছিক)" : "পার্সেল লেবেলের স্ক্রিনশট / ছবি দিন"}</b>
@@ -497,7 +503,7 @@ function NewIssue({ hubs, hub: h0, residential, onClose, onDone }: { hubs: Group
     <div className="da-form">
       {!residential && <Field label="পার্সেল আইডি" hint="ছবি দিলে নিজে পড়ে বসানোর চেষ্টা করে; ভুল হলে ঠিক করে দিন"><input value={f.parcel} onChange={e => setF({ ...f, parcel: e.target.value })} />
         {same.length > 0 && <DupNote>এই পার্সেলে আগে থেকেই ইস্যু খোলা আছে: {same.map(x => `${x.issue_no} (${STATUS_BN[x.status as keyof typeof STATUS_BN] ?? x.status})`).join(', ')} — আবার দিলে দুটো হবে।</DupNote>}</Field>}
-      <Field label="হাব"><select value={hub} onChange={e => setHub(e.target.value)}>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
+      <Field label="হাব"><select value={allowedHub} disabled={busy} onChange={e => setHub(e.target.value)}><option value="" disabled>অনুমোদিত হাব বেছে নিন</option>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
       {residential && <Field label="ফ্ল্যাট ও রুম" required wide><input value={room} onChange={e => setRoom(e.target.value)} /></Field>}
       <Field label="কী সমস্যা" wide hint={residential ? undefined : "না লিখলে পার্সেল আইডি দিয়েই ইস্যুর নাম হবে"}><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder={residential ? "যেমন: রুমের ফ্যান চলছে না" : "যেমন: কাস্টমার ফোন ধরছে না"} /></Field>
       {residential ? <Field label="বিস্তারিত" required wide><textarea value={f.body} onChange={e => setF({ ...f, body: e.target.value })} /></Field> : <Field label="কাকে দেবেন" wide hint="এখন না বাছলে পরে দেওয়া যাবে"><PersonPicker value={person} onChange={setPerson} /></Field>}
@@ -565,13 +571,16 @@ function NewOrder({ hubs, initialHub, kind: k0, onClose, onDone }: { hubs: Group
   const [person, setPerson] = useState<RefPerson | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const { session } = useAuth()
+  useWorkHubBlocker(session?.user.id ?? '', true)
+  const allowedHub = hubs.find(item => item.hub_id === hub)?.hub_id ?? ''
   const inc = useLoad(() => issues.orderIncharge(), [])
   const who = inc.data?.[kind] ?? null
   const pickSomeone = other || (!inc.loading && !who)
   async function save() {
+    if (busy || !allowedHub) return
     setErr('')
     const body = text.trim()
-    if (!hub) { setErr('হাব বেছে নিন'); return }
     if (!body) { setErr('কী কী লাগবে লিখুন'); return }
     setBusy(true)
     try {
@@ -581,10 +590,10 @@ function NewOrder({ hubs, initialHub, kind: k0, onClose, onDone }: { hubs: Group
         assignee: pickSomeone && person?.kind === 'employee' ? person.id : null, due: due ? new Date(`${due}T18:00:00`).toISOString() : null }))
     } catch (e) { setErr(errText(e)) } finally { setBusy(false) }
   }
-  return <Modal wide title="স্টোর / আইটি অর্ডার" onClose={onClose} actions={<><button type="button" disabled={busy} onClick={() => void save()}>{busy ? 'হচ্ছে…' : 'অর্ডার দিন'}</button><button type="button" className="secondary" onClick={onClose}>বাতিল</button></>}>
+  return <Modal wide title="স্টোর / আইটি অর্ডার" onClose={() => { if (!busy) onClose() }} actions={<><button type="button" disabled={busy || !allowedHub} onClick={() => void save()}>{busy ? 'হচ্ছে…' : 'অর্ডার দিন'}</button><button type="button" className="secondary" disabled={busy} onClick={onClose}>বাতিল</button></>}>
     <div className="da-seg" role="group" aria-label="কোথায় অর্ডার">{(['store', 'it'] as OrderKind[]).map(k => <button key={k} type="button" className={kind === k ? '' : 'secondary'} aria-pressed={kind === k} onClick={() => setKind(k)}>{ORDER_NAME[k]}</button>)}</div>
     <div className="da-form" style={{ marginTop: 12 }}>
-      <Field label="কোন হাবের জন্য" required><Combo value={hub} onChange={setHub} clearable={false} options={hubs.map(h => ({ value: h.hub_id, label: h.hub_name }))} /></Field>
+      <Field label="কোন হাবের জন্য" required><Combo label="কোন হাবের জন্য" placeholder="অনুমোদিত হাব বেছে নিন" value={allowedHub} onChange={setHub} disabled={busy} clearable={false} options={hubs.map(h => ({ value: h.hub_id, label: h.hub_name }))} /></Field>
       <Field label="গুরুত্ব"><select value={priority} onChange={e => setPriority(e.target.value as Priority)}>{Object.entries(PRIORITY_BN).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
       <Field label="কী কী লাগবে" wide required hint="যেভাবে বলেন সেভাবেই লিখুন — জিনিসের নাম আর পরিমাণ"><textarea rows={4} value={text} onChange={e => setText(e.target.value)} placeholder={ORDER_HINT[kind]} /></Field>
       <Field label="কবে লাগবে (ঐচ্ছিক)"><input type="date" value={due} onChange={e => setDue(e.target.value)} /></Field>

@@ -113,6 +113,7 @@ try {
     let authenticatedUser = session.user
     let permittedHubs = hubRows
     let scopedGrants = null
+    let holdMorningSave = null
     let morningDone = false
     let morningWindow = 'open'
     let morningBoundary = 0
@@ -162,7 +163,7 @@ try {
       rq('q2', 'HR-00002', 'e02', 'h4', 'processing', { employee_code: '5002', full_name: 'Karim Ali', from_hub: 'Boraigram', to_hub: 'h1', effective_date: '2026-11-22', reason: 'Punishment transfer', new_basic: '14000' }),
       rq('q1', 'HR-00001', 'e01', 'h4', 'submitted', { employee_code: '5001', full_name: 'Rahim Sheikh', from_hub: 'Boraigram', to_hub: 'h2', effective_date: '2026-11-20', reason: 'Lalpur service better' }, { ref_name: 'Zonal Karim', ref_code: '777' }),
       { ...rq('q3', 'HR-00003', 'e03', 'h1', 'submitted', { full_name: 'Someone Else' }), kind: 'id_active', format_id: 'f-active' }]
-    await ctx.route(/supabase\.co|xzm-hub-test\.invalid/, r => {
+    await ctx.route(/supabase\.co|xzm-hub-test\.invalid/, async r => {
       const u = r.request().url()
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
       const j = d => r.fulfill({ status: 200, contentType: 'application/json', headers: { ...cors, 'content-range': '0-0/0' }, body: JSON.stringify(d) })
@@ -343,7 +344,10 @@ try {
         if (fn !== 'wf_morning_get') flowCalls.push({ fn, ...body })
         if (fn === 'wf_morning_submit') { morningDone = true; return j({ revision: 1, mode: 'manager', submitted_at: '2026-11-24T02:00:00Z', already: false }) }
         if (fn === 'wf_morning_return') return j(2)
-        if (fn === 'wf_morning_save') return j(null)
+        if (fn === 'wf_morning_save') {
+          if (holdMorningSave) await holdMorningSave
+          return j(null)
+        }
         const instant = Date.now()
         if (!morningBoundary) morningBoundary = instant + 1400
         const cutoff = morningWindow === 'closing' ? morningBoundary : instant + 3600_000
@@ -556,7 +560,7 @@ try {
       check(await workHub.inputValue() === 'h1', `${size}: the working hub persists across navigation and refresh`)
       await page.goto(`${BASE}/app/attendance?view=hub&hub=h2`)
       await page.waitForSelector('.wm .da-bar:has-text("Lalpur #81")')
-      check(await workHub.inputValue() === 'h1', `${size}: a hub deep link opens its own hub while preserving the working hub`)
+      check(await workHub.inputValue() === 'h1' && (await page.locator('.wm .da-bar').innerText()).includes('রেকর্ডের হাব'), `${size}: a hub deep link opens its own hub while preserving the working hub`)
       await page.goto(`${BASE}/app/attendance?view=hub&hub=unlisted`)
       await page.getByText('লিংকের হাবটি দেখা যাচ্ছে না।', { exact: false }).waitFor()
       check(await page.locator('.wm .da-bar').count() === 0, `${size}: an unlisted hub link does not substitute another hub's data`)
@@ -578,6 +582,66 @@ try {
       check((await saveRequest).postDataJSON().p_hub === 'h1', `${size}: the draft saves against the displayed hub`)
       await page.waitForFunction(() => document.querySelector('header .work-hub-select')?.value === 'h2')
       await secondTab.close()
+      await page.goto(`${BASE}/app/issues?new=1&hub=unlisted`)
+      const dialog = page.locator('.da-modal')
+      const chooseIssueHub = dialog.locator('select').first()
+      await chooseIssueHub.waitFor()
+      check(await chooseIssueHub.inputValue() === '' && await dialog.getByRole('button', { name: 'ইস্যু তৈরি করুন' }).isDisabled(), `${size}: invalid linked issue hub requires explicit selection`)
+      const issueTab = await ctx.newPage()
+      await issueTab.goto(`${BASE}/app/me/permissions`)
+      await issueTab.locator('header .work-hub-select').selectOption('h1')
+      await chooseIssueHub.selectOption('h1')
+      check(await workHub.inputValue() === 'h2', `${size}: an open issue form defers a cross-tab hub change`)
+      await dialog.getByRole('button', { name: 'বাতিল' }).click()
+      await page.waitForFunction(() => document.querySelector('.work-hub-select')?.value === 'h1')
+      await page.evaluate(() => localStorage.setItem('xzm_work_hub:u1', 'unlisted'))
+      await page.goto(`${BASE}/app/accounts/daily`)
+      await page.getByRole('button', { name: /হিসাব শুরু/ }).filter({ visible: true }).first().click()
+      check(await dialog.locator('select').inputValue() === '' && await dialog.getByRole('button', { name: 'হ্যাঁ, শুরু করুন' }).isDisabled(), `${size}: accounts creation requires an eligible hub`)
+      await issueTab.locator('header .work-hub-select').selectOption('h2')
+      check(await workHub.inputValue() === '', `${size}: an open accounts form defers a cross-tab hub change`)
+      await dialog.locator('select').selectOption('h4')
+      const accountRequest = page.waitForRequest(r => r.url().includes('/rpc/da_start_session'))
+      await dialog.getByRole('button', { name: 'হ্যাঁ, শুরু করুন' }).click()
+      check((await accountRequest).postDataJSON().p_hub === 'h4', `${size}: accounts creation sends the explicitly chosen hub`)
+      await page.waitForURL('**/app/accounts/daily/s9')
+      await page.evaluate(() => localStorage.setItem('xzm_work_hub:u1', 'unlisted'))
+      await page.goto(`${BASE}/app/issues?order=store`)
+      await dialog.locator('.od-to').waitFor()
+      check(await dialog.getByRole('button', { name: 'অর্ডার দিন', exact: true }).isDisabled(), `${size}: an unavailable working hub does not preselect an order hub`)
+      await issueTab.locator('header .work-hub-select').selectOption('h1')
+      check(await workHub.inputValue() === '', `${size}: an open order form defers a cross-tab hub change`)
+      await dialog.getByRole('button', { name: 'বাতিল' }).click()
+      await page.waitForFunction(() => document.querySelector('.work-hub-select')?.value === 'h1')
+      await issueTab.close()
+
+      permsNow = ['hr.attendance.view', 'hr.attendance.create', 'hr.employee.view']
+      await page.goto(`${BASE}/app?morningHub=h1`)
+      const firstMark = page.locator('.mo-table select').first()
+      const beforeSaves = flowCalls.filter(x => x.fn === 'wf_morning_save').length
+      let releaseSave
+      holdMorningSave = new Promise(resolve => { releaseSave = resolve })
+      const firstSave = page.waitForRequest(r => r.url().includes('/rpc/wf_morning_save'))
+      await firstMark.selectOption('present')
+      await firstSave
+      await firstMark.selectOption('absent')
+      // Let the second debounce expire while the first request is still in flight.
+      await page.waitForTimeout(850)
+      check(flowCalls.filter(x => x.fn === 'wf_morning_save').length === beforeSaves + 1, `${size}: morning autosaves do not overlap`)
+      let releaseLatest
+      holdMorningSave = new Promise(resolve => { releaseLatest = resolve })
+      const latestSave = page.waitForRequest(r => r.url().includes('/rpc/wf_morning_save'))
+      releaseSave()
+      await latestSave
+      check(await page.getByText('খসড়া সেভ হয়েছে', { exact: true }).count() === 0, `${size}: an older autosave response cannot clear the current pending state`)
+      holdMorningSave = null
+      releaseLatest()
+      await page.getByText('খসড়া সেভ হয়েছে', { exact: true }).waitFor()
+      const saves = flowCalls.filter(x => x.fn === 'wf_morning_save').slice(beforeSaves)
+      check(saves.length === 2 && saves[0].p_lines[0].state === 'present' && saves[1].p_lines[0].state === 'absent' && await firstMark.inputValue() === 'absent',
+        `${size}: latest morning edit wins and only its response clears saving`)
+      permsNow = null
+      await page.evaluate(() => localStorage.setItem('xzm_work_hub:u1', 'h2'))
       for (const [role, scope, count] of [['Zonal Manager', 'zone', 2], ['Hub Manager', 'hub', 1], ['Staff', 'hub', 1], ['Rider', 'hub', 1]]) {
         permittedHubs = hubRows.slice(0, count)
         scopedGrants = [{ permission_code: 'org.hub.view', scope_type: scope, zone_id: scope === 'zone' ? 'z1' : null, hub_id: scope === 'hub' ? 'h1' : null, is_super: false }]
@@ -2157,6 +2221,12 @@ try {
       const ap = await ctx.newPage(); ap.on('pageerror', e => errors.push(String(e))); ap.on('dialog', d => { nativeDialogs.push(d.message()); void d.dismiss() })
       await ap.goto(`${BASE}/app/staff`); await ap.waitForSelector('.sp .nv-row')
       check(await ap.evaluate(() => document.documentElement.classList.contains('native-app')), `${size}: in the app, app mode is on`)
+      const nativeHub = ap.locator('header .work-hub-select')
+      await nativeHub.selectOption('h2')
+      await ap.reload()
+      check(await nativeHub.inputValue() === 'h2' && await ap.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1),
+        `${size}: the Android bridge fixture header fits and restores the selected hub`)
+      await nativeHub.selectOption('h1')
       await ap.evaluate(() => document.addEventListener('change', e => { if (e.target.type === 'file') window.__picked = e.target.files.length }, true))
       await ap.locator('.sp-hero .my-av-cam').click(); await ap.waitForSelector('.da-modal .ask-choices')
       check(await ap.locator('.da-modal .nv-row').count() === 2, `${size}: in the app, a photo box asks camera or gallery`)

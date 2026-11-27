@@ -30,6 +30,17 @@ Format:
 - The [isolated PostgreSQL 16 workflow](https://github.com/mizanurnatoresfc-bit/xzm-team/actions/runs/46060131827) passed 2,815 assertions, including the RBAC, workforce, final sheet, morning input, daily accounts, issues, office, route settings and fleet test files. The full SQL suite failed in the existing `route_checkin_offline.sql:48` test with a multiple-row scalar subquery. SQL sources, assertions and the workflow were identical to base `6831f29`.
 - Merge simulations for the eleven overlapping open PRs found no new conflicting paths. PRs #136, #153 and #156 already had conflicts against the base. No writes were tested on the hosted preview.
 
+### PR #219 independent review follow-up
+
+- TypeScript, build, parser, navigation, route, plan, check-in and browser offline tests passed. The focused localhost suite passed 58 desktop and phone checks for explicit hub selection, creation-form guards, deep links, account switching, scoped rosters and delayed Morning RPCs. Full regression evidence is recorded in [PR #219](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/219).
+
+- Issue, Store/IT order and daily accounts creation require an explicit eligible hub when the working hub is unavailable. An explicit invalid issue shortcut stays unselected. Open forms defer working-hub switching, including switches from other tabs, and keep their chosen target through submission. Attendance and morning deep links distinguish the record hub. Issue and daily account detail identify their actual hub.
+- Morning draft writes are serialized within each mounted editor. An older response cannot clear the latest edit's pending state, and final submission waits for the in-flight draft. Concurrent edits to the same register from multiple devices still follow existing backend behavior.
+- Reviewed the checked-in hub roster RLS, active effective grants and their global, zone and hub scopes for Super Admin, Zonal Manager, Hub Manager, Staff and Rider. For accounts, `da_my_hubs` exposes `can_submit` from `da.sheet.create`, independently checked by `da_start_session`. For Issues, `hub_group_hubs` and `issue_create` both use `private.in_hub_group`, which includes linked employees and scoped issue grants. Existing isolated SQL evidence includes cross-hub denials and rider denial for account creation. Production policy parity remains unverified.
+- The SQL run reported the offline check-in failure at 19:57 UTC. The test's three-hour-old reading mapped to 22:57 on 27 November in Dhaka, and its one-hour-old reading mapped to 00:57 on 28 November. The RPC legitimately stores both on separate `work_date` keys. Line 48 selects by stop alone in a scalar subquery, so it sees two rows. The SQL fixture and application SQL are outside this PR.
+- [PR #207](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/207) remains an open draft. Data Entry integration requires its actual routes and RPC contracts, followed by a separate hub-context regression run.
+- Physical Android WebView testing remains pending. The workspace has no Android SDK, emulator or device bridge. Capacitor configuration points to the production URL, so the isolated browser bridge fixture is used for mobile app-mode header checks.
+
 ## XZM-006 — Backup & Recovery Deep Verification — 2026-11-27 (post-merge)
 
 - **Environment:** N/A (read-only audit, no runtime).
