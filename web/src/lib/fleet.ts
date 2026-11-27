@@ -10,6 +10,14 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
   const { data, error } = await supabase.rpc(fn, args); fail(error); return data as T
 }
 
+export type DailyCheckKind = 'departure' | 'charge' | 'garage'
+export type DailyCheckSource = 'crew' | 'manager'
+export type DailyCheck = {
+  kind: DailyCheckKind; source: DailyCheckSource; state: string; detail: string | null
+  checked_name: string | null; checked_at: string
+}
+export type DailyCheckRow = { vehicle_id: string; name: string; kind: string; hub_id: string; hub_name: string; can_confirm: boolean; checks: DailyCheck[] }
+
 export type Role = 'driver' | 'helper'
 export type Kind = { code: string; bn: string; crew: Role[] }
 export type FleetFns = { hub_report?: boolean; fuel?: boolean; service?: boolean; garage?: boolean; khoraki?: boolean }
@@ -105,6 +113,10 @@ export const fleetFriendly = (e: unknown) => {
 }
 
 export const fleet = {
+  dailyChecks: (date: string, vehicle?: string) =>
+    rpc<DailyCheckRow[]>('fleet_daily_checks', { p_date: date, p_vehicle: vehicle ?? null }),
+  saveDailyCheck: (vehicle: string, date: string, kind: DailyCheckKind, source: DailyCheckSource, state: string, detail: string) =>
+    rpc<void>('fleet_daily_check_save', { p_vehicle: vehicle, p_date: date, p_kind: kind, p_source: source, p_state: state, p_detail: detail }),
   settings: () => rpc<Settings>('vehicle_settings'),
   configure: (key: 'fleet' | 'request_formats', value: unknown) => rpc<void>('vehicle_configure', { p_key: key, p_value: value }),
   approvers: () => rpc<Approver[]>('fleet_approvers'),

@@ -109,7 +109,7 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/office/residential/reports', codes: ['office.bill.view'], res: ['office.report'] },
   ] },
   { key: 'fleet', icon: 'truck', bn: 'গাড়ি', en: 'Vehicles', db: ['vehicle'], subs: [
-    { to: '/app/fleet', res: ['vehicle.vehicle', 'vehicle.holder', 'vehicle.log', 'vehicle.khoraki', 'vehicle.report', 'vehicle.requisition', 'vehicle.document', 'vehicle.settings'] },
+    { to: '/app/fleet', res: ['vehicle.check', 'vehicle.vehicle', 'vehicle.holder', 'vehicle.log', 'vehicle.khoraki', 'vehicle.report', 'vehicle.requisition', 'vehicle.document', 'vehicle.settings'] },
   ] },
   { key: 'issues', icon: 'tasks', bn: 'ইস্যু ও হাব গ্রুপ', en: 'Issues & hub group', db: ['issue'], subs: [
     { to: '/app/issues', res: ['issue.issue', 'issue.group'] },
