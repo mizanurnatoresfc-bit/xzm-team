@@ -408,7 +408,7 @@ export function NoticeModal({ property, asset, kind: k0, onClose, onDone }: { pr
     try { const r = await ops.noticeSend({ property: property.id, kind, title: title.trim(), asset: asset?.id ?? null, itemKind: item, qty: Math.max(1, Number(qty) || 1), note: note.trim() || null, urgent }); onDone(r.no, r.notified) }
     catch (e) { setErr(opsFriendly(e)) } finally { setBusy(false) }
   }
-  return <Modal title={L('জোনাল ম্যানেজারকে রিপোর্ট', 'Report to the zonal manager')} onClose={onClose}
+  return <Modal title={L('সমস্যার রিপোর্ট', 'Report a problem')} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void send()}><Icon name="bell" size={14} />{L('রিপোর্ট পাঠান', 'Send report')}</button></>}>
     <div className="da-seg" style={{ marginBottom: 10 }}>{(['broken', 'need', 'other'] as NoticeKind[]).map(k => <button key={k} type="button" className={k === kind ? 'sm' : 'secondary sm'} onClick={() => setKind(k)}>{L(NOTICE_KIND[k][0], NOTICE_KIND[k][1])}</button>)}</div>
     <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr' }}>
@@ -419,7 +419,7 @@ export function NoticeModal({ property, asset, kind: k0, onClose, onDone }: { pr
       <Field label={L('বিস্তারিত', 'Details')} wide><textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder={L('যেমন: চালু হয় না / ডেস্ক ৩-এর জন্য', 'e.g. will not start / for desk 3')} /></Field>
     </div>
     <label className="small oo-check"><input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} />{L('জরুরি', 'Urgent')}</label>
-    <p className="muted small">{property.name} — {L('রিপোর্টটা এই জোনের জোনাল ম্যানেজারের নোটিফিকেশনে যাবে।', 'the report goes to this zone’s zonal manager as a notification.')}</p>
+    <p className="muted small">{property.name} — {L('রিপোর্টটা সাথে সাথে জোনাল ম্যানেজার দেখতে পাবেন, আর হাব ম্যানেজারের কাছে যাচাইয়ের জন্য যাবে।', 'the zonal manager sees the report at once, and it goes to the hub manager to be verified.')}</p>
     {err && <p className="da-error">{err}</p>}
   </Modal>
 }
@@ -428,12 +428,16 @@ export function LendModal({ ctx, asset, lentOut, onClose, onDone }: { ctx: Ctx; 
   const { L, n } = usePrefs()
   const others = ctx.all.filter(x => x.id !== asset.property_id)
   const [to, setTo] = useState(others[0]?.id ?? ''); const [qty, setQty] = useState('1'); const [note, setNote] = useState('')
+  // A person on each side, if the hubs want one: who hands it over, who takes it.
+  const [fromPerson, setFromPerson] = useState<EmpLite | null>(null); const [toPerson, setToPerson] = useState<EmpLite | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const free = asset.quantity - lentOut
+  const toPlace = others.find(x => x.id === to)
+  const fromHub = ctx.hubName(ctx.p.hub_id) || ctx.p.name; const toHub = (toPlace && ctx.hubName(toPlace.hub_id)) || toPlace?.name || ''
   async function go() {
     if (!to) return setErr(L('কোন অফিসে দেবেন, বেছে নিন', 'Choose the office'))
     setBusy(true); setErr('')
-    try { await ops.lend(asset.id, to, Math.max(1, Number(qty) || 1), note.trim() || null); onDone() } catch (e) { setErr(opsFriendly(e)) } finally { setBusy(false) }
+    try { await ops.lend(asset.id, to, Math.max(1, Number(qty) || 1), note.trim() || null, fromPerson?.id ?? null, toPerson?.id ?? null); onDone() } catch (e) { setErr(opsFriendly(e)) } finally { setBusy(false) }
   }
   return <Modal title={L(`"${asset.name}" অন্য অফিসে দিন`, `Lend "${asset.name}"`)} onClose={onClose}
     actions={<><button className="secondary" onClick={onClose}>{L('বাতিল', 'Cancel')}</button><button disabled={busy || free < 1} onClick={() => void go()}>{L('দিন', 'Lend')}</button></>}>
@@ -442,8 +446,11 @@ export function LendModal({ ctx, asset, lentOut, onClose, onDone }: { ctx: Ctx; 
       <Field label={L('কোন অফিস / হাবে', 'To which office / hub')}><select value={to} onChange={e => setTo(e.target.value)}>
         {others.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>
       <Field label={L('কয়টা', 'How many')}><input inputMode="numeric" value={qty} onChange={e => setQty(e.target.value)} /></Field>
+      <EmpPicker label={L(`${fromHub}-এর ব্যক্তি (ইচ্ছা হলে)`, `Person at ${fromHub} (optional)`)} value={fromPerson} onPick={setFromPerson} hint={L('যিনি দিচ্ছেন', 'who hands it over')} />
+      <EmpPicker label={L(`${toHub || 'যে হাব নিচ্ছে'}-এর ব্যক্তি (ইচ্ছা হলে)`, `Person at ${toHub || 'the receiving hub'} (optional)`)} value={toPerson} onPick={setToPerson} hint={L('যিনি নিচ্ছেন', 'who takes it')} />
       <Field label={L('নোট', 'Note')} wide><input value={note} onChange={e => setNote(e.target.value)} /></Field>
     </div>
+    <p className="small"><b>{L('দিচ্ছে', 'From')}:</b> {fromHub}{fromPerson ? ` · ${empLabel(fromPerson)}` : ''} &nbsp; → &nbsp; <b>{L('নিচ্ছে', 'To')}:</b> {toHub || '—'}{toPerson ? ` · ${empLabel(toPerson)}` : ''}</p>
     {!others.length && <p className="notice small">{L('আপনি আর কোনো অফিস দেখতে পান না — জোনাল ম্যানেজার এই কাজটা করতে পারবেন।', 'You can see no other office — the zonal manager can do this.')}</p>}
     {err && <p className="da-error">{err}</p>}
   </Modal>
@@ -455,10 +462,19 @@ export function Notices({ ctx }: { ctx: Ctx }) {
   const { toast, node } = useToast()
   const [all, setAll] = useState(can('office.notice.approve'))
   const [openOnly, setOpenOnly] = useState(true)
+  /** 'all' | 'todo' (not verified yet) | 'done' (verified, with the manager's name) */
+  const [vf, setVf] = useState<'all' | 'todo' | 'done'>('all')
   const list = useLoad(() => ops.notices(all ? null : ctx.p.id), [all, ctx.p.id])
   const [add, setAdd] = useState(false); const [err, setErr] = useState('')
   const place = Object.fromEntries(ctx.all.map(x => [x.id, x.name])) as Record<string, string>
-  const rows = (list.data ?? []).filter(x => !openOnly || x.status === 'open' || x.status === 'seen')
+  const rows = (list.data ?? []).filter(x => (!openOnly || x.status === 'open' || x.status === 'seen') && (vf === 'all' || (vf === 'done') === !!x.hub_verified_at))
+  const toVerify = (list.data ?? []).filter(x => !x.hub_verified_at && (x.status === 'open' || x.status === 'seen')).length
+  async function verify(x: Notice) {
+    const note = await askText(L('যাচাইয়ের নোট (ইচ্ছা হলে)', 'Verification note (optional)'), { optional: true, ok: L('যাচাই করলাম', 'Verify') })
+    if (note === null) return
+    setErr('')
+    try { await ops.noticeVerify(x.id, note || null); await list.reload(); toast(L(`${x.notice_no} — যাচাই হয়েছে`, `${x.notice_no} verified`)) } catch (e) { setErr(opsFriendly(e)) }
+  }
   async function act(x: Notice, status: 'seen' | 'done' | 'rejected', decision?: string) {
     let reply: string | null = null; let fixed = false
     if (decision) {
@@ -473,11 +489,14 @@ export function Notices({ ctx }: { ctx: Ctx }) {
     try { await ops.noticeUpdate(x.id, status, reply, fixed); await Promise.all([list.reload(), ctx.reload()]) } catch (e) { setErr(opsFriendly(e)) }
   }
   return <section className="panel">{node}
-    <div className="da-bar"><h2>{L('নষ্ট / লাগবে — জোনাল ম্যানেজারের কাছে', 'Broken / needed — to the zonal manager')} <span className="count-pill">{n(rows.length)}</span></h2>
+    <div className="da-bar"><h2>{L('নষ্ট / লাগবে — হাবের প্রবলেম সেন্টার', 'Broken / needed — hub problem centre')} <span className="count-pill">{n(rows.length)}</span>{toVerify > 0 && <> <Badge tone="warn">{L(`যাচাই বাকি ${n(toVerify)}`, `${toVerify} to verify`)}</Badge></>}</h2>
       <span className="row-acts">
         <span className="da-seg"><button className={all ? 'secondary sm' : 'sm'} onClick={() => setAll(false)}>{ctx.p.name}</button><button className={all ? 'sm' : 'secondary sm'} onClick={() => setAll(true)}>{L('সব অফিস', 'All offices')}</button></span>
         <label className="small oo-check"><input type="checkbox" checked={openOnly} onChange={e => setOpenOnly(e.target.checked)} />{L('শুধু খোলা', 'Open only')}</label>
+        <select value={vf} onChange={e => setVf(e.target.value as typeof vf)} aria-label={L('যাচাই', 'Verification')}>
+          <option value="all">{L('সব', 'All')}</option><option value="todo">{L('যাচাই বাকি', 'Not verified')}</option><option value="done">{L('যাচাই হয়েছে (ভেরিফাই তালিকা)', 'Verified list')}</option></select>
         {can('office.notice.create') && <button onClick={() => setAdd(true)}><Icon name="plus" size={15} />{L('চাহিদা পাঠান', 'Send a request')}</button>}</span></div>
+    <p className="muted small">{L('রিপোর্ট জমা দিলেই জোনাল ম্যানেজার দেখতে পান; হাব ম্যানেজার যাচাই করলে তাঁর নাম ও সময় এখানে লেখা থাকে।', 'A report reaches the zonal manager as soon as it is sent; when the hub manager verifies it, their name and the time are kept here.')}</p>
     <p className="muted small">{L('রিসোর্স তালিকা থেকে নষ্ট সরঞ্জাম রিপোর্ট করুন, অথবা এখান থেকে নতুন চাহিদা পাঠান।', 'Report damaged equipment from the resources list, or send a new request here.')}</p>
     {err || list.error ? <p className="da-error">{err || opsFriendly(list.error)}</p> : null}
     {!rows.length ? <p className="muted">{L('কোনো রিপোর্ট নেই।', 'No reports.')}</p> : <div className="oo-list">{rows.map(x => <article key={x.id} className="oo-row">
@@ -485,8 +504,12 @@ export function Notices({ ctx }: { ctx: Ctx }) {
         {x.priority === 'urgent' && <> <Badge tone="bad">{L('জরুরি', 'Urgent')}</Badge></>}
         <div className="muted small">{[x.notice_no, place[x.property_id], x.by_name, dayBn(x.created_at, lang)].filter(Boolean).join(' · ')}</div>
         {x.note && <div className="small">{x.note}</div>}
+        {x.hub_verified_at
+          ? <div className="small"><Badge tone="ok">{L('যাচাই', 'Verified')}</Badge> {x.hub_verified_by_name} · {dayBn(x.hub_verified_at, lang)}{x.hub_verify_note ? ` — ${x.hub_verify_note}` : ''}</div>
+          : (x.status === 'open' || x.status === 'seen') && <div className="small"><Badge tone="warn">{L('হাব ম্যানেজারের যাচাই বাকি', 'Waiting for the hub manager')}</Badge></div>}
         {x.reply && <div className="small oo-reply"><Icon name="check" size={12} /> {x.decided_by_name}: {x.reply}</div>}</div>
       <div className="row-acts"><Badge tone={NOTICE_STATUS[x.status][2]}>{L(NOTICE_STATUS[x.status][0], NOTICE_STATUS[x.status][1])}</Badge>
+        {can('office.notice.verify') && !x.hub_verified_at && (x.status === 'open' || x.status === 'seen') && <button className="sm" onClick={() => void verify(x)}><Icon name="check" size={14} />{L('যাচাই করুন', 'Verify')}</button>}
         {can('office.notice.approve') && (x.status === 'open' || x.status === 'seen') && <>
           {x.status === 'open' && <button className="secondary sm" onClick={() => void act(x, 'seen')}>{L('দেখেছি', 'Seen')}</button>}
           <RowMenu label={L('সিদ্ধান্ত দিন', 'Give a decision')} items={[

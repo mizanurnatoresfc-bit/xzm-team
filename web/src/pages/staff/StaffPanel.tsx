@@ -15,6 +15,7 @@ import { WorkforceAlerts } from '../../components/WorkforceAlerts'
 import { RiderSendCard } from '../../components/RiderQuick'
 import { MyAvatarUpload } from '../../components/MyAvatar'
 import { MyAutosCard } from '../../components/MyAutosCard'
+import { PartsReportModal, type Part } from '../office/Packages'
 import { MyRouteCard } from '../../components/MyRoute'
 import { MyParcelsCard } from '../zonal/RoutePlan'
 import { da, addDays, todayDhaka, type Claim } from '../../lib/dailyAccounts'
@@ -100,6 +101,7 @@ export function StaffPanel() {
   useEffect(() => { if (hash === '#wf-ops' && opsHere) document.getElementById('wf-ops')?.scrollIntoView({ block: 'start' }) }, [hash, opsHere])
   const toOps = (e: MouseEvent) => { const el = document.getElementById('wf-ops'); if (el) { e.preventDefault(); el.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }) } }
   const deskAssets = useLoad(() => v?.me ? office.myDeskAssets(v.me.id) : Promise.resolve([]), [v?.me?.id])
+  const [deskReport, setDeskReport] = useState<{ id: string; name: string; property: string; parts: Part[] } | null>(null)
   const assetsByDesk = new Map<string, NonNullable<typeof deskAssets.data>>()
   for (const item of deskAssets.data ?? []) {
     const group = assetsByDesk.get(item.desk_id) ?? []
@@ -305,12 +307,15 @@ export function StaffPanel() {
       {!!deskAssets.data?.length && <section className="panel">
         <h2>{L('আমার কাছে থাকা সম্পদ', 'Assets assigned to me')}</h2>
         {[...assetsByDesk].map(([deskId, items]) => <div key={deskId}>
-          <h3>{items[0].desk?.name ?? L('ডেস্ক সেট', 'Desk set')}</h3>
+          <h3>{items[0].desk?.name ?? L('ডেস্ক সেট', 'Desk set')} <button type="button" className="secondary sm" onClick={() => setDeskReport({ id: deskId, name: items[0].desk?.name ?? L('ডেস্ক সেট', 'Desk set'), property: items[0].property_id, parts: items.map(x => ({ id: x.id, name: x.name, kind: x.kind })) })}>
+            <Icon name="bell" size={14} />{L('সমস্যা জানান', 'Report a problem')}</button></h3>
           <ul>{items.map(item => <li key={item.id}>{item.name} × {n(item.quantity)} · {L(CONDITION[item.condition][0], CONDITION[item.condition][1])}</li>)}</ul>
         </div>)}
       </section>}
 
       <MyAutosCard />
+      {deskReport && <PartsReportModal propertyId={deskReport.property} title={deskReport.name} parts={deskReport.parts} onClose={() => setDeskReport(null)}
+        onDone={(sent, all) => { void deskAssets.reload(); if (all) { setDeskReport(null); toast(L(`${n(sent)}টা রিপোর্ট গেছে — হাব ম্যানেজার যাচাই করবেন`, `${sent} report(s) sent — the hub manager will verify`)) } }} />}
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       {profilePct !== null && profilePct < 100 && <Link to="/app/me/complete" className="sp-card t-w mpc-nudge">
         <span className="i"><Icon name="user" size={24} /></span>

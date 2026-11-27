@@ -17,7 +17,9 @@ export const PLACE_KIND: Record<PlaceKind, [string, string, string]> = {
   office: ['হাব', 'Hub', '🏢'], residence: ['আবাসিক ফ্ল্যাট', 'Residence', '🏠'], garage: ['গ্যারেজ (গাড়ি পার্কিং)', 'Garage (parking)', '🚚'], auto_garage: ['অটো গ্যারেজ', 'Auto garage', '🛺'],
 }
 export type Room = { id: string; property_id: string; name: string; kind: string; direction: string; floor: number; responsible_id: string | null; note: string | null; sort: number }
-export type Desk = { id: string; property_id: string; room_id: string | null; code: string; name: string; responsible_id: string | null; duty: string | null; note: string | null; sort: number; updated_at: string }
+export type Desk = { id: string; property_id: string; room_id: string | null; code: string; name: string; responsible_id: string | null; duty: string | null; note: string | null; sort: number; updated_at: string
+  /** The package this desk follows (a zonal manager's named set of parts). */
+  package_id?: string | null }
 export type Asset = { id: string; property_id: string; room_id: string | null; desk_id: string | null; kind: string; name: string; brand: string | null
   serial_no: string | null; quantity: number; condition: 'good' | 'repair' | 'broken' | 'lost'; holder_id: string | null
   purchase_date: string | null; price: number | null; note: string | null
@@ -116,9 +118,9 @@ export const office = {
     }); fail(error)
   },
   myDeskAssets: async (employee: string) => {
-    const { data, error } = await supabase.from('office_assets').select('id,name,quantity,condition,desk_id,desk:office_desks(name)')
+    const { data, error } = await supabase.from('office_assets').select('id,name,kind,quantity,condition,property_id,desk_id,desk:office_desks(name)')
       .eq('holder_id', employee).not('desk_id', 'is', null).is('archived_at', null).order('desk_id').order('name')
-      .returns<{ id: string; name: string; quantity: number; condition: Asset['condition']; desk_id: string; desk: { name: string } | null }[]>()
+      .returns<{ id: string; name: string; kind: string; quantity: number; condition: Asset['condition']; property_id: string; desk_id: string; desk: { name: string } | null }[]>()
     fail(error)
     return data ?? []
   },
@@ -156,7 +158,7 @@ export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] 
   ] },
   // office_assets · office_asset_loans
   { bn: 'জিনিসপত্র', en: 'Things', parts: [
-    { key: 'assets', icon: 'box', bn: 'অফিসের রিসোর্স ও ধার', en: 'Office resources & loans', perms: ['office.asset.view', 'office.asset.edit'] },
+    { key: 'assets', icon: 'box', bn: 'হাবের রিসোর্স ও ধার', en: 'Hub resources & loans', perms: ['office.asset.view', 'office.asset.edit'] },
     { key: 'power', icon: 'sun', bn: 'ইলেকট্রনিক ও বিদ্যুৎ হিসাব', en: 'Devices & power', perms: ['office.asset.view'] },
   ] },
   // rent and contract on office_properties · office_bills
@@ -246,3 +248,18 @@ export const autos = {
   archive: (id: string, reason: string) => rpcCall<void>('office_auto_archive', { p_id: id, p_reason: reason }),
   mark: (auto: string, day: string, given: boolean) => rpcCall<void>('office_auto_mark', { p_auto: auto, p_day: day, p_given: given }),
 }
+
+// ---------------------------------------------------------------- packages and responsibility in bulk
+/** A package: a named set of parts ("manager desk = PC + monitor + chair …"), made by the zonal manager for the zone. `items` is { kind: count }. */
+export type OfficePackage = { id: string; zone_id: string; name: string; items: Record<string, number>; note: string | null; can_manage: boolean }
+export const packages = {
+  list: (property: string) => rpcCall<OfficePackage[]>('office_package_list', { p_property: property }),
+  save: (zone: string, name: string, items: Record<string, number>, note?: string | null, id?: string) =>
+    rpcCall<string>('office_package_save', { p_zone: zone, p_name: name, p_items: items, p_note: note ?? null, p_id: id ?? null }),
+  archive: (id: string, reason: string) => rpcCall<void>('office_package_archive', { p_id: id, p_reason: reason }),
+  setDesk: (desk: string, pkg: string | null) => rpcCall<void>('office_desk_package_set', { p_desk: desk, p_package: pkg }),
+}
+/** Responsibility at three levels: the items ticked, every item of one kind, or everything of the place (the hub). */
+export type AssignMode = 'items' | 'kind' | 'all'
+export const assignAssets = (property: string, employee: string | null, mode: AssignMode, ids?: string[], kind?: string) =>
+  rpcCall<number>('office_assign_assets', { p_property: property, p_employee: employee, p_mode: mode, p_ids: ids ?? null, p_kind: kind ?? null })

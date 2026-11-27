@@ -16,6 +16,7 @@ import {
 } from '../../lib/office'
 import { ResidentialOverview } from './Residential'
 import { Autos, GarageOverview } from './Garage'
+import { AssignModal } from './Packages'
 import { Monthly } from './Monthly'
 import { askText, askWith } from './askText'
 import { DeskSets } from './DeskSets'
@@ -509,6 +510,8 @@ function Assets({ ctx }: { ctx: Ctx }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const [rep, setRep] = useState<{ a: Asset | null; kind: 'broken' | 'need' } | null>(null)
   const [lend, setLend] = useState<Asset | null>(null)
+  /** Responsibility in bulk: opened with the ticked rows (or none, then by kind or for the whole hub). */
+  const [assign, setAssign] = useState<Asset[] | null>(null)
   const output = useOfficeOutput(ctx.p.kind === 'residence' ? 'residential-assets' : 'office-assets')
   const loans = useLoans(ctx.p.id)
   const mineOut = loans.list.filter(l => l.from_property_id === ctx.p.id); const mineIn = loans.list.filter(l => l.to_property_id === ctx.p.id)
@@ -547,11 +550,12 @@ function Assets({ ctx }: { ctx: Ctx }) {
   const byKind = Object.entries(ctx.assets.reduce((m, a) => { m[a.kind] = (m[a.kind] ?? 0) + a.quantity; return m }, {} as Record<string, number>)).sort((a, b) => b[1] - a[1])
   return <>{node}
     <section className="panel">
-      <div className="da-bar"><h2>{L('অফিসের রিসোর্স', 'Office resources')} <span className="count-pill">{n(ctx.assets.reduce((s, a) => s + a.quantity, 0))}</span></h2><span className="row-acts">
+      <div className="da-bar"><h2>{L('হাবের রিসোর্স', 'Hub resources')} <span className="count-pill">{n(ctx.assets.reduce((s, a) => s + a.quantity, 0))}</span></h2><span className="row-acts">
         <select value={cond} onChange={e => setCond(e.target.value)} aria-label={L('অবস্থা', 'Condition')}><option value="">{L('সব অবস্থা', 'All')}</option>
           {Object.entries(CONDITION).map(([k, v]) => <option key={k} value={k}>{L(v[0], v[1])}</option>)}</select>
         {edit && <button onClick={() => { setErr(''); setF({ kind: 'monitor', name: ASSET_KIND.monitor[0], room: '', desk: '', qty: '1', condition: 'good', brand: '', serial: '', holder: null, date: '', price: '', note: '', watt: '', hours: '', spec: '' }) }}>
           <Icon name="plus" size={15} />{L('জিনিস যোগ', 'Add item')}</button>}
+        {edit && <button className="secondary" onClick={() => setAssign([])}><Icon name="usercheck" size={15} />{L('দায়িত্ব দিন', 'Give responsibility')}</button>}
         {canRep && <button className="secondary" onClick={() => setRep({ a: null, kind: 'need' })}><Icon name="bell" size={15} />{L('চাহিদা পাঠান', 'Send a request')}</button>}</span></div>
       {byKind.length > 0 && <div className="oo-kind-row" role="group" aria-label={L('ধরন অনুযায়ী দেখুন', 'Show by kind')}>
         {byKind.length > 1 && <button type="button" className={`oo-kind${!kindF ? ' on' : ''}`} aria-pressed={!kindF} onClick={() => setKindF('')}>{L('সব', 'All')}</button>}
@@ -559,16 +563,17 @@ function Assets({ ctx }: { ctx: Ctx }) {
           <Icon name={ASSET_KIND[k]?.[2] ?? 'form'} size={16} /><span>{L(ASSET_KIND[k]?.[0] ?? k, ASSET_KIND[k]?.[1] ?? k)}</span><b>{n(c)}</b></button>)}</div>}
       <details className="oo-help"><summary>{L('কীভাবে ব্যবহার করবেন', 'How to use this')}</summary>
         <p className="muted small">{L('প্রতিটা জিনিসের পাশে "নষ্ট" চাপলে জোনাল ম্যানেজারের কাছে রিপোর্ট যায়; "আরও লাগবে" দিয়ে আরও চাওয়া যায়। তালিকায় যা নেই তা "অন্যান্য" ধরনে নিজের নাম দিয়ে যোগ করুন।', 'Next to each item, "Broken" reports it to the zonal manager; "Need more" asks for more. Anything not in the list goes under "Other" with its own name.')}</p></details>
-      {mineOut.length > 0 && <p className="small">{L('অন্য হাব ব্যবহার করছে (গোনা এই অফিসের নামেই)', 'Used by other hubs (still counted here)')}: {mineOut.map(l => `${l.asset_name} ${n(l.quantity)} → ${l.to_name}`).join(' · ')}</p>}
-      {mineIn.length > 0 && <p className="small">{L('অন্যের জিনিস এখানে ব্যবহার হচ্ছে', 'Borrowed from others')}: {mineIn.map(l => `${l.asset_name} ${n(l.quantity)} (${l.from_name})`).join(' · ')}</p>}
+      {mineOut.length > 0 && <p className="small">{L('অন্য হাব ব্যবহার করছে (গোনা এই অফিসের নামেই)', 'Used by other hubs (still counted here)')}: {mineOut.map(l => `${l.asset_name} ${n(l.quantity)} → ${l.to_hub_name || l.to_name}${l.to_person ? ` (${l.to_person})` : ''}${l.from_person ? ` · ${L('দিয়েছেন', 'by')} ${l.from_person}` : ''}`).join(' · ')}</p>}
+      {mineIn.length > 0 && <p className="small">{L('অন্যের জিনিস এখানে ব্যবহার হচ্ছে', 'Borrowed from others')}: {mineIn.map(l => `${l.asset_name} ${n(l.quantity)} (${l.from_hub_name || l.from_name}${l.from_person ? ` · ${l.from_person}` : ''}${l.to_person ? ` → ${l.to_person}` : ''})`).join(' · ')}</p>}
     </section>
     <section className="panel">
       {err && !f && <p className="da-error">{err}</p>}
       <DataTable<Asset> {...output} title={`${L('রিসোর্স', 'Resources')} — ${ctx.p.name}`} file={`office-assets-${ctx.p.code}`} phoneView="list" rows={rows} rowKey={r => r.id}
+        bulk={edit ? (marked, clear) => <button className="secondary sm" onClick={() => { setAssign(marked); clear() }}><Icon name="usercheck" size={14} />{L('একজনকে দায়িত্ব দিন', 'Give to one person')}</button> : undefined}
         empty={<p className="muted">{L('কিছু নেই।', 'Nothing here.')}</p>}
         cols={[
           { key: 'name', label: L('নাম', 'Name'), primary: true, value: r => r.name, render: r => <><span className="oo-name"><Icon name={ASSET_KIND[r.kind]?.[2] ?? 'form'} size={16} /><strong>{r.name}</strong></span>{(r.brand || r.serial_no || r.spec || r.watt) && <span className="sec">{[r.spec, r.brand, r.serial_no, r.watt ? `${n(r.watt)}W` : null].filter(Boolean).join(' · ')}</span>}
-            {loans.out[r.id] ? <span className="sec">{mineOut.filter(l => l.asset_id === r.id).map(l => L(`${l.to_name} ${n(l.quantity)}টি ব্যবহার করছে`, `${l.to_name} uses ${l.quantity}`)).join(', ')}</span> : null}</> },
+            {loans.out[r.id] ? <span className="sec">{mineOut.filter(l => l.asset_id === r.id).map(l => L(`${l.to_hub_name || l.to_name}${l.to_person ? ` (${l.to_person})` : ''} ${n(l.quantity)}টি ব্যবহার করছে`, `${l.to_hub_name || l.to_name}${l.to_person ? ` (${l.to_person})` : ''} uses ${l.quantity}`)).join(', ')}</span> : null}</> },
           { key: 'kind', label: L('ধরন', 'Kind'), hidden: true, value: r => L(ASSET_KIND[r.kind]?.[0] ?? r.kind, ASSET_KIND[r.kind]?.[1] ?? r.kind) },
           { key: 'where', label: L('কোথায়', 'Where'), value: r => [r.desk_id && deskName[r.desk_id], r.room_id && roomName[r.room_id]].filter(Boolean).join(' · ') },
           { key: 'qty', label: L('সংখ্যা', 'Qty'), className: 'r', value: r => n(r.quantity) },
@@ -605,6 +610,8 @@ function Assets({ ctx }: { ctx: Ctx }) {
     </Modal>}
     {rep && <NoticeModal property={ctx.p} asset={rep.a} kind={rep.kind} onClose={() => setRep(null)} onDone={(no, c) => { setRep(null); void ctx.reload()
       toast(c ? L(`${no} — জোনাল ম্যানেজারকে জানানো হয়েছে`, `${no} — the zonal manager was told`) : L(`${no} জমা হয়েছে`, `${no} saved`)) }} />}
+    {assign && <AssignModal property={ctx.p} assets={ctx.assets} ticked={assign} onClose={() => setAssign(null)}
+      onDone={(c, who) => { setAssign(null); void ctx.reload(); toast(who ? L(`${n(c)}টা জিনিসের দায়িত্ব ${who}-কে দেওয়া হয়েছে`, `${c} item(s) now with ${who}`) : L(`${n(c)}টা জিনিসের দায়িত্ব সরানো হয়েছে`, `Responsibility removed from ${c} item(s)`)) }} />}
     {lend && <LendModal ctx={ctx} asset={lend} lentOut={loans.out[lend.id] ?? 0} onClose={() => setLend(null)} onDone={() => { setLend(null); void loans.reload(); toast(L('দেওয়া হয়েছে — গোনা এই অফিসের নামেই থাকবে', 'Lent — still counted here')) }} />}
   </>
 }

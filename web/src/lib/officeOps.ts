@@ -20,14 +20,18 @@ export type BillMore = { paid_on?: string; method?: string; txn_id?: string; pay
 export type ExpenseLine = { id: string; account_date: string; bill_date: string; kind: BillKind; category: string; expense_name: string; amount: number
   bill_no: string | null; voucher_no: string | null; has_file: boolean; sheet_status: string; bill_id: string | null }
 export type Loan = { id: string; asset_id: string; asset_kind: string; asset_name: string; quantity: number; since: string; note: string | null; returned_at: string | null
-  from_property_id: string; from_name: string; from_hub_id: string | null; to_property_id: string; to_name: string; to_hub_id: string | null; can_return: boolean }
+  from_property_id: string; from_name: string; from_hub_id: string | null; to_property_id: string; to_name: string; to_hub_id: string | null; can_return: boolean
+  /** The hub that gave / took, and the optional person on each side. */
+  from_hub_name: string | null; to_hub_name: string | null; from_person: string | null; to_person: string | null }
 export type Resident = { id: string; property_id: string; room_id: string | null; employee_id: string; since: string; note: string | null }
 export type SecretKind = 'cctv' | 'dvr' | 'router' | 'wifi' | 'pc' | 'other'
 export type Secret = { id: string; property_id: string; asset_id: string | null; kind: SecretKind; label: string; username: string | null; secret: string | null; note: string | null }
 export type NoticeKind = 'broken' | 'need' | 'other'
 export type Notice = { id: string; notice_no: string; property_id: string; zone_id: string; hub_id: string | null; asset_id: string | null; kind: NoticeKind
   item_kind: string | null; title: string; quantity: number; note: string | null; priority: 'normal' | 'urgent'; status: 'open' | 'seen' | 'done' | 'rejected'
-  reply: string | null; decided_by_name: string | null; decided_at: string | null; by_name: string | null; created_at: string }
+  reply: string | null; decided_by_name: string | null; decided_at: string | null; by_name: string | null; created_at: string
+  /** The hub manager who checked the report (null = not verified yet). */
+  hub_verified_by_name: string | null; hub_verified_at: string | null; hub_verify_note: string | null }
 export type HubVehicle = { id: string; name: string; reg_no: string | null; kind: string; status: string; hub_id: string | null; hub_name: string | null
   crew: Array<{ role: 'driver' | 'helper'; name: string; code: string | null; mobile: string | null }> }
 
@@ -202,7 +206,8 @@ export const ops = {
   billRemove: (id: string, reason: string) => rpc<void>('office_bill_remove', { p_id: id, p_reason: reason }),
   expenseLines: (property: string, from: string, to: string) => rpc<ExpenseLine[]>('office_expense_lines', { p_property: property, p_from: from, p_to: to }),
   loans: () => rpc<Loan[]>('office_loan_list', { p_open_only: true }),
-  lend: (asset: string, to: string, qty: number, note: string | null) => rpc<string>('office_lend', { p_asset: asset, p_to: to, p_quantity: qty, p_note: note }),
+  lend: (asset: string, to: string, qty: number, note: string | null, fromPerson: string | null = null, toPerson: string | null = null) =>
+    rpc<string>('office_lend', { p_asset: asset, p_to: to, p_quantity: qty, p_note: note, p_from_person: fromPerson, p_to_person: toPerson }),
   lendReturn: (loan: string, note: string | null) => rpc<void>('office_lend_return', { p_loan: loan, p_note: note }),
   residents: async (property: string) => {
     const { data, error } = await supabase.from('office_residents').select('*').eq('property_id', property).is('archived_at', null).order('since'); fail(error)
@@ -245,6 +250,8 @@ export const ops = {
   noticeSend: (n: { property: string; kind: NoticeKind; title?: string | null; asset?: string | null; itemKind?: string | null; qty?: number; note?: string | null; urgent?: boolean }) =>
     rpc<{ id: string; no: string; notified: number }>('office_notice_send', { p_property: n.property, p_kind: n.kind, p_title: n.title ?? null, p_asset: n.asset ?? null,
       p_item_kind: n.itemKind ?? null, p_quantity: n.qty ?? 1, p_note: n.note ?? null, p_urgent: n.urgent ?? false }),
+  /** The hub manager checks a report; the name and time are kept. */
+  noticeVerify: (id: string, note: string | null = null) => rpc<void>('office_notice_verify', { p_id: id, p_note: note }),
   noticeUpdate: (id: string, status: 'seen' | 'done' | 'rejected', reply: string | null, fixed = false) =>
     rpc<void>('office_notice_update', { p_id: id, p_status: status, p_reply: reply, p_fixed: fixed }),
   /** One line in the audit log for an export / print; refused (42501) without office.report.export / .print. */
