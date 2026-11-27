@@ -294,7 +294,7 @@
 | Commit / PR Link | Audit plan [#215](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/215) |
 | GitHub Issue # | [#216](https://github.com/mizanurnatoresfc-bit/xzm-team/issues/216) |
 | Deployment Status | N/A |
-| Blockers | Cloudflare R2 checkout required. Effective Supabase URL in published Netlify build still pending verification. |
+| Blockers | R2 active and Standard bucket verified private. Backup credentials and effective Supabase URL in the published build still pending. |
 | Next Action | Owner confirms `VITE_SUPABASE_URL` from Netlify Site Settings → records in PROJECT_CONNECTIONS.md §10; picks plan option; provisions R2 bucket + API token |
 | Follow-up impl PR | **XZM-006B-impl** — `.github/workflows/supabase-daily-backup.yml` + `docs/project-control/supabase-config/*.md` + PROJECT_CONNECTIONS.md §10 + BACKUP_LOG.md (opened after Owner decisions) |
 | Conflict check | No XZM-006B elsewhere — SAFE |
