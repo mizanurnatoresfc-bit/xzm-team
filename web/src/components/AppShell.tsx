@@ -63,37 +63,14 @@ export const newUntil = (to: string, l: MenuLayout): string | undefined => {
 export const HOME: Item[] = [
   { to: '/app', icon: 'dash', bn: 'ড্যাশবোর্ড', en: 'Dashboard', perms: null },
   { to: '/app/training', icon: 'book', bn: 'ট্রেনিং সেন্টার', en: 'Training centre', perms: null },
+  // গাড়ি ব্যবস্থাপনা বিভাগ stays in the main rows (owner, 27 Nov 2026), now that the staff and manager panels are gone.
+  { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি ব্যবস্থাপনা', en: 'Vehicles', hint: { bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals' }, perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view', 'vehicle.check.view', 'vehicle.check.approve'] },
 ]
 /**
- * The whole menu is three panels, lowest first: the staff member's own work, the hub manager's hub, the zonal manager's zone.
- * What a person does goes up: staff input -> manager -> zonal manager. A person sees the panels up to their own level;
- * a page from a higher panel that their role may open is listed in their own top panel (see AppShell).
+ * The work panels. The staff panel and the manager panel menus were removed (owner, 27 Nov 2026); only the zonal manager's zone is left.
+ * Each row shows only to a role that may open it (see AppShell).
  */
 export const GROUPS: Group[] = [
-  panel('self', 'user', 'স্টাফ প্যানেল', 'Staff panel', [
-    { bn: '', en: '', items: [
-      { to: '/app/staff', icon: 'grid', bn: 'আমার প্যানেল', en: 'My panel', perms: null },
-      { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
-      // My attendance is already linked in the personal menu above; keep one primary sidebar entry.
-      { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
-      { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
-      { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
-    ] },
-  ]),
-  panel('hub', 'hub', 'ম্যানেজার প্যানেল', 'Manager panel', [
-    { bn: 'প্রতিদিনের কাজ', en: 'Every day', items: [
-      { to: '/app/attendance', icon: 'table', bn: 'হাজিরা খাতা', en: 'Attendance register', hint: { bn: 'দিনের ফাইনাল খাতা, মাসিক খাতা, আবেদন ও দৈনিক রিপোর্ট — সব এক পেজে', en: 'Daily final register, monthly register, applications and daily report — one page' }, perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view', 'zonal.dashboard.view'] },
-      { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: [...HUB_SECTION_PERMS.pickup] },
-      { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: [...HUB_SECTION_PERMS.tasks] },
-      { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: [...HUB_SECTION_PERMS.ops] },
-    ] },
-    { bn: 'গাড়ি', en: 'Vehicles', items: [
-      { to: '/app/fleet', icon: 'truck', bn: 'গাড়ি ব্যবস্থাপনা', en: 'Vehicles', hint: { bn: 'গাড়ি: দায়িত্ব, খোরাকি, গ্যারেজ ও অনুমোদন', en: 'Vehicles: crew, allowance, garage & approvals' }, perms: ['vehicle.vehicle.view', 'vehicle.log.approve', 'vehicle.report.view', 'vehicle.check.view', 'vehicle.check.approve'] },
-    ] },
-    { bn: 'হাবের টিম', en: 'Hub team', items: [
-      { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: [...HUB_SECTION_PERMS.logins] },
-    ] },
-  ]),
   panel('zone', 'map', 'জোনাল ম্যানেজার প্যানেল', 'Zonal manager panel', [
     { bn: 'জোন ও হাব', en: 'Zone & hubs', items: [
       { to: '/app/zonal', icon: 'dash', bn: 'জোনাল ড্যাশবোর্ড', en: 'Zonal dashboard', perms: ['zonal.dashboard.view'] },
@@ -106,6 +83,25 @@ export const GROUPS: Group[] = [
 
   ]),
 ]
+/**
+ * Pages of the removed staff and manager panels (owner, 27 Nov 2026). They are no longer in the sidebar, but they are still real pages:
+ * a role's page list ("পাতা বাছুন") and the permission catalogue keep naming them, so a limited role can still be given the attendance
+ * register, its own accounts and so on. Vehicles is not here: it moved to the main rows (HOME).
+ */
+export const PANEL_PAGES: Group = panel('pages', 'grid', 'মেনুর বাইরের পাতা', 'Pages outside the menu', [
+  { bn: '', en: '', items: [
+    { to: '/app/staff', icon: 'grid', bn: 'আমার প্যানেল', en: 'My panel', perms: null },
+    { to: '/app/accounts/mine', icon: 'wallet', bn: 'আমার হিসাব', en: 'My accounts', perms: null },
+    { to: '/app/hr/requests', icon: 'form', bn: 'রিকুয়েস্ট ও আবেদন', en: 'Requests', perms: null, count: 'hrreq' },
+    { to: '/app/issues', icon: 'tasks', bn: 'ইস্যু, হাব গ্রুপ ও অর্ডার', en: 'Issues, hub group & orders', perms: null },
+    { to: '/app/fleet/mine', icon: 'truck', bn: 'আমার গাড়ি (ড্রাইভার / হেল্পার)', en: 'My vehicle (crew)', perms: null },
+    { to: '/app/attendance', icon: 'table', bn: 'হাজিরা খাতা', en: 'Attendance register', perms: ['hr.attendance.view', 'hr.attendance.create', 'ops.staff_daily.view', 'zonal.dashboard.view'] },
+    { to: '/app/hub/pickup', icon: 'box', bn: 'আজকের পিকআপ খাতা', en: "Today's pickups", perms: [...HUB_SECTION_PERMS.pickup] },
+    { to: '/app/hub/tasks', icon: 'tasks', bn: 'আজকের কাজ', en: "Today's tasks", perms: [...HUB_SECTION_PERMS.tasks] },
+    { to: '/app/hub/ops', icon: 'truck', bn: 'আজকের হাব অপারেশন', en: "Today's hub operation", perms: [...HUB_SECTION_PERMS.ops] },
+    { to: '/app/hub/logins', icon: 'key', bn: 'লগইন সেটআপ', en: 'Logins', perms: [...HUB_SECTION_PERMS.logins] },
+  ] },
+])
 /** Site and role configuration is kept separate from day-to-day zonal operations. */
 export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অনুমতি', 'Settings & permissions', [
   { bn: 'ইউজার ও অনুমতি', en: 'Users & permissions', items: [
@@ -411,7 +407,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   // Three panels, lowest first. A person sees the panels up to their own level; pages from a higher panel that their role
   // may open are listed in their own top panel, so a rider never gets a "manager" heading for one page.
   const level = panelLevel(can)
-  const defaultOpenGroup = level === 2 ? 'zone' : level === 1 ? 'hub' : 'self'
+  const defaultOpenGroup = 'zone'
   // Only show what this person can use: + needs at least one quick action, search needs the staff list.
   const quickItems = QUICK.filter(x => linkAllowed(x.to, access, x.perms, x.also))
   const canSearch = can('hr.employee.view')
@@ -423,14 +419,16 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   }
   const shown = GROUPS.map(g0 => layoutGroup(g0, layout)).map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i)
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length) }))
-  for (let i = level + 1; i < shown.length; i++) { shown[level].secs.push(...shown[i].secs); shown[i].secs = [] }
+  // Below the zonal manager level the zonal panel's rows a person may open (the notice board, the hub list) are plain main rows:
+  // a rider or a hub manager never gets a "zonal manager" heading for them.
+  const zoneRows = level < 2 ? shown.flatMap(x => x.secs.flatMap(sc => sc.items)) : []
+  if (level < 2) shown.forEach(x => { x.secs = [] })
   const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
   const [accG, hrG, officeG, routesG, sortingG, adminG] = [ACCOUNTS, HR, OFFICE, ROUTES, SORTING, ADMIN].map(g => layoutGroup(g, layout))
-  // A staff member (level 0) gets one panel only: the few HR pages they may open sit inside it, not under an HR heading.
+  // A staff member (level 0) gets no HR department heading for the one or two HR pages they may open: those are plain main rows.
   const hrAll = own(hrG)
-  if (level === 0 && shown[0]) { shown[0].secs.push(...hrAll) }
   const hrSecs = level === 0 ? [] : hrAll
-  // the same for the route module: a rider who may open their hub's routes finds the row inside their one panel
+  if (level === 0) zoneRows.push(...hrAll.flatMap(sc => sc.items))
   const routesSecs = own(routesG)
   const accSecs = own(accG), officeSecs = own(officeG), sortingSecs = own(sortingG), adminSecs = own(adminG)
   const toggleGroup = (k: string, v: boolean) => { const g = { ...groupOpen, [k]: v }; setGroupOpen(g); try { sessionStorage.setItem('xzm_ng', JSON.stringify(g)) } catch { /* ignore */ } }
@@ -478,6 +476,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       <PersonalMenu variant="side" hideAttendance={nativeApp} onNavigate={() => setOpen(false)} />
       {canOpen(dailyRegister.to) && hit(dailyRegister) && link(dailyRegister)}
       {layoutItems(HOME, layout).filter(i => forMe(i) && hit(i)).map(link)}
+      {zoneRows.map(link)}
       {/* Divisions (owner, 23 Nov 2026): departments, my own panels, then system — each with a heading, so the menu reads like an org chart. */}
       {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: routesG, secs: routesSecs }, { g: sortingG, secs: sortingSecs }] },
         { key: 'work', bn: 'আমার কাজের প্যানেল', en: 'My work panels', list: shown },
