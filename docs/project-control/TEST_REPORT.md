@@ -32,8 +32,9 @@ Format:
 - **No action performed:** no restore drill, no DB write, no migration applied, no secret retrieved (GitHub Actions secrets are write-only after creation), no DNS/code/production config change.
 - **Isolation (VERIFIED read-only):** Netlify Deploy Preview DISABLED (`netlify.toml ignore = exit 0`); Cloudflare Workers Git integration NOT USED; Supabase preview DB branches = 0. Production DB only reachable via trusted-operator MCP.
 - **Secrets review:** No secret value read or retrieved. GitHub Actions secret store is write-only; the audit explicitly does not assume otherwise.
-- **Deliverables:** 18-asset matrix with 5-tier status; 7 DR procedures in full; 10 verification items answered (or marked ACCESS REQUIRED where dashboard access needed); 8 proposed sub-tasks XZM-006A..H.
-- **Outcome:** PASS (documentation deep-verification). Awaiting ChatGPT Second Review → Owner approval of XZM-006A..H as separate PRs.
+- **Deliverables:** 18-asset matrix with 5-tier status; 7 DR procedures in full; 10 verification items answered (or marked ACCESS REQUIRED where dashboard access needed); 9 proposed sub-tasks XZM-006A..I (XZM-006I added in 6-point correction pass).
+- **6-point correction pass (same PR, 2026-11-27 late evening):** (1) Supabase Free-plan PITR claim withdrawn per <https://supabase.com/pricing>; (2) Edge Function recovery re-verified — `supabase functions download` works; (3) migration drift re-computed version-by-version (not 14 orphans — structural divergence in both directions); (4) Preview isolation vs production DB binding split into §5.1 / §5.2; (5) Owner-identifiable local path redacted; (6) XZM-006I Isolated Backup Restore Test added.
+- **Outcome:** PASS (documentation deep-verification + 6-point correction). Awaiting ChatGPT Second Review → Owner approval of XZM-006A..I as separate PRs.
 
 ## XZM-004R Review-Response — 12-point corrections on PR #213 — 2026-11-27 (evening)
 

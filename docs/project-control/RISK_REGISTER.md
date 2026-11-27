@@ -28,25 +28,25 @@
 
 ---
 
-## R-003 — Supabase Migration Drift (14 migrations)
+## R-003 — Supabase Migration Drift (structural, both directions)
 
 - **Severity:** HIGH
-- **Source:** XZM-006 Backup & Recovery §3-1.
-- **Description:** Live Supabase has 155 migrations applied; repo tracks 141 files. 14 migrations exist only in live DB (including `sync_live_functions`, `probe_delete`, `probe_alter`, `vehicle_ops_b1a`, `vehicle_ops_b2`, `vehicle_ops_c`, `vehicle_ops_d`, `vehicle_ops_fix_log_list`).
-- **Impact:** Clean restore from repo migrations produces a schema that differs from live. Any disaster recovery that rebuilds from repo will not reproduce the live schema.
-- **Mitigation (not yet executed):** Audit each orphan migration; either commit the migration file to `supabase/migrations/` or document a deliberate discard under an approved task.
-- **Status:** OPEN — tracked under XZM-006 action item #3.
+- **Source:** XZM-006 Backup & Recovery §3.1 (version-wise comparison pass, 2026-11-27).
+- **Description:** Earlier "14 orphan" framing is retired. Version-wise comparison between the live `supabase_migrations.schema_migrations` table (155 rows, 154 unique version timestamps) and the repo (141 files, 138 unique version timestamps) shows: **124 live timestamps absent in repo**, **108 repo timestamps absent in live**, only the first 30 share version IDs; by migration name, **29 live-only names** and **16 repo-only names**. Several repo-side "consolidations" (`hub_issues`, `workforce_attendance`, `workforce_manager_book`, `vehicle_ops`) were later split into multiple live migrations with different timestamps.
+- **Impact:** Clean restore from repo migrations produces a schema that does not match live and does not re-play the live timeline. Any DR that rebuilds from repo will diverge from production.
+- **Mitigation (not yet executed):** Per-migration decision pass across the 29 live-only + 16 repo-only names; owner ChatGPT Backend Team. Timestamp convention decision (keep pseudo-sequential, or re-timestamp repo to match live) recorded in DECISION_LOG. Clean-restore verification inside XZM-006I.
+- **Status:** OPEN — tracked under XZM-006 action item #3 → **XZM-006C**.
 
 ---
 
-## R-004 — Two Edge Functions Have No Source in Repo
+## R-004 — Two Edge Functions Have No Source in Repo (retrievable from live)
 
-- **Severity:** HIGH
-- **Source:** XZM-006 Backup & Recovery §3-2.
-- **Description:** Live edge functions: `auth-login`, `admin-users`, `push-send`, `nodi-ai`, `nodi-route-plan`, `osm-fetch-places`. Repo has source for only the first four. `nodi-route-plan` and `osm-fetch-places` cannot be redeployed from GitHub.
-- **Impact:** If the live function is deleted or corrupted, there is no source to redeploy from. Rebuild requires re-authoring.
-- **Mitigation (not yet executed):** Export live function source via Supabase CLI and commit under `supabase/functions/`.
-- **Status:** OPEN — tracked under XZM-006 action item #4.
+- **Severity:** HIGH (impact unchanged) — but mitigation path is straightforward now that CLI/Dashboard retrieval is confirmed.
+- **Source:** XZM-006 Backup & Recovery §3.2.
+- **Description:** Live edge functions: `auth-login`, `admin-users`, `push-send`, `nodi-ai`, `nodi-route-plan`, `osm-fetch-places`. Repo has source for only the first four. Earlier wording "cannot be redeployed from GitHub" is **corrected**: the deployed source for `nodi-route-plan` and `osm-fetch-places` can be retrieved with `supabase functions download <slug> --project-ref ndgnhvbpmtxrpplgsslz` or the Dashboard Download button, then committed to `supabase/functions/`.
+- **Impact:** Until retrieval + commit happens, the GitHub repo is not the recovery source for these two functions. If the live project were lost at the same moment as the repo and no local CLI cache existed, re-authoring would still be required.
+- **Mitigation (not yet executed):** Run the CLI download, review against call sites in `web/`, commit under `supabase/functions/` with ChatGPT Backend Team contract.
+- **Status:** OPEN — tracked under XZM-006 action item #4 → **XZM-006E** (re-scoped from "re-author" to "retrieve → review → commit").
 
 ---
 
@@ -101,11 +101,33 @@
 ## R-009 — No End-to-End Restore Drill
 
 - **Severity:** MEDIUM
-- **Source:** XZM-006 Backup & Recovery §2 (every "Restore tested" row is UNVERIFIED) / §5-7.
+- **Source:** XZM-006 Backup & Recovery §2 (every "Restore tested" row is UNVERIFIED) / §6.7.
 - **Description:** No documented restore drill from repo → disposable Supabase → preview Netlify.
 - **Impact:** "Backup available" rows are plausible but unproven. Real recovery under pressure will be first-attempt.
-- **Mitigation (not yet executed):** Schedule a dry-run restore under an isolated task.
-- **Status:** OPEN — tracked under XZM-006 action item #7.
+- **Mitigation (not yet executed):** Schedule the isolated drill defined in XZM-006I (dump → restore to staging → deploy edge functions → preview Netlify bound exclusively to staging → smoke test → tear down; no shared production bindings).
+- **Status:** OPEN — tracked under **XZM-006I**.
+
+---
+
+## R-010 — Supabase Free-Plan Backup Posture (no PITR, no automatic daily backups)
+
+- **Severity:** HIGH
+- **Source:** XZM-006 Backup & Recovery 6-point correction pass (2026-11-27); Supabase docs <https://supabase.com/pricing>, <https://supabase.com/docs/guides/platform/backups>.
+- **Description:** The production project `ndgnhvbpmtxrpplgsslz` runs on Supabase Free plan, which **does not include PITR and does not include automatic daily backups**. The only DB backup path available today is a manual `supabase db dump` / `pg_dump`, and no such schedule is configured in the repo or in GitHub Actions. This corrects the earlier assumption of a 7-day PITR window.
+- **Impact:** Data-loss RPO is **unbounded** until an off-platform dump schedule is in place. A deletion incident today has no snapshot to restore from; recovery would depend on logical reconstruction from audit tables and `da_*` append-only tables (partial state, not a snapshot).
+- **Mitigation (not yet executed):** Owner plan-upgrade decision (Free → Pro + PITR add-on) OR schedule `supabase db dump` to off-platform storage with retention policy. Both options are captured in XZM-006B.
+- **Status:** OPEN — tracked under **XZM-006B**.
+
+---
+
+## R-011 — Production DB Binding Not Mechanically Confirmed
+
+- **Severity:** MEDIUM
+- **Source:** XZM-006 Backup & Recovery §5.2 (6-point correction pass, 2026-11-27).
+- **Description:** The audit treats `ndgnhvbpmtxrpplgsslz` (`xzm-team-erp-dev`) as the production database by inference (migrations count, edge-function set, Anthropic key placement). The mechanical confirmation — reading `VITE_SUPABASE_URL` from Netlify Site Settings and verifying it points to this project ref — has not been performed in this session, because the value is not committed to the repo and Owner-level dashboard access is required. The project name's `-dev` suffix is a historical misnomer and may confuse a future AI or team member into treating it as non-production.
+- **Impact:** Any task that routes "production" writes by project name risks misdirecting to the staging project or vice versa. Secret rotation plans and DR drills depend on an unambiguous binding.
+- **Mitigation (not yet executed):** Owner reads Netlify Site Settings → Build & deploy → Environment and records the live value in `docs/project-control/PROJECT_CONNECTIONS.md`; same file carries an explicit "production despite its name" annotation on `xzm-team-erp-dev`.
+- **Status:** OPEN — tracked under **XZM-006B** (XZM-006B.5 specifically).
 
 ---
 
@@ -128,8 +150,10 @@
 | R-006 MED — No git tags | OPEN | **XZM-006F** |
 | R-007 MED — 7 Supabase security advisors | OPEN | **XZM-006H** |
 | R-008 HIGH — Documentation dual source | IN_PROGRESS (merge done; both-AI read verification pending) | — (R-008 resolution step) |
-| R-009 MED — No E2E restore drill | OPEN | **XZM-006B** + **XZM-006D** (restore drill combines DB + edge rollback) |
+| R-009 MED — No E2E restore drill | OPEN | **XZM-006I** (owns the drill); depends on **XZM-006B** (dump + Supabase coverage) + **XZM-006E** (edge sources) |
+| R-010 HIGH — Free-plan no-PITR + no automatic backups | OPEN | **XZM-006B** (plan decision + `pg_dump` schedule) |
+| R-011 MED — Production DB binding not mechanically confirmed | OPEN | **XZM-006B.5** (`VITE_SUPABASE_URL` capture + production annotation) |
 
 Supplementary Owner-input sub-tasks:
-- **XZM-006B** — Supabase recovery coverage (PITR + Auth + Storage)
+- **XZM-006B** — Supabase recovery coverage + production-binding documentation
 - **XZM-006G** — RPO/RTO Owner questionnaire + target definition

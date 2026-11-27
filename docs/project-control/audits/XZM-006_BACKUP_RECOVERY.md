@@ -1,6 +1,6 @@
 # XZM-006 — Backup & Recovery Deep Verification
 
-**Status:** UNDER_REVIEW — Deep verification complete 2026-11-27; awaiting ChatGPT Independent Second Review → Owner approval
+**Status:** UNDER_REVIEW — Deep verification + 6-point correction pass complete 2026-11-27; awaiting ChatGPT Independent Second Review → Owner approval
 **Date:** 2026-11-27 (Asia/Dhaka)
 **Mode:** Read-only — no code, DB, DNS, production config or secret change.
 **Source HEAD (first pass):** `2836a07a96d5053938fdaed6bff22273558e7977`
@@ -9,7 +9,8 @@
 > **Review history:**
 > - 2026-11-27 — First summary (XZM-004R consolidation) merged with central-doc copy.
 > - 2026-11-27 — ChatGPT Independent Review: **PARTIAL — EVIDENCE REQUIRED.** Full 18-asset matrix + 7 DR procedures demanded in central doc; off-platform signing-key backup claim to be verified without assuming GitHub Actions secret can be exported; RPO/RTO + sub-task breakdown required.
-> - 2026-11-27 (this pass) — Full matrix + procedures + verification items + sub-tasks XZM-006A..H recorded; this file replaces the earlier summary verbatim and extends it.
+> - 2026-11-27 (deep verification pass) — Full matrix + procedures + verification items + sub-tasks XZM-006A..H recorded; this file replaced the earlier summary verbatim and extended it.
+> - 2026-11-27 (this 6-point correction pass) — Owner-directed corrections applied: (1) Supabase Free-plan PITR claim corrected against official docs — Free plan has **neither PITR nor automatic daily backups**; (2) Missing Edge Function recovery re-verified — CLI `supabase functions download` and Dashboard Download button CAN retrieve deployed source, upgrading §3.2 / §6.4 from "no API retrieval possible" to **BACKUP AVAILABLE via CLI**; (3) Migration drift re-computed version-by-version — simple `155 − 141 = 14` arithmetic replaced with actual set-diff showing structural divergence (see §3.1); (4) Preview isolation vs. actual production DB binding split into two separate sub-sections (see §5); (5) Owner-identifiable local path redacted from §3.3 / §4.7 / §10; (6) new sub-task **XZM-006I — Isolated Backup Restore Test** added to §7 / §8.
 
 ---
 
@@ -56,9 +57,9 @@
 | 3 | Web `dist` artifact | **BACKUP AVAILABLE** (GitHub Actions artifact `site-dist`, 30-day retention) | **UNVERIFIED** | Can be dragged onto Netlify dashboard manually. |
 | 4 | Android APK (live) | **BACKUP AVAILABLE** — `https://xzmteam.com/download/XZM-TEAM.apk` + `apk.json`; preserved across builds by `scripts/keep-live-apk.sh`; GitHub artifact `XZM-TEAM-apk` retained 30 days | **UNVERIFIED** | APK history before current live build not retained off-GitHub. |
 | 5 | Android signing key | **ACCESS REQUIRED** — exists ONLY in GitHub Actions secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`). **GitHub Actions secrets are WRITE-ONLY after creation — they cannot be exported via API or UI.** | **ACCESS REQUIRED** | **CRITICAL — see §3.3.** The original keystore file must live in a location the Owner controls off-GitHub (locally, on offline media, or in a password manager). If no such copy exists, the secrets are the only extant copy and recovery from GitHub loss is impossible. Owner-controlled verification required. |
-| 6 | Supabase database (automatic) | **ACCESS REQUIRED** (Free plan default: 7-day PITR + daily backups per Supabase docs; dashboard confirmation pending) | **UNVERIFIED** | Needs Owner dashboard screenshot of `Database → Backups` retention window. |
+| 6 | Supabase database (automatic) | **MISSING on Free plan** per Supabase official docs — Free plan has **neither PITR nor automatic daily backups**; users are directed to run `supabase db dump` manually. Automatic daily backups start at Pro (7 d), Team (14 d), Enterprise (up to 30 d); PITR is a separate paid add-on on Pro/Team/Enterprise only. | **N/A** on Free plan | Correction over earlier entry which asserted "7-day PITR + daily backups on Free". Current project `ndgnhvbpmtxrpplgsslz` is on Free plan (per PROJECT_CONNECTIONS). A scheduled `pg_dump` from outside the project is therefore the ONLY automatic DB backup path available today; **none is configured** → see XZM-006B. Sources: <https://supabase.com/docs/guides/platform/backups>, <https://supabase.com/pricing>. |
 | 7 | Supabase schema (source-of-truth) | **BACKUP AVAILABLE** (141 migration files in `supabase/migrations/` + `apply-all-dev.sql`) | **UNVERIFIED** | Clean restore to a new project via migrations not drill-tested. |
-| 8 | Supabase Edge Functions | **PARTIAL — 4 of 6 BACKUP AVAILABLE, 2 MISSING** — `auth-login`, `admin-users`, `nodi-ai`, `push-send` source in repo (`supabase/functions/`). **MISSING in repo**: `nodi-route-plan`, `osm-fetch-places` | **UNVERIFIED** | See §3.2. |
+| 8 | Supabase Edge Functions | **PARTIAL — 4 of 6 in repo, 2 missing from repo but RETRIEVABLE from live** — `auth-login`, `admin-users`, `nodi-ai`, `push-send` source in repo (`supabase/functions/`). `nodi-route-plan`, `osm-fetch-places` are missing from repo but their deployed source can be fetched with `supabase functions download <slug> --project-ref ndgnhvbpmtxrpplgsslz` (CLI) or the per-function **Download** button in the Supabase Dashboard (Edge Functions → function → Download). Earlier claim "Management API does not expose source" is **CORRECTED**: a Download endpoint backs both CLI and Dashboard paths. | **UNVERIFIED** (retrieval not drill-tested this pass) | See §3.2. |
 | 9 | Supabase RLS / RPC / policies | **BACKUP AVAILABLE** (embedded in migrations) | **UNVERIFIED** | — |
 | 10 | Supabase Auth config (SMTP, hooks, redirect URLs) | **MISSING** — not source-controlled | **ACCESS REQUIRED** | Dashboard has it; must be documented separately. See §6.4. |
 | 11 | Supabase Storage objects (uploaded files, slips, docs) | **UNVERIFIED** | **UNVERIFIED** | No periodic export job in repo; dashboard Storage buckets not enumerated in this pass. |
@@ -74,23 +75,65 @@
 
 ## 3. Drift findings (read-only, no fix applied)
 
-### 3.1 Migration drift
+### 3.1 Migration drift — version-wise comparison (correction over earlier `155 − 141 = 14` arithmetic)
 
-Supabase live DB has **155 applied migrations**, repo `supabase/migrations/` contains **141 files**. The 14 extras include `sync_live_functions`, `probe_delete`, `probe_alter`, `vehicle_ops_b1a`, `vehicle_ops_b2`, `vehicle_ops_c`, `vehicle_ops_d`, `vehicle_ops_fix_log_list`, and several more.
+The earlier framing of the drift as "14 orphan migrations" is **incorrect**. A set-level comparison of the live `supabase_migrations.schema_migrations` table (fetched 2026-11-27 via MCP `list_migrations`) against the files in `supabase/migrations/` on branch `docs/xzm-006-deep-verification` shows a **structural divergence in both directions**, not a one-sided surplus.
 
-⚠ A clean restore from repo migrations will produce a schema that differs from live. Each orphan migration must be either committed back to the repo (recovery baseline) or deliberately discarded under an approved task.
+**Totals**
 
-### 3.2 Edge-function drift
+| Source | Rows / files | Unique version timestamps | Unique migration names |
+|---|---|---|---|
+| Live DB (`ndgnhvbpmtxrpplgsslz`) | 155 | 154 | 154 |
+| Repo (`supabase/migrations/`) | 141 | 138 | 141 |
 
-Live has 6 functions; repo tracks source for only 4 (`auth-login`, `admin-users`, `push-send`, `nodi-ai`). `nodi-route-plan` and `osm-fetch-places` have **no source in repo** → impossible to redeploy from GitHub.
+**Version-timestamp set diff**
 
-**Recovery feasibility:** Supabase does **not** expose the source of a deployed function via its REST / Management API — only metadata (slug, version, SHA-256 of the executed bundle) can be read. The only ways to recover source for a live function are:
+| Direction | Count | Interpretation |
+|---|---|---|
+| Live timestamps absent in repo | **124** | Migrations recorded in live under timestamps that do not exist in the repo at all |
+| Repo timestamps absent in live | **108** | Migrations in the repo under timestamps never recorded in live |
+| Common timestamps | 30 | Only the first ~30 migrations (foundation → sheet_made_easy on 2026-11-11 and 2026-11-13) share identical `YYYYMMDDHHMMSS` version IDs |
 
-1. Owner locates the author's local copy (laptop, backup drive) and commits it to `supabase/functions/`.
-2. Owner re-authors the function from scratch based on observed behaviour + call sites in `web/` and migrations.
-3. If neither is possible, the function would need to be rewritten; call sites in `web/` give a partial contract specification (input shape, response fields used).
+➡ **Timestamp alignment holds only for migrations dated 2026-11-11 and 2026-11-13.** From 2026-11-15 onward the repo uses a **sequential pseudo-timestamp pattern** (`20261115000100`, `…000200`, …) while the live DB retains **real clock timestamps** from the moment each migration was applied (`20261115015547`, `…030004`, …). Mechanically, `supabase db push` reconciles by `version` string, so these are **two disjoint histories** for the DB tooling — a fresh `supabase db push` against an empty project would create a schema that neither matches live nor re-plays live's timeline.
 
-This is tracked in §6.2 as **ACCESS REQUIRED**.
+**Name-level set diff** (comparing the human-readable suffix after the version)
+
+| Direction | Count | Examples |
+|---|---|---|
+| Names present in live but missing in repo | **29** | `probe_delete`, `probe_alter`, `vehicle_ops_index`, `vehicle_ops_a`, `vehicle_ops_b1a`, `vehicle_ops_b2`, `vehicle_ops_c`, `vehicle_ops_d`, `vehicle_ops_fix_log_list`, `hub_issues_a_tables`, `hub_issues_b_helpers_rls`, `hub_issues_c_workflow`, `hub_issues_d_panels_group`, `hub_issues_e_storage`, `workforce_attendance_a`, `workforce_attendance_b1`, `workforce_attendance_b2`, `workforce_manager_book_a`..`_d`, `work_focus_and_zonal_hub_transfer`, `staff_self_employee_scope`, `role_based_menus`, `role_sidebar_menu_system`, `add_ai_plan_to_route_day_plans`, `fleet_office_kinds`, `hub_registers_pending_release`, `manager_hub_registers` |
+| Names present in repo but missing in live | **16** | `hub_issues` (live split into `_a`..`_e`), `workforce_attendance` (live split into `_a`/`_b1`/`_b2`), `workforce_manager_book` (live split into `_a`..`_d`), `vehicle_ops` (live split into `_index`/`_a`/`_b1a`/`_b2`/`_c`/`_d`/`_fix_log_list`), `work_focus`, `zonal_hub_transfer`, `att_versions_windows`, `daily_register_own_month`, `list_tools_permission`, `pending_manager_review`, `pending_month_report`, `route_places`, `route_settings`, `staff_pending_snapshots`, `staff_work_profile`, `zone_group_and_contact` |
+
+**Interpretation** — three distinct cases coexist:
+
+1. **Repo-side consolidations that were later split in live** (e.g. repo's single `workforce_manager_book` vs. live's `_a`/`_b`/`_c`/`_d`): the repo captures an older unified migration that was replaced on live by a series; the DB object outcomes may still match, but the two histories do not.
+2. **Live-side ad-hoc probes with no repo counterpart** (`probe_delete`, `probe_alter`, `sync_live_functions`): applied directly against live outside the file flow; these are the clearest orphans in the narrow sense.
+3. **Repo-side migrations never applied to this project** (the 16 names above missing in live): either applied to a different project, staged locally and not pushed, or superseded without an explicit retraction.
+
+⚠ A clean restore from repo migrations **will not** reproduce the live schema. Full reconciliation is a per-migration decision (adopt live version, retire repo version, or write a bridge migration), not a bulk `git add`. This scope is tracked in **XZM-006C** and requires ChatGPT Backend Team ownership — Claude does not apply any reconciliation in this task.
+
+**Evidence** — raw name lists in both directions: see `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` commit history; raw MCP response for live set captured in this PR's working transcript.
+
+### 3.2 Edge-function drift — recovery feasibility (correction over earlier "no API retrieval possible" claim)
+
+Live has 6 functions; repo tracks source for only 4 (`auth-login`, `admin-users`, `push-send`, `nodi-ai`). `nodi-route-plan` and `osm-fetch-places` have **no source in repo**.
+
+**Recovery feasibility — corrected:** Supabase **does** expose the deployed source of an Edge Function, through two documented and currently-supported paths:
+
+1. **Supabase CLI** — `supabase functions download <function-slug> --project-ref <project-ref>` downloads the deployed function's source into `supabase/functions/<function-slug>/` on disk. Documented at <https://supabase.com/docs/guides/troubleshooting/transfer-edge-function-from-one-project-to-another> and in the CLI Edge Functions guide.
+2. **Supabase Dashboard** — Edge Functions → function detail page → **Download** button → zip of source. Documented at <https://supabase.com/docs/guides/functions/quickstart-dashboard#download-edge-functions>.
+
+Under the hood these paths use the Management API's function-body endpoint (same endpoint the CLI calls); it is not surfaced as a prominent REST path in the public API reference, but it is reachable through the two supported tools above.
+
+**Implication:** `nodi-route-plan` and `osm-fetch-places` are **BACKUP AVAILABLE from the live project via CLI/Dashboard** — not "impossible to redeploy from GitHub" as the earlier text claimed. The remaining work is operational:
+
+- Run `supabase functions download nodi-route-plan --project-ref ndgnhvbpmtxrpplgsslz`
+- Run `supabase functions download osm-fetch-places --project-ref ndgnhvbpmtxrpplgsslz`
+- Review the downloaded code against the call sites in `web/` for correctness, add missing imports if any, and commit under an approved task (**XZM-006E**, re-scoped — it now owns the retrieval + commit, not the "re-author from scratch" fallback).
+- Owner approval and ChatGPT Backend Team contract required before committing — Claude does not run these commands in this read-only pass.
+
+The earlier "re-author from scratch" fallback is retained only as a last-resort step if the CLI download fails for a specific function (rare; most commonly caused by an inline-only function created through the Dashboard assistant without saved source — not the case for these two, which were deployed via CLI per the commit history).
+
+This is tracked in §6.4 / **XZM-006E**.
 
 ### 3.3 Android Signing Key — single point of failure (re-verified for Second Review)
 
@@ -102,10 +145,10 @@ Therefore the sentence "Supabase service-role / ANTHROPIC_API_KEY / Netlify toke
 
 | Location | How Owner verifies | Result if missing |
 |---|---|---|
-| Owner's development laptop | Check for `.jks` or `.keystore` file + `keystore.properties` in `C:\Users\Mizanur\Downloads\xzm-team-react-supabase-phase1\xzm-team-erp\web\android\app\` or an off-tree key directory | No off-GitHub copy exists |
+| Owner's development machine | Check for `.jks` or `.keystore` file + `keystore.properties` in the local project folder's `web/android/app/` path, or in an off-tree key directory under the Owner's chosen keystore location | No off-GitHub copy exists |
 | Password manager vault | Check for keystore binary attachment + three passwords (store, key alias, key password) | No off-GitHub copy exists |
 | Offline media (external drive, USB) | Owner-controlled; Claude cannot verify | No off-GitHub copy exists |
-| Backup drive / cloud storage (OneDrive, Google Drive) | Search filename pattern `*.jks` / `*.keystore` in Owner's backup locations | No off-GitHub copy exists |
+| Backup drive / cloud storage | Search filename pattern `*.jks` / `*.keystore` in Owner's backup locations | No off-GitHub copy exists |
 | CI build-cache artifact | **NO** — workflow uses `mktemp` then `trap` deletes; keystore never persisted to artifact | — |
 
 **Verification pass result for item 5:** this audit has NOT confirmed any off-GitHub backup exists; nor has it confirmed the absence of one. Status remains **ACCESS REQUIRED**. Owner needs to perform the four checks above and append the result. A follow-up task (**XZM-006A**) covers the export procedure once Owner confirms the original keystore file is available.
@@ -157,12 +200,14 @@ Each procedure assumes **Owner approval + explicit Task ID** before execution. N
 ### 4.2 Database records accidentally deleted
 
 1. Do **not** run any DML. Freeze writes if the deletion is ongoing (disable Edge Functions that write, or temporarily revoke the relevant RLS grants under Owner approval).
-2. Supabase Dashboard → Database → Backups → pick most recent PITR/daily snapshot before the deletion.
-3. Restore into a **new** project (`xzm-team-erp-restore-YYYYMMDD`) — never over production.
+2. **Realistic state today — Free plan has neither PITR nor automatic daily backups.** Supabase Dashboard → Database → Backups will show no snapshots on this project. Recovery depends on whether a manual `supabase db dump` / `pg_dump` has been taken recently and stored off-platform.
+   - If such a dump exists: restore it into a **new** project (e.g. `xzm-team-erp-restore-YYYYMMDD`) — never over production — and selectively re-apply affected rows.
+   - If no dump exists: only logical reconstruction from application-level logs (audit tables, `da_*` append-only tables, Supabase log drains if configured) is available; this recovers partial state, not a snapshot.
+3. If the Owner elects to upgrade the project to **Pro plan + PITR add-on** before a future incident, step 2 becomes: Dashboard → Database → Backups → pick most recent PITR/daily snapshot before the deletion, restore into a new project.
 4. Extract the affected rows with SQL, review with Owner + ChatGPT, then apply a scoped INSERT back to live under an audited task.
 5. Document in `AUDIT_REPORT.md` and `DECISION_LOG.md`.
 
-**Pre-requisite that is ACCESS REQUIRED today:** confirmed PITR window on Supabase Free plan (XZM-006B).
+**Pre-requisite that is MISSING today:** a scheduled `pg_dump` export stored off-platform (tracked in **XZM-006B**). **Pre-requisite that is ACCESS REQUIRED for the PITR-based path:** plan upgrade decision from Owner.
 
 ### 4.3 Database migration fails
 
@@ -171,7 +216,7 @@ Each procedure assumes **Owner approval + explicit Task ID** before execution. N
 3. Reapply via `supabase db push` or MCP `apply_migration`.
 4. If the failure left partial objects: roll them back with a compensating migration; do not drop manually in Dashboard.
 
-**Pre-requisite that is BACKUP AVAILABLE today:** 141 migration files in repo. **Pre-requisite that is MISSING today:** 14 live-only migrations reconciled to repo (XZM-006C).
+**Pre-requisite that is BACKUP AVAILABLE today:** 141 migration files in repo. **Pre-requisite that is MISSING today:** structural reconciliation of 29 live-only + 16 repo-only migration names, plus a timestamp-convention decision for the 124 live-only + 108 repo-only timestamps (see §3.1 and XZM-006C).
 
 ### 4.4 Login or role permissions stop working
 
@@ -203,7 +248,7 @@ Each procedure assumes **Owner approval + explicit Task ID** before execution. N
 
 ### 4.7 GitHub repository becomes unavailable
 
-1. The Owner retains a local clone at `C:\Users\Mizanur\Downloads\xzm-team-react-supabase-phase1\xzm-team-erp`.
+1. The Owner retains a local clone of the repository on their own development machine (exact path kept off public documentation per the XZM-004R-Final redaction policy; see `docs/project-control/PROJECT_CONNECTIONS.md` and Owner's private records).
 2. Push that clone to a new GitHub repo (or GitLab mirror) under an existing owner.
 3. Reconfigure Actions secrets (`NETLIFY_AUTH_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `GOOGLE_SERVICES_JSON`, Android signing set).
 4. Trigger `android-apk.yml` with `publish_apk=true` to restore site delivery.
@@ -212,9 +257,13 @@ Each procedure assumes **Owner approval + explicit Task ID** before execution. N
 
 ---
 
-## 5. Preview Environment ↔ Production Database Isolation
+## 5. Preview isolation **and** actual production database binding (two separate questions)
 
-Verified read-only via XZM-004R-Final (merged); re-confirmed here.
+Earlier text folded these two concerns into one table. This pass splits them, because they verify to different states.
+
+### 5.1 Preview isolation — VERIFIED
+
+Can any preview / PR / non-production path reach the production database?
 
 | Preview path | Could it touch production DB? | Evidence |
 |---|---|---|
@@ -223,7 +272,24 @@ Verified read-only via XZM-004R-Final (merged); re-confirmed here.
 | Supabase preview DB branches | **NO — none exist** | `list_branches` on `ndgnhvbpmtxrpplgsslz` returned `[]` on 2026-11-27 |
 | Workflow PR runs reaching live DB | **NO — workflow guards** | `tests.yml` uses a throwaway PostgreSQL 16 per workflow comment: "Nothing here touches the live Supabase project; no secrets are used." |
 
-Production DB is only touched by direct Supabase MCP calls initiated by a trusted operator (Owner, Claude, ChatGPT) with the MCP connector. **No preview or PR path writes to `ndgnhvbpmtxrpplgsslz`.**
+**Verdict:** No preview or PR path writes to the production DB.
+
+### 5.2 Actual production database binding — PARTIALLY VERIFIED
+
+The "production database" is **not** the staging project. Which Supabase project is actually bound to the deployed xzmteam.com frontend?
+
+| Question | Status | Evidence |
+|---|---|---|
+| Which Supabase project does the frontend `createClient()` call hit? | **ACCESS REQUIRED** — depends on `VITE_SUPABASE_URL` set in Netlify Site Settings (and the mirror value on Cloudflare Workers via `wrangler.jsonc` env). `netlify.toml` contains only the comment `# Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY under <dashboard>` — the live value is not in the repo. | `grep -r "ndgnhvbpmtxrpplgsslz\|mbpjvqeizwjjsvnbjerb"` across the repo returned **no match in any `.ts/.tsx/.js/.jsx/.toml/.json/.jsonc/.yml`** — i.e. no hard-coded ref. Owner must read Netlify Site Settings → Build & deploy → Environment and record the value in `PROJECT_CONNECTIONS.md`. |
+| Which Supabase project does this audit treat as production? | **VERIFIED by inference**, needs Owner confirmation | `ndgnhvbpmtxrpplgsslz` (`xzm-team-erp-dev`). Despite the historical `-dev` suffix in its name, it is the only project with live data, 155 applied migrations, 6 ACTIVE Edge Functions matching the frontend's call sites (`push-send`, `nodi-ai`, `osm-fetch-places`, …), and the Anthropic API key configured. The `xzm-team-staging` project (`mbpjvqeizwjjsvnbjerb`) was created on 2026-11-27 and holds no production traffic. **The project name is a misnomer; it is the production database.** |
+| Does any MCP / CLI binding Claude uses here resolve to production? | **YES** — all `mcp__Supabase__*` calls in this session target `project_id=ndgnhvbpmtxrpplgsslz` by argument. This audit made **read-only** calls (`list_projects`, `list_migrations`, `list_edge_functions`, `list_branches`, `get_advisors`); no `execute_sql` or `apply_migration` ran. | This session's transcript. |
+| Does the staging project (`mbpjvqeizwjjsvnbjerb`) have any production role today? | **NO** | `list_projects` shows it `ACTIVE_HEALTHY` but empty of migrations as of creation date; no live frontend points to it. |
+
+**Verdict:**
+
+- Preview isolation holds (5.1).
+- The production binding is correctly identified in this audit (ndgnhvbpmtxrpplgsslz), but the mechanical confirmation — reading `VITE_SUPABASE_URL` from the Netlify Site Settings dashboard — remains **ACCESS REQUIRED**. Tracked under **XZM-006B** (add a sub-item: "Record the live value of `VITE_SUPABASE_URL` in PROJECT_CONNECTIONS.md § operational identifiers").
+- The name `xzm-team-erp-dev` should be renamed or explicitly annotated as "production despite its name" in `PROJECT_CONNECTIONS.md` to avoid a future AI or team member treating it as a non-production target. Tracked under **XZM-006B.5**.
 
 ---
 
@@ -233,28 +299,30 @@ Production DB is only touched by direct Supabase MCP calls initiated by a truste
 
 Result per §3.3 — **ACCESS REQUIRED** by Owner. Checks listed; no assumption that GitHub Actions secret is directly exportable.
 
-### 6.2 Supabase Backup Retention, PITR, Database, Auth, Storage recovery coverage
+### 6.2 Supabase Backup Retention, PITR, Database, Auth, Storage recovery coverage (corrected against official docs)
 
 | Sub-item | Status |
 |---|---|
-| Automated daily backup (Free plan) | **UNVERIFIED** — Supabase docs assert default; dashboard screenshot needed |
-| PITR window | **UNVERIFIED** — Free plan default commonly 7 days; dashboard confirmation needed |
-| Database schema backup | **BACKUP AVAILABLE** (141 migration files) |
-| Database data backup | **ACCESS REQUIRED** (dashboard snapshot read + pg_dump schedule) |
+| Automated daily backup (Free plan) | **NOT AVAILABLE** — per <https://supabase.com/pricing> and <https://supabase.com/docs/guides/platform/backups>, Free plan has no scheduled automatic backups. Pro = 7 d, Team = 14 d, Enterprise = up to 30 d. |
+| PITR (Free plan) | **NOT AVAILABLE** — PITR is a paid add-on on Pro/Team/Enterprise only; it is not offered on Free plan. Earlier "7-day PITR on Free" claim **withdrawn**. |
+| Database schema backup | **BACKUP AVAILABLE** (141 migration files) — see §3.1 for the drift against live |
+| Database data backup | **MISSING** — no scheduled `pg_dump` / `supabase db dump` export job exists in the repo or in GitHub Actions; this is the gap the Free plan leaves and nothing fills today |
 | Auth config (SMTP, hooks, providers) | **MISSING** (not source-controlled) |
 | Storage buckets (object listing + export) | **UNVERIFIED** — buckets not enumerated this pass |
 | Edge Function secrets | **ACCESS REQUIRED** — write-only once set |
 | Realtime config | **UNVERIFIED** |
+| `VITE_SUPABASE_URL` (frontend binding — see §5.2) | **ACCESS REQUIRED** — Owner reads Netlify Site Settings and records value |
+| Production-project name clarity (`xzm-team-erp-dev` is production) | **MISSING** — not annotated in PROJECT_CONNECTIONS.md; tracked as **XZM-006B.5** |
 
-Tracked as **XZM-006B — Supabase recovery coverage documentation**.
+Tracked as **XZM-006B — Supabase recovery coverage documentation** (now also owning the plan-upgrade decision, the `pg_dump` schedule design, and the production-binding documentation).
 
-### 6.3 Live vs Repository Migration Drift
+### 6.3 Live vs Repository Migration Drift — corrected
 
-Confirmed: 155 live, 141 repo, 14 orphan. Tracked as **XZM-006C**.
+See §3.1 for the full version-wise set-diff. Summary: the drift is **structural in both directions** (124 live timestamps absent in repo; 108 repo timestamps absent in live; only the first 30 share version IDs). The earlier "14 orphan" number was arithmetic on totals and is retired. Reconciliation is tracked as **XZM-006C**, now scoped as a per-migration decision pass owned by ChatGPT Backend Team.
 
-### 6.4 Missing Edge Functions — Recovery Feasibility
+### 6.4 Missing Edge Functions — Recovery Feasibility (corrected)
 
-Per §3.2 — Supabase Management API does not expose deployed source. Owner laptop / backup drive is the only viable source. Tracked as **XZM-006E**.
+Per §3.2 — `supabase functions download` (CLI) and the Dashboard Download button **can** retrieve deployed source for `nodi-route-plan` and `osm-fetch-places`. Status upgraded from "impossible to redeploy from GitHub" to **BACKUP AVAILABLE from live via CLI**. Tracked as **XZM-006E**, re-scoped to "retrieve from live → review against call sites → commit".
 
 ### 6.5 Cloudflare DNS, Workers and Netlify Rollback Configuration
 
@@ -277,7 +345,7 @@ RPO (Recovery Point Objective) and RTO (Recovery Time Objective) require **busin
 
 | System | Data needed from Owner | Current inference (not VERIFIED) |
 |---|---|---|
-| Supabase DB | Max tolerable data-loss window; max tolerable downtime during restore | RPO ≤ 7 days (PITR) / RTO ~ hours (restore into new project) — both **ACCESS REQUIRED** |
+| Supabase DB | Max tolerable data-loss window; max tolerable downtime during restore | **RPO = unbounded** on current Free plan (no automatic backups, no PITR) until an off-platform `pg_dump` schedule is set up (XZM-006B); RTO ~ hours once a dump exists and is restored into a new project. A Pro-plan + PITR upgrade would bring RPO down to minutes. |
 | Netlify site | Max tolerable site outage | RTO ~ minutes (rollback via dashboard) — **UNVERIFIED** drill |
 | Cloudflare DNS | Max tolerable DNS outage | RTO ~ hours (zone recreation) — **MISSING** export increases RTO to days |
 | Android signing | Max tolerable channel reset tolerance | RPO = N/A (immutable keystore); RTO = **catastrophic** if lost — **ACCESS REQUIRED** |
@@ -300,20 +368,21 @@ Post-XZM-004R merge: `docs/project-control/` is the single source of truth on `m
 
 ---
 
-## 7. Proposed Sub-tasks — XZM-006A..H
+## 7. Proposed Sub-tasks — XZM-006A..I
 
-**Conflict check:** No XZM-006A..H letter suffixes exist elsewhere in TASK_TRACKER. Numeric XZM-### IDs reach XZM-017; letter suffixes are a new namespace — **NO CONFLICT, SAFE.**
+**Conflict check:** No XZM-006A..I letter suffixes exist elsewhere in TASK_TRACKER. Numeric XZM-### IDs reach XZM-017; letter suffixes are a new namespace — **NO CONFLICT, SAFE.**
 
 | ID | Title | Priority | Primary category | Depends on |
 |---|---|---|---|---|
 | **XZM-006A** | Android Signing Key — off-GitHub export procedure | **CRITICAL** | DS — Database & Security | Owner locates original keystore file |
-| **XZM-006B** | Supabase recovery coverage (PITR + Auth + Storage + Realtime) documentation | HIGH | DS | Owner dashboard screenshots |
-| **XZM-006C** | Supabase Migration Drift reconciliation (14 orphans) | HIGH | DS | ChatGPT Backend Team review of orphan intent |
+| **XZM-006B** | Supabase recovery coverage (plan decision + `pg_dump` schedule + Auth / Storage / Realtime documentation + `VITE_SUPABASE_URL` record + `xzm-team-erp-dev` production annotation) | HIGH | DS | Owner dashboard screenshots; Owner plan-upgrade decision |
+| **XZM-006C** | Supabase Migration Drift reconciliation (**per-migration decision pass** across 29 live-only + 16 repo-only names; not a bulk commit) | HIGH | DS | ChatGPT Backend Team review of each migration's intent |
 | **XZM-006D** | Cloudflare DNS zone export + Workers rollback runbook + Netlify rollback runbook | HIGH | DS + DP | Owner Cloudflare dashboard |
-| **XZM-006E** | Missing Edge Functions source recovery (`nodi-route-plan`, `osm-fetch-places`) | HIGH | DS | Owner laptop / backup drive search |
+| **XZM-006E** | Missing Edge Functions source recovery (`nodi-route-plan`, `osm-fetch-places`) **via `supabase functions download` → review → commit** | HIGH | DS | Owner approval; ChatGPT Backend Team contract |
 | **XZM-006F** | Git tag policy + tag `24b348d` as `v2026.11.27-live` (or next live SHA) | MEDIUM | DP | — |
 | **XZM-006G** | RPO/RTO Owner questionnaire + target definition | MEDIUM | AU | Owner business input |
 | **XZM-006H** | 7 Supabase security advisors remediation | MEDIUM | DS | ChatGPT Backend Team review (scope + fix migration) |
+| **XZM-006I** | **Isolated Backup Restore Test** — one end-to-end drill: take a `supabase db dump` of `ndgnhvbpmtxrpplgsslz`, restore it into `mbpjvqeizwjjsvnbjerb` (`xzm-team-staging`) in an isolated pass with **no production write-back and no shared bindings**, apply the repo's edge-function source to the staging project, deploy the current `web/dist` to a preview Netlify site also bound to staging, smoke-test the login + one read + one write flow, then tear down. Document RPO/RTO measured during the drill in XZM-006G. Pre-requisite: XZM-006B's `pg_dump` schedule running, or an ad-hoc dump captured with Owner approval. **Hard constraint:** no step of this drill may share secrets, domains or env vars with production. | MEDIUM | DS + AU | XZM-006B (dump available) + XZM-006E (edge sources committed) + Owner approval |
 
 Each sub-task will be opened as a separate record in TASK_TRACKER with full 15-field schema under a follow-up documentation PR after this report is approved.
 
@@ -329,7 +398,7 @@ Each sub-task will be opened as a separate record in TASK_TRACKER with full 15-f
 | 4 | Locate or re-author source for `nodi-route-plan` and `osm-fetch-places`; commit to `supabase/functions/` | HIGH | Yes | XZM-006E |
 | 5 | Verify Supabase Free-plan PITR window + Auth config + Storage buckets; schedule monthly `pg_dump` export | HIGH | Yes | XZM-006B |
 | 6 | Tag the current live commit (`24b348d` post-XZM-004R merge or the next live SHA) as `v2026.11.27-live` | MEDIUM | Yes | XZM-006F |
-| 7 | Run one end-to-end restore drill into the `xzm-team-staging` project + a preview Netlify site; document result | MEDIUM | Yes | XZM-006B + XZM-006D |
+| 7 | Run one end-to-end **isolated** restore drill into the `xzm-team-staging` project + a preview Netlify site (no shared production bindings); document result | MEDIUM | Yes | **XZM-006I** (depends on XZM-006B + XZM-006E) |
 | 8 | Resolve 7 Supabase security advisors (1 ERROR, 5 WARN, 1 INFO) | MEDIUM | Yes — separate task | XZM-006H |
 | 9 | Fill RPO / RTO questionnaire for each system tier | MEDIUM | Yes | XZM-006G |
 
@@ -363,7 +432,10 @@ Each sub-task will be opened as a separate record in TASK_TRACKER with full 15-f
 | CI/CD details | `.github/workflows/android-apk.yml`, `website.yml`, `tests.yml` (path-scoped, verified) |
 | Mirror deploy config | `wrangler.jsonc` (assets `./web/dist`), `netlify.toml` (preview context disabled) |
 | APK preservation logic | `scripts/keep-live-apk.sh` + signer-match in `android-apk.yml` |
-| Owner's local clone path | Owner-stated: `C:\Users\Mizanur\Downloads\xzm-team-react-supabase-phase1\xzm-team-erp` |
+| Owner's local clone path | Held in Owner's private records / `PROJECT_CONNECTIONS.md`; redacted from public documentation per XZM-004R-Final policy |
+| Supabase Edge Function download capability | Supabase CLI `functions download` command — <https://supabase.com/docs/guides/troubleshooting/transfer-edge-function-from-one-project-to-another>; Dashboard Download button — <https://supabase.com/docs/guides/functions/quickstart-dashboard#download-edge-functions> |
+| Supabase Free-plan backup coverage | Pricing page <https://supabase.com/pricing>; Database Backups guide <https://supabase.com/docs/guides/platform/backups> |
+| Live migration set (155 entries) | MCP `list_migrations(project_id="ndgnhvbpmtxrpplgsslz")` executed 2026-11-27 during this pass |
 
 ---
 

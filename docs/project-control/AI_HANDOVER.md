@@ -87,7 +87,7 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 
 - **R-001 CRITICAL** — Android signing key single point of failure.
 - **R-002 MED** — Legacy ERP App ID guardrail (`com.xzmteam.erp`).
-- **R-003 HIGH** — Supabase migration drift (14 migrations).
+- **R-003 HIGH** — Supabase migration drift (structural, both directions — see RISK_REGISTER R-003 and XZM-006 §3.1).
 - **R-004 HIGH** — 2 edge functions missing source in repo.
 - **R-005 HIGH** — No Cloudflare DNS zone export.
 - **R-006 MED** — No git tags.
@@ -105,7 +105,7 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 - **XZM-007A/B-3, -4** UNDER_REVIEW — Batch 3 & Batch 4 audits (both reports now in `docs/project-control/audits/`; Batch 4 ported in XZM-004R Review-Response).
 - **XZM-010..013** PROPOSED — from Batch 3 G-1..G-4.
 - **XZM-014..017** PROPOSED — new from Batch 3 Correction G-6..G-8 + Q.3.11.
-- **XZM-006A..H** PROPOSED — new from XZM-006 Deep Verification (2026-11-27): Android signing export (A), Supabase recovery coverage (B), Migration drift reconciliation (C), Cloudflare DNS + rollback runbook (D), Missing edge functions source (E), Git tag policy (F), RPO/RTO Owner questionnaire (G), 7 security advisors remediation (H).
+- **XZM-006A..I** PROPOSED — from XZM-006 Deep Verification + 6-point correction pass (2026-11-27): Android signing export (A), Supabase recovery coverage + production-binding documentation (B), Migration drift reconciliation (structural, per-migration) (C), Cloudflare DNS + rollback runbook (D), Missing edge functions source via `supabase functions download` (E), Git tag policy (F), RPO/RTO Owner questionnaire (G), 7 security advisors remediation (H), **Isolated Backup Restore Test (I) — new**.
 
 ## 8. Current Blockers
 

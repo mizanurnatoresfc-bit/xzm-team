@@ -245,14 +245,14 @@
 | Assigned AI | Claude (verification) + Owner (dashboard access where needed) |
 | Dependencies | XZM-003, XZM-004 |
 | Current Status | **UNDER_REVIEW** |
-| Acceptance Criteria | 18-asset matrix + drift findings + 7 recovery scenarios + 9 action items + 10 verification items + XZM-006A..H sub-tasks documented in central audit file |
-| Test Evidence | `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` (full deep verification, 2026-11-27) |
+| Acceptance Criteria | 18-asset matrix + drift findings + 7 recovery scenarios + 9 action items + 10 verification items + XZM-006A..I sub-tasks documented in central audit file; 6-point correction pass applied (Free-plan PITR, Edge Function download feasibility, version-wise migration drift, preview/prod binding split, personal path redaction, XZM-006I added) |
+| Test Evidence | `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` (full deep verification + 6-point correction pass, 2026-11-27) |
 | Owner Approval | ⏳ pending |
 | Commit / PR Link | Initial: XZM-004R PR #213 (merged `24b348d`). Deep verification: XZM-006-Deep PR (this PR) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
 | Blockers | Awaiting ChatGPT Independent Second Review on deep verification |
-| Next Action | ChatGPT Second Review → Owner approves XZM-006A..H → open each as separate PR |
+| Next Action | ChatGPT Second Review of 6-point correction pass → Owner approves XZM-006A..I → open each as separate PR |
 
 ### XZM-006A — Android Signing Key Off-GitHub Export Procedure *(proposed)*
 | Field | Value |
@@ -278,15 +278,15 @@
 ### XZM-006B — Supabase Recovery Coverage Documentation *(proposed)*
 | Field | Value |
 |---|---|
-| Module | Supabase (DB, Auth, Storage, Edge Function secrets, Realtime) |
+| Module | Supabase (DB, Auth, Storage, Edge Function secrets, Realtime) + production-binding documentation |
 | Category | DS — Database & Security |
-| Requirement | Document Free-plan PITR window + Auth config snapshot + Storage bucket inventory + Edge Function secret inventory + Realtime channels; schedule monthly `pg_dump` export |
-| Business Objective | Known-good recovery posture for every Supabase sub-system |
+| Requirement | Owner plan-upgrade decision (Free → Pro/PITR, or stay Free with scheduled `pg_dump`); schedule `pg_dump` export off-platform; document Auth config snapshot + Storage bucket inventory + Edge Function secret inventory + Realtime channels; record live `VITE_SUPABASE_URL` in PROJECT_CONNECTIONS.md; add explicit "production despite its name" annotation to `xzm-team-erp-dev` (XZM-006B.5) |
+| Business Objective | Known-good recovery posture for every Supabase sub-system; no ambiguity about which project is production |
 | Priority | P1 (HIGH) |
-| Assigned AI | Owner (dashboard screenshots) + Claude (documentation) |
-| Dependencies | XZM-006 §6.2 |
+| Assigned AI | Owner (plan decision + dashboard screenshots) + Claude (documentation) |
+| Dependencies | XZM-006 §6.2, §5.2 |
 | Current Status | **PROPOSED** |
-| Acceptance Criteria | PITR window confirmed; Auth config export written; Storage bucket list documented; monthly backup job scheduled |
+| Acceptance Criteria | Plan decision recorded; `pg_dump` schedule running; Auth config export written; Storage bucket list documented; `VITE_SUPABASE_URL` recorded; production annotation added to PROJECT_CONNECTIONS.md |
 | Test Evidence | — |
 | Owner Approval | ⏳ pending |
 | Commit / PR Link | — |
@@ -296,18 +296,18 @@
 | Next Action | Owner provides Supabase dashboard screenshots |
 | Conflict check | No XZM-006B elsewhere — SAFE |
 
-### XZM-006C — Supabase Migration Drift Reconciliation (14 orphans) *(proposed)*
+### XZM-006C — Supabase Migration Drift Reconciliation (structural, per-migration) *(proposed)*
 | Field | Value |
 |---|---|
 | Module | `supabase/migrations/` |
 | Category | DS |
-| Requirement | For each of the 14 live-only migrations (`sync_live_functions`, `probe_delete`, `probe_alter`, `vehicle_ops_b1a`, `vehicle_ops_b2`, `vehicle_ops_c`, `vehicle_ops_d`, `vehicle_ops_fix_log_list`, …): either commit back to repo (recovery baseline) OR document deliberate discard with approved task |
-| Business Objective | Repo = authoritative recovery source for schema |
+| Requirement | Per-migration decision pass across **29 names present in live but missing from repo** (`probe_delete`, `probe_alter`, `vehicle_ops_index`, `vehicle_ops_a`..`_d`, `vehicle_ops_b1a`, `vehicle_ops_b2`, `vehicle_ops_fix_log_list`, `hub_issues_a..e_*`, `workforce_attendance_a`/`_b1`/`_b2`, `workforce_manager_book_a..d`, `work_focus_and_zonal_hub_transfer`, `staff_self_employee_scope`, `role_based_menus`, `role_sidebar_menu_system`, `add_ai_plan_to_route_day_plans`, `fleet_office_kinds`, `hub_registers_pending_release`, `manager_hub_registers`) **and 16 names present in repo but missing from live** (`hub_issues`, `workforce_attendance`, `workforce_manager_book`, `vehicle_ops`, `work_focus`, `zonal_hub_transfer`, `att_versions_windows`, `daily_register_own_month`, `list_tools_permission`, `pending_manager_review`, `pending_month_report`, `route_places`, `route_settings`, `staff_pending_snapshots`, `staff_work_profile`, `zone_group_and_contact`). For each: either adopt live version into repo, retire repo version, or write a bridge migration. Also note 124 timestamp mismatches across 2026-11-15…2026-11-27 (repo uses pseudo-sequential; live uses real clock) and decide whether to re-timestamp the repo files to match live. See XZM-006 audit §3.1 |
+| Business Objective | Repo = authoritative recovery source for schema; clean restore from repo reproduces live |
 | Priority | P1 (HIGH) |
-| Assigned AI | ChatGPT Backend Team (intent review) + Claude (file commit) |
+| Assigned AI | ChatGPT Backend Team (intent review per migration) + Claude (file commit after approval) |
 | Dependencies | XZM-006 §3.1 |
 | Current Status | **PROPOSED** |
-| Acceptance Criteria | 14 orphans resolved (reconciled or formally discarded); clean restore from repo produces live schema |
+| Acceptance Criteria | Every 29 live-only + 16 repo-only name resolved (reconciled, bridged, or formally discarded); timestamp convention decision recorded in DECISION_LOG; clean restore from repo into the staging project produces live schema (verified by XZM-006I) |
 | Test Evidence | — |
 | Owner Approval | ⏳ pending |
 | Commit / PR Link | — |
@@ -338,25 +338,25 @@
 | Next Action | Owner exports zone file |
 | Conflict check | No XZM-006D elsewhere — SAFE |
 
-### XZM-006E — Missing Edge Functions Source Recovery *(proposed)*
+### XZM-006E — Missing Edge Functions Source Recovery *(proposed, re-scoped)*
 | Field | Value |
 |---|---|
 | Module | `supabase/functions/nodi-route-plan`, `supabase/functions/osm-fetch-places` |
 | Category | DS |
-| Requirement | Locate original source for both functions (Owner laptop / backup drive); OR re-author from call-site contracts in `web/` + migrations; commit to repo |
-| Business Objective | Redeployability of all 6 live edge functions |
+| Requirement | **Retrieve** deployed source from live via `supabase functions download nodi-route-plan --project-ref ndgnhvbpmtxrpplgsslz` and `supabase functions download osm-fetch-places --project-ref ndgnhvbpmtxrpplgsslz` (CLI; Dashboard Download button is an equivalent manual path). Review retrieved source against call sites in `web/` + migrations for correctness and missing imports. Commit to repo under Owner approval + ChatGPT Backend Team contract. Earlier "re-author from scratch" fallback is retained only if the download fails for a specific function. |
+| Business Objective | Redeployability of all 6 live edge functions from the repo |
 | Priority | P1 (HIGH) |
-| Assigned AI | Owner (source search) + Claude (re-author if needed, with ChatGPT Backend review) |
+| Assigned AI | Claude (download + review) + ChatGPT Backend Team (contract & approval) |
 | Dependencies | XZM-006 §3.2 |
 | Current Status | **PROPOSED** |
-| Acceptance Criteria | Source for both functions committed to `supabase/functions/`; R-004 moves from OPEN → MITIGATED |
+| Acceptance Criteria | Source for both functions committed to `supabase/functions/`; redeploy dry-run succeeds in a non-production target (optionally inside XZM-006I); R-004 moves from OPEN → MITIGATED |
 | Test Evidence | — |
 | Owner Approval | ⏳ pending |
 | Commit / PR Link | — |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
-| Blockers | Owner locates original source files |
-| Next Action | Owner searches local backup locations |
+| Blockers | Owner approval + ChatGPT Backend Team contract |
+| Next Action | ChatGPT Backend Team contracts the retrieval + commit plan |
 | Conflict check | No XZM-006E elsewhere — SAFE |
 
 ### XZM-006F — Git Tag Policy + First Live Tag *(proposed)*
@@ -421,6 +421,27 @@
 | Blockers | ChatGPT Backend Team scope |
 | Next Action | ChatGPT Backend Team scopes fix migrations per category |
 | Conflict check | No XZM-006H elsewhere — SAFE |
+
+### XZM-006I — Isolated Backup Restore Test *(proposed)*
+| Field | Value |
+|---|---|
+| Module | Supabase (DB restore drill) + Netlify (preview site) + Edge Functions deployment (staging) |
+| Category | DS + AU |
+| Requirement | One end-to-end drill in isolation: (a) take a `supabase db dump` of production (`ndgnhvbpmtxrpplgsslz`); (b) restore it into the staging project (`mbpjvqeizwjjsvnbjerb`, `xzm-team-staging`); (c) apply the repo's edge-function source + `supabase functions deploy` into the staging project; (d) deploy the current `web/dist` to a preview Netlify site bound exclusively to staging (separate build env; **no production secrets, domains or env vars reused**); (e) run a documented smoke sequence (login, one read, one write, one edge-function call); (f) measure wall-clock RPO and RTO; (g) tear down the preview site and reset staging. |
+| Business Objective | First measured end-to-end DR validation; feeds RPO/RTO numbers into XZM-006G |
+| Priority | P2 (MEDIUM) |
+| Assigned AI | ChatGPT Backend Team (plan) + Owner (approval + secrets provisioning for staging) + Claude (runbook + execution log) |
+| Dependencies | XZM-006B (dump mechanism available) + XZM-006E (edge sources committed) + Owner approval |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | Drill executed in a session scheduled specifically for it; RPO + RTO numbers recorded; staging reset to empty; drill report committed under `docs/project-control/audits/XZM-006I_RESTORE_DRILL.md`; R-002 moves from OPEN → MITIGATED |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | XZM-006B + XZM-006E completion; dedicated drill window; isolated-staging secret set |
+| Next Action | ChatGPT Backend Team drafts drill plan + hard-constraint checklist (no shared bindings) |
+| Conflict check | No XZM-006I elsewhere in TASK_TRACKER — SAFE (new namespace letter) |
 
 ### XZM-007A/B-1 — Audit Batch 1 *(evidence gap)*
 | Field | Value |
