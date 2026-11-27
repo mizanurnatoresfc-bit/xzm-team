@@ -4,7 +4,7 @@
 // Pure file (it imports only routeAccess.ts, which is constants): it is also run by tests/navAccess.test.mjs. This only hides and blocks pages; what data may be
 // read or changed is decided again by the database (RLS / RPC).
 // `menu` null = no limit. A role limited to "শুধু এই কয়টা পাতা" has a list.
-import { ROUTE_ANY, ROUTE_OLD_PAGES, ROUTE_PAGE } from './routeAccess.ts'
+import { ROUTE_ANY, ROUTE_OLD_PAGES, ROUTE_PAGE, ROUTE_PDFS_PAGE, ROUTE_PERMS } from './routeAccess.ts'
 
 /** Always open: the home page, the staff panel and one's own profile, accounts, vehicle, password and device settings.
  *  These show only the person's own things; a role's page list limits the work pages. */
@@ -111,6 +111,7 @@ const pagePermissions: Record<string, readonly string[]> = {
   '/app/users': ['system.user.view'],
   // the route module: each part checks its own permission (lib/routeModule.ts); the page opens for anyone who may use one of them
   [ROUTE_PAGE]: ROUTE_ANY,
+  [ROUTE_PDFS_PAGE]: ROUTE_PERMS.zone,
   '/app/staff/list': ['hr.employee.view', 'hr.application.create', 'hr.request.create'],
   '/app/zonal': ['zonal.dashboard.view'],
   '/app/zonal/files': ['hr.request.create', 'hr.request.approve'],

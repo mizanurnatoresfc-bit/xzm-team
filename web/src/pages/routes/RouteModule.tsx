@@ -2,7 +2,7 @@
 // routes), shows the parts the person may use as tabs (lib/routeModule.ts decides which), and owns the route editor and the rider picker.
 // Address: /app/routes?tab=<part>&zone=<id>&hub=<id>&route=<id>. The old addresses redirect here (see App.tsx).
 import { Suspense, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { askReason } from '../../components/ask'
@@ -12,22 +12,27 @@ import { RiderPicker } from '../zonal/RouteSettings'
 import { RouteEditor, type NewDraft } from './RouteEditor'
 import { PANE_VIEWS, type PaneCtx } from './panes'
 import { usePrefs } from '../../lib/prefs'
+import { ROUTE_PAGE, ROUTE_PDFS_PAGE } from '../../lib/routeAccess'
 import { runChecks } from '../../lib/routeChecks'
 import { PANE_GROUPS, panesFor, pickPane, type PaneGroup } from '../../lib/routeModule'
 import { fmtKm, hasGps, routeApi, routeFriendly, type RouteHub, type ZoneRoute } from '../../lib/routes'
 import './routes.css'
 
-export function RouteModule() {
+export function RouteModule({ standalonePdfs = false }: { standalonePdfs?: boolean }) {
   const { L, n } = usePrefs()
   const fmt = { L, n }
   const { can, menu } = useAuth()
   const { toast, node } = useToast()
   const [sp, setSp] = useSearchParams()
+  const openPage = useNavigate()
   const zones = useLoad(() => routeApi.zones(), [])
   const zone = zones.data?.find(z => z.id === sp.get('zone'))?.id ?? zones.data?.[0]?.id ?? ''
   const ov = useLoad(async () => zone ? { zone, overview: await routeApi.overview(zone) } : null, [zone])
   const o = ov.data?.zone === zone ? ov.data.overview : null
-  const want = sp.get('tab')
+  const want = standalonePdfs ? 'pdfs' : sp.get('tab')
+  const scope = new URLSearchParams(sp)
+  scope.delete('tab'); scope.delete('route')
+  const scopeQuery = scope.size ? '?' + scope.toString() : ''
   const hub = o?.hubs.find(h => h.id === sp.get('hub'))?.id ?? ''
   const sel = sp.get('route')
   const [edit, setEdit] = useState<ZoneRoute | NewDraft | null>(null)
@@ -41,7 +46,7 @@ export function RouteModule() {
   const zonesReady = zones.data !== null || zones.error !== null
   const hasZone = (zones.data?.length ?? 0) > 0
   const panes = useMemo(() => panesFor({ can, menu, hasZone, visits: o ? o.can.visits : undefined }), [can, menu, hasZone, o])
-  const cur = zonesReady ? pickPane(panes, want) : undefined
+  const cur = zonesReady ? (standalonePdfs ? panes.find(p => p.id === 'pdfs') : pickPane(panes, want)) : undefined
   const zonePane = cur?.needs === 'zone'
 
   function navigate(patch: Partial<Record<'tab' | 'zone' | 'hub' | 'route', string | null>>, replace = false) {
@@ -50,6 +55,7 @@ export function RouteModule() {
       if (value) next.set(key, value)
       else next.delete(key)
     }
+    if (standalonePdfs && patch.tab && patch.tab !== 'pdfs') { openPage(ROUTE_PAGE + '?' + next.toString(), { replace }); return }
     if (next.toString() !== sp.toString()) setSp(next, { replace })
   }
 
@@ -84,7 +90,7 @@ export function RouteModule() {
       today: rs.reduce((t, r) => t + (o.visits_today[r.id] ?? 0), 0) }
   }, [o, hub])
 
-  const groups = (Object.keys(PANE_GROUPS) as PaneGroup[]).map(g => ({ g, list: panes.filter(p => p.group === g) })).filter(x => x.list.length)
+  const groups = (Object.keys(PANE_GROUPS) as PaneGroup[]).map(g => ({ g, list: panes.filter(p => p.group === g && p.id !== 'pdfs') })).filter(x => x.list.length)
   const View = cur ? PANE_VIEWS[cur.id] : null
   const canNew = zonePane && o && (canEdit(hub) || (!hub && o.can.edit_hubs.length > 0))
 
@@ -94,21 +100,28 @@ export function RouteModule() {
     setEdit({ hub_id: hub || o.can.edit_hubs[0], fromPdf })
   }
 
-  return <AppShell title={L('রুট কেন্দ্র', 'Route centre')}
-    actions={canNew ? <>
+  if (!standalonePdfs && want === 'pdfs' && zonesReady && panes.some(p => p.id === 'pdfs')) {
+    return <Navigate to={ROUTE_PDFS_PAGE + scopeQuery} replace />
+  }
+
+  return <AppShell title={standalonePdfs ? L('হাব ও রাইডার PDF', 'Hub & rider PDFs') : L('রুট কেন্দ্র', 'Route centre')}
+    actions={standalonePdfs ? <Link className="btn-ghost" to={ROUTE_PAGE + scopeQuery}>{L('রুট কেন্দ্রে ফিরুন', 'Back to Route Centre')}</Link> : <>
+      {panes.some(p => p.id === 'pdfs') && <Link className="btn-ghost" to={ROUTE_PDFS_PAGE + scopeQuery}><Icon name="upload" size={16} />{L('হাব ও রাইডার PDF', 'Hub & rider PDFs')}</Link>}
+      {canNew && <>
       <button className="secondary" onClick={() => newRoute(true)}><Icon name="upload" size={16} />{L('PDF থেকে রুট', 'Route from PDFs')}</button>
       <button onClick={() => newRoute()}><Icon name="plus" size={16} />{L('নতুন রুট', 'New route')}</button>
-    </> : undefined}>
+      </>}
+    </>}>
     {node}
     <section className="rm-toolbar panel no-print">
-      <nav className="rm-tabs" aria-label={L('রুটের অংশ', 'Parts of the route module')}>
+      {!standalonePdfs && <nav className="rm-tabs" aria-label={L('রুটের অংশ', 'Parts of the route module')}>
         {groups.map(({ g, list }) => <div key={g} className="rm-group" role="group" aria-label={L(PANE_GROUPS[g].bn, PANE_GROUPS[g].en)}>
           <span className="t">{L(PANE_GROUPS[g].bn, PANE_GROUPS[g].en)}</span>
           {list.map(p => <button key={p.id} type="button" className={cur?.id === p.id ? '' : 'secondary'} aria-current={cur?.id === p.id ? 'page' : undefined}
             title={p.hint ? L(p.hint.bn, p.hint.en) : undefined} data-pane={p.id} onClick={() => navigate({ tab: p.id })}>
             <Icon name={p.icon} size={14} />{L(p.bn, p.en)}{p.id === 'warn' && findings.length ? ` (${n(findings.length)})` : ''}</button>)}
         </div>)}
-      </nav>
+      </nav>}
       {zonePane && (o || (zones.data?.length ?? 0) > 1) && <div className="rm-filters">
         {(zones.data?.length ?? 0) > 1 && <Field label={L('জোন', 'Zone')}><select value={zone} onChange={e => {
           navigate({ zone: e.target.value, hub: null, route: null })
@@ -120,14 +133,14 @@ export function RouteModule() {
       {(zones.loading || (zonePane && ov.loading)) && <p role="status" className="muted small">{L('রুটের তথ্য লোড হচ্ছে…', 'Loading route data…')}</p>}
     </section>
 
-    {zonesReady && !zones.error && !panes.length && <section className="panel"><p className="muted">{L('দেখানোর মতো কোনো রুট বিভাগ পাওয়া যায়নি।', 'No route sections are available.')}</p></section>}
+    {zonesReady && !zones.error && (standalonePdfs ? !cur : !panes.length) && <section className="panel"><p className="muted">{L('দেখানোর মতো কোনো রুট বিভাগ পাওয়া যায়নি।', 'No route sections are available.')}</p></section>}
     {(zones.error || (zonePane && ov.error)) ? <section className="panel rm-load-error">
       <p className="da-error" role="alert">{routeFriendly(zones.error ?? ov.error)}</p>
       <button className="secondary" type="button" onClick={() => void (zones.error ? zones.reload() : ov.reload())}>{L('আবার চেষ্টা করুন', 'Try again')}</button>
     </section> : null}
     {err && <p className="da-error">{err}</p>}
 
-    {zonePane && o && stats && <div className="da-stats rm-stats">
+    {!standalonePdfs && zonePane && o && stats && <div className="da-stats rm-stats">
       <Stat icon="map" label={L('রুট', 'Routes')} value={n(stats.routes)} sub={stats.noRider ? L(`${n(stats.noRider)}টায় রাইডার নেই`, `${stats.noRider} without rider`) : undefined} tone={stats.noRider ? 'warn' : undefined} />
       <Stat icon="pin" label={L('স্টপ (লোকেশনসহ)', 'Stops (with location)')} value={`${n(stats.gps)}/${n(stats.stops)}`} tone={stats.gps < stats.stops ? 'warn' : 'ok'} />
       <Stat icon="truck" label={L('রুট পাওয়া স্টাফ', 'Staff with a route')} value={n(stats.withRoute)} />

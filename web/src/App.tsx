@@ -235,6 +235,7 @@ export default function App() {
       <Route path="/app/zonal/hr-records" element={<HrRecords />} />
       {/* Route module: all route work on one page. The four old route pages (zone map, hub routes, parcel plan, sorting routes) redirect to its parts. */}
       <Route path="/app/routes" element={<RouteModule />} />
+      <Route path="/app/routes/parcel-pdfs" element={<RouteModule standalonePdfs />} />
       <Route path="/app/zonal/routes" element={<RouteRedirect />} />
       <Route path="/app/routes/plan" element={<RouteRedirect tab="plan" />} />
       <Route path="/app/hub/routes" element={<RouteRedirect tab="hub" />} />
