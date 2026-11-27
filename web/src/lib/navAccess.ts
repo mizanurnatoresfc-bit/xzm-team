@@ -34,27 +34,32 @@ const WITH: Record<string, string[]> = {
 const TWIN: Record<string, string> = { '/app/roles': '/app/access', '/app/access': '/app/roles' }
 export const withTwins = (menu: string[]) => [...new Set([...menu, ...menu.map(p => TWIN[p.split('?')[0]]).filter(Boolean)])]
 const bare = (p: string) => p.split('?')[0].replace(/\/+$/, '') || '/app'
-/** The Residential pages (/app/office/residential/x) are the residence side of the office page /app/office/x:
- *  a role whose page list has the office page may open its residential twin, so splitting the menu took nothing away from anyone. */
+/** The Residential pages (/app/office/residential/x) and the Garage pages (/app/office/garage/x) are the other sides of the office page /app/office/x:
+ *  a role whose page list has the office page may open its residential and garage twins, so splitting the menu took nothing away from anyone. */
 const RES = '/app/office/residential/'
-const officeTwin = (p: string) => p + '/' === RES ? '/app/office/overview' : p.startsWith(RES) ? '/app/office/' + p.slice(RES.length) : null
-/** Only a page list saved before the split (it names no residential page) follows the office twin. Once Super Admin picks any
- *  residential page for a role, its list is taken as it is — so Office can be shown and Residential hidden, or the other way round. */
-const beforeSplit = (menu: string[]) => !menu.some(p => (bare(p) + '/').startsWith(RES))
+const GAR = '/app/office/garage/'
+/** The garage pages that have no office page of their own follow the list page. */
+const GARAGE_ONLY: Record<string, string> = { autos: 'places' }
+const officeTwin = (p: string) => p + '/' === RES || p + '/' === GAR ? '/app/office/overview'
+  : p.startsWith(RES) ? '/app/office/' + p.slice(RES.length)
+  : p.startsWith(GAR) ? '/app/office/' + (GARAGE_ONLY[p.slice(GAR.length)] ?? p.slice(GAR.length)) : null
+/** Only a page list saved before a split (it names no page of that side) follows the office twin. Once Super Admin picks any
+ *  residential (or garage) page for a role, its list is taken as it is — so Office can be shown and Residential hidden, or the other way round. */
+const beforeSplit = (menu: string[], twin: string) => !menu.some(p => (bare(p) + '/').startsWith(twin.startsWith(GAR) ? GAR : RES))
 
 /** A menu entry is shown when it is on the list. */
 export const inMenu = (menu: string[] | null, to: string): boolean => {
   if (!menu || ALWAYS.includes(bare(to)) || menu.includes(to) || withTwins(menu.map(bare)).includes(bare(to))) return true
   if (bare(to) === ATTENDANCE && menu.some(p => ATTENDANCE_OLD.includes(bare(p)))) return true
   if (bare(to) === ROUTE_PAGE && menu.some(p => bare(p) in ROUTE_OLD_PAGES)) return true
-  const twin = beforeSplit(menu) ? officeTwin(bare(to)) : null; return !!twin && inMenu(menu, twin)
+  const twin = officeTwin(bare(to)); return !!twin && beforeSplit(menu, bare(to)) && inMenu(menu, twin)
 }
 /** A page may be opened when it is on the list, under a listed page, or belongs to one. */
 export function pageAllowed(menu: string[] | null, pathname: string): boolean {
   if (!menu) return true
   const here = bare(pathname)
   if (ALWAYS.includes(here) || here === ATTENDANCE) return true
-  const twin = beforeSplit(menu) ? officeTwin(here) : null; if (twin && pageAllowed(menu, twin)) return true
+  const twin = officeTwin(here); if (twin && beforeSplit(menu, here) && pageAllowed(menu, twin)) return true
   const open = menu.map(bare).flatMap(p => [p, ...(WITH[p] ?? [])])
   return open.some(p => p !== '/app' && (here === p || here.startsWith(p + '/')))
 }

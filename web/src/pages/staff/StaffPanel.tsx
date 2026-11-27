@@ -14,6 +14,7 @@ import { PersonalMenu, useWfCounts } from '../../components/PersonalMenu'
 import { WorkforceAlerts } from '../../components/WorkforceAlerts'
 import { RiderSendCard } from '../../components/RiderQuick'
 import { MyAvatarUpload } from '../../components/MyAvatar'
+import { MyAutosCard } from '../../components/MyAutosCard'
 import { MyRouteCard } from '../../components/MyRoute'
 import { MyParcelsCard } from '../zonal/RoutePlan'
 import { da, addDays, todayDhaka, type Claim } from '../../lib/dailyAccounts'
@@ -309,6 +310,7 @@ export function StaffPanel() {
         </div>)}
       </section>}
 
+      <MyAutosCard />
       {d.loading && !v && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
       {profilePct !== null && profilePct < 100 && <Link to="/app/me/complete" className="sp-card t-w mpc-nudge">
         <span className="i"><Icon name="user" size={24} /></span>

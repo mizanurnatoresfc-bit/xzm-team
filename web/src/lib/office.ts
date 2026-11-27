@@ -14,7 +14,7 @@ export type Property = { id: string; code: string; name: string; kind: PlaceKind
   meter_no: string | null; unit_rate: number | null; wifi_provider: string | null; wifi_bill: number | null; capacity: number | null; desk_set_template?: Record<string, number> | null }
 /** [বাংলা, English, emoji] */
 export const PLACE_KIND: Record<PlaceKind, [string, string, string]> = {
-  office: ['অফিস', 'Office', '🏢'], residence: ['আবাসিক ফ্ল্যাট', 'Residence', '🏠'], garage: ['গ্যারেজ', 'Garage', '🚚'], auto_garage: ['অটো গ্যারেজ', 'Auto garage', '🛺'],
+  office: ['হাব', 'Hub', '🏢'], residence: ['আবাসিক ফ্ল্যাট', 'Residence', '🏠'], garage: ['গ্যারেজ (গাড়ি পার্কিং)', 'Garage (parking)', '🚚'], auto_garage: ['অটো গ্যারেজ', 'Auto garage', '🛺'],
 }
 export type Room = { id: string; property_id: string; name: string; kind: string; direction: string; floor: number; responsible_id: string | null; note: string | null; sort: number }
 export type Desk = { id: string; property_id: string; room_id: string | null; code: string; name: string; responsible_id: string | null; duty: string | null; note: string | null; sort: number; updated_at: string }
@@ -138,17 +138,18 @@ export const office = {
  * "আমার অফিস" — the office menu of its own, arranged by what the database keeps (owner, 19 Nov 2026).
  * One list for the side menu and the tabs of the office page; `perms` are the ones the page itself checks.
  */
-export type OfficeSec = 'overview' | 'places' | 'rooms' | 'desks' | 'people' | 'assets' | 'power' | 'rent' | 'bills' | 'security' | 'notices' | 'zone' | 'reports'
+export type OfficeSec = 'overview' | 'monthly' | 'autos' | 'places' | 'rooms' | 'desks' | 'people' | 'assets' | 'power' | 'rent' | 'bills' | 'security' | 'notices' | 'zone' | 'reports'
 /** `more`: shown in the page's tab bar but not in the side menu (kept so nothing already written becomes unreachable). */
 export type OfficePart = { key: OfficeSec; icon: string; bn: string; en: string; perms: string[]; more?: boolean }
 export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] }> = [
   { bn: 'এক নজরে', en: 'At a glance', parts: [
-    { key: 'overview', icon: 'map', bn: 'অফিসের সারসংক্ষেপ', en: 'Office overview', perms: ['office.property.view'] },
+    { key: 'overview', icon: 'map', bn: 'হাবের সারসংক্ষেপ', en: 'Hub overview', perms: ['office.property.view'] },
+    { key: 'monthly', icon: 'cash', bn: 'মাসিক ভাড়া ও বিল', en: 'Monthly rent & bills', perms: ['office.property.view', 'office.bill.view'] },
     { key: 'zone', icon: 'chart', bn: 'জোনের চিত্র ও AI পরামর্শ', en: 'Zone picture & AI advice', perms: ['office.asset.view'] },
   ] },
   // office_properties · office_rooms · office_desks · office_residents
   { bn: 'জায়গা ও মানুষ', en: 'Places & people', parts: [
-    { key: 'places', icon: 'home', bn: 'অফিস ও আবাসিক', en: 'Offices & residences', perms: ['office.property.view', 'office.property.create'] },
+    { key: 'places', icon: 'home', bn: 'হাবের তালিকা', en: 'Hub list', perms: ['office.property.view', 'office.property.create'] },
     { key: 'rooms', icon: 'grid', bn: 'কক্ষের তালিকা', en: 'Room list', perms: ['office.property.view'] },
     { key: 'desks', icon: 'table', bn: 'ডেস্ক ও দায়িত্ব', en: 'Desks & responsibility', perms: ['office.property.view'] },
     { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who lives here', perms: ['office.property.view'] },
@@ -162,7 +163,7 @@ export const OFFICE_GROUPS: Array<{ bn: string; en: string; parts: OfficePart[] 
   { bn: 'ভাড়া ও বিল', en: 'Rent & bills', parts: [
     { key: 'rent', icon: 'cash', bn: 'ভাড়া ও চুক্তি', en: 'Rent & contract', perms: ['office.bill.view', 'office.property.edit'] },
     { key: 'bills', icon: 'receipt', bn: 'বিদ্যুৎ ও ওয়াইফাই বিল', en: 'Electricity & wifi bills', perms: ['office.bill.view'] },
-    { key: 'reports', icon: 'chart', bn: 'অফিসের মাসিক রিপোর্ট', en: 'Office monthly report', perms: ['office.bill.view'] },
+    { key: 'reports', icon: 'chart', bn: 'হাবের মাসিক রিপোর্ট', en: 'Hub monthly report', perms: ['office.bill.view'] },
   ] },
   // office_secrets · office_notices
   { bn: 'নিরাপত্তা ও রিপোর্ট', en: 'Security & reports', parts: [
@@ -177,7 +178,7 @@ export const OFFICE_PARTS: OfficePart[] = OFFICE_GROUPS.flatMap(g => g.parts)
  * Nothing is stored apart: a flat is an office_properties row, its rooms office_rooms, its people office_residents, its bills office_bills.
  * Each page has the same key and permissions as its twin under /app/office/…, so a role limited to the office page may open this one too (lib/menu.ts).
  */
-export type OfficeScope = 'office' | 'residential'
+export type OfficeScope = 'office' | 'residential' | 'garage'
 export const RESIDENTIAL_BASE = '/app/office/residential'
 export const RESIDENTIAL_PARTS: OfficePart[] = [
   { key: 'overview', icon: 'map', bn: 'আবাসিকের সারসংক্ষেপ', en: 'Residential overview', perms: ['office.property.view'] },
@@ -195,6 +196,53 @@ export const RESIDENTIAL_PARTS: OfficePart[] = [
   { key: 'desks', icon: 'table', bn: 'ডেস্ক', en: 'Desks', perms: ['office.property.view'], more: true },
 ]
 export const RESIDENTIAL_GROUP = { bn: 'আবাসিক', en: 'Residential', parts: RESIDENTIAL_PARTS.filter(p => !p.more) }
-/** Which side a place belongs to: residences are Residential, everything else (office, garage, auto garage) is Office. */
-export const inScope = (scope: OfficeScope, p: Pick<Property, 'kind'>) => (p.kind === 'residence') === (scope === 'residential')
-export const scopePath = (scope: OfficeScope, key: string) => scope === 'residential' ? `${RESIDENTIAL_BASE}/${key}` : `/app/office/${key}`
+
+/**
+ * গ্যারেজ — car-parking garages and auto garages, on pages of their own (owner, 27 Nov 2026), under /app/office/garage/….
+ * A garage is assigned to a hub and has its own rent. An auto garage keeps autos (each with its own rate and a person responsible);
+ * that person says yes / no for each day and the month's rent comes from the "yes" days (page "autos").
+ */
+export const GARAGE_BASE = '/app/office/garage'
+export const GARAGE_PARTS: OfficePart[] = [
+  { key: 'overview', icon: 'map', bn: 'গ্যারেজের সারসংক্ষেপ', en: 'Garage overview', perms: ['office.property.view'] },
+  { key: 'places', icon: 'truck', bn: 'গ্যারেজের তালিকা', en: 'Garage list', perms: ['office.property.view', 'office.property.create'] },
+  { key: 'autos', icon: 'check', bn: 'অটো ও দৈনিক হ্যাঁ/না', en: 'Autos & daily yes/no', perms: ['office.property.view'] },
+  { key: 'rent', icon: 'cash', bn: 'গ্যারেজের ভাড়া ও চুক্তি', en: 'Garage rent & contracts', perms: ['office.bill.view', 'office.property.edit'] },
+  { key: 'bills', icon: 'receipt', bn: 'গ্যারেজের বিল', en: 'Garage bills', perms: ['office.bill.view'] },
+  { key: 'assets', icon: 'box', bn: 'গ্যারেজের জিনিসপত্র', en: 'Garage items', perms: ['office.asset.view', 'office.asset.edit'] },
+  { key: 'reports', icon: 'chart', bn: 'গ্যারেজের মাসিক রিপোর্ট', en: 'Garage monthly report', perms: ['office.bill.view'] },
+  { key: 'rooms', icon: 'grid', bn: 'কক্ষ', en: 'Rooms', perms: ['office.property.view'], more: true },
+  { key: 'desks', icon: 'table', bn: 'ডেস্ক', en: 'Desks', perms: ['office.property.view'], more: true },
+  { key: 'power', icon: 'sun', bn: 'বিদ্যুৎ হিসাব', en: 'Power', perms: ['office.asset.view'], more: true },
+  { key: 'security', icon: 'key', bn: 'তালা, সিসি ও পাসওয়ার্ড', en: 'Locks, CCTV & logins', perms: ['office.asset.view', 'office.secret.view'], more: true },
+  { key: 'notices', icon: 'bell', bn: 'নষ্ট / লাগবে', en: 'Broken / needed', perms: ['office.notice.create', 'office.notice.approve'], more: true },
+  { key: 'people', icon: 'users', bn: 'কারা থাকেন', en: 'Who stays here', perms: ['office.property.view'], more: true },
+]
+export const GARAGE_GROUP = { bn: 'গ্যারেজ', en: 'Garage', parts: GARAGE_PARTS.filter(p => !p.more) }
+
+/** The parts of one side. */
+export const partsOf = (scope: OfficeScope): OfficePart[] => scope === 'residential' ? RESIDENTIAL_PARTS : scope === 'garage' ? GARAGE_PARTS : OFFICE_PARTS
+/** Which side a place belongs to: residences are Residential, garages and auto garages are Garage, everything else (the hub's own office) is Office. */
+export const scopeOf = (kind: PlaceKind): OfficeScope => kind === 'residence' ? 'residential' : kind === 'garage' || kind === 'auto_garage' ? 'garage' : 'office'
+export const inScope = (scope: OfficeScope, p: Pick<Property, 'kind'>) => scopeOf(p.kind) === scope
+export const scopePath = (scope: OfficeScope, key: string) => scope === 'residential' ? `${RESIDENTIAL_BASE}/${key}` : scope === 'garage' ? `${GARAGE_BASE}/${key}` : `/app/office/${key}`
+
+// ---------------------------------------------------------------- auto garage: autos and the daily yes / no
+export type AutoDay = { day: string; given: boolean; rate: number; by: string | null; at: string }
+export type Auto = { id: string; name: string; reg_no: string | null; rate: number; note: string | null; responsible_id: string | null; responsible: string | null
+  responsible_code: string | null; can_mark: boolean; days: AutoDay[]; given_days: number; amount: number }
+export type MyAuto = { id: string; name: string; rate: number; property_id: string; property: string; hub: string | null; today: boolean | null; yesterday: boolean | null
+  given_days: number; amount: number }
+export type AutoTotal = { property_id: string; autos: number; given_days: number; amount: number }
+const rpcCall = async <T,>(fn: string, args: Record<string, unknown> = {}): Promise<T> => {
+  const { data, error } = await supabase.rpc(fn, args); fail(error); return data as T
+}
+export const autos = {
+  list: (property: string, month: string) => rpcCall<Auto[]>('office_autos', { p_property: property, p_month: month }),
+  mine: () => rpcCall<MyAuto[]>('office_my_autos'),
+  totals: (month: string) => rpcCall<AutoTotal[]>('office_auto_month_totals', { p_month: month }),
+  save: (property: string, a: { name: string; rate: number; responsible: string | null; reg?: string | null; note?: string | null }, id?: string) =>
+    rpcCall<string>('office_auto_save', { p_property: property, p_name: a.name, p_rate: a.rate, p_responsible: a.responsible, p_reg: a.reg ?? null, p_note: a.note ?? null, p_id: id ?? null }),
+  archive: (id: string, reason: string) => rpcCall<void>('office_auto_archive', { p_id: id, p_reason: reason }),
+  mark: (auto: string, day: string, given: boolean) => rpcCall<void>('office_auto_mark', { p_auto: auto, p_day: day, p_given: given }),
+}

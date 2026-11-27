@@ -1041,7 +1041,7 @@ try {
       check(await page.locator('.side > a.nl[href="/app/fleet"]').count() === 1 && await page.locator('.side .ngrp a.nl[href="/app/fleet"]').count() === 0, `${size}: vehicle management sits in the main rows, not in a panel`)
       check(await page.locator('.side a.nl[href="/app/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the menu`)
       const officeLinks = page.locator('.side a.nl[href^="/app/office/"]')
-      check(await officeLinks.count() === 1 && (await officeLinks.innerText()).includes('অফিস ও আবাসিক'),
+      check(await officeLinks.count() === 1 && (await officeLinks.innerText()).includes('হাব, আবাসিক ও গ্যারেজ'),
         `${size}: the sidebar has one office and residential entry`)
       // Office and Residential: switching type keeps the open section.
       await page.goto(`${BASE}/app/office/places`); await page.waitForSelector('.panel h2')
@@ -1054,7 +1054,7 @@ try {
       await scope.locator('a[aria-current="location"][href="/app/office/residential/places"]').waitFor()
       await page.locator('button[aria-label="Staff Mess B সরান"]:visible').first().waitFor()
       check(await scope.getByRole('link', { name: 'আবাসিক', exact: true }).getAttribute('aria-current') === 'location'
-        && (await scope.getByRole('link', { name: 'অফিস', exact: true }).getAttribute('href')) === '/app/office/places',
+        && (await scope.getByRole('link', { name: 'হাব', exact: true }).getAttribute('href')) === '/app/office/places',
         `${size}: changing the property type preserves the section and updates the selected scope`)
       { const t = await page.locator('main').innerText()
         check(t.includes('Staff Mess A') && t.includes('Staff Mess B') && !t.includes('Natore Hub Office'), `${size}: the residential list shows residences only`) }
@@ -1137,8 +1137,9 @@ try {
         && new Set(rooms.map(r => r.name)).size === 4 && rooms.every(r => r.property_id === 'of1' && r.floor === 1),
         `${size}: room counts create four named rooms for the selected office in one request`)
       // every office and residential page opens, shows its tabs, has no error box and fits the screen
-      { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports'].map(k => `/app/office/${k}`),
-          ...['overview', 'places', 'rooms', 'people', 'rent', 'bills', 'assets', 'reports', 'power', 'security', 'notices', 'desks'].map(k => `/app/office/residential/${k}`)]
+      { const pages = [...['overview', 'zone', 'places', 'rooms', 'desks', 'people', 'assets', 'power', 'rent', 'bills', 'security', 'notices', 'reports', 'monthly'].map(k => `/app/office/${k}`),
+          ...['overview', 'places', 'rooms', 'people', 'rent', 'bills', 'assets', 'reports', 'power', 'security', 'notices', 'desks'].map(k => `/app/office/residential/${k}`),
+          ...['overview', 'places', 'autos', 'rent', 'bills', 'assets', 'reports'].map(k => `/app/office/garage/${k}`)]
         const bad = []
         for (const path of pages) {
           await page.goto(`${BASE}${path}`); await page.waitForSelector('.hub-tabs', { timeout: 8000 }).catch(() => {})
@@ -1149,7 +1150,7 @@ try {
           if (!ok) bad.push(path)
           if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}${path.replaceAll('/', '-')}.png`, fullPage: true })
         }
-        check(!bad.length, `${size}: all ${pages.length} office and residential pages open cleanly and fit the screen${bad.length ? ' — ' + bad.join(', ') : ''}`) }
+        check(!bad.length, `${size}: all ${pages.length} office, residential and garage pages open cleanly and fit the screen${bad.length ? ' — ' + bad.join(', ') : ''}`) }
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       { const want = ['ডেইলি রিপোর্ট ইম্পোর্ট', 'দৈনিক রিপোর্ট', 'হাবের খরচ', 'মার্চেন্ট ক্যাশ পেমেন্ট', 'ব্যাংকে জমা', 'হাবের বকেয়া / ফান্ড', 'ভাউচার ম্যানেজমেন্ট', 'ভাউচার জমা হয়নি', 'স্টাফ খরচ', 'যাতায়াত বিল', 'হিসাবের ইতিহাস', 'বাংলা শেখার কেন্দ্র', 'নদী AI হিসাব শিক্ষক']
         const got = await Promise.all(want.map(t => inPanel('accounts', t)))

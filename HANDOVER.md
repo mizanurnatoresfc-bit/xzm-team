@@ -1074,3 +1074,19 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Not done:** offline map tiles; opening pages other than the route card with their data offline; push of a rejected-check-in notice to the manager. First online visit per phone is needed to save the app.
 - **Switching the service worker off:** see the comment at the top of `web/public/sw.js`.
 
+
+## 2026-11-27 — হাব / আবাসিক / গ্যারেজ আলাদা মেনু, অটো গ্যারেজের হ্যাঁ/না হিসাব, মাসিক ভাড়া ও বিল
+
+- **Owner's spec:** three separate menus — হাব (the old "অফিস"), আবাসিক, গ্যারেজ (car-parking garage and auto garage). Every place is its own record assigned to a hub with its own rent
+  (hub e.g. ৳6,000, garage ৳3,000). An **auto garage has no fixed rent**: it keeps autos, each with its own daily rate and a person responsible; that person says **yes / no** every
+  day ("was the auto given?") and the month's rent is the sum of the rates of the "yes" days. One menu page shows each month's rent, the wifi / electricity / other bills and the vehicles per hub.
+- **Migration `20261127140000_office_auto_garage.sql` (NOT applied to the live database yet — apply it first):** `private.office_autos`, `private.office_auto_days` (the rate is copied into the
+  day when it is marked, so a later rate change never changes a past month) and the functions `office_auto_save/archive/mark`, `office_autos(property, month)`, `office_my_autos()`,
+  `office_auto_month_totals(month)`. The person responsible may mark today and two days back; anyone with `office.property.edit` on the place may fix any past day; never a future day.
+  Tables are closed to direct access (like `private.fleet_daily_checks`). Checked on a throwaway Postgres 16 with stub helpers (rates, limits, who sees what); the repository's own SQL
+  suite has no test for it yet.
+- **Web:** `OfficeScope` is now `office | residential | garage` (`lib/office.ts`: `GARAGE_PARTS`, `partsOf`, `scopeOf`, `scopePath`); routes `/app/office/garage/:section`; the side menu is
+  "হাব, আবাসিক ও গ্যারেজ". New pages: `/app/office/monthly` (`pages/office/Monthly.tsx`), `/app/office/garage/overview` and `/app/office/garage/autos` (`pages/office/Garage.tsx`), and a
+  "আমার অটো" card on the staff panel (`components/MyAutosCard.tsx`). A page list saved before the split still opens the garage twins of its office pages (`navAccess.ts`, tested).
+- **Not done yet (agreed order):** (2) a problem report from an item → the hub's problem centre → the zonal panel on the first submit, with the verifying manager's name; assigning
+  one item / a kind / a whole hub to a person; (3) orders: asked → hub approved → zonal manager approved → on the head office's list, and "take from another hub".

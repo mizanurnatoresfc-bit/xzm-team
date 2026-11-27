@@ -42,7 +42,7 @@ export function Reports({ scope, places, hubName, onPick }: { scope: OfficeScope
 
   const contracts = places.map(p => ({ p, hub: hubName(p.hub_id), left: daysLeft(p.contract_to) }))
     .filter(c => c.left != null && c.left <= 90).sort((a, b) => (a.left ?? 0) - (b.left ?? 0))
-  const side = scope === 'residential' ? L('আবাসিক', 'Residential') : L('অফিস', 'Office')
+  const side = scope === 'residential' ? L('আবাসিক', 'Residential') : scope === 'garage' ? L('গ্যারেজ', 'Garage') : L('হাব', 'Hub')
 
   return <>
     <section className="panel no-print">

@@ -258,6 +258,8 @@ export default function App() {
       <Route path="/app/office/:section" element={<Office />} />
       <Route path="/app/office/residential" element={<Navigate to="/app/office/residential/overview" replace />} />
       <Route path="/app/office/residential/:section" element={<Office key="residential" scope="residential" />} />
+      <Route path="/app/office/garage" element={<Navigate to="/app/office/garage/overview" replace />} />
+      <Route path="/app/office/garage/:section" element={<Office key="garage" scope="garage" />} />
       <Route path="/app/issues" element={<Issues />} />
       <Route path="/app/fleet" element={<Fleet />} />
       <Route path="/app/fleet/mine" element={<FleetMine />} />

@@ -11,10 +11,12 @@ import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly } from '../../lib/hr'
 import { sorting, type EmpLite } from '../../lib/sorting'
 import {
-  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, inScope, office, OFFICE_PARTS, PLACE_KIND, RESIDENTIAL_PARTS, ROOM_DEFAULT, ROOM_KIND, scopePath,
+  ASSET_KIND, CONDITION, DESK_DEFAULT, DIR, inScope, office, partsOf, PLACE_KIND, ROOM_DEFAULT, ROOM_KIND, scopePath,
   type Asset, type OfficeScope, type OfficeSec, type Desk, type PlaceKind, type Property, type Room,
 } from '../../lib/office'
 import { ResidentialOverview } from './Residential'
+import { Autos, GarageOverview } from './Garage'
+import { Monthly } from './Monthly'
 import { askText, askWith } from './askText'
 import { DeskSets } from './DeskSets'
 import { HistoryModal } from './History'
@@ -28,12 +30,12 @@ import { EmpPicker, empLabel } from '../sorting/Sorting'
 type Sec = OfficeSec
 
 /**
- * One page for both sides of আমার অফিস: `scope` 'office' shows offices, garages and auto garages (/app/office/…),
- * 'residential' shows only residences (/app/office/residential/…). Same tables, same rows — only the list is split.
+ * One page for the three sides of আমার অফিস: `scope` 'office' shows the hubs' own offices (/app/office/…), 'residential' only residences
+ * (/app/office/residential/…) and 'garage' garages and auto garages (/app/office/garage/…). Same tables, same rows — only the list is split.
  */
 export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
-  const SECTIONS = scope === 'residential' ? RESIDENTIAL_PARTS : OFFICE_PARTS
-  const PKEY = scope === 'residential' ? 'xzm_office_residence' : 'xzm_office_property'
+  const SECTIONS = partsOf(scope)
+  const PKEY = scope === 'residential' ? 'xzm_office_residence' : scope === 'garage' ? 'xzm_office_garage' : 'xzm_office_property'
   const { section } = useParams()
   const { can, menu, menuUnavailable } = useAuth()
   const { L } = usePrefs()
@@ -55,10 +57,10 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const emp = useMemo(() => Object.fromEntries((emps.data ?? []).map(e => [e.id, e])) as Record<string, EmpLite>, [emps.data])
   const sec = SECTIONS.find(s => s.key === section)
   if (!sec) return <Navigate to={scopePath(scope, 'overview')} replace />
-  const visibleParts = (target: OfficeScope) => (target === 'residential' ? RESIDENTIAL_PARTS : OFFICE_PARTS)
+  const visibleParts = (target: OfficeScope) => partsOf(target)
     .filter(part => part.perms.some(can) && pageLinkAllowed(scopePath(target, part.key), { can, menu, menuUnavailable }))
   const tabs = visibleParts(scope)
-  const scopes = (['office', 'residential'] as const).map(target => {
+  const scopes = (['office', 'residential', 'garage'] as const).map(target => {
     const parts = target === scope ? tabs : visibleParts(target)
     const entry = parts.find(part => part.key === sec.key) ?? parts[0]
     return { target, entry }
@@ -71,21 +73,22 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const hubName = (id: string | null) => (id && o.names.hub[id]) || ''
   const reloadPlaces = async () => { await props.reload() }
   const res = scope === 'residential'
-  // The residential overview covers every flat at once; the other pages work on the one picked above.
-  const allFlats = (res && sec.key === 'overview') || sec.key === 'reports'
+  const gar = scope === 'garage'
+  // The residential and garage overviews cover every flat / garage at once, and so does the month page; the other pages work on the one picked above.
+  const allFlats = ((res || gar) && sec.key === 'overview') || sec.key === 'reports' || sec.key === 'monthly'
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={p && !allFlats ? `${p.name} · ${L(PLACE_KIND[p.kind][0], PLACE_KIND[p.kind][1])}` : undefined}>
     <section className="da-filters panel no-print hub-top">
       <nav className="hub-tabs" aria-label={L('জায়গার ধরন', 'Property type')}>
         {scopes.map(({ target, entry }) => entry && <Link key={target} to={scopePath(target, entry.key)}
           className={target === scope ? 'on' : ''} aria-current={target === scope ? 'location' : undefined}>
-          <Icon name={target === 'residential' ? 'home' : 'hub'} size={15} />
-          <span>{target === 'residential' ? L('আবাসিক', 'Residential') : L('অফিস', 'Office')}</span>
+          <Icon name={target === 'residential' ? 'home' : target === 'garage' ? 'truck' : 'hub'} size={15} />
+          <span>{target === 'residential' ? L('আবাসিক', 'Residential') : target === 'garage' ? L('গ্যারেজ', 'Garage') : L('হাব', 'Hub')}</span>
         </Link>)}
       </nav>
-      {sec.key !== 'places' && !allFlats && list.length > 0 && <Field label={res ? L('আবাসিক ফ্ল্যাট', 'Residence') : L('অফিস / গ্যারেজ', 'Office / garage')}><select value={pid} onChange={e => setPid(e.target.value)}>
+      {sec.key !== 'places' && !allFlats && list.length > 0 && <Field label={res ? L('আবাসিক ফ্ল্যাট', 'Residence') : gar ? L('গ্যারেজ', 'Garage') : L('হাব', 'Hub')}><select value={pid} onChange={e => setPid(e.target.value)}>
         {list.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>}
-      <nav className="hub-tabs" aria-label={res ? L('আবাসিক', 'Residential') : L('আমার অফিস', 'My office')}>
+      <nav className="hub-tabs" aria-label={res ? L('আবাসিক', 'Residential') : gar ? L('গ্যারেজ', 'Garage') : L('আমার অফিস', 'My office')}>
         {res && can('issue.issue.create') && <Link to={'/app/issues?new=residential' + (p?.hub_id && !allFlats ? '&hub=' + p.hub_id : '')}><Icon name="alert" size={15} /><span>{L('আবাসিক ইস্যু জানান', 'Report a residential issue')}</span></Link>}
         {tabs.map(t => <Link key={t.key} to={scopePath(scope, t.key)} className={t.key === sec.key ? 'on' : ''}
           aria-current={t.key === sec.key ? 'page' : undefined}><Icon name={t.icon} size={15} />
@@ -98,8 +101,10 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
       : sec.key === 'places' ? <Places scope={scope} list={list} otherSide={otherSide} reload={async () => { await props.reload() }} />
       : !props.data && !props.error ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
       : sec.key === 'reports' ? <Reports scope={scope} places={list} hubName={hubName} onPick={setPid} />
+      : sec.key === 'monthly' ? <Monthly places={everything} hubName={hubName} />
+      : allFlats && gar ? <GarageOverview garages={list} hubName={hubName} onPick={setPid} />
       : allFlats ? <ResidentialOverview flats={list} hubName={hubName} onPick={setPid} />
-      : props.data && !list.length ? <p className="notice">{res ? L('এখনো কোনো আবাসিক ফ্ল্যাট যোগ হয়নি।', 'No residence yet.') : L('এখনো কোনো অফিস যোগ হয়নি।', 'No office yet.')} <Link to={scopePath(scope, 'places')}>{L('যোগ করুন →', 'Add one →')}</Link></p>
+      : props.data && !list.length ? <p className="notice">{res ? L('এখনো কোনো আবাসিক ফ্ল্যাট যোগ হয়নি।', 'No residence yet.') : gar ? L('এখনো কোনো গ্যারেজ যোগ হয়নি।', 'No garage yet.') : L('এখনো কোনো হাব যোগ হয়নি।', 'No hub yet.')} <Link to={scopePath(scope, 'places')}>{L('যোগ করুন →', 'Add one →')}</Link></p>
       : !p ? <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>
       : <Body sec={sec.key} ctx={{ p, all: everything, hubName, rooms: rooms.data ?? [], desks: desks.data ?? [], assets: assets.data ?? [], emp, reload, reloadPlaces }} />}
   </AppShell>
@@ -110,6 +115,7 @@ function Body({ sec, ctx }: { sec: Sec; ctx: Ctx }) {
     case 'overview': return <Overview ctx={ctx} />
     case 'rooms': return <Rooms ctx={ctx} />
     case 'desks': return <Desks ctx={ctx} />
+    case 'autos': return <Autos ctx={ctx} />
     case 'assets': return <><DeskSets key={ctx.p.id} ctx={ctx} /><Assets ctx={ctx} /></>
     case 'rent': return <Rent ctx={ctx} />
     case 'bills': return <Bills ctx={ctx} />
@@ -200,7 +206,8 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
   const o = useOrg()
   const { toast, node } = useToast()
   const res = scope === 'residential'
-  const output = useOfficeOutput(res ? 'residential-places' : 'office-places')
+  const gar = scope === 'garage'
+  const output = useOfficeOutput(res ? 'residential-places' : gar ? 'garage-places' : 'office-places')
   // Office adds offices and garages; Residential adds residences. An edit keeps the row's own kind in the list even if it is the other side's.
   const kindsHere = (Object.keys(PLACE_KIND) as PlaceKind[]).filter(k => inScope(scope, { kind: k }))
   type F = Partial<Property> & { id?: string }
@@ -252,17 +259,16 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
     try { await office.updateMany(rows.map(x => x.id), { rent_due_day: day }); clear(); await reload(); toast(L(`${n(rows.length)}টিতে ভাড়ার তারিখ ${n(day)} বসানো হয়েছে`, `Rent day ${day} set on ${rows.length}`)) } catch (e) { setErr(hrFriendly(e)) }
   }
   const [hist, setHist] = useState<Property | null>(null)
-  const title = res ? L('আবাসিক ফ্ল্যাটের তালিকা', 'Residential list') : L('অফিস ও গ্যারেজের তালিকা', 'Offices & garages')
+  const title = res ? L('আবাসিক ফ্ল্যাটের তালিকা', 'Residential list') : gar ? L('গ্যারেজ ও অটো গ্যারেজের তালিকা', 'Garages & auto garages') : L('হাবের তালিকা', 'Hubs')
   return <section className="panel">{node}
     <div className="da-bar"><h2>{title} <span className="count-pill">{n(list.length)}</span></h2>
       <span className="row-acts">
         {(canEdit || canArchive) && <button className={showGone ? 'sm' : 'secondary sm'} aria-pressed={showGone} onClick={() => setShowGone(v => !v)}><Icon name="log" size={14} />{L('সরানোগুলো', 'Removed')}</button>}
-        {!res && can('office.property.create') && <button className="secondary" disabled={busy} onClick={() => void fromHubs()}><Icon name="hub" size={15} />{L('হাব থেকে অফিস তৈরি', 'Offices from hubs')}</button>}
-        {can('office.property.create') && <button onClick={() => { setErr(''); setF({ kind: kindsHere[0], code: '', name: '', zone_id: o.data?.zones[0]?.id }) }}><Icon name="plus" size={15} />{res ? L('নতুন ফ্ল্যাট', 'Add residence') : L('নতুন যোগ', 'Add')}</button>}</span></div>
-    {!res && <p className="muted small">{L('হাবের ঠিকানা এখানে রাখা হয়: হাবের অফিসের ঠিকানা বদলালে হাবের ঠিকানাও বদলে যায়।', 'Hub addresses live here: changing a hub office address changes the hub address too.')}</p>}
-    {otherSide > 0 && <p className="muted small">{res
-      ? <>{L(`অফিস ও গ্যারেজ (${n(otherSide)}টি) আছে`, `Offices & garages (${otherSide})`)} <Link to={scopePath('office', 'places')}>{L('অফিসের তালিকায় →', 'in the office list →')}</Link></>
-      : <>{L(`আবাসিক ফ্ল্যাট (${n(otherSide)}টি) এখন আলাদা পাতায়`, `Residences (${otherSide}) now have their own pages`)} <Link to={scopePath('residential', 'places')}>{L('আবাসিকের তালিকা →', 'Residential list →')}</Link></>}</p>}
+        {!res && !gar && can('office.property.create') && <button className="secondary" disabled={busy} onClick={() => void fromHubs()}><Icon name="hub" size={15} />{L('হাব থেকে হাব-অফিস তৈরি', 'Hub offices from hubs')}</button>}
+        {can('office.property.create') && <button onClick={() => { setErr(''); setF({ kind: kindsHere[0], code: '', name: '', zone_id: o.data?.zones[0]?.id }) }}><Icon name="plus" size={15} />{res ? L('নতুন ফ্ল্যাট', 'Add residence') : gar ? L('নতুন গ্যারেজ', 'Add garage') : L('নতুন হাব', 'Add hub')}</button>}</span></div>
+    {!res && !gar && <p className="muted small">{L('হাবের ঠিকানা এখানে রাখা হয়: হাবের অফিসের ঠিকানা বদলালে হাবের ঠিকানাও বদলে যায়।', 'Hub addresses live here: changing a hub office address changes the hub address too.')}</p>}
+    {otherSide > 0 && <p className="muted small">{L(`অন্য ধরনের ${n(otherSide)}টি জায়গা আলাদা মেনুতে আছে: `, `${otherSide} other place(s) are in their own menus: `)}
+      {(['office', 'residential', 'garage'] as const).filter(t => t !== scope).map(t => <Link key={t} style={{ marginRight: 10 }} to={scopePath(t, 'places')}>{t === 'office' ? L('হাব →', 'Hub →') : t === 'residential' ? L('আবাসিক →', 'Residential →') : L('গ্যারেজ →', 'Garage →')}</Link>)}</p>}
     {err && !f && <p className="da-error">{err}</p>}
     {showGone && <div className="oo-gone">
       <h3>{L('সরানো জায়গা', 'Removed places')} <span className="count-pill">{n(goneHere.length)}</span></h3>
@@ -272,11 +278,11 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
           <span style={{ flex: 1, minWidth: 0 }}><b>{x.name}</b> <span className="muted small">{[x.hub_id ? o.names.hub[x.hub_id] : null, x.archive_reason].filter(Boolean).join(' · ')}</span></span>
           {canEdit && <button className="secondary sm" onClick={() => void restore(x)}><Icon name="back" size={14} />{L('ফেরত আনুন', 'Restore')}</button>}</li>)}</ul>}
     </div>}
-    <DataTable<Property> {...output} title={title} file={res ? 'residential-places' : 'office-places'} rows={list} rowKey={r => r.id}
+    <DataTable<Property> {...output} title={title} file={res ? 'residential-places' : gar ? 'garage-places' : 'office-places'} rows={list} rowKey={r => r.id}
       bulk={canEdit || canArchive ? (rows, clear) => <>
         {canEdit && <button className="secondary sm" onClick={() => void bulkDueDay(rows, clear)}><Icon name="cal" size={14} />{L('ভাড়ার তারিখ বসান', 'Set rent day')}</button>}
         {canArchive && <button className="secondary sm" onClick={() => void bulkArchive(rows, clear)}><Icon name="trash" size={14} />{L('সরান', 'Remove')}</button>}</> : undefined}
-      empty={<p className="muted">{res ? L('এখনো কোনো আবাসিক ফ্ল্যাট যোগ হয়নি।', 'No residence yet.') : L('এখনো কিছু যোগ হয়নি।', 'Nothing yet.')}</p>}
+      empty={<p className="muted">{res ? L('এখনো কোনো আবাসিক ফ্ল্যাট যোগ হয়নি।', 'No residence yet.') : gar ? L('এখনো কোনো গ্যারেজ যোগ হয়নি।', 'No garage yet.') : L('এখনো কিছু যোগ হয়নি।', 'Nothing yet.')}</p>}
       cols={[
         { key: 'kind', label: L('ধরন', 'Kind'), value: r => L(PLACE_KIND[r.kind][0], PLACE_KIND[r.kind][1]),
           render: r => <Badge tone={r.kind === 'office' ? 'info' : 'neutral'}>{PLACE_KIND[r.kind][2]} {L(PLACE_KIND[r.kind][0], PLACE_KIND[r.kind][1])}</Badge> },
@@ -291,7 +297,7 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
           {can('office.property.archive') && <button className="secondary sm" aria-label={L(`${r.name} সরান`, `Remove ${r.name}`)} onClick={() => void remove(r)}><Icon name="trash" size={14} /></button>}</span> },
       ]} />
     {hist && <HistoryModal table="office_properties" id={hist.id} name={hist.name} onClose={() => setHist(null)} />}
-    {f && <Modal wide title={f.id ? L('এডিট', 'Edit') : res ? L('নতুন আবাসিক ফ্ল্যাট', 'New residence') : L('নতুন অফিস / গ্যারেজ', 'New office / garage')} onClose={() => setF(null)}
+    {f && <Modal wide title={f.id ? L('এডিট', 'Edit') : res ? L('নতুন আবাসিক ফ্ল্যাট', 'New residence') : gar ? L('নতুন গ্যারেজ', 'New garage') : L('নতুন হাব', 'New hub')} onClose={() => setF(null)}
       actions={<><button className="secondary" onClick={() => setF(null)}>{L('বাতিল', 'Cancel')}</button><button disabled={busy} onClick={() => void save()}>{L('সেভ', 'Save')}</button></>}>
       <div className="hr-form">
         <Field label={L('ধরন', 'Kind')} hint={f.kind !== 'office' ? L('হাব বেছে দিলে এটা ওই হাবের সাথে যুক্ত থাকবে', 'Pick the hub to attach it to') : undefined}><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as PlaceKind })}>
@@ -307,7 +313,9 @@ function Places({ scope, list, otherSide, reload }: { scope: OfficeScope; list: 
         <Field label={L('তলা / ফ্ল্যাট', 'Floor / flat')}><input value={f.floor_note ?? ''} onChange={e => setF({ ...f, floor_note: e.target.value })} placeholder={L('যেমন ৩য় তলা, ফ্ল্যাট B', 'e.g. 3rd floor, flat B')} /></Field>
         <Field label={L('বাড়ির মালিক', 'Owner')}><input value={f.owner_name ?? ''} onChange={e => setF({ ...f, owner_name: e.target.value })} /></Field>
         <Field label={L('মালিকের ফোন', 'Owner phone')}><input inputMode="tel" value={f.owner_phone ?? ''} onChange={e => setF({ ...f, owner_phone: e.target.value })} /></Field>
-        <Field label={L('মাসিক ভাড়া (৳)', 'Monthly rent (৳)')}><input inputMode="decimal" value={f.rent ?? ''} onChange={e => setF({ ...f, rent: e.target.value as unknown as number })} /></Field>
+        {f.kind === 'auto_garage'
+          ? <p className="muted small" style={{ gridColumn: '1 / -1' }}>{L('অটো গ্যারেজের ভাড়া নির্দিষ্ট নয় — প্রতিটা অটোর দর আছে, আর মাসে যত দিন "হ্যাঁ" দেওয়া হয় তত দিনের ভাড়া হয়। অটো যোগ করুন "অটো ও দৈনিক হ্যাঁ/না" পাতায়।', 'An auto garage has no fixed rent: each auto has its own rate and the month’s rent is its "yes" days. Add autos on the "Autos & daily yes/no" page.')}</p>
+          : <Field label={L('মাসিক ভাড়া (৳)', 'Monthly rent (৳)')}><input inputMode="decimal" value={f.rent ?? ''} onChange={e => setF({ ...f, rent: e.target.value as unknown as number })} /></Field>}
         <Field label={L('এডভান্স (৳)', 'Advance (৳)')}><input inputMode="decimal" value={f.advance ?? ''} onChange={e => setF({ ...f, advance: e.target.value as unknown as number })} /></Field>
         <Field label={f.kind === 'residence' ? L('কয়জন থাকতে পারেন', 'Sleeps how many') : f.kind === 'office' ? L('কয়জন বসতে পারেন', 'Seats how many') : L('কয়টা গাড়ি ধরে', 'Holds how many vehicles')}>
           <input inputMode="numeric" value={f.capacity ?? ''} onChange={e => setF({ ...f, capacity: e.target.value as unknown as number })} /></Field>
