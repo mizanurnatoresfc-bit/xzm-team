@@ -206,12 +206,18 @@ export type PendingMonthDay = {
 export type PendingHubRow = {
   employee_id: string; name: string; snapshot: string | null; count: number | null
   proxy_reason: string | null; approved: boolean; return_reason: string | null
+  /** The signed-in person's own row: nobody reviews their own count. */
+  is_self: boolean
+  /** A zonal manager's row, seen by someone below company level: only a company-wide approver decides on it. */
+  above_you: boolean
 }
+
+export type OwnPendingDay = { date: IsoDate; count: number; approved: boolean; return_reason: string | null }
 
 export const wf = {
   pendingMonth: (hub: string, month: IsoDate) =>
     rpc<PendingMonthDay[]>('wf_pending_month', { p_hub: hub, p_month: month }),
-  pendingHubToday: (hub: string) => rpc<{ date: IsoDate; can_edit: boolean; rows: PendingHubRow[] }>(
+  pendingHubToday: (hub: string) => rpc<{ date: IsoDate; can_edit: boolean; can_review: boolean; rows: PendingHubRow[] }>(
     'wf_pending_hub_today', { p_hub: hub }),
   savePendingManager: (hub: string, employee: string, date: IsoDate, snapshot: string | null, count?: number, reason?: string, returned = false) =>
     rpc<void>('wf_pending_manager_save', { p_hub: hub, p_employee: employee, p_date: date, p_snapshot: snapshot,
@@ -240,9 +246,10 @@ export const wf = {
   opsDeadlines: (zone?: string) => rpc<OpsDeadlines | null>('wf_ops_deadlines_get', { p_zone: zone ?? null }),
   saveOpsDeadlines: (zone: string, times: OpsDeadlineTimes) =>
     rpc<void>('wf_ops_deadlines_save', { p_zone: zone, p_times: times }),
-  pendingToday: () => rpc<{ date: IsoDate; count: number | null; return_reason: string | null } | null>('wf_pending_today'),
+  pendingToday: () => rpc<{ date: IsoDate; count: number | null; return_reason: string | null; approved: boolean } | null>('wf_pending_today'),
   savePendingToday: (count: number, date: IsoDate) =>
-    rpc<{ date: IsoDate; count: number }>('wf_pending_today', { p_count: count, p_work_date: date }),
+    rpc<{ date: IsoDate; count: number; approved: boolean }>('wf_pending_today', { p_count: count, p_work_date: date }),
+  ownPendingMonth: (month: IsoDate) => rpc<OwnPendingDay[]>('wf_pending_own_month', { p_month: month }),
   ownOpsMonth: (month: IsoDate) => rpc<DailyOps[]>('wf_ops_own_month', { p_month: month }),
   myOps: (days = 14) => rpc<MyOps | null>('wf_ops_mine', { p_days: days }),
   submitOps: (v: OpsInput, note?: string | null, date?: IsoDate | null) =>
@@ -275,6 +282,7 @@ export const wf = {
 
 // ------------------------------------------------------------------ errors in plain Bangla
 const BN: Array<[RegExp, string]> = [
+  [/count is already approved/i, 'এই সংখ্যা অনুমোদিত হয়ে গেছে — বদলাতে হলে ম্যানেজারকে ফেরত দিতে বলুন'],
   [/morning input is locked/i, 'সকালের ইনপুট জমা হয়ে লক হয়েছে — জোনাল ম্যানেজার ফেরত না দিলে বদলানো যায় না'],
   [/morning input of this hub is not submitted/i, 'এই হাবের সকালের ইনপুট এখনো জমা হয়নি — আগে সেটা জমা হতে হবে'],
   [/morning input is for today/i, 'সকালের ইনপুট শুধু আজ বা আগের দুই দিনের'],

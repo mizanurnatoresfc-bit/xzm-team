@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { addDays, todayDhaka } from '../../lib/dailyAccounts'
 import { usePrefs } from '../../lib/prefs'
-import { useLiveLoad, wf, wfFriendly, type DailyOps } from '../../lib/workforce'
+import { useLiveLoad, wf, wfFriendly, type DailyOps, type OwnPendingDay } from '../../lib/workforce'
 import { Field } from '../accounts/ui'
 import { fmtDay, monthStart, prevMonth, WmTable, type WCol } from '../workforce/shared'
 
-type Day = { date: string; entry?: DailyOps }
+type Day = { date: string; entry?: DailyOps; pending?: OwnPendingDay }
 
 export function MyHubRegisterMonth() {
   const { L, n, lang } = usePrefs()
@@ -15,10 +15,12 @@ export function MyHubRegisterMonth() {
   const [selected, setSelected] = useState(current)
   const month = selected === previous ? previous : current
   const query = useLiveLoad(() => wf.ownOpsMonth(month), [month], ['wf_daily_ops'])
+  const pendingQuery = useLiveLoad(() => wf.ownPendingMonth(month), [month])
   const entries = new Map(query.data?.map(entry => [entry.work_date, entry]))
+  const pendings = new Map(pendingQuery.data?.map(entry => [entry.date, entry]))
   const days: Day[] = []
   for (let date = month; date <= today && monthStart(date) === month; date = addDays(date, 1)) {
-    days.push({ date, entry: entries.get(date) })
+    days.push({ date, entry: entries.get(date), pending: pendings.get(date) })
   }
 
   const numbers = [
@@ -33,6 +35,10 @@ export function MyHubRegisterMonth() {
     ...numbers.map(([key, label]): WCol<Day> => ({
       key, label, num: true, cell: row => row.entry ? n(row.entry[key]) : '—',
     })),
+    { key: 'pending', label: L('পেন্ডিং', 'Pending'), num: true, cell: row => row.pending ? n(row.pending.count) : '—' },
+    { key: 'review', label: L('যাচাই', 'Review'), cell: row => !row.pending ? '—'
+      : row.pending.return_reason ? `${L('ফেরত', 'Returned')} · ${row.pending.return_reason}`
+      : row.pending.approved ? L('অনুমোদিত', 'Approved') : L('যাচাই বাকি', 'Review due') },
   ]
 
   return <section className="panel wm-sec">
@@ -42,8 +48,8 @@ export function MyHubRegisterMonth() {
         <option value={previous}>{L('আগের মাস', 'Previous month')}</option>
       </select>
     </Field>
-    {query.error ? <p className="da-error" role="alert">{wfFriendly(query.error)}</p>
-      : query.loading ? <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
+    {query.error || pendingQuery.error ? <p className="da-error" role="alert">{wfFriendly(query.error ?? pendingQuery.error)}</p>
+      : query.loading || pendingQuery.loading ? <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
       : <WmTable rows={days} cols={columns} rowKey={row => row.date}
           title={L('আমার মাসের কাজের হিসাব', 'My monthly work entries')} file={`my-work-${month.slice(0, 7)}`} />}
   </section>
