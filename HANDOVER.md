@@ -1039,3 +1039,11 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `npm run test:routes` (22, new; added to website.yml), tsc clean, build ok, whole browser smoke test passes (route scenario moved to `/app/routes`, new checks for locations, undo, many-at-once, redirects).
   `npm run test:nav`: the same 2 failures as before this change (phone tab for `/app/hr/leave`; a bare `<Navigate to="/app/staff/list">` in App.tsx) — not touched here.
 - Not done: dragging a pin on the map, resolving short Google links (browser cannot follow the redirect), a map for sorting → hub routes, route rules switchable per zone (`runChecks` has the hook).
+
+## 2026-11-27 — হাবের খাতা: পেন্ডিং যাচাইয়ের ফাঁক বন্ধ (hub register pending review fixes)
+- Found by walking `/app/hub-registers` as rider, hub manager and zonal manager (role demo). Migration `20261127030000_pending_review_fixes.sql`, test `99…_pending_review.sql`.
+- **Manager's own count:** nobody could approve it. Now the zonal manager (`zonal.dashboard.view` on the zone) may approve/return counts of the zone's hubs (not enter them); `wf_pending_hub_today` returns `can_review` and per-row `is_self`; the page hides buttons on the caller's own row and says who reviews it. Owner may still want a dedicated permission instead of reusing `zonal.dashboard.view`.
+- **Approved counts are locked** for the staff member (`wf_pending_today` refuses a different count, returns `approved`); the manager can send an approved count back with a reason, which unlocks it.
+- **Staff month:** `wf_pending_own_month` + two new columns (পেন্ডিং, যাচাই) in "আমার মাসের কাজের হিসাব".
+- Page: manager queue refreshes after the manager submits their own count; the pending card icon is no longer a back arrow; cards no longer stretch; number steps wrap.
+- Left as is (ask the owner): a hub manager can still enter a count on behalf of a zonal manager who is a staff member of the same hub.

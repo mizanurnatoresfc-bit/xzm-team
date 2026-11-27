@@ -7,7 +7,7 @@ import { Field } from '../accounts/ui'
 import { PendingMonthReport } from './PendingMonthReport'
 import { useHubList } from '../workforce/shared'
 
-export function ManagerPendingCard() {
+export function ManagerPendingCard({ refreshKey = 0 }: { refreshKey?: number } = {}) {
   const { L } = usePrefs()
   const { can } = useAuth()
   const [monthly, setMonthly] = useState(false)
@@ -28,7 +28,7 @@ export function ManagerPendingCard() {
         {monthly ? L('আজকের যাচাই তালিকা', 'Today’s review queue') : L('মাসিক পেন্ডিং রিপোর্ট', 'Monthly pending report')}
       </button>
       {monthly ? <PendingMonthReport key={hub} hub={hub} archive={can('zonal.dashboard.view')} />
-        : <PendingQueue key={hub} hub={hub} />}
+        : <PendingQueue key={`${hub}:${refreshKey}`} hub={hub} />}
     </>}
   </div>
 }
@@ -76,17 +76,20 @@ function PendingQueue({ hub }: { hub: string }) {
           : `${n(row.count)} · ${row.approved ? L('অনুমোদিত', 'Approved') : row.return_reason ? L('ফেরত দেওয়া হয়েছে', 'Returned') : L('যাচাই বাকি', 'Review due')}`}</p>
         {row.proxy_reason && <p>{L('পক্ষে জমা', 'Submitted on behalf')} · {row.proxy_reason}</p>}
         {row.return_reason && <p>{L('ফেরতের কারণ', 'Return reason')} · {row.return_reason}</p>}
-        {data.can_edit && !row.approved && !row.return_reason && (row.snapshot
-          ? <>
-            <button type="button" disabled={busy} onClick={() => void save(row)}>{L('অনুমোদন', 'Approve')}</button>
-            <button type="button" className="secondary" disabled={busy} onClick={() => {
-              setReturning(row.employee_id); setReturnReason('')
-            }}>{L('ফেরত দিন', 'Return')}</button>
-          </>
-          : <button type="button" className="secondary" disabled={busy} onClick={() => {
-            setProxy(row.employee_id); setCount(''); setReason('')
-          }}>{L('পক্ষে এন্ট্রি দিন', 'Enter on behalf')}</button>)}
-        {returning === row.employee_id && row.snapshot && !row.return_reason && !row.approved &&
+        {row.is_self ? (row.snapshot && !row.approved && !row.return_reason
+          ? <p className="muted">{L('নিজের সংখ্যা নিজে অনুমোদন করা যায় না — উপরের স্তরের ম্যানেজার যাচাই করবেন।', 'You cannot approve your own count — a manager above you reviews it.')}</p> : null)
+          : <>
+            {data.can_review && row.snapshot && !row.return_reason && <>
+              {!row.approved && <button type="button" disabled={busy} onClick={() => void save(row)}>{L('অনুমোদন', 'Approve')}</button>}
+              <button type="button" className="secondary" disabled={busy} onClick={() => {
+                setReturning(row.employee_id); setReturnReason('')
+              }}>{L('ফেরত দিন', 'Return')}</button>
+            </>}
+            {data.can_edit && !row.snapshot && <button type="button" className="secondary" disabled={busy} onClick={() => {
+              setProxy(row.employee_id); setCount(''); setReason('')
+            }}>{L('পক্ষে এন্ট্রি দিন', 'Enter on behalf')}</button>}
+          </>}
+        {returning === row.employee_id && row.snapshot && !row.return_reason && !row.is_self &&
           <form onSubmit={event => { event.preventDefault(); void save(row, true) }}>
             <Field label={L('ফেরতের কারণ', 'Return reason')}>
               <input maxLength={500} value={returnReason} onChange={event => setReturnReason(event.target.value)} />

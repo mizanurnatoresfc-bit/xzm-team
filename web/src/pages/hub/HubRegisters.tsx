@@ -16,6 +16,7 @@ export function HubRegisters() {
   const [showQueue, setShowQueue] = useState(false)
   const [showPending, setShowPending] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
+  const [queueKey, setQueueKey] = useState(0)
   const zone = ATTENDANCE_ZONE.some(access.can)
   const hub = ATTENDANCE_HUB.some(access.can)
   const operations = zone ? '/app/attendance?view=zone&tab=ops' :
@@ -33,7 +34,7 @@ export function HubRegisters() {
       links: [[operations, L('পিকআপ ও ফেরতের এন্ট্রি', 'Pickup and return entries')]],
     },
     {
-      icon: 'back', title: L('পেন্ডিং ও রিটার্ন খাতা', 'Pending and return register'),
+      icon: 'tasks', title: L('পেন্ডিং ও রিটার্ন খাতা', 'Pending and return register'),
       links: [[operations, L('ডেলিভারি রিটার্নের এন্ট্রি', 'Delivery return entries')]],
       pending: true,
     },
@@ -65,12 +66,12 @@ export function HubRegisters() {
             <button type="button" className="secondary" aria-expanded={showPending} onClick={() => setShowPending(value => !value)}>
               {L('আমার পেন্ডিং জমা', 'Submit my pending count')}
             </button>
-            {showPending && <StaffPendingCard />}
+            {showPending && <StaffPendingCard onSaved={() => setQueueKey(key => key + 1)} />}
             {access.can('ops.staff_daily.view') && <div>
               <button type="button" className="secondary" aria-expanded={showQueue} onClick={() => setShowQueue(value => !value)}>
                 {L('হাবের পেন্ডিং যাচাই', 'Review hub pending counts')}
               </button>
-              {showQueue && <ManagerPendingCard />}
+              {showQueue && <ManagerPendingCard refreshKey={queueKey} />}
             </div>}
           </>}
           {links.map(([to, label]) => <Link key={to} to={to} className="hub-register-link">{label}</Link>)}
