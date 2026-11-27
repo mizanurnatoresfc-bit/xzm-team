@@ -35,7 +35,7 @@ type CountKey = 'sheets' | 'team' | 'hrreq'
 export const NEW_UNTIL: Record<string, string> = {
   '/app/manpower': '2026-11-30', '/app/attendance': '2026-11-30',
   '/app/staff/list': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
-  '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
+  '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/menu-roles': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
 }
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
 export type { Group as MenuGroup, Item as MenuItem }
@@ -112,6 +112,7 @@ export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অন�
   { bn: 'ড্যাশবোর্ড ও সাইট সেটিং', en: 'Dashboard & site settings', items: [
     { to: '/app/role-dashboards', icon: 'chart', bn: 'রোলভিত্তিক ড্যাশবোর্ড বিল্ডার', en: 'Role-based Dashboard Builder', perms: ['system.role.edit'] },
     { to: '/app/branding', icon: 'form', bn: 'নাম, লোগো ও রঙ', en: 'Name, logo & colour', perms: ['system.settings.configure'] },
+    { to: '/app/menu-roles', icon: 'users', bn: 'রোল অনুযায়ী মেনু', en: 'Menu by role', perms: ['system.role.edit'], hint: { bn: 'কোন রোল সাইডবারে কোন পাতা দেখবে — এক পাতায় টিক দিয়ে ঠিক করুন', en: 'Which sidebar pages each role gets — tick them on one page' } },
     { to: '/app/menu', icon: 'menu', bn: 'মেনু এডিটর', en: 'Menu editor', perms: ['system.settings.configure'], hint: { bn: 'মেনুর নাম, ক্রম, লুকানো আর “নতুন” ব্যাজ', en: 'Menu names, order, hidden rows and “new” badges' } },
   ] },
   { bn: 'নদী AI', en: 'Nodi AI', items: [

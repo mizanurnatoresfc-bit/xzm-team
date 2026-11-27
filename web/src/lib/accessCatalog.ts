@@ -122,6 +122,7 @@ export const MODULES: ModuleDef[] = [
     { to: '/app/users', res: ['system.user', 'system.user_role'] },
     { to: '/app/access', res: ['system.role'] },
     { to: '/app/role-dashboards', codes: ['system.role.edit'] },
+    { to: '/app/menu-roles', codes: ['system.role.edit'] },
     { to: '/app/rollout', codes: ['hr.employee.view', 'system.user.create'] },
     { to: '/app/branding', res: ['system.settings'] },
     { to: '/app/training' },
