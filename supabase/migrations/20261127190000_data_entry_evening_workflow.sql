@@ -402,12 +402,17 @@ returns jsonb language sql stable security definer set search_path = '' as $$
        from private.data_entry_target_runs r where r.hub_id=h.id and r.work_date=w.day order by r.id desc limit 1) as attendance,
       (select max(s.attempted) from private.data_entry_shift_reports s where s.hub_id=h.id and s.work_date=w.day and s.member_id=mine.member_id) as last_attempted,
       (select max(s.entry_minutes) from private.data_entry_shift_reports s where s.hub_id=h.id and s.work_date=w.day and s.member_id=mine.member_id) as last_minutes,
-      (select min(s) from generate_series(1,3) s where private.data_entry_report_due(h.id,w.day,s,private.data_entry_shift_now())
-        and not exists (select 1 from private.data_entry_shift_reports r where r.hub_id=h.id and r.work_date=w.day and r.member_id=mine.member_id and r.slot=s)) as next_slot,
+      prompts.due_slots[1] as next_slot, coalesce(prompts.due_slots,'{}'::integer[]) as due_slots,
       (select coalesce(jsonb_agg(jsonb_build_object('id',t.member_id,'name',coalesce(e.full_name_bn,e.full_name)) order by e.full_name,t.member_id), '[]'::jsonb)
         from private.data_entry_target_team(h.id) t join public.employees e on e.id=t.employee_id where t.member_id<>mine.member_id) as colleagues,
       private.data_entry_head_payload(h.id,w.day,mine.member_id)->'duties' as duties
     from my_hubs mine join public.hubs h on h.id=mine.hub_id cross join lateral private.data_entry_shift_window(h.id,private.data_entry_shift_now()) w
+    cross join lateral (
+      select array_agg(s order by s) as due_slots from generate_series(1,3) s
+      where private.data_entry_report_due(h.id,w.day,s,private.data_entry_shift_now())
+        and not exists (select 1 from private.data_entry_shift_reports r
+          where r.hub_id=h.id and r.work_date=w.day and r.member_id=mine.member_id and r.slot=s)
+    ) prompts
     where private.data_entry_my_member(h.id)=mine.member_id
   )
   select jsonb_build_object('hubs',coalesce((select jsonb_agg(to_jsonb(own) order by name,id) from own),'[]'::jsonb),

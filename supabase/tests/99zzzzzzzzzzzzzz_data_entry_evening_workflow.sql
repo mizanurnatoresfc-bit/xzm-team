@@ -77,6 +77,9 @@ select tests.ok(public.data_entry_shift_mine()#>'{hubs,0,next_slot}'='null'::jso
 select public.data_entry_shift_action(tests.id('hub_a1'),current_date,'peer',
   jsonb_build_object('member_id',tests.id('evening_member_b'),'kind','good_work','note','Helped unload the vehicle'));
 
+select set_config('tests.data_entry_clock','21:15',true);
+select tests.ok(public.data_entry_shift_mine()#>'{hubs,0,due_slots}'='[2,3]'::jsonb,
+  'newer popups are exposed even while an earlier check-in is pending');
 select set_config('tests.data_entry_clock','19:40',true);
 select tests.ok(public.data_entry_shift_mine()#>>'{hubs,0,next_slot}'='2','progress popup opens after the second checkpoint');
 select public.data_entry_shift_action(tests.id('hub_a1'),current_date,'report','{"slot":2,"attempted":25,"merchants":1,"entry_minutes":25}');

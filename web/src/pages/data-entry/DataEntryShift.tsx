@@ -31,7 +31,7 @@ type Shift = {
   head_choices?: Choice[]; head?: { employee_id: string; verify_reports: boolean; assign_duties: boolean } | null
   schedule?: Values; opening?: Opening[]; performance?: Performance[]
 }
-type OwnHub = Choice & { day: string; running: boolean; attendance: string | null; next_slot: number | null; last_attempted: number | null; last_minutes: number | null; colleagues: Choice[]; duties: Duty[] }
+type OwnHub = Choice & { day: string; running: boolean; attendance: string | null; due_slots: number[]; last_attempted: number | null; last_minutes: number | null; colleagues: Choice[]; duties: Duty[] }
 type Own = { hubs: OwnHub[]; heads: Choice[] }
 type Action = (name: string, values: Values, date?: string) => Promise<void>
 
@@ -296,18 +296,20 @@ function OwnShift() {
     const timer = window.setInterval(() => void reload(),60_000)
     return () => window.clearInterval(timer)
   }, [reload])
-  const hubKey = (h: OwnHub) => [h.id,h.day,h.next_slot].join(':')
-  const due = (state.data?.hubs ?? []).filter(h => h.next_slot && ['present','late','half_day'].includes(h.attendance ?? ''))
-  const popup = due.find(h => !dismissed.includes(hubKey(h)))
+  const hubKey = (h: OwnHub, slot: number) => [h.id,h.day,slot].join(':')
+  const due = (state.data?.hubs ?? []).flatMap(hub => ['present','late','half_day'].includes(hub.attendance ?? '')
+    ? hub.due_slots.map(slot => ({ hub, slot })) : [])
+  const popup = due.find(({hub,slot}) => !dismissed.includes(hubKey(hub,slot)))
   if (!state.data?.hubs.length && !state.data?.heads.length) return null
   const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await reload() }
   return <section className="panel data-entry-panel">
     <h2>{L('আমার ডাটা এন্ট্রি শিফট', 'My data entry shift')}</h2>
     {state.data?.hubs.map(hub => <article className="data-entry-record" key={hub.id}>
       <h3>{hub.name} · {hub.day}</h3>
-      {due.includes(hub) && <button type="button" onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub)))}>
-        {L('রিপোর্ট জমা দিন', 'Submit report')} {n(hub.next_slot ?? 0)}
-      </button>}
+      {due.filter(item => item.hub.id === hub.id).map(({slot}) => <button type="button" key={slot}
+        onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,slot)))}>
+        {L('রিপোর্ট জমা দিন', 'Submit report')} {n(slot)}
+      </button>)}
       <DutyList duties={hub.duties} onAction={save(hub)} own />
       {!!hub.colleagues.length && <details><summary>{L('জোনাল ম্যানেজারকে আপডেট দিন', 'Update the Zonal Manager')}</summary>
         <ActionForm label={L('আপডেট পাঠান', 'Send update')}
@@ -322,16 +324,19 @@ function OwnShift() {
     {!!state.data?.heads.length && <details><summary>Data Entry Head</summary>
       <DataEntryShiftHub hubs={state.data.heads} page="live" delegated />
     </details>}
-    {popup && popup.next_slot && <Modal key={hubKey(popup)} actions={null}
-      title={popup.name + ' · ' + L(...stages[popup.next_slot-1])}
-      onClose={() => setDismissed(items => [...items,hubKey(popup)])}>
+    {popup && <Modal key={hubKey(popup.hub,popup.slot)}
+      title={popup.hub.name + ' · ' + L(...stages[popup.slot-1])}
+      onClose={() => setDismissed(items => [...items,hubKey(popup.hub,popup.slot)])}
+      actions={<button type="button" className="secondary" onClick={() => setDismissed(items => [...items,hubKey(popup.hub,popup.slot)])}>
+        {L('পরে জমা দেব', 'Submit later')}
+      </button>}>
       <p>{L('এই হাবে শিফটের শুরু থেকে এখন পর্যন্ত মোট সংখ্যা দিন।', 'Enter totals for this hub since the start of this shift.')}</p>
       <ActionForm label={L('রিপোর্ট জমা দিন', 'Submit report')}
-        onSave={form => save(popup)('report',{slot:popup.next_slot,attempted:numberValue(form,'attempted'),
+        onSave={form => save(popup.hub)('report',{slot:popup.slot,attempted:numberValue(form,'attempted'),
           merchants:numberValue(form,'merchants'),entry_minutes:numberValue(form,'minutes'),note:fieldValue(form,'note')})}>
-        <Count name="attempted" label={L('এখন পর্যন্ত মোট এন্ট্রি', 'Total entries so far')} value={popup.last_attempted ?? 0} />
+        <Count name="attempted" label={L('এখন পর্যন্ত মোট এন্ট্রি', 'Total entries so far')} value={popup.hub.last_attempted ?? 0} />
         <Count name="merchants" label={L('এখন পর্যন্ত স্বতন্ত্র মার্চেন্ট', 'Distinct merchants so far')} optional />
-        <Count name="minutes" label={L('এখন পর্যন্ত প্রকৃত এন্ট্রি মিনিট', 'Actual entry minutes so far')} value={popup.last_minutes ?? (popup.next_slot === 3 && !popup.last_attempted ? 0 : null)} max={720} optional={popup.next_slot !== 3} />
+        <Count name="minutes" label={L('এখন পর্যন্ত প্রকৃত এন্ট্রি মিনিট', 'Actual entry minutes so far')} value={popup.hub.last_minutes ?? (popup.slot === 3 && !popup.hub.last_attempted ? 0 : null)} max={720} optional={popup.slot !== 3} />
         <Notes label={L('নোট (ঐচ্ছিক)', 'Note (optional)')} />
       </ActionForm>
     </Modal>}
