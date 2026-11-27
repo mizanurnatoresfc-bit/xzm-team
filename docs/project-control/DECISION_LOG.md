@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-11-27 (post-merge evening) — D-010: XZM-006 Deep Verification + 9 sub-tasks XZM-006A..I
+- **Decision:** XZM-006 central audit rewritten into full 11-section deep-verification document; **9** proposed sub-tasks opened (XZM-006A Android signing export, XZM-006B Supabase recovery coverage + production-binding documentation, XZM-006C migration drift reconciliation (structural, per-migration), XZM-006D Cloudflare/Netlify rollback + zone export, XZM-006E missing edge functions source via `supabase functions download`, XZM-006F git tag policy, XZM-006G RPO/RTO Owner questionnaire, XZM-006H 7 security advisors remediation, **XZM-006I Isolated Backup Restore Test** (new)). Risk→Sub-task mapping updated in RISK_REGISTER.
+- **Rationale:** ChatGPT Independent Review on first XZM-006 summary returned PARTIAL — EVIDENCE REQUIRED. Owner Second Review accepted the direction; a subsequent 6-point correction pass fixed inaccurate claims (Free-plan PITR, Edge Function download feasibility, migration-drift arithmetic, Preview/Production conflation) and added XZM-006I as an explicit isolated restore drill.
+
+## 2026-11-27 (late evening) — D-011: XZM-006 6-Point Correction Pass
+- **Decision:** Apply six corrections to the deep-verification document in the same PR:
+  (1) Withdraw the "Supabase Free-plan 7-day PITR" claim and align §2 / §4.2 / §6.2 / §6.7 with the Supabase pricing and backups docs (Free plan has neither PITR nor automatic daily backups).
+  (2) Correct the "Supabase does not expose deployed Edge Function source" claim in §3.2 / §6.4: `supabase functions download` (CLI) and the Dashboard Download button do expose source; re-scope XZM-006E accordingly.
+  (3) Replace the `155 − 141 = 14 orphan` arithmetic with a version-wise and name-wise set-diff; re-scope XZM-006C as a per-migration decision pass.
+  (4) Split §5 into §5.1 Preview isolation (VERIFIED) and §5.2 Actual production DB binding (PARTIALLY VERIFIED); fold the `VITE_SUPABASE_URL` capture and the `xzm-team-erp-dev` production-annotation into XZM-006B.
+  (5) Redact the Owner-identifiable local path from §3.3 / §4.7 / §10 under the XZM-004R-Final redaction policy.
+  (6) Open XZM-006I — Isolated Backup Restore Test — with the hard constraint that no drill step shares production secrets, domains or env vars.
+- **Rationale:** Owner-directed factual correction after live source checks; brings the audit to docs-accurate, drill-ready state before the ChatGPT Second Review.
+- **Scope kept constant:** no code, DB, DNS, production config or secret change; no restore drill run; no Edge Function source downloaded in this pass.
+- **Impact:** docs-only. New Draft PR opened; no code, DB, DNS, production config, restore drill or secret export performed.
+
 ## 2026-11-27 (late) — D-009: XZM-004R-Final (Second Review Response) — redaction policy + preview binding verification
 - **Decision:** Owner email + Cloudflare numeric account ID redacted from AI_HANDOVER §5; PROJECT_CONNECTIONS §10 reorganized as a redaction policy; TASK_TRACKER allowed-status set expanded to match actual records; merge-to-main impact documented as zero production build/deploy trigger expected (workflow paths miss docs-only PRs; Netlify + Cloudflare deploys live only inside `android-apk.yml`).
 - **Rationale:** ChatGPT Second Independent Review accepted major corrections; final cleanup covers avoidable PII/identifier exposure, status taxonomy drift, and PR-description accuracy.
