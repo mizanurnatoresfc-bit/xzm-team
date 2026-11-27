@@ -1,3 +1,4 @@
+import { DispatchBoard } from '../sorting/DispatchBoard'
 import { useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { AppShell } from '../../components/AppShell'
@@ -24,6 +25,7 @@ export function FleetMine() {
   return <AppShell title="আমার গাড়ি" subtitle={v ? `${v.name}${v.reg_no ? ` · ${v.reg_no}` : ''}` : 'ড্রাইভার ও হেল্পারের প্যানেল'}>
     <div className="sd sp fl">
       {node}
+      <DispatchBoard />
       {d.error ? <p className="da-error">{fleetFriendly(d.error)}</p> : !m && d.loading ? <p className="muted">লোড হচ্ছে…</p>
         : !m || !v ? <div className="nv-empty panel"><Icon name="truck" size={30} /><p>আপনার নামে এখন কোনো গাড়ি নেই।</p>
             <p className="small">গাড়ির ড্রাইভার বা হেল্পার করা হলে এখানে দেখা যাবে।</p></div> : <>

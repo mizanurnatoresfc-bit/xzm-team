@@ -1,3 +1,4 @@
+import { DispatchBoard } from '../sorting/DispatchBoard'
 import { useMemo, useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -40,6 +41,7 @@ export function Fleet() {
 
   return <AppShell title="গাড়ি" subtitle="জোনের গাড়ি, হাবে দেওয়া, ড্রাইভার-হেল্পার, খোরাকি, গ্যারেজ, অনুমোদন ও রিপোর্ট">
     <div className="fl">
+      <DispatchBoard />
       <div className="nv-chips fl-tabs" role="tablist">{tabs.map(([k, l, ic]) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`nv-chip${tab === k ? ' on' : ''}`} onClick={() => go(k)}>
         <Icon name={ic} size={15} />{l}{k === 'approve' && waitCount > 0 && <b>{bnNum(waitCount)}</b>}</button>)}</div>
       {(tab === 'list' || tab === 'today') && hubs.length > 1 && <div className="nv-chips">

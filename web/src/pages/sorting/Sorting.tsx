@@ -1,3 +1,4 @@
+import { DispatchBoard } from './DispatchBoard'
 import { askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
@@ -7,6 +8,7 @@ import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { RouteViz } from '../../components/RouteViz'
+import { myLocation } from '../../lib/routes'
 import { usePrefs } from '../../lib/prefs'
 import { autoCode, hrFriendly, type Hub } from '../../lib/hr'
 import { taka } from '../../lib/dailyAccounts'
@@ -14,7 +16,7 @@ import { useOrg } from '../hr/common'
 import { AppDownloadCard } from '../../components/AppDownloadCard'
 import {
   FUEL_KIND, FUEL_STATUS, HO_STATUS, ROLE, sorting, TRIP_STATUS,
-  type Center, type DriverReport, type EmpLite, type Fuel, type Handover, type Route, type RouteHub, type RouteReport, type StaffRow,
+  type Center, type DriverReport, type EmpLite, type Fuel, type Handover, type ReceiveLocation, type Route, type RouteHub, type RouteReport, type StaffRow,
 } from '../../lib/sorting'
 
 type Sec = 'dashboard' | 'staff' | 'fuel' | 'parcels' | 'drivers' | 'reports' | 'centers'
@@ -573,9 +575,42 @@ function Parcels({ ctx }: { ctx: Ctx }) {
     parcels: string; bags: string; wrong: string; returned: string; damaged: string; note: string }
   const [f, setF] = useState<F | null>(null)
   const [rc, setRc] = useState<{ row: Handover; count: string; wrong: string; returned: string; damaged: string; note: string } | null>(null)
+  const [locationReason, setLocationReason] = useState('')
+  const network: ReceiveLocation['network'] = (() => {
+    const type = (navigator as Navigator & { connection?: { type?: string } }).connection?.type
+    return type === 'wifi' || type === 'cellular' || type === 'ethernet' || type === 'other' ? type : 'unknown'
+  })()
+  const hubWifi = ctx.hubs.find(hub => hub.id === rc?.row.hub_id)?.trip_wifi_ssid
+  const networkLabel = {
+    wifi: 'Wi-Fi', cellular: L('মোবাইল ডাটা', 'Mobile data'), ethernet: 'Ethernet',
+    other: L('অন্য সংযোগ', 'Other connection'), unknown: L('সংযোগের ধরন পাওয়া যায়নি', 'Connection type unavailable'),
+  }
+  const locationLabel = {
+    near_hub: L('হাবের লোকেশন মিলেছে', 'Hub location matched'),
+    outside_hub: L('হাবের সীমার বাইরে', 'Outside the hub area'),
+    low_accuracy: L('লোকেশন অস্পষ্ট', 'Low location accuracy'),
+    hub_missing: L('হাবের লোকেশন সেট করা নেই', 'Hub location is missing'),
+    unavailable: L('লোকেশন পাওয়া যায়নি', 'Location unavailable'),
+  }
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const rows = (q.data ?? []).filter(r => !dir || r.direction === dir)
   const hubsOfRoute = (route: string) => route ? (refs.rh.data ?? []).filter(h => h.route_id === route).map(h => h.hub_id) : ctx.hubs.map(h => h.id)
+  const [dispatchRoute, setDispatchRoute] = useState('')
+  const [dispatchRevision, setDispatchRevision] = useState(0)
+  async function dispatch() {
+    if (!dispatchRoute) return
+    setBusy(true)
+    setErr('')
+    try {
+      await sorting.startDispatch(dispatchRoute, today())
+      setDispatchRevision(value => value + 1)
+      toast(L('গাড়ি ছাড়ার আপডেট দেওয়া হয়েছে', 'Departure recorded'))
+    } catch (cause) {
+      setErr(hrFriendly(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
   async function save() {
     if (!f) return
     if (!f.hub) return setErr(L('হাব বেছে নিন', 'Choose the hub'))
@@ -594,12 +629,36 @@ function Parcels({ ctx }: { ctx: Ctx }) {
     const c = num(rc.count)
     if (c === null) return setErr(L('কয়টা বুঝে পেলেন লিখুন', 'Give the count received'))
     setBusy(true); setErr('')
-    try { await sorting.receive(rc.row.id, c, num(rc.wrong), num(rc.returned), num(rc.damaged), rc.note.trim() || null); setRc(null); await q.reload(); toast(L('বুঝে নেওয়া হয়েছে', 'Received')) }
+    try {
+      const wrong = num(rc.wrong), returned = num(rc.returned), damaged = num(rc.damaged)
+      const note = rc.note.trim() || null
+      if (rc.row.direction === 'sorting_to_hub') {
+        const point = await myLocation().catch(() => null)
+        await sorting.receiveAtHub(rc.row.id, c, wrong, returned, damaged, note, point, network, locationReason.trim())
+      } else {
+        await sorting.receive(rc.row.id, c, wrong, returned, damaged, note)
+      }
+      setRc(null)
+      await q.reload()
+      toast(L('বুঝে নেওয়া হয়েছে', 'Received'))
+    }
     catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
   const t = (k: 'parcel_count' | 'wrong_count' | 'returned_count' | 'damaged_count', d?: Handover['direction']) => (q.data ?? []).filter(r => !d || r.direction === d).reduce((a, r) => a + r[k], 0)
   const creator = can('sorting.parcel.create')
   return <>{node}
+    {creator && <section className="panel">
+      <div className="da-bar">
+        <h2>{L('আজকের গাড়ি ছাড়ুন', "Dispatch today's vehicle")}</h2>
+        <select aria-label={L('রুট', 'Route')} value={dispatchRoute} onChange={event => setDispatchRoute(event.target.value)}>
+          <option value="">{L('রুট বেছে নিন', 'Choose route')}</option>
+          {(refs.routes.data ?? []).filter(route => route.status === 'active').map(route =>
+            <option key={route.id} value={route.id}>{route.name}</option>)}
+        </select>
+        <button type="button" disabled={busy || !dispatchRoute} onClick={() => void dispatch()}>{L('গাড়ি ছাড়ুন', 'Dispatch vehicle')}</button>
+      </div>
+    </section>}
+    <DispatchBoard key={dispatchRevision} />
     <div className="da-stats">
       <Stat icon="box" label={L('হাব → সোর্টিং', 'Hub → sorting')} value={n(t('parcel_count', 'hub_to_sorting'))} />
       <Stat icon="truck" label={L('সোর্টিং → হাব', 'Sorting → hub')} value={n(t('parcel_count', 'sorting_to_hub'))} />
@@ -627,9 +686,14 @@ function Parcels({ ctx }: { ctx: Ctx }) {
           { key: 'ret', label: L('ব্যাক', 'Back'), className: 'r', value: r => n(r.returned_count), render: r => <span className={r.returned_count ? 'bad' : ''}>{n(r.returned_count)}</span> },
           { key: 'dmg', label: L('ড্যামেজ', 'Dmg'), className: 'r', value: r => n(r.damaged_count), render: r => <span className={r.damaged_count ? 'bad' : ''}>{n(r.damaged_count)}</span> },
           { key: 'status', label: L('অবস্থা', 'Status'), value: r => L(HO_STATUS[r.status][0], HO_STATUS[r.status][1]),
-            render: r => <><Badge tone={HO_STATUS[r.status][2]}>{L(HO_STATUS[r.status][0], HO_STATUS[r.status][1])}</Badge>{r.received_by_name && <span className="sec">{r.received_by_name}</span>}</> },
+            render: r => <><Badge tone={HO_STATUS[r.status][2]}>{L(HO_STATUS[r.status][0], HO_STATUS[r.status][1])}</Badge>{r.received_by_name && <span className="sec">{r.received_by_name}</span>}
+              {r.sorting_receive_location && <span className="sec">
+                {locationLabel[r.sorting_receive_location.result]} · {networkLabel[r.sorting_receive_location.network]}
+                {r.sorting_receive_location.distance_m !== null && ` · ${n(r.sorting_receive_location.distance_m)} ${L('মি.', 'm')}`}
+                {r.sorting_receive_location.exception_reason && ` · ${r.sorting_receive_location.exception_reason}`}
+              </span>}</> },
           ...(creator ? [{ key: 'act', label: '', noExport: true, render: (r: Handover) => r.status === 'sent' ? <span className="row-acts">
-            <button className="secondary sm" onClick={() => { setErr(''); setRc({ row: r, count: String(r.parcel_count), wrong: '', returned: '', damaged: '', note: '' }) }}><Icon name="check" size={14} />{L('বুঝে নিন', 'Receive')}</button>
+            <button className="secondary sm" onClick={() => { setErr(''); setLocationReason(''); setRc({ row: r, count: String(r.parcel_count), wrong: '', returned: '', damaged: '', note: '' }) }}><Icon name="check" size={14} />{L('বুঝে নিন', 'Receive')}</button>
             <button className="secondary sm" onClick={() => { setErr(''); setF({ id: r.id, direction: r.direction, route: r.route_id ?? '', hub: r.hub_id, date: r.work_date, vehicle: r.vehicle_id ?? '',
               driver: r.driver_id ? refs.emp[r.driver_id] ?? null : null, by: r.handed_by_name ?? '', parcels: String(r.parcel_count), bags: r.bag_count?.toString() ?? '',
               wrong: String(r.wrong_count || ''), returned: String(r.returned_count || ''), damaged: String(r.damaged_count || ''), note: r.note ?? '' }) }}><Icon name="edit" size={14} /></button></span> : null }] : []),
@@ -667,6 +731,13 @@ function Parcels({ ctx }: { ctx: Ctx }) {
         <Field label={L('ভুল', 'Wrong')}><input inputMode="numeric" value={rc.wrong} onChange={e => setRc({ ...rc, wrong: e.target.value })} placeholder={String(rc.row.wrong_count)} /></Field>
         <Field label={L('ব্যাক', 'Returned')}><input inputMode="numeric" value={rc.returned} onChange={e => setRc({ ...rc, returned: e.target.value })} placeholder={String(rc.row.returned_count)} /></Field>
         <Field label={L('ড্যামেজ', 'Damaged')}><input inputMode="numeric" value={rc.damaged} onChange={e => setRc({ ...rc, damaged: e.target.value })} placeholder={String(rc.row.damaged_count)} /></Field>
+        {rc.row.direction === 'sorting_to_hub' && <>
+          {hubWifi && <p className="muted small">{L('হাবের Wi-Fi', 'Hub Wi-Fi')} · <strong>{hubWifi}</strong></p>}
+          <p className="muted small">{L('রিসিভ করার সময় ফোনের লোকেশন হাবের সঙ্গে মেলানো হবে।', 'The phone location is checked against the hub when you receive.')} · {networkLabel[network]}</p>
+          <Field label={L('লোকেশন না মিললে রিসিভের কারণ', 'Reason to receive without a location match')} wide>
+            <input maxLength={500} value={locationReason} onChange={e => setLocationReason(e.target.value)} />
+          </Field>
+        </>}
         <Field label={L('নোট', 'Note')} wide><input value={rc.note} onChange={e => setRc({ ...rc, note: e.target.value })} /></Field>
       </div>
       {err && <p className="da-error">{err}</p>}

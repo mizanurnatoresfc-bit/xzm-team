@@ -33,7 +33,7 @@ export function Hubs() {
   const [sel, setSel] = useState<string | null>(null)
   const [detail, setDetail] = useState<Hub | null>(null)
   const [edit, setEdit] = useState<{ row: EditRow; isNew: boolean; orig?: Hub } | null>(null)
-  const [loc, setLoc] = useState<{ hub: Hub; lat: string; lng: string } | null>(null)
+  const [loc, setLoc] = useState<{ hub: Hub; lat: string; lng: string; wifi: string } | null>(null)
   const [stat, setStat] = useState<Hub | null>(null)
   const [arch, setArch] = useState<Hub | null>(null)
   const [unit, setUnit] = useState<{ kind: 'region' | 'area'; row: Partial<Region & Zone>; isNew: boolean } | null>(null)
@@ -98,8 +98,18 @@ export function Hubs() {
   async function saveLoc() {
     if (!loc) return
     const la = loc.lat.trim(), ln = loc.lng.trim()
-    if (num(la) === null || num(ln) === null || Math.abs(Number(la)) > 90 || Math.abs(Number(ln)) > 180) { setErr('GPS ঠিক নয়'); return }
-    if (await run(() => org.update('hubs', loc.hub.id, { latitude: la, longitude: ln }), 'লোকেশন সেভ হয়েছে')) setLoc(null)
+    const wifi = loc.wifi.trim()
+    if (new TextEncoder().encode(wifi).length > 32) { setErr('Wi-Fi নাম ৩২ বাইটের মধ্যে দিন'); return }
+    if ((la !== '' || ln !== '') && (num(la) === null || num(ln) === null || Math.abs(Number(la)) > 90 || Math.abs(Number(ln)) > 180)) {
+      setErr('GPS ঠিক নয়')
+      return
+    }
+    const changes: Record<string, unknown> = { trip_wifi_ssid: wifi || null }
+    if (la !== gps(loc.hub.latitude) || ln !== gps(loc.hub.longitude)) {
+      changes.latitude = la || null
+      changes.longitude = ln || null
+    }
+    if (await run(() => org.update('hubs', loc.hub.id, changes), 'লোকেশন ও Wi-Fi সেটিংস সেভ হয়েছে')) setLoc(null)
   }
   function myLocation() {
     if (!navigator.geolocation) { setErr('এই ফোন/ব্রাউজারে লোকেশন পাওয়া যায় না'); return }
@@ -202,7 +212,7 @@ export function Hubs() {
       actions={<div className="row hd-acts">
         {!detail.archived_at && can('org.hub.edit') && <>
           <button className="soft" onClick={() => { const h = detail; setDetail(null); openEdit(h) }}><Icon name="edit" /> এডিট</button>
-          <button className="secondary" onClick={() => { const h = detail; setDetail(null); setErr(''); setLoc({ hub: h, lat: gps(h.latitude), lng: gps(h.longitude) }) }}><Icon name="map" /> লোকেশন</button>
+          <button className="secondary" onClick={() => { const h = detail; setDetail(null); setErr(''); setLoc({ hub: h, lat: gps(h.latitude), lng: gps(h.longitude), wifi: h.trip_wifi_ssid ?? '' }) }}><Icon name="map" /> লোকেশন ও Wi-Fi</button>
           <button className="secondary" onClick={() => { const h = detail; setDetail(null); setErr(''); setStat(h) }}>{detail.status === 'active' ? 'বন্ধ করুন' : 'চালু করুন'}</button></>}
         {!detail.archived_at && can('org.hub.archive') && <button className="danger" onClick={() => { const h = detail; setDetail(null); setErr(''); setArch(h) }}>আর্কাইভ</button>}
         <button onClick={() => setDetail(null)}>ঠিক আছে</button></div>}>
@@ -243,7 +253,7 @@ export function Hubs() {
       {err && <p className="da-error">{err}</p>}
     </Modal>}
 
-    {loc && <Modal title={`লোকেশন — ${loc.hub.name} ${codeOf(loc.hub)}`} wide onClose={() => setLoc(null)}
+    {loc && <Modal title={`লোকেশন ও Wi-Fi — ${loc.hub.name} ${codeOf(loc.hub)}`} wide onClose={() => setLoc(null)}
       actions={<><button className="secondary" onClick={() => setLoc(null)}>বাতিল</button><button disabled={busy} onClick={() => void saveLoc()}>সেভ</button></>}>
       <p className="muted sm">ম্যাপে ট্যাপ করে পিন বসান, অথবা নম্বর লিখুন, অথবা হাবে দাঁড়িয়ে "আমার লোকেশন" চাপুন।</p>
       <OsmMap height={300} onPick={(lat, lng) => setLoc({ ...loc, lat: lat.toFixed(7), lng: lng.toFixed(7) })}
@@ -252,6 +262,9 @@ export function Hubs() {
       <div className="hr-form" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
         <Field label="Latitude"><input inputMode="decimal" value={loc.lat} onChange={e => setLoc({ ...loc, lat: e.target.value })} /></Field>
         <Field label="Longitude"><input inputMode="decimal" value={loc.lng} onChange={e => setLoc({ ...loc, lng: e.target.value })} /></Field>
+        <Field label="হাবের Wi-Fi নাম (SSID)" hint="ফোনের Wi-Fi তালিকায় যে নাম দেখা যায় সেটি দিন।" wide>
+          <input maxLength={32} value={loc.wifi} onChange={e => setLoc({ ...loc, wifi: e.target.value })} />
+        </Field>
       </div>
       <div className="row"><button type="button" className="secondary" onClick={myLocation}><Icon name="map" /> আমার লোকেশন</button>
         {num(loc.lat) !== null && num(loc.lng) !== null && <a className="btn-link" href={gmapLink(Number(loc.lat), Number(loc.lng))} target="_blank" rel="noreferrer">Google Maps-এ দেখুন ↗</a>}</div>
