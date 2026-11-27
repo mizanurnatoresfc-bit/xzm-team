@@ -1,3 +1,5 @@
+import { useWorkHubBlocker } from '../../lib/workHub'
+import { useAuth } from '../../auth/AuthProvider'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { askConfirm, askReason } from '../../components/ask'
@@ -66,8 +68,11 @@ function MorningFormCard({ f, onReload, onSubmitted }: { f: MorningForm; onReloa
   const [dirty, setDirty] = useState(false)
   const [saved, setSaved] = useState<'' | 'saving' | 'saved' | 'failed'>('')
   const [busy, setBusy] = useState(false)
+  const { session } = useAuth()
+  useWorkHubBlocker(session?.user.id ?? '', (dirty && saved !== 'saved') || busy)
   const [err, setErr] = useState('')
   const timer = useRef(0)
+  const revision = useRef(0)
 
   // what the server holds is the truth until the manager types something
   useEffect(() => {
@@ -83,9 +88,11 @@ function MorningFormCard({ f, onReload, onSubmitted }: { f: MorningForm; onReloa
 
   function change(next: Record<string, TypedState>) {
     setMarks(next); setDirty(true); setSaved('saving'); window.clearTimeout(timer.current)
+    const changeId = ++revision.current
     timer.current = window.setTimeout(() => {
       morning.save(hubId, Object.entries(next).map(([employee_id, state]) => ({ employee_id, state })), f.date)
-        .then(() => setSaved('saved')).catch(() => setSaved('failed'))
+        .then(() => { if (changeId === revision.current) setSaved('saved') })
+        .catch(() => { if (changeId === revision.current) setSaved('failed') })
     }, 700)
   }
   const set = (id: string, s: TypedState) => change({ ...marks, [id]: s })

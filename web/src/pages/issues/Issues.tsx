@@ -1,3 +1,4 @@
+import { useWorkHub } from '../../lib/workHub'
 import { EvidencePicker } from '../../components/EvidencePicker'
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -59,6 +60,8 @@ function useEvery(seconds: number, fn: () => void) {
 const uniq = (rows: IssueRow[]) => [...new Map(rows.map(r => [r.id, r])).values()]
 
 export function Issues() {
+  const { session } = useAuth()
+  const workHub = useWorkHub(session?.user.id ?? '')
   const [sp, setSp] = useSearchParams()
   const { toast, node } = useToast()
   const [ui, setUi] = useUi()
@@ -73,6 +76,7 @@ export function Issues() {
   const [desk, setDesk] = useState(false)
   const p: Panels = panels.data ?? { mine: [], to_check: [], given: [], waiting_for_check_of_mine: [], hub: [] }
   const hubs = groups.data ?? []
+  const defaultHub = hubs.find(h => h.hub_id === workHub)?.hub_id ?? hubs[0]?.hub_id ?? ''
   const asked = sp.get('tab') as Filter | null
   const filter: Filter = asked && FILTERS.includes(asked) ? asked : ui.first
   const open = sp.get('id')
@@ -92,9 +96,9 @@ export function Issues() {
   useEffect(() => {
     if (!sp.get('new') || !hubs.length) return
     setResidential(sp.get('new') === 'residential')
-    setCreating(c => c ?? hubs.find(h => h.hub_id === sp.get('hub'))?.hub_id ?? hubs[0].hub_id)
+    setCreating(c => c ?? hubs.find(h => h.hub_id === sp.get('hub'))?.hub_id ?? defaultHub)
     const n = new URLSearchParams(sp); n.delete('new'); n.delete('hub'); setSp(n, { replace: true })
-  }, [sp, hubs, setSp])
+  }, [sp, hubs, defaultHub, setSp])
   // ...and /app/issues?order=store (or it) opens the order form.
   useEffect(() => {
     const k = sp.get('order')
@@ -124,7 +128,7 @@ export function Issues() {
 
   const bar = <div className="mg-bar">
     <label className="mg-search"><Icon name="search" size={16} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="খুঁজুন — নাম, আইডি, হাব…" aria-label="ইস্যু খুঁজুন" /></label>
-    {hubs.length > 0 && <button type="button" className="mg-ic primary" title="নতুন ইস্যু" aria-label="নতুন ইস্যু" onClick={() => setCreating(group?.hub_id ?? hubs[0].hub_id)}><Icon name="plus" size={18} /></button>}
+    {hubs.length > 0 && <button type="button" className="mg-ic primary" title="নতুন ইস্যু" aria-label="নতুন ইস্যু" onClick={() => setCreating(group?.hub_id ?? defaultHub)}><Icon name="plus" size={18} /></button>}
     {hubs.length > 0 && <button type="button" className="mg-ic" title="স্টোর / আইটি অর্ডার দিন" aria-label="স্টোর / আইটি অর্ডার দিন" onClick={() => setOrdering('store')}><Icon name="box" size={18} /></button>}
     <div className="mg-view" role="group" aria-label="চেহারা">
       <button type="button" className={ui.view === 'chat' ? 'on' : ''} aria-pressed={ui.view === 'chat'} onClick={() => setUi({ view: 'chat' })}>চ্যাট</button>
@@ -164,7 +168,7 @@ export function Issues() {
       </aside>
       <section className="mg-main">{chat ?? <div className="mg-none"><Icon name="note" size={38} /><b>একটি ইস্যু বা গ্রুপ বেছে নিন</b>
         <p>বাম পাশের তালিকা থেকে যেটায় চাপবেন সেটির পুরো কথা এখানে খুলবে।</p>
-        {hubs.length > 0 && <button type="button" onClick={() => setCreating(hubs[0].hub_id)}><Icon name="plus" size={15} /> নতুন ইস্যু</button>}</div>}</section>
+        {hubs.length > 0 && <button type="button" onClick={() => setCreating(defaultHub)}><Icon name="plus" size={15} /> নতুন ইস্যু</button>}</div>}</section>
     </div> : <div className={`bd${ui.dense ? ' dense' : ''}`}>
       {bar}{chipRow}{deskRow}
       {(shownHubs.length > 0 || shownZones.length > 0) && <div className="bd-groups">{shownZones.map(z => <button key={z.zone_id} type="button" className="mg-chip" onClick={() => openZone(z.zone_id)}>🗺 {z.zone_name} জোন গ্রুপ{z.unseen > 0 && <b>{z.unseen}</b>}</button>)}{shownHubs.map(h => <button key={h.hub_id} type="button" className="mg-chip" onClick={() => openGroup(h.hub_id)}>💬 {h.hub_name} গ্রুপ{h.unseen > 0 && <b>{h.unseen}</b>}</button>)}</div>}
@@ -175,7 +179,7 @@ export function Issues() {
     {desk && <Modal wide title="স্টোর / আইটি অর্ডার কে পাবেন" onClose={() => setDesk(false)} actions={<button type="button" onClick={() => setDesk(false)}>বন্ধ</button>}>
       <OrderDesk canOrder={hubs.length > 0} onOrder={k => { setDesk(false); setOrdering(k) }} /></Modal>}
     {creating && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
-    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('g'); n.set('id', id) }) }} />}
+    {ordering && <NewOrder hubs={hubs} initialHub={defaultHub} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('g'); n.set('id', id) }) }} />}
     {node}
   </AppShell>
 }
@@ -550,9 +554,9 @@ function OrderDesk({ canOrder, onOrder }: { canOrder: boolean; onOrder: (k: Orde
 }
 
 /** Order form: Store or IT, which hub, what is needed in the person's own words. It goes to the in-charge by itself. */
-function NewOrder({ hubs, kind: k0, onClose, onDone }: { hubs: GroupHub[]; kind: OrderKind; onClose: () => void; onDone: (id: string) => void }) {
+function NewOrder({ hubs, initialHub, kind: k0, onClose, onDone }: { hubs: GroupHub[]; initialHub: string; kind: OrderKind; onClose: () => void; onDone: (id: string) => void }) {
   const [kind, setKind] = useState<OrderKind>(k0)
-  const [hub, setHub] = useState(hubs[0]?.hub_id ?? '')
+  const [hub, setHub] = useState(initialHub)
   const [text, setText] = useState('')
   const [priority, setPriority] = useState<Priority>('normal')
   const [due, setDue] = useState('')

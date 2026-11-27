@@ -1,3 +1,5 @@
+import { useAuth } from '../../auth/AuthProvider'
+import { useWorkHub } from '../../lib/workHub'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { collectorsNeeded, da, num, taka, dateBn, timeBn, todayDhaka, addDays, STATUS_LABEL, type SheetStatus, type SessionRow, type FlowRow } from '../../lib/dailyAccounts'
@@ -13,6 +15,8 @@ const wide = () => typeof matchMedia === 'function' && matchMedia('(min-width:90
 // Accounts Management → Daily Accounts (আজকের হিসাব খাতা): which hubs have given today's sheet, and the way into each one.
 export function DailyDashboard() {
   const nav = useNavigate()
+  const { session } = useAuth()
+  const workHub = useWorkHub(session?.user.id ?? '')
   const today = todayDhaka()
   const [range, setRange] = useState<Range>('today')
   const [from, setFrom] = useState(today)
@@ -67,7 +71,7 @@ export function DailyDashboard() {
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }
   const existingFor = (h: string, date: string) => all.find(r => r.hub_id === h && r.account_date === date)
-  const begin = (h?: string) => { setErr(null); setStart({ hub: h ?? startable[0].hub_id, date: oneDay ? from : today }) }
+  const begin = (h?: string) => { setErr(null); setStart({ hub: h ?? startable.find(item => item.hub_id === workHub)?.hub_id ?? startable[0].hub_id, date: oneDay ? from : today }) }
   const canStart = (h: string) => startable.some(x => x.hub_id === h)
   const RANGES: Array<[Range, string]> = [['today', 'আজ'], ['yesterday', 'গতকাল'], ['week', '৭ দিন'], ['month', 'এ মাস'], ['custom', range === 'custom' ? `${dateBn(from)} – ${dateBn(to)}` : 'তারিখ বাছুন']]
   const STATUSES: Array<[SheetStatus | 'none' | '', string, number, string]> = [['', 'সব', total, ''], ['open', STATUS_LABEL.open, count('open'), ''], ['submitted', 'যাচাই বাকি', count('submitted'), count('submitted') ? 'warn' : ''],

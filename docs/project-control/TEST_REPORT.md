@@ -17,6 +17,17 @@ Format:
 
 ---
 
+## XZM-012 — Hub Switching Development — 2026-11-27
+
+- Base revision `6831f29`. The existing selector was in My Permissions, with a same-tab custom event. The manager staff view had a second, non-user-keyed preference. Hub rider routes had a local override.
+- Dashboard, attendance and hub management already resolved the saved hub in their accessible lists. The attendance overview and final register check response IDs. This change adds the waiting marks and manager staff response checks.
+- Hub registers link to attendance, accounts and personal register views. Pending-review integration remains in #197 and #210. Staff bulk views and reports retain their cross-hub filters.
+- Daily accounts start and new issue/order defaults use an eligible working hub. Account reports, operations collection comparisons and explicit issue/group/record links keep their own scope. Route Planning's hub rider pane uses the working hub. Zone planning keeps the zone and plan-specific controls.
+- Data Entry has no route in base main. The module is under development in #207. Sorting center assignment, office and residential property references, and fleet assignment/dispatch have separate record or comparison scopes. Runtime validation across those modules remains pending.
+- Source authorization reviewed for the hub roster (`hubs_read`, `private.has_permission`), workforce RPC hub resolution (`private.wf_hubs`) and issue visibility (`private.can_see_issue`, `private.in_hub_group`). The roster depends on authenticated RLS. Module permissions can be narrower. The migration drift in R-003 means source review does not verify live policies. No database or hosting configuration changes.
+- TypeScript and build passed. Parser, navigation, routes, plan and check-in suites passed. npm clean install failed against the base lockfile (also the subject of #198). Local installation used `npm install --no-package-lock`. The repository has no lint script. Local PostgreSQL/Docker was unavailable. Android's Capacitor configuration loads the production URL, so a separate test wrapper/build remains necessary for isolated WebView tests.
+- Focused Playwright PC/phone checks used a local build with a reserved `.invalid` Supabase hostname and intercepted API responses. Covered Super Admin, scoped Zonal Manager, Hub Manager, Staff and Rider fixtures, refresh, back/forward, two tabs, rejected saved hub, deep links, draft protection and draft RPC hub ID. Offline browser suite passed with the same isolation.
+
 ## XZM-006 — Backup & Recovery Deep Verification — 2026-11-27 (post-merge)
 
 - **Environment:** N/A (read-only audit, no runtime).

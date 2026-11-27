@@ -1,3 +1,5 @@
+import { useWorkHubBlocker } from '../../lib/workHub'
+import { useAuth } from '../../auth/AuthProvider'
 // লগইন সেটআপ — the hub makes the logins of its own riders and plain staff (login ID = Employee ID),
 // and gives a new password to one who forgot it. Roles come from the person's post; nothing else can be chosen here.
 import { useState } from 'react'
@@ -25,6 +27,8 @@ export function HubLogins({ hub }: { hub: { id: string; name: string } }) {
   const [pw, setPw] = useState('')
   const [show, setShow] = useState(true)
   const [busy, setBusy] = useState(false)
+  const { session } = useAuth()
+  useWorkHubBlocker(session?.user.id ?? '', !!make || !!reset || busy)
   const [err, setErr] = useState('')
   const [run, setRun] = useState<{ done: number; total: number; bad: string[] } | null>(null)
   const rows = list.data ?? []

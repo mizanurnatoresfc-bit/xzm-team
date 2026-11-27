@@ -1,3 +1,5 @@
+import { useWorkHubBlocker } from '../../lib/workHub'
+import { useAuth } from '../../auth/AuthProvider'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Icon } from '../../components/Icon'
@@ -54,6 +56,8 @@ export function FinalSheetTab({ hubId }: { hubId: string }) {
   }, [d]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
+  const { session } = useAuth()
+  useWorkHubBlocker(session?.user.id ?? '', dirty || busy)
   const [preview, setPreview] = useState(false)
   const [unlock, setUnlock] = useState(false)
   const [sendAsk, setSendAsk] = useState(false)

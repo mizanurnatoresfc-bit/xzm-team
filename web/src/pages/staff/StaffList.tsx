@@ -13,6 +13,7 @@ import { Icon } from '../../components/Icon'
 import { Combo, TextInput } from '../../components/inputs'
 import { RowMenu, type RowMenuItem } from '../../components/RowMenu'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
+import { resolveWorkHub, useWorkHub, useWorkHubBlocker } from '../../lib/workHub'
 import { usePrefs } from '../../lib/prefs'
 import { bn, dmy, EMP_STATUS, hr, hrFriendly, todayDhaka, type Employee, type EmployeeStatus } from '../../lib/hr'
 import { customFields, formatFriendly, staffAdmin } from '../../lib/staffAdmin'
@@ -24,7 +25,6 @@ import { EmpBadge, NewApplication, useOrg } from '../hr/common'
 import { HubPostMatrix } from '../zonal/HubPostMatrix'
 import '../hr/Employees.css'
 
-const HUB_KEY = 'xzm_manager_staff_hub'
 const STATUS_TABS: Array<[string, string]> = [['active', 'সক্রিয়'], ['applicant', 'আইডির অপেক্ষায়'], ['inactive', 'নিষ্ক্রিয়'], ['', 'সব']]
 const inStatus = (e: Employee, s: string) => !s || e.status === s || (s === 'inactive' && ['inactive', 'resigned', 'terminated'].includes(e.status))
 
@@ -42,7 +42,9 @@ export function StaffList() {
 type Act = null | { kind: 'leave' | 'transfer'; emp: Employee } | { kind: 'join' }
 
 function HubManagerView() {
-  const { grants, can } = useAuth()
+  const { grants, can, session } = useAuth()
+  const user = session?.user.id ?? ''
+  const preferred = useWorkHub(user)
   const { L, n } = usePrefs()
   const o = useOrg()
   const { toast, node } = useToast()
@@ -50,12 +52,18 @@ function HubManagerView() {
   const tab = sp.get('tab') === 'pending' ? 'pending' : 'active'
   const decides = can('hr.request.approve')
   const hubs = useMemo(() => scopeHubs(grants, o.data?.hubs, 'hr.request.create'), [grants, o.data])
-  const [picked, setPicked] = useState(() => { try { return localStorage.getItem(HUB_KEY) ?? '' } catch { return '' } })
-  const hub = hubs.find(h => h.id === picked) ?? hubs[0] ?? null
-  const choose = (id: string) => { setPicked(id); try { localStorage.setItem(HUB_KEY, id) } catch { /* private window */ } }
-  const staff = useLoad(() => (hub ? hr.employees({ hub: hub.id, status: 'active', limit: 1000 }) : Promise.resolve([] as Employee[])), [hub?.id])
-  const pending = useLoad(() => (hub ? lifecycle.pendingForHub(hub.id) : Promise.resolve([] as PendingReq[])), [hub?.id])
+  const hub = resolveWorkHub(hubs, preferred)
+  const hubId = hub?.id
+  const staffQ = useLoad(async () => ({
+    hubId, rows: hubId ? await hr.employees({ hub: hubId, status: 'active', limit: 1000 }) : [] as Employee[],
+  }), [hubId])
+  const pendingQ = useLoad(async () => ({
+    hubId, rows: hubId ? await lifecycle.pendingForHub(hubId) : [] as PendingReq[],
+  }), [hubId])
+  const staff = { ...staffQ, data: staffQ.data?.hubId === hubId ? staffQ.data?.rows ?? null : null }
+  const pending = { ...pendingQ, data: pendingQ.data?.hubId === hubId ? pendingQ.data?.rows ?? null : null }
   const [act, setAct] = useState<Act>(null)
+  useWorkHubBlocker(user, !!act)
   const waiting = useMemo(() => new Set((pending.data ?? []).filter(p => p.kind === 'id_inactive' && p.employee_id).map(p => p.employee_id as string)), [pending.data])
   const done = (m: string) => { setAct(null); toast(m); void staff.reload(); void pending.reload() }
   const canJoin = can('hr.application.create')
@@ -72,10 +80,7 @@ function HubManagerView() {
     actions={<>{decides && <Link to="/app/zonal/requests" className="btn-ghost">{L('অনুরোধ ইনবক্স', 'Request inbox')}</Link>}
       {canJoin && hub && <button onClick={() => setAct({ kind: 'join' })}><Icon name="userplus" size={16} />{L('নতুন স্টাফ যোগ', 'Add new staff')}</button>}</>}>
     {node}
-    {hubs.length > 1 && <section className="da-filters panel no-print">
-      <Field label={L('হাব', 'Hub')}><Combo value={hub?.id ?? ''} onChange={v => v && choose(v)} clearable={false}
-        options={hubs.map(h => ({ value: h.id, label: h.name, sub: o.names.zone[h.zone_id] }))} /></Field>
-    </section>}
+    {hubs.length > 0 && !hub && <p className="notice">{L('হেডার থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in the header.')}</p>}
     {!o.loading && !hubs.length && <p className="notice">{L('আপনাকে কোনো হাবের দায়িত্ব দেওয়া হয়নি।', 'No hub is assigned to you.')}</p>}
 
     {hub && <>

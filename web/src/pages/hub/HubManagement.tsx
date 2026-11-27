@@ -10,7 +10,7 @@ import { Icon } from '../../components/Icon'
 import { RouteViz } from '../../components/RouteViz'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
-import { resolveWorkHub, useWorkHub } from '../../lib/workHub'
+import { resolveWorkHub, useWorkHub, useWorkHubBlocker } from '../../lib/workHub'
 import { autoCode, hrFriendly, type Employee, type Hub } from '../../lib/hr'
 import { da, STATUS_LABEL, taka, type SessionRow } from '../../lib/dailyAccounts'
 import { routesApi, type HubRoute } from '../../lib/hub'
@@ -58,7 +58,7 @@ export function HubManagement() {
     {!allowed ? <p className="notice">{L('এই পাতা দেখার অনুমতি আপনার রোলে নেই।', 'Your role may not open this page.')}</p>
       : o.data && !hubs.length ? <p className="notice">{L('আপনার দেখার মতো কোনো হাব নেই।', 'There is no hub you can see.')}</p>
       : current ? <Body key={current.id} section={sec.key} hub={current} />
-      : hubs.length ? <p className="notice"><Link to="/app/me/permissions">{L('আমার অনুমতি থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in My permissions.')}</Link></p>
+      : hubs.length ? <p className="notice">{L('হেডার থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in the header.')}</p>
       : <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
   </AppShell>
 }
@@ -88,6 +88,7 @@ function PickupToday({ hub }: { hub: Hub }) {
   const [f, setF] = useState<{ source: string; merchant: string; parcels: string; cod: string; collection: string; trip: string; note: string } | null>(null)
   const [mf, setMf] = useState<{ code: string; name: string; phone: string } | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  useWorkHubBlocker(session?.user.id ?? '', !!f || !!mf || busy)
   const rows = list.data ?? []
   const sum = (k: 'parcel_count' | 'cod_amount' | 'collection_amount') => rows.filter(r => r.status !== 'rejected').reduce((a, r) => a + Number(r[k] || 0), 0)
   async function save() {
@@ -195,6 +196,7 @@ function TasksToday({ hub }: { hub: Hub }) {
   const [show, setShow] = useState<'today' | 'open' | 'all'>('today')
   const [f, setF] = useState<{ id?: string; title: string; assignee: string; due: string; priority: string; description: string } | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  useWorkHubBlocker(session?.user.id ?? '', !!f || busy)
   const all = list.data ?? []
   const open = (t: HubTask) => t.status !== 'completed' && t.status !== 'cancelled'
   const rows = show === 'all' ? all : show === 'open' ? all.filter(open) : all.filter(t => (open(t) && t.due_date <= date) || t.due_date === date)
@@ -281,13 +283,14 @@ const METRIC_FIELDS: Array<[keyof Omit<MetricForm, 'note'>, string, string, stri
 ]
 
 function OpsToday({ hub }: { hub: Hub }) {
-  const { can } = useAuth()
+  const { can, session } = useAuth()
   const { L, n } = usePrefs()
   const { toast, node } = useToast()
   const date = hubToday()
   const m = useLoad(() => hubApi.metric(hub.id, date), [hub.id, date])
   const [f, setF] = useState<MetricForm | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  useWorkHubBlocker(session?.user.id ?? '', !!f || busy)
   const canWrite = can('zonal.hub_metric.create')
   const open = (x: HubMetric | null) => setF({ pickup_count: String(x?.pickup_count ?? ''), delivery_count: String(x?.delivery_count ?? ''), pending_parcels: String(x?.pending_parcels ?? ''),
     merchant_count: String(x?.merchant_count ?? ''), rider_count: String(x?.rider_count ?? ''), cash_collected: String(x?.cash_collected ?? ''), expenses: String(x?.expenses ?? ''), note: x?.note ?? '' })
@@ -394,21 +397,18 @@ export function HubRoutesPane() {
   const o = useOrg()
   const preferred = useWorkHub(session?.user.id ?? '')
   const hubs = useMemo(() => (o.data?.hubs ?? []).filter(h => !h.archived_at), [o.data])
-  const [pick, setPick] = useState('')
-  const current = hubs.find(h => h.id === pick) ?? resolveWorkHub(hubs, preferred)
+  const current = resolveWorkHub(hubs, preferred)
   return <>
     {o.error ? <p className="da-error">{hrFriendly(o.error)}</p> : null}
-    {hubs.length > 1 && <section className="da-filters panel no-print"><Field label={L('হাব', 'Hub')}><select value={current?.id ?? ''} onChange={e => setPick(e.target.value)}>
-      {hubs.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}</select></Field></section>}
     {current ? <RiderRoutes key={current.id} hub={current} />
       : o.data && !hubs.length ? <p className="notice">{L('আপনার দেখার মতো কোনো হাব নেই।', 'There is no hub you can see.')}</p>
-      : hubs.length ? <p className="notice"><Link to="/app/me/permissions">{L('আমার অনুমতি থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in My permissions.')}</Link></p>
+      : hubs.length ? <p className="notice">{L('হেডার থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in the header.')}</p>
       : <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
   </>
 }
 
 function RiderRoutes({ hub }: { hub: Hub }) {
-  const { can } = useAuth()
+  const { can, session } = useAuth()
   const { L, n } = usePrefs()
   const { toast, node } = useToast()
   const routes = useLoad(() => routesApi.list(hub.id), [hub.id])
@@ -420,6 +420,7 @@ function RiderRoutes({ hub }: { hub: Hub }) {
   const [f, setF] = useState<{ id?: string; code: string; name: string; areas: string; note: string } | null>(null)
   const [pick, setPick] = useState<{ route: HubRoute; ids: string[]; all: boolean } | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  useWorkHubBlocker(session?.user.id ?? '', !!f || !!pick || busy)
   const edit = can('ops.route.edit')
   const ridersOf = (id: string) => (riders.data ?? []).filter(r => r.route_id === id)
   const routesOf = (empId: string) => (riders.data ?? []).filter(r => r.employee_id === empId).length

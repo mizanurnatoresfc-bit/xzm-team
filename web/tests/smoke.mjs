@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os'
 import { createRequire } from 'node:module'
 const { chromium } = createRequire(import.meta.url)('playwright')
 
-const PORT = 4179, BASE = `http://localhost:${PORT}`
+const authStorageKey = process.env.TEST_AUTH_STORAGE_KEY ?? 'sb-ndgnhvbpmtxrpplgsslz-auth-token'
+const PORT = process.env.XZM_HUB_ONLY ? 4181 : 4179, BASE = `http://localhost:${PORT}`
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url')
 const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'u1', role: 'authenticated', exp: 4102444800, email: 'owner@example.com' })}.sig`
 const session = { access_token: jwt, refresh_token: 'r', token_type: 'bearer', expires_in: 3600, expires_at: 4102444800,
@@ -81,15 +82,15 @@ try {
   for (const [size, viewport] of [['pc', { width: 1366, height: 800 }], ['phone', { width: 390, height: 800 }]]) {
     // --- not signed in: every app page goes to the login screen
     const anon = await browser.newContext({ viewport, serviceWorkers: 'block' })
-    await anon.route(/supabase\.co|fonts\.(googleapis|gstatic)/, r => r.abort())
+    await anon.route(/supabase\.co|xzm-hub-test\.invalid|fonts\.(googleapis|gstatic)/, r => r.abort())
     const lp = await anon.newPage()
     await lp.goto(`${BASE}/app/hr/employees`); await lp.waitForURL(/\/staff\/login/, { timeout: 8000 }).catch(() => {})
     check(/\/staff\/login/.test(lp.url()), `${size}: signed-out visitor is sent to the login page`)
     // forgot password: an Employee ID gets told whom to ask; an email gets a link (the same answer whether or not it exists)
     const recover = []
-    await anon.unroute(/supabase\.co|fonts\.(googleapis|gstatic)/)
+    await anon.unroute(/supabase\.co|xzm-hub-test\.invalid|fonts\.(googleapis|gstatic)/)
     await anon.route(/fonts\.(googleapis|gstatic)/, r => r.abort())
-    await anon.route(/supabase\.co/, r => {
+    await anon.route(/supabase\.co|xzm-hub-test\.invalid/, r => {
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (r.request().url().includes('/auth/v1/recover')) { recover.push({ url: r.request().url(), body: r.request().postDataJSON() }); return r.fulfill({ status: 200, contentType: 'application/json', headers: cors, body: '{}' }) }
@@ -106,9 +107,11 @@ try {
 
     // --- signed in as the Super Admin
     const ctx = await browser.newContext({ viewport, serviceWorkers: 'block' })
-    await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
+    await ctx.addInitScript(({ key, data }) => { localStorage.setItem(key, data) }, { key: authStorageKey, data: JSON.stringify(session) })
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
+    let permittedHubs = hubRows
+    let scopedGrants = null
     let morningDone = false
     let morningWindow = 'open'
     let morningBoundary = 0
@@ -158,13 +161,14 @@ try {
       rq('q2', 'HR-00002', 'e02', 'h4', 'processing', { employee_code: '5002', full_name: 'Karim Ali', from_hub: 'Boraigram', to_hub: 'h1', effective_date: '2026-11-22', reason: 'Punishment transfer', new_basic: '14000' }),
       rq('q1', 'HR-00001', 'e01', 'h4', 'submitted', { employee_code: '5001', full_name: 'Rahim Sheikh', from_hub: 'Boraigram', to_hub: 'h2', effective_date: '2026-11-20', reason: 'Lalpur service better' }, { ref_name: 'Zonal Karim', ref_code: '777' }),
       { ...rq('q3', 'HR-00003', 'e03', 'h1', 'submitted', { full_name: 'Someone Else' }), kind: 'id_active', format_id: 'f-active' }]
-    await ctx.route(/supabase\.co/, r => {
+    await ctx.route(/supabase\.co|xzm-hub-test\.invalid/, r => {
       const u = r.request().url()
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
       const j = d => r.fulfill({ status: 200, contentType: 'application/json', headers: { ...cors, 'content-range': '0-0/0' }, body: JSON.stringify(d) })
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (u.includes('/auth/v1/user')) return j(session.user)
       if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
+      if (u.includes('rpc/my_permissions') && scopedGrants) return j(scopedGrants)
       if (u.includes('rpc/my_permissions') && permsNow) return j(permsNow.map(c => ({ permission_code: c, scope_type: 'global', zone_id: null, hub_id: null, is_super: false })))
       if (u.includes('rpc/my_permissions')) return j(plainStaff ? [{ permission_code: 'hr.attendance.self', scope_type: 'global', zone_id: null, hub_id: null, is_super: false }]
         : [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])
@@ -302,6 +306,7 @@ try {
           people: [{ employee_id: 'e02', code: '7982', name: 'Alamin Sarker', position: 'Rider', position_code: 'rider', has_login: true, saved: false, record_status: null, explanations: [],
             mark: { id: 'm1', kind: 'present', note: null, status: 'waiting', marked_at: `${d}T04:00:00Z`, applied_on_site: null, site_applied_on: null, site_ref: null, application_no: null },
             value: { manager_ok: null, final_status: null, late_time: null, online_marked: null, online_reason: null, absence_app_date: null, absence_app_ref: null, unauthorized: false, note: null } }] }) }
+      if (u.includes('rpc/att_sheet_save')) return j('fixture-sheet')
       if (u.includes('rpc/wf_applications')) return j([])
       // the staff work profile: one person with a submitted and a draft register, a cancelled route and a delivery line
       if (u.includes('rpc/staff_profile_people')) return j([{ id: 'e02', code: '7982', name: 'Alamin Sarker', post: 'Rider', status: 'active' }])
@@ -499,7 +504,7 @@ try {
         { id: 'e99', employee_code: null, full_name: 'No ID Yet', mobile: null, hub_id: 'h2', zone_id: 'z1', position_id: 'p1' }])
       if (u.includes('/rest/v1/employees') && u.includes('id=eq.e01')) return j([{ ...staffRows[1], mobile: null, full_name_bn: null, joining_date: '2026-01-01', department_id: 'd1', zone_id: 'z1' }])
       if (u.includes('/rest/v1/zones')) return j([{ id: 'z1', name: 'Natore Area', code: 'NT', archived_at: null }])
-      if (u.includes('/rest/v1/hubs')) return j(hubRows)
+      if (u.includes('/rest/v1/hubs')) return j(permittedHubs)
       if (u.includes('/rest/v1/positions')) return j([{ id: 'p1', department_id: 'd1', code: 'rider', name: 'Rider', name_bn: null, status: 'active', archived_at: null, default_role_id: 'r3' }])
       if (u.includes('/rest/v1/employees') && u.includes('mobile=eq.01711000000')) return j([{ id: 'e01', employee_code: '1001', full_name: 'Staff 01', status: 'active', hub_id: 'h2' }])
       if (u.includes('/rest/v1/employees') && u.includes('hub_id=eq.h2') && r.request().method() === 'GET') return j(staffRows)
@@ -519,6 +524,67 @@ try {
     const nativeDialogs = []; page.on('dialog', d => { nativeDialogs.push(`${d.type()}: ${d.message().slice(0, 60)}`); void d.accept() })
     const fits = async where => check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${size}: ${where} does not scroll sideways`)
 
+    await page.goto(`${BASE}/app/me/permissions`)
+    {
+      const workHub = page.getByRole('combobox', { name: 'কাজের হাব', exact: true })
+      await workHub.selectOption('h2')
+      await page.waitForSelector('.mp-current:has-text("Lalpur #81")')
+      check(await page.locator('header .work-hub-select').count() === 1
+        && await page.locator('main .work-hub-select').count() === 0, `${size}: the working hub selector is in the global header`)
+      await fits('my permissions')
+      await page.goto(`${BASE}/app/attendance?view=hub`)
+      await page.waitForSelector('.wm .da-bar:has-text("Lalpur #81")')
+      await page.goBack()
+      await page.waitForSelector('.mp-current:has-text("Lalpur #81")')
+      await page.goForward()
+      await page.waitForSelector('.wm .da-bar:has-text("Lalpur #81")')
+      const secondTab = await ctx.newPage()
+      await secondTab.goto(`${BASE}/app/me/permissions`)
+      await secondTab.getByRole('combobox', { name: 'কাজের হাব', exact: true }).selectOption('h1')
+      await page.waitForSelector('.wm .da-bar:has-text("Natore Sadar #80")')
+      check(await workHub.inputValue() === 'h1', `${size}: changing the hub in another tab updates attendance and the header`)
+      await secondTab.close()
+      await page.reload()
+      await page.waitForSelector('.wm .da-bar:has-text("Natore Sadar #80")')
+      check(await workHub.inputValue() === 'h1', `${size}: the working hub persists across navigation and refresh`)
+      await page.goto(`${BASE}/app/attendance?view=hub&hub=h2`)
+      await page.waitForSelector('.wm .da-bar:has-text("Lalpur #81")')
+      check(await workHub.inputValue() === 'h1', `${size}: a hub deep link opens its own hub while preserving the working hub`)
+      await page.goto(`${BASE}/app/attendance?view=hub&hub=unlisted`)
+      await page.getByText('লিংকের হাবটি দেখা যাচ্ছে না।', { exact: false }).waitFor()
+      check(await page.locator('.wm .da-bar').count() === 0, `${size}: an unlisted hub link does not substitute another hub's data`)
+    }
+    if (process.env.XZM_HUB_ONLY) {
+      const workHub = page.locator('header .work-hub-select')
+      await page.goto(`${BASE}/app/attendance?view=hub&tab=final`)
+      await page.getByRole('button', { name: 'বাকি সবাই উপস্থিত' }).click()
+      await workHub.selectOption('h2')
+      await page.getByText('হাব বদলানোর আগে বর্তমান কাজ সেভ করুন।').waitFor()
+      check(await workHub.inputValue() === 'h1', `${size}: an unsaved final register blocks a header switch`)
+      const secondTab = await ctx.newPage()
+      await secondTab.goto(`${BASE}/app/me/permissions`)
+      await secondTab.locator('header .work-hub-select').selectOption('h2')
+      const draft = page.locator('.as-bar').getByRole('button', { name: 'সেভ করুন', exact: true })
+      check(await draft.isEnabled() && await workHub.inputValue() === 'h1', `${size}: an unsaved register defers a switch from another tab`)
+      const saveRequest = page.waitForRequest(r => r.url().includes('/rpc/att_sheet_save'))
+      await draft.click()
+      check((await saveRequest).postDataJSON().p_hub === 'h1', `${size}: the draft saves against the displayed hub`)
+      await page.waitForFunction(() => document.querySelector('header .work-hub-select')?.value === 'h2')
+      await secondTab.close()
+      for (const [role, scope, count] of [['Zonal Manager', 'zone', 2], ['Hub Manager', 'hub', 1], ['Staff', 'hub', 1], ['Rider', 'hub', 1]]) {
+        permittedHubs = hubRows.slice(0, count)
+        scopedGrants = [{ permission_code: 'org.hub.view', scope_type: scope, zone_id: scope === 'zone' ? 'z1' : null, hub_id: scope === 'hub' ? 'h1' : null, is_super: false }]
+        await page.goto(`${BASE}/app/me/permissions`)
+        await workHub.waitFor()
+        check((await workHub.locator('option:not([disabled])').count()) === count, `${size}: ${role} sees only the hub roster returned for their fixture`)
+        if (role === 'Hub Manager') {
+          check(await workHub.inputValue() === '', `${size}: a saved hub outside the updated roster is rejected`)
+          await workHub.selectOption('h1')
+        }
+      }
+      await ctx.close()
+      continue
+    }
     await page.goto(`${BASE}/app`); await page.waitForSelector('.da-main h1', { state: 'attached' })
     check((await page.locator('.da-main h1').textContent()).includes('হোম') && (await page.locator('.greet h2').textContent()).includes('Owner'), `${size}: dashboard opens (title হোম, name in the greeting)`); await fits('dashboard')
     // আমার অনুমোদন: riders' pickup, delivery and money, and staff bills, on one card
@@ -865,24 +931,6 @@ try {
     await page.goto(`${BASE}/app/attendance`); await page.waitForSelector('.wm, .wf', { timeout: 10000 }).catch(() => {})
     check(await page.locator('.wm, .wf').count() > 0, `${size}: the attendance page opens`)
     await fits('attendance page')
-    await page.goto(`${BASE}/app/me/permissions`)
-    { const workHub = page.getByRole('combobox', { name: 'কাজের হাব', exact: true })
-      const applyHub = page.getByRole('button', { name: 'বদলান', exact: true })
-      await workHub.fill('81')
-      await page.getByRole('option', { name: /Lalpur #81/ }).click()
-      check((await page.locator('.mp-current').innerText()).includes('Natore Sadar #80'), `${size}: choosing a hub leaves the current hub in place until Switch`)
-      await applyHub.click()
-      await page.waitForSelector('.mp-current:has-text("Lalpur #81")')
-      await fits('my permissions')
-      await page.goto(`${BASE}/app/attendance?view=hub`)
-      await page.waitForSelector('.wm .da-bar:has-text("Lalpur #81")')
-      check(await page.locator('.wm-top select[aria-label="হাব"], .wm-top select:has(option[value="h2"])').count() === 0, `${size}: attendance uses the saved hub and has no working-hub dropdown`)
-      await page.goto(`${BASE}/app/me/permissions`)
-      await page.waitForSelector('.mp-current:has-text("Lalpur #81")')
-      await workHub.fill('80')
-      await page.getByRole('option', { name: /Natore Sadar #80/ }).click()
-      await applyHub.click()
-    }
     // The approval queue groups waiting items. The final register is still how attendance reaches the register.
     await page.goto(`${BASE}/app/attendance?view=hub`); await page.waitForSelector('.wm .wm-tabs', { timeout: 10000 }).catch(() => {})
     { const parts = await page.locator('.wm .wm-tabs').first().innerText().catch(() => '')
