@@ -58,11 +58,15 @@ export const routeApi = {
   setRiders: (route: string, employees: string[]) => rpc<{ added: number; ended: number }>('route_riders_set', { p_route: route, p_employees: employees }),
   day: (zone: string, date: string) => rpc<{ date: string; routes: DayRoute[] }>('route_day', { p_zone: zone, p_date: date }),
   mine: async () => { const r = await rpc<{ date: string; routes: MyRoute[] }>('my_route_today'); return { ...r, routes: (r.routes ?? []).map(x => ({ ...fixRoute(x), hub: { ...x.hub, lat: numOrNull(x.hub?.lat), lng: numOrNull(x.hub?.lng) } })) } },
-  checkin: (stop: string, lat: number, lng: number, accuracy: number | null, note?: string) =>
-    rpc<{ distance_m: number; near: boolean; radius_m: number }>('route_checkin', { p_stop: stop, p_lat: lat, p_lng: lng, p_accuracy: accuracy, p_note: note || null }),
+  /** `at` = when the phone really took the reading (a check-in kept offline); left out, the server uses the time it arrives. */
+  checkin: (stop: string, lat: number, lng: number, accuracy: number | null, note?: string, at?: string) =>
+    rpc<{ distance_m: number; near: boolean; radius_m: number; kept?: boolean }>('route_checkin',
+      { p_stop: stop, p_lat: lat, p_lng: lng, p_accuracy: accuracy, p_note: note || null, ...(at ? { p_at: at } : {}) }),
 }
 
 const BN: Array<[RegExp, string]> = [
+  [/check-in time is in the future/i, 'ফোনের তারিখ-সময় ভুল (সামনের সময় দেখাচ্ছে) — ফোনের ঘড়ি ঠিক করুন'],
+  [/too old to be accepted/i, 'চেক-ইনটা ৪৮ ঘণ্টার বেশি পুরনো, নেওয়া যায়নি'],
   [/changed by someone else/i, 'এই রুট এইমাত্র অন্য কেউ বদলেছেন — আপনার বদল সেভ হয়নি। এডিটর বন্ধ করে পেজ রিলোড করুন, তারপর আবার বদলান'],
   [/outside Bangladesh/i, 'লোকেশন বাংলাদেশের বাইরে পড়ছে — অক্ষাংশ (lat) আর দ্রাঘিমাংশ (lng) উল্টো হয়নি তো?'],
   [/Too many stops/i, 'এই জোনে এক রুটে এর বেশি স্টপ রাখা যায় না (জোনের নিয়ম)'],

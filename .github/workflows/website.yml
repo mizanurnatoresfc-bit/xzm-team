@@ -40,6 +40,8 @@ jobs:
         run: npm run test:routes
       - name: Parcel plan tests
         run: npm run test:plan
+      - name: Offline check-in tests
+        run: npm run test:checkin
       - name: Build app
         run: npm run build
       # The browser download is kept between runs (free cache); only its system packages are installed each time.
@@ -58,3 +60,5 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Browser smoke tests
         run: npm run test:smoke
+      - name: Offline check-in in a browser
+        run: npm run test:offline

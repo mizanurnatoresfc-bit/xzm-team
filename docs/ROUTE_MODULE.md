@@ -88,10 +88,26 @@ far from the hub (> 50 km), rough phone GPS (> 100 m), outside Bangladesh, no lo
   and merges them into `o.routes[].road_path`, so every part keeps reading `route.road_path` as before. A new part that draws road lines should be placed in the "needs roads" rule in `RouteModule.tsx` (`needRoads`).
 * **Plan arithmetic** lives in `lib/routePlanCore.ts` (pure, tested by `npm run test:plan`); `lib/routePlan.ts` keeps the database calls and re-exports it.
 
+## Offline check-in (27 Nov 2026)
+The rider's "এখানে পৌঁছেছি" works with no internet. The Android app is the live site in a WebView (`capacitor.config.json` → `server.url`), so the site itself must open offline.
+* **The app opens offline.** `public/sw.js` (registered in `main.tsx`, built site only) keeps the page shell and every `/assets/*` file (`precache.json`, written by the build, lists them; fetched quietly after an update, only the new ones).
+  A page load asks the network first (6 s), so an online person always gets the newest app. The service worker never touches database / login calls (another site), `/version.json`, `/download/*`, `/offline.html` or any non-GET.
+  **Switching it off** and **changing its rules** are described at the top of `sw.js` (bump `CACHE_VERSION`). The ordinary smoke test blocks service workers; `tests/offline.mjs` needs them.
+* **A signed-in person is not thrown out.** `AuthProvider` keeps the permissions, page list and password flag after each load (`lib/authOffline.ts`) and uses them when the load fails for lack of internet. With an expired access token and no internet the stored login names the person
+  (the library would retry the renewal for minutes); the library renews it by itself when the internet is back. Waiting is limited (4 s for the session, 8 s for permissions) so a weak signal does not freeze the app.
+* **The route is kept.** `MyRouteCard` saves `my_route_today` each time it loads; with no internet it shows the saved copy with a notice. `StaffPanel` shows the card when a saved route exists.
+* **The check-in is kept.** No internet (or no answer in 12 s): `lib/routeOffline.ts` keeps the GPS reading with the time it was taken, per login, on the phone. It is sent oldest first when the page opens, when the phone goes online, when the app comes to the front and every minute while something waits
+  ("এখনই পাঠান" does it by hand). The next stop moves on and the stop shows "ফোনে সেভ — পাঠানো বাকি". A refusal (not on your route, check-in switched off, a stop without a location …) is shown once with its reason and dropped; "no internet" and "login expired" keep everything and never use up a try.
+* **The database** (`20261127040000_route_checkin_offline.sql`): `route_checkin` takes `p_at`, the time of the reading — not in the future (5 min slack), not older than 48 h, counted for the Bangladesh day of that time; an older reading never replaces a later one; "near stays near" holds.
+  Published before the migration, the site still checks in online as before; late check-ins wait on the phone (function-not-found is treated as "not now") until the migration is applied.
+* **Not covered:** map tiles are not kept (offline the map is blank, the pins and the list still work); a person who never opened the site online on that phone has nothing saved; pages that need the database (other than the route card) show their normal error offline.
+
 ## Tests
 ```
 npm run test:routes   # lib/routeGeo, routeModule, routeChecks, routeLocation + wiring (App.tsx, AppShell, panes ↔ views)   — 22 tests
 npm run test:plan     # lib/routePlanCore: capacity, sharing whole parcels, the suggestion, the spread over routes — 16 tests
+npm run test:checkin  # lib/routeOffline + lib/authOffline: the check-in queue, what is dropped and what waits, the saved login — 19 tests
+npm run build && CHROME=<chromium> npm run test:offline   # a real browser with the internet switched off (service worker, saved route, queued check-in sent with its time)
 npm run test:nav      # the one navigation rule (also covers /app/routes and the old addresses)
 npm run build && CHROME=<chromium> npm run test:smoke   # the route scenario of the smoke test now runs on /app/routes
 ```

@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '../auth/AuthProvider'
+import { browserStore, classifyError, clearRejected, enqueue, flush, pendingStops, readMine, readQueue, saveMine, withTimeout } from '../lib/routeOffline'
 import { Icon } from './Icon'
 import { OsmMap, type MapCircle, type MapPin } from './OsmMap'
 import { Badge, useLoad } from '../pages/accounts/ui'
@@ -9,7 +11,43 @@ import { fmtDist, fmtKm, hasGps, myLocation, roadLine, routeApi, routeFriendly, 
 export function MyRouteCard() {
   const { L, n } = usePrefs()
   const fmt = { L, n }
-  const d = useLoad(() => routeApi.mine(), [])
+  const { session } = useAuth()
+  const uid = session?.user.id ?? ''
+  const store = useMemo(() => browserStore(), [])
+  // The route is kept on the phone each time it loads: with no signal the last copy is shown (and check-ins are kept, see lib/routeOffline.ts).
+  const d = useLoad(async () => {
+    try { const r = await withTimeout(routeApi.mine(), 8000); if (uid) saveMine(store, uid, r); return { ...r, cachedAt: null as string | null } }
+    catch (e) {
+      const c = uid && classifyError(e) === 'network' ? readMine<Awaited<ReturnType<typeof routeApi.mine>>>(store, uid) : null
+      if (c) return { ...c.data, cachedAt: c.saved_at }
+      throw e
+    }
+  }, [uid])
+  const [queue, setQueue] = useState(() => readQueue(store, uid))
+  const [sending, setSending] = useState(false)
+  const reloadRoute = d.reload
+  const sendSaved = useCallback(async () => {
+    if (!uid || sending || !readQueue(store, uid).items.length) return
+    setSending(true)
+    try {
+      const r = await flush(store, uid, c => withTimeout(routeApi.checkin(c.stop, c.lat, c.lng, c.accuracy, undefined, c.at), 20000), routeFriendly)
+      setQueue(readQueue(store, uid))
+      if (r.sent) await reloadRoute()
+    } finally { setSending(false) }
+  }, [uid, store, sending, reloadRoute])
+  // send what is waiting: when the page opens, when the phone says it is online again, when the app comes back to the front, and every minute while something waits
+  const sendRef = useRef(sendSaved); sendRef.current = sendSaved
+  useEffect(() => {
+    const run = () => { if (navigator.onLine !== false) void sendRef.current() }
+    run()
+    window.addEventListener('online', run)
+    const visible = () => { if (document.visibilityState === 'visible') run() }
+    document.addEventListener('visibilitychange', visible)
+    const timer = window.setInterval(() => { if (readQueue(store, uid).items.length) run() }, 60000)
+    return () => { window.removeEventListener('online', run); document.removeEventListener('visibilitychange', visible); window.clearInterval(timer) }
+  }, [store, uid])
+  const waiting = useMemo(() => pendingStops(queue), [queue])
+  const whenSaved = (iso: string) => n(new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }))
   const [focusByRoute, setFocusByRoute] = useState<Record<string, string>>({})
   const [loops, setLoops] = useState<Record<string, Awaited<ReturnType<typeof roadLine>>>>({})
   const [loopBusy, setLoopBusy] = useState('')
@@ -25,7 +63,19 @@ export function MyRouteCard() {
     setBusy(stopId); setMsg(null)
     try {
       const p = await myLocation(); setMe(p)
-      const res = await routeApi.checkin(stopId, p.lat, p.lng, p.accuracy)
+      let res: Awaited<ReturnType<typeof routeApi.checkin>>
+      try {
+        if (navigator.onLine === false) throw new TypeError('Failed to fetch')
+        // a weak signal can hang for a long time: after 12 seconds keep it on the phone instead
+        res = await withTimeout(routeApi.checkin(stopId, p.lat, p.lng, p.accuracy), 12000)
+      } catch (e) {
+        if (!uid || classifyError(e) !== 'network') throw e
+        const kept = enqueue(store, uid, { stop: stopId, lat: p.lat, lng: p.lng, accuracy: p.accuracy })
+        setQueue(readQueue(store, uid))
+        setMsg({ tone: 'warn', text: L(`ইন্টারনেট নেই — চেক-ইন ফোনে সেভ হয়েছে (${whenSaved(kept.at)})। নেট পেলে নিজে থেকে পাঠানো হবে, আপনাকে কিছু করতে হবে না।`,
+          `No internet — the check-in is saved on the phone (${whenSaved(kept.at)}). It is sent by itself when the internet is back.`) })
+        return
+      }
       setMsg(res.near ? { tone: 'ok', text: L(`চেক-ইন হয়েছে — স্টপ থেকে ${fmtDist(res.distance_m, fmt)} দূরে।`, `Checked in — ${res.distance_m} m from the stop.`) }
         : { tone: 'warn', text: L(`চেক-ইন রাখা হলো, তবে আপনি স্টপ থেকে ${fmtDist(res.distance_m, fmt)} দূরে (সীমা ${fmtDist(res.radius_m, fmt)})। কাছে গিয়ে তালিকায় "আবার চেষ্টা" চাপুন।`,
           `Saved, but you are ${res.distance_m} m away (limit ${res.radius_m} m). Go closer and press "Try again" in the list.`) })
@@ -33,10 +83,25 @@ export function MyRouteCard() {
     } catch (e) { setMsg({ tone: 'bad', text: e instanceof Error && /লোকেশন/.test(e.message) ? e.message : routeFriendly(e) }) } finally { setBusy('') }
   }
 
-  return <>{routes.map(r => {
+  const reasonText = (r: string) => r === 'tooold' ? L('৪৮ ঘণ্টার বেশি পুরনো, নেওয়া যায়নি', 'older than 48 hours, not accepted') : r
+  const stopName = (id: string) => routes.flatMap(x => x.stops).find(x => x.id === id)?.name ?? ''
+  return <>
+    {d.data?.cachedAt && <p className="rt-hint" role="status" style={{ marginTop: 10 }}>{L(`ইন্টারনেট নেই — সর্বশেষ সেভ করা রুট দেখাচ্ছে (${whenSaved(d.data.cachedAt)})। চেক-ইন চলবে, নেট এলে যাবে।`,
+      `No internet — showing the last saved route (${whenSaved(d.data.cachedAt)}). Check-in still works and is sent when the internet is back.`)}</p>}
+    {queue.items.length > 0 && <div className="sp-box" role="status" style={{ marginTop: 10 }}>
+      <p className="small" style={{ margin: 0 }}><b>{L(`${n(queue.items.length)}টা চেক-ইন ফোনে সেভ আছে`, `${queue.items.length} check-in(s) saved on the phone`)}</b>
+        {' — '}{L('ইন্টারনেট পেলে নিজে থেকে পাঠানো হবে।', 'sent by themselves when the internet is back.')}</p>
+      <button type="button" className="secondary sm" style={{ marginTop: 6 }} disabled={sending} onClick={() => void sendSaved()}>{sending ? L('পাঠানো হচ্ছে…', 'Sending…') : L('এখনই পাঠান', 'Send now')}</button>
+    </div>}
+    {queue.rejected.length > 0 && <div className="sp-box" role="alert" style={{ marginTop: 10 }}>
+      <p className="small" style={{ margin: 0 }}><b>{L('এই চেক-ইনগুলো নেওয়া যায়নি:', 'These check-ins could not be accepted:')}</b></p>
+      <ul className="small" style={{ margin: '4px 0 6px', paddingLeft: 20 }}>{queue.rejected.map(x => <li key={x.id}>{stopName(x.stop) || L('একটা স্টপ', 'a stop')} · {whenSaved(x.at)} — {reasonText(x.reason)}</li>)}</ul>
+      <button type="button" className="secondary sm" onClick={() => { clearRejected(store, uid); setQueue(readQueue(store, uid)) }}>{L('ঠিক আছে', 'OK')}</button>
+    </div>}
+    {routes.map(r => {
     const done = new Map(r.visits.map(v => [v.stop_id, v]))
     const gps = r.stops.filter(hasGps)
-    const next = gps.find(s => !done.has(s.id!))
+    const next = gps.find(s => !done.has(s.id!) && !waiting.has(s.id!))
     const hub = hasGps(r.hub) ? { lat: r.hub.lat, lng: r.hub.lng } : null
     const waypoints = hub && gps.length === r.stops.length
       ? [hub, ...gps.map(s => ({ lat: s.lat!, lng: s.lng! })), hub] : null
@@ -71,7 +136,7 @@ export function MyRouteCard() {
     const circles: MapCircle[] = [...(next && hasGps(next) ? [{ id: 'n', lat: next.lat!, lng: next.lng!, m: next.radius_m ?? r.rules.stop_radius_m, color }] : []),
       ...(me ? [{ id: 'me', lat: me.lat, lng: me.lng, m: me.accuracy, color: '#2563eb' }] : [])]
     return <div key={r.id} className="sp-box" style={{ marginTop: 10 }}>
-      <h3><Icon name="map" size={16} />{r.name}<span className="cnt">{n(done.size)}/{n(gps.length)}</span></h3>
+      <h3><Icon name="map" size={16} />{r.name}<span className="cnt">{n(done.size)}/{n(gps.length)}{gps.some(x => waiting.has(x.id!) && !done.has(x.id!)) ? ` +${n(gps.filter(x => waiting.has(x.id!) && !done.has(x.id!)).length)}` : ''}</span></h3>
       <p className="muted small">{L(`${n(r.stops.length)}টা স্টপ`, `${r.stops.length} stops`)} · {fmtKm(r.road_km ?? r.distance_km, fmt)}
         {r.riders.length > 1 && ` · ${L('সাথে', 'with')} ${r.riders.map(x => x.name).join(', ')}`}</p>
       <div className="rt-bar">
@@ -98,12 +163,15 @@ export function MyRouteCard() {
         <button type="button" className="secondary" onClick={() => selectPin(next.id!)}>{L('ম্যাপে স্টপ দেখুন', 'Show stop on map')}</button>
         {r.can_checkin && <button disabled={!!busy} onClick={() => void checkin(next.id!)}><Icon name="check" size={14} />{busy === next.id ? L('লোকেশন নেওয়া হচ্ছে…', 'Getting location…') : L('এখানে পৌঁছেছি', "I'm here")}</button>}
       </div>}
-      {!next && gps.length > 0 && <p className="small" style={{ color: '#15803D', fontWeight: 700 }}>{L('আজ সব স্টপে চেক-ইন হয়ে গেছে।', 'Every stop checked in today.')}</p>}
+      {!next && gps.length > 0 && <p className="small" style={{ color: '#15803D', fontWeight: 700 }}>{waiting.size
+        ? L('আজ সব স্টপে চেক-ইন হয়েছে — কয়েকটা ফোনে সেভ আছে, নেট পেলে যাবে।', 'Every stop is checked in — some are saved on the phone and go when the internet is back.')
+        : L('আজ সব স্টপে চেক-ইন হয়ে গেছে।', 'Every stop checked in today.')}</p>}
       {msg && <p className={msg.tone === 'bad' ? 'da-error' : 'small'} style={msg.tone === 'warn' ? { color: '#ea580c' } : undefined}>{msg.text}</p>}
       <ol className="small" style={{ margin: '8px 0 0', paddingLeft: 22 }}>{r.stops.map(s => { const v = s.id ? done.get(s.id) : undefined
         return <li key={s.id} style={{ marginBottom: 4 }}>{s.name}{' '}
           {v ? <><Badge tone={v.near ? 'ok' : 'warn'}>{n(new Date(v.at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }))}{v.near ? '' : ` · ${L('দূরে', 'far')}`}</Badge>{!v.near && r.can_checkin && <>{' '}
             <button className="secondary sm" disabled={!!busy} onClick={() => void checkin(s.id!)}>{busy === s.id ? '…' : L('আবার চেষ্টা', 'Try again')}</button></>}</>
+            : s.id && waiting.has(s.id) ? <Badge tone="warn">{L('ফোনে সেভ — পাঠানো বাকি', 'saved on phone — not sent yet')}</Badge>
             : !hasGps(s) ? <span className="muted">· {L('লোকেশন নেই', 'no location')}</span>
             : r.can_checkin && s.id !== next?.id ? <button className="secondary sm" disabled={!!busy} onClick={() => void checkin(s.id!)}>{busy === s.id ? '…' : L('পৌঁছেছি', 'Here')}</button> : null}</li> })}</ol>
       {!r.can_checkin && <p className="muted small">{L('স্টপে চেক-ইন এখনো আপনার জন্য চালু হয়নি।', 'Stop check-in is not on for you yet.')}</p>}

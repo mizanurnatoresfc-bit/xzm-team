@@ -5,8 +5,10 @@ import react from '@vitejs/plugin-react'
 const BUILD_ID = (process.env.GITHUB_SHA ?? '').slice(0, 10) || `local-${Date.now().toString(36)}`
 const versionFile = (): Plugin => ({
   name: 'xzm-version-file',
-  generateBundle() {
+  generateBundle(_options, bundle) {
     this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID, at: new Date().toISOString() }) })
+    // every file of the app, so the service worker (public/sw.js) can keep them all for use with no internet
+    this.emitFile({ type: 'asset', fileName: 'precache.json', source: JSON.stringify({ build: BUILD_ID, files: Object.keys(bundle).filter(f => f.startsWith('assets/')).map(f => `/${f}`).sort() }) })
   },
 })
 

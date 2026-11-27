@@ -1061,3 +1061,16 @@ make-android.bat       Android অ্যাপ (APK) বানায়
   The first moment of the map tab draws dashed straight lines until the road lines arrive.
 - **Next (from the review, not started):** one map-provider layer with an Edge Function proxy and cache (tiles, geocoding, OSRM), drag-a-pin editing, offline check-in, realtime check-ins tab,
   splitting `pages/zonal/RoutePlan.tsx` (517 lines), per-zone switches for the warning rules.
+
+## 2026-11-27 — রুট কেন্দ্র, ধাপ ২: অফলাইন চেক-ইন (Route centre step 2: offline check-in)
+
+- **Why:** riders work where there is no signal, and the Android app is the live site in a WebView (it showed only `offline.html` without internet). The owner asked to go live with offline check-in.
+- **Migration `20261127040000_route_checkin_offline.sql`** (replaces `route_checkin`: the old 5-argument signature is dropped, the new one has an optional 6th `p_at timestamptz`): the time the phone took the reading; not in the future (5 min slack), not older than 48 h (else 22023);
+  counted for the Bangladesh day of `p_at`; an older reading never replaces a later one of the same stop and day; "near stays near" unchanged. Without `p_at` it behaves exactly as before. **Apply it to live Supabase before (or with) publishing** — until then late check-ins wait on the phone.
+- **Web:** `public/sw.js` (service worker: page shell + all `/assets/*`, network first for pages, never touches database calls) + `precache.json` from the build + registration in `main.tsx` + header rules in `netlify.toml`;
+  `lib/routeOffline.ts` (queue, send oldest first, classify failures, withTimeout) and `lib/authOffline.ts` (kept permissions, stored login); `AuthProvider` opens with them when there is no internet; `MyRoute.tsx` keeps the route, queues the check-in, sends it by itself, shows the notices; `StaffPanel` shows the card from a saved route.
+- **Found on the way:** the Supabase library retries an expired token's renewal for minutes and holds its lock meanwhile (every request waits): waits are now limited, and the library's null `INITIAL_SESSION` no longer signs the person out while a stored login exists.
+- **Tests:** `99…_route_checkin_offline.sql` (16 assertions; whole SQL suite 2821 pass, 0 failing files), `npm run test:checkin` (19), `npm run test:offline` (a real browser with the internet off; all checks pass, run 3 times), smoke test passes (service workers blocked there), `test:routes` 22, `test:plan` 16, `test:nav` 16. CI runs all of them.
+- **Not done:** offline map tiles; opening pages other than the route card with their data offline; push of a rejected-check-in notice to the manager. First online visit per phone is needed to save the app.
+- **Switching the service worker off:** see the comment at the top of `web/public/sw.js`.
+

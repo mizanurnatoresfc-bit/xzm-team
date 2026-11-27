@@ -80,7 +80,7 @@ const browser = await chromium.launch(process.env.CHROME ? { executablePath: pro
 try {
   for (const [size, viewport] of [['pc', { width: 1366, height: 800 }], ['phone', { width: 390, height: 800 }]]) {
     // --- not signed in: every app page goes to the login screen
-    const anon = await browser.newContext({ viewport })
+    const anon = await browser.newContext({ viewport, serviceWorkers: 'block' })
     await anon.route(/supabase\.co|fonts\.(googleapis|gstatic)/, r => r.abort())
     const lp = await anon.newPage()
     await lp.goto(`${BASE}/app/hr/employees`); await lp.waitForURL(/\/staff\/login/, { timeout: 8000 }).catch(() => {})
@@ -105,7 +105,7 @@ try {
     await anon.close()
 
     // --- signed in as the Super Admin
-    const ctx = await browser.newContext({ viewport })
+    const ctx = await browser.newContext({ viewport, serviceWorkers: 'block' })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
