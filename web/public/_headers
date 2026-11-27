@@ -1,0 +1,14 @@
+# Same headers as netlify.toml. Cloudflare reads this file from the site folder (web/dist/_headers).
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(self)
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+# The app asks this to find out whether an update is live: never keep an old copy.
+/version.json
+  Cache-Control: no-cache, no-store, must-revalidate
+/download/*
+  Cache-Control: no-cache
