@@ -5,6 +5,11 @@ name: Staging database bootstrap
 
 on:
   workflow_dispatch:
+  # TEMPORARY: GitHub only allows a manual run of a workflow that is on the default branch. This lets the branch itself
+  # run it once, when this file is pushed. Remove this block after the first successful Staging build.
+  push:
+    branches: [claude/festive-wright-rl98et]
+    paths: ['.github/workflows/staging-bootstrap.yml']
 
 permissions:
   contents: read
