@@ -41,7 +41,7 @@ export const ROUTE_PANES: readonly RoutePane[] = [
     group: 'routes', needs: 'zone', perms: ROUTE_PERMS.zone, legacy: ZONE_PAGES },
   { id: 'hub', icon: 'truck', bn: 'হাবের রুট', en: 'Hub routes', hint: { bn: 'এলাকার নাম দিয়ে রুট বানান ও রাইডারদের রুট দিন', en: 'Make routes from area names and give riders their route' },
     group: 'routes', needs: 'hub', perms: ROUTE_PERMS.hub, legacy: ['/app/hub/routes'], onlyWithoutZone: true },
-  { id: 'sorting', icon: 'box', bn: 'সোর্টিং → হাব', en: 'Sorting → hubs', hint: { bn: 'সোর্টিং সেন্টার থেকে হাবে যাওয়ার গাড়ির রুট', en: 'Vehicle routes from the sorting centre to the hubs' },
+  { id: 'sorting', icon: 'box', bn: 'সর্টিং → হাব', en: 'Sorting → hubs', hint: { bn: 'সর্টিং সেন্টার থেকে হাবে যাওয়ার গাড়ির রুট', en: 'Vehicle routes from the sorting centre to the hubs' },
     group: 'routes', needs: 'center', perms: ROUTE_PERMS.sorting, legacy: ['/app/sorting/routes'], menu: true },
   { id: 'locations', icon: 'pin', bn: 'লোকেশন যোগ', en: 'Add locations', hint: { bn: 'লোকেশন ছাড়া স্টপ ঠিক করুন, নতুন জায়গা যোগ করুন, ফাইল থেকে অনেক একসাথে', en: 'Fix stops without a location, add new places, many at once from a file' },
     group: 'places', needs: 'zone', perms: ROUTE_PERMS.zone, legacy: ZONE_PAGES, menu: true },

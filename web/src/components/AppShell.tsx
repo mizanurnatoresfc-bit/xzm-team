@@ -133,19 +133,19 @@ export const DATA_ENTRY: Group = panel('data-entry', 'ledger', 'ডাটা এ
   ] },
 ])
 
-export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং সেন্টার', 'Sorting centre', [
-  { bn: 'সোর্টিং কাজ', en: 'Sorting work', items: [
-    { to: '/app/sorting/dashboard', icon: 'dash', bn: 'সোর্টিং ড্যাশবোর্ড', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
+export const SORTING: Group = panel('sorting', 'box', 'সর্টিং সেন্টার', 'Sorting centre', [
+  { bn: 'সর্টিং কাজ', en: 'Sorting work', items: [
+    { to: '/app/sorting/dashboard', icon: 'dash', bn: 'সর্টিং সেন্টার', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
     { to: '/app/sorting/parcels', icon: 'box', bn: 'পার্সেল আদান-প্রদান', en: 'Parcel handovers', perms: ['sorting.parcel.view', 'sorting.parcel.create'] },
     { to: '/app/sorting/fuel', icon: 'receipt', bn: 'তেলের স্লিপ ও খরচ রিকুয়েস্ট', en: 'Fuel slips & expenses', perms: ['sorting.fuel.view', 'sorting.fuel.create'] },
   ] },
   { bn: 'সেন্টার সেটআপ', en: 'Center setup', items: [
-    { to: '/app/sorting/staff', icon: 'users', bn: 'সোর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
+    { to: '/app/sorting/staff', icon: 'users', bn: 'সর্টিং সেন্টারের স্টাফ', en: 'Sorting staff', perms: ['sorting.staff.view'] },
     { to: '/app/sorting/centers', icon: 'hub', bn: 'সেন্টার তালিকা', en: 'Centre list', perms: ['sorting.center.view', 'sorting.center.create'] },
   ] },
-  { bn: 'সোর্টিং রিপোর্ট', en: 'Sorting reports', items: [
+  { bn: 'সর্টিং রিপোর্ট', en: 'Sorting reports', items: [
     { to: '/app/sorting/drivers', icon: 'truck', bn: 'ড্রাইভার রিপোর্ট', en: 'Driver reports', perms: ['sorting.driver.view', 'sorting.driver.create'] },
-    { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও সোর্টিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
+    { to: '/app/sorting/reports', icon: 'chart', bn: 'রিপোর্ট: হাব ও সর্টিং', en: 'Reports: hub & sorting', perms: ['sorting.report.view'] },
   ] },
 ])
 
@@ -157,7 +157,7 @@ export const SORTING: Group = panel('sorting', 'box', 'সোর্টিং স
  */
 export const ROUTES: Group = panel('routes', 'map', 'অপারেশন সেন্ট্রাল', 'Operations Central', [
   { bn: '', en: '', items: [
-    { to: ROUTE_PAGE, icon: 'map', bn: 'রুট কেন্দ্র', en: 'Route centre', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সোর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
+    { to: ROUTE_PAGE, icon: 'map', bn: 'রুট কেন্দ্র', en: 'Route centre', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
     { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'জোন অপারেশন', en: 'Zone Operations', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
     { to: '/app/zonal/hub-ops?tab=collection', icon: 'doc', bn: 'তথ্য সংগ্রহ কেন্দ্র', en: 'Operations Data Collection', perms: ['zonal.hub_ops.view'] },
   ] },

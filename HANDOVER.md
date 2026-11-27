@@ -835,7 +835,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 ## 2026-11-22 — মেনু এডিটর ও মেনুর নাম ঠিক করা
 - নাম বদল (কোডের ডিফল্ট): ম্যানেজার প্যানেলের ভাগ "আজকের কাজ" → "প্রতিদিনের কাজ"; "রাইডার রুট" → "রাইডার রুট (হাব)"; "রুট সেটিং (রাইডার রুট ম্যাপ)" → "রুট ম্যাপ (জোন)";
   "গাড়ি: দায়িত্ব…" → "গাড়ি ব্যবস্থাপনা"; "সক্রিয় স্টাফ (…)" → "সক্রিয় স্টাফ"; "অনুরোধ (HR Requests)" → "এইচআর অনুরোধ"; "HR রেকর্ড (…)" → "এইচআর রেকর্ড";
-  "জোনাল ফাইল (…)" → "জোনাল ফাইল"; "জোনাল অ্যাসিস্ট্যান্ট (…)" → "হাজিরার ফাঁকা দিন"; "সোর্টিং প্যানেল" → "সোর্টিং সেন্টার" (ভেতরের "সোর্টিং সেন্টার" → "সেন্টার তালিকা")।
+  "জোনাল ফাইল (…)" → "জোনাল ফাইল"; "জোনাল অ্যাসিস্ট্যান্ট (…)" → "হাজিরার ফাঁকা দিন"; "সর্টিং প্যানেল" → "সর্টিং সেন্টার" (ভেতরের "সর্টিং সেন্টার" → "সেন্টার তালিকা")।
   লম্বা বিবরণ মেনুতে মাউস রাখলে দেখায় (`hint`)।
 - Migration `20261122000600_menu_layout.sql`: `system_settings` key `menu.layout`, `menu_layout()` / `menu_layout_save(jsonb)` (system.settings.configure)।
 - `/app/menu` (সেটিং ও অনুমতি → মেনু এডিটর): প্যানেল, ভাগ ও মেনুর নাম (বাংলা/ইংরেজি), ক্রম, লুকানো, "নতুন" ব্যাজের তারিখ। শুধু বদলটুকু সেভ হয়; অনুমতি এতে বদলায় না।
@@ -1028,7 +1028,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 ## 2026-11-25 — রুট মডিউল: রুটের সব কাজ এক পেজে, লোকেশন যোগ আরও উন্নত (one route module)
 - Owner: "রুটের যত কাজ যত মেনুতে আছে সব একজায়গায় করো — রুটে লোকেশন এড ফিচার আরও উন্নত করো, ফিউচারে হাইলি আপগ্রেড হবে, মডিউল।"
 - **One page `/app/routes`** (tabs by group: রুট · এলাকা ও লোকেশন · পরিকল্পনা · নজরদারি · সেটিং) replaces four pages in four menus: জোনাল → রুট ম্যাপ, ম্যানেজার → রাইডার রুট (হাব),
-  ম্যানেজার → আজকের পার্সেল পরিকল্পনা, সোর্টিং → সোর্টিং টু হাব রুট. **One menu group "রুট"** (rows: রুট কেন্দ্র, লোকেশন যোগ, আজকের পরিকল্পনা, সোর্টিং → হাব — each only for a role that may use it;
+  ম্যানেজার → আজকের পার্সেল পরিকল্পনা, সর্টিং → সর্টিং টু হাব রুট. **One menu group "রুট"** (rows: রুট কেন্দ্র, লোকেশন যোগ, আজকের পরিকল্পনা, সর্টিং → হাব — each only for a role that may use it;
   a rider's row sits in their one panel). The old four addresses redirect (`?zone ?hub ?route` kept); a role's saved page list naming an old page keeps exactly that page's parts.
 - **Built as a module** (`docs/ROUTE_MODULE.md` is the guide): `lib/routeModule.ts` = list of parts, `lib/routeChecks.ts` = list of warning rules, `lib/routeLocation.ts` = list of location sources,
   `pages/routes/` = page, editor, shared location screens. A new feature = one entry in a list + one view; tab, permission, page-list rule, menu row and URL follow by themselves.

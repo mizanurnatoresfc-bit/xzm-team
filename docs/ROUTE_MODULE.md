@@ -9,7 +9,7 @@ All route work is **one page, `/app/routes`**, with one menu group "রুট". 
 | জোনাল প্যানেল → রুট ম্যাপ (জোন) `/app/zonal/routes` | `/app/routes` (parts: ম্যাপ, রুট তালিকা, লোকেশন যোগ, এলাকা ও সাজেশন, কাভারেজ, পার্সেল ও পরামর্শ, চেক-ইন, সতর্কতা, জোনের নিয়ম) |
 | ম্যানেজার প্যানেল → রাইডার রুট (হাব) `/app/hub/routes` | `/app/routes?tab=hub` |
 | ম্যানেজার প্যানেল → আজকের পার্সেল পরিকল্পনা `/app/routes/plan` | `/app/routes?tab=plan` |
-| সোর্টিং সেন্টার → সোর্টিং টু হাব রুট `/app/sorting/routes` | `/app/routes?tab=sorting` |
+| সর্টিং সেন্টার → সর্টিং টু হাব রুট `/app/sorting/routes` | `/app/routes?tab=sorting` |
 
 The four old addresses still work: they redirect (keeping `?zone= ?hub= ?route=`), so bookmarks and notification links are safe.
 No database change: the module uses the same tables and functions as before (`route_save`, `route_zone_overview`, `route_place_save` …).
