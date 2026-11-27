@@ -10,12 +10,22 @@
 ## 1. Workflow Rules
 
 1. নতুন task → এই ফাইলে নতুন entry (XZM-### ID) → optionally GitHub Issue → optionally branch/PR।
-2. Status transitions: `PROPOSED` → `APPROVED` → `IN_PROGRESS` → `REVIEW` → `VERIFIED` → `DEPLOYED` → `CLOSED`।
-3. প্রতিটি transition এ **commit evidence** বা **owner approval reference** দরকার।
-4. প্রতিটি কাজের শেষে `TASK_TRACKER.md` + `AI_HANDOVER.md` + `CHANGELOG.md` আপডেট হবে — এটি mandatory rule।
-5. `main`-এ কোনো task entry সরানো যাবে না; status update হবে in-place।
-6. Blocker থাকলে `Blockers` field-এ কারণ + unblock condition দিতে হবে।
-7. একটি task-এ শুধু একটি primary Module ও primary Category থাকবে।
+2. **Allowed statuses (full set, used by Section 4 records):**
+   - `PROPOSED` — recorded, not yet Owner-approved.
+   - `APPROVED` — Owner approved; implementation may begin.
+   - `IN_PROGRESS` — Claude/ChatGPT actively working.
+   - `REVIEW` — PR open, awaiting review (code-change PR).
+   - `UNDER_REVIEW` — audit/evidence report awaiting ChatGPT independent review (no code PR, documentation PR only).
+   - `EVIDENCE_NOT_ON_FILE` — historical task, artefact missing; Owner decides re-audit vs cancel.
+   - `VERIFIED` — review passed, tests green.
+   - `DEPLOYED` — change is live on production.
+   - `CLOSED` — task complete and no further action expected.
+3. **Typical transitions:** `PROPOSED` → `APPROVED` → `IN_PROGRESS` → `REVIEW` → `VERIFIED` → `DEPLOYED` → `CLOSED`. Audit tasks follow `PROPOSED` → `APPROVED` → `IN_PROGRESS` → `UNDER_REVIEW` → `VERIFIED` → `CLOSED`.
+4. প্রতিটি transition এ **commit evidence** বা **owner approval reference** দরকার।
+5. প্রতিটি কাজের শেষে `TASK_TRACKER.md` + `AI_HANDOVER.md` + `CHANGELOG.md` আপডেট হবে — এটি mandatory rule।
+6. `main`-এ কোনো task entry সরানো যাবে না; status update হবে in-place।
+7. Blocker থাকলে `Blockers` field-এ কারণ + unblock condition দিতে হবে।
+8. একটি task-এ শুধু একটি primary Module ও primary Category থাকবে।
 
 ## 2. Task Categories
 
@@ -47,7 +57,7 @@
 5. **Priority** — P0 (critical) / P1 (high) / P2 (medium) / P3 (low)
 6. **Assigned AI** — Claude / ChatGPT / ChatGPT Backend Team / Owner
 7. **Dependencies** — অন্য task ID বা blocker
-8. **Current Status** — PROPOSED / APPROVED / IN_PROGRESS / REVIEW / VERIFIED / DEPLOYED / CLOSED
+8. **Current Status** — PROPOSED / APPROVED / IN_PROGRESS / REVIEW / UNDER_REVIEW / EVIDENCE_NOT_ON_FILE / VERIFIED / DEPLOYED / CLOSED (see Section 1 rule 2 for full definitions)
 9. **Acceptance Criteria** — কী হলে done
 10. **Test Evidence** — PR link, TEST_REPORT entry, screenshot path
 11. **Owner Approval** — ✅ (date) / ⏳ pending / ❌ rejected
@@ -254,7 +264,7 @@
 | Priority | P2 |
 | Assigned AI | Claude |
 | Dependencies | — |
-| Current Status | **EVIDENCE NOT ON FILE → RE-AUDIT PENDING** |
+| Current Status | **EVIDENCE_NOT_ON_FILE** (re-audit pending Owner decision) |
 | Acceptance Criteria | Re-audit report under new task `XZM-007A/B-1R` upon Owner approval |
 | Test Evidence | None — searched 164 remote branches + Project docs + GitHub API on 2026-11-27, no artefact found |
 | Owner Approval | ⏳ pending (decide: re-audit vs cancel) |
@@ -274,7 +284,7 @@
 | Priority | P2 |
 | Assigned AI | Claude |
 | Dependencies | — |
-| Current Status | **EVIDENCE NOT ON FILE → RE-AUDIT PENDING** |
+| Current Status | **EVIDENCE_NOT_ON_FILE** (re-audit pending Owner decision) |
 | Acceptance Criteria | Re-audit report under new task `XZM-007A/B-2R` upon Owner approval |
 | Test Evidence | None — same search as Batch 1 |
 | Owner Approval | ⏳ pending |

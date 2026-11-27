@@ -80,7 +80,7 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 | Edge Functions in repo | first four only (two missing — R-004) |
 | Netlify site | `xzm-team-erp` id `2909a0bd-55bc-4b11-930f-73750fb34bd4`, Free plan |
 | Live URL | `https://xzmteam.com` |
-| Cloudflare | `mizanurnatore.sfc@gmail.com`; Workers mirror `xzm-team` under account `80d49a409ddcfa2db3c7289621ce19ba` via `wrangler.jsonc` |
+| Cloudflare | Workers service `xzm-team` under Owner's Cloudflare account, deployed from `wrangler.jsonc` in repo root (account email + ID held off-repo per XZM-004R-Final redaction policy) |
 | CI workflows | `android-apk.yml` (main push + workflow_dispatch), `website.yml` (PR), `tests.yml` (PR + main push) — all path-scoped to code dirs |
 
 ## 6. Open Risks (summary — full in `RISK_REGISTER.md`)

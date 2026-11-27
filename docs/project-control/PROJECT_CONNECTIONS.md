@@ -95,21 +95,49 @@
 - Secret management Supabase/Netlify/Cloudflare dashboard-এ নিজ নিজ স্থানে থাকবে।
 - `ANTHROPIC_API_KEY` Supabase edge function secret হিসেবে configured (memory-reference only)।
 
-## 10. Operational Identifiers Review *(XZM-004R Review-Response, 2026-11-27)*
+## 10. Operational Identifiers — Redaction Policy *(XZM-004R-Final, 2026-11-27)*
 
-ChatGPT Independent Review requested review of operational security details present in public-repo docs. এগুলো **secret নয়**, কিন্তু public exposure-এর কারণে Owner-এর জন্য awareness flag:
+ChatGPT Second Review directed that avoidable operational-security details be scrubbed from public-repo docs. এই section-এ redaction policy এবং current state:
 
-| Identifier | Where it appears | Sensitivity | Owner action required? |
-|---|---|---|---|
-| Supabase dev project ref `ndgnhvbpmtxrpplgsslz` | `PROJECT_CONNECTIONS.md` §2, `AI_HANDOVER.md` §5 | LOW — already public via REST URL pattern `https://ndgnhvbpmtxrpplgsslz.supabase.co` | No — RLS + anon key policy handles access control |
-| Supabase staging ref `mbpjvqeizwjjsvnbjerb` | same | LOW — same reasoning | No |
-| Netlify site ID `2909a0bd-55bc-4b11-930f-73750fb34bd4` | `AI_HANDOVER.md` §5 | LOW — UUID is identifier only; not usable without token | No |
-| Cloudflare account ID `80d49a409ddcfa2db3c7289621ce19ba` | `AI_HANDOVER.md` §5 | LOW — account ID is public in Workers URLs | No |
-| Owner email `mizanurnatore.sfc@gmail.com` | `AI_HANDOVER.md` §5 | MED — PII, already visible in git commit author history | Owner choice: redact to `[owner]` in docs or leave as-is (commit history shows it anyway) |
-| Android `appId com.xzmteam.erp` | Multiple docs | LOW — public via Play Store | No |
+### 10.1 Redacted from public docs (removed in XZM-004R-Final commit)
 
-**Actual secrets confirmed absent from this PR / repo-tracked docs:**
-- ❌ No API key, service-role key, Netlify auth token, GitHub PAT, Cloudflare API token, Firebase/APNs key, ANTHROPIC_API_KEY, SMTP creds, DB password, OAuth client secret।
-- ✅ Audited by file grep against `docs/project-control/` on 2026-11-27 — zero hits for common secret patterns।
+| Identifier class | Previous location | Replacement |
+|---|---|---|
+| Owner email | `AI_HANDOVER.md` §5 (Cloudflare row), `PROJECT_CONNECTIONS.md` §10 initial version | Replaced with "Owner's Cloudflare account (email held off-repo)" |
+| Cloudflare numeric account ID | `AI_HANDOVER.md` §5 | Removed; wrangler config still shows service name only |
 
-**Recommendation to Owner:** Decide whether owner-email should be redacted in future docs। The listed UUIDs/IDs are operational identifiers that do not grant access on their own, so no remediation is urgent। If any of the above were previously treated as confidential, flag the specific item and a separate task will scrub it from the repo history।
+### 10.2 Kept as low-sensitivity operational identifiers
+
+এগুলো public artifacts (deploy URLs, REST hostnames) থেকেই inferable, তাই repo-তে রাখা হয়েছে:
+
+| Identifier | Justification |
+|---|---|
+| Supabase dev project ref `ndgnhvbpmtxrpplgsslz` | Already exposed via `https://ndgnhvbpmtxrpplgsslz.supabase.co` — Access control is RLS + anon key policy |
+| Supabase staging ref `mbpjvqeizwjjsvnbjerb` | Same reasoning |
+| Netlify site ID `2909a0bd-55bc-4b11-930f-73750fb34bd4` | UUID identifier only; no access without NETLIFY_AUTH_TOKEN secret |
+| Netlify project name `xzm-team-erp` | Public via `xzm-team-erp.netlify.app` subdomain |
+| Android `appId com.xzmteam.erp` | Public via Play Store |
+
+### 10.3 Confirmed absent from repo-tracked docs (grep-verified 2026-11-27)
+
+- ❌ No API key (Anthropic, OpenAI, Supabase service-role, Netlify auth token, GitHub PAT, Cloudflare API token, Firebase/APNs key)
+- ❌ No DB password, SMTP creds, OAuth client secret
+- ✅ `ANTHROPIC_API_KEY` lives in Supabase edge function secrets only
+- ✅ `NETLIFY_AUTH_TOKEN`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `ANDROID_KEYSTORE_*`, `GOOGLE_SERVICES_JSON` all live in GitHub Actions secrets only (referenced by name in `android-apk.yml`)
+
+### 10.4 Preview environment binding verification (XZM-004R-Final, 2026-11-27, read-only MCP)
+
+| Preview surface | Status | Evidence |
+|---|---|---|
+| Netlify Deploy Preview | **DISABLED** (owner decision 2026-11-22) | `netlify.toml [context.deploy-preview] ignore = "exit 0"` — Netlify skips builds for PRs; no preview URL produced, no DB binding exposure |
+| Cloudflare Workers Git integration | **NOT USED** | `wrangler.jsonc` deployed only from `.github/workflows/android-apk.yml` via `wrangler deploy` on push-to-main with `web/**` paths; no Cloudflare Git auto-build for PRs |
+| Supabase preview DB branches | **NONE EXIST** | `list_branches` on `ndgnhvbpmtxrpplgsslz` returned `[]` on 2026-11-27 — no PR-triggered DB branches |
+| Netlify preview environment bindings | **N/A** (no previews) | No preview build → no env var inheritance to verify |
+| Cloudflare preview bindings | **N/A** (no previews) | Same reason |
+| Production environment variables (public vs secret) | **VERIFIED PUBLIC-SAFE** | `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` are publishable anon values; `.env.production` grep in workflow blocks `sb_secret` and `service_role` patterns before build |
+
+**UNVERIFIED (would require Owner-controlled dashboard access):**
+- Netlify auto-build-on-main setting (production branch build trigger) — workflow comment says "Netlify runs no build of its own, so this does not use Netlify build minutes/credits," which implies auto-build is OFF; dashboard confirmation pending।
+- Cloudflare dashboard-level "Git integration" explicit disabled state (we confirmed deploy flows through wrangler-in-CI, but dashboard toggle not read)।
+
+**Recommendation:** Owner can VERIFY both UNVERIFIED items directly in Netlify + Cloudflare dashboards and append to this section।

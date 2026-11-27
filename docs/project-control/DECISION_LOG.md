@@ -4,6 +4,11 @@
 
 ---
 
+## 2026-11-27 (late) — D-009: XZM-004R-Final (Second Review Response) — redaction policy + preview binding verification
+- **Decision:** Owner email + Cloudflare numeric account ID redacted from AI_HANDOVER §5; PROJECT_CONNECTIONS §10 reorganized as a redaction policy; TASK_TRACKER allowed-status set expanded to match actual records; merge-to-main impact documented as zero production build/deploy trigger expected (workflow paths miss docs-only PRs; Netlify + Cloudflare deploys live only inside `android-apk.yml`).
+- **Rationale:** ChatGPT Second Independent Review accepted major corrections; final cleanup covers avoidable PII/identifier exposure, status taxonomy drift, and PR-description accuracy.
+- **Impact:** docs-only। PR #213 stays Draft। Zero production impact expected on merge.
+
 ## 2026-11-27 (evening) — D-008: XZM-004R Review-Response, 12-point corrections on PR #213 (Draft)
 - **Decision:** ChatGPT Independent Review (REQUEST CHANGES — HOLD) গৃহীত; PR #213-এর একই branch `docs/xzm-004r-consolidated`-এ 12-point corrections। নতুন PR খোলা হয়নি।
 - **Key changes:** XZM-001/002 (ChatGPT/Claude workspace setup) relabeled; XZM-006 duplicate consolidated; AI_HANDOVER section numbering repaired; Batch 4 report ported to central `audits/` folder; "Zero Deployment Trigger Risk" claim softened to repo-local CI workflows only (Netlify + Cloudflare Workers preview builds acknowledged separately); R-008 status rolled back to IN_PROGRESS; operational-identifier review added to PROJECT_CONNECTIONS §10.
