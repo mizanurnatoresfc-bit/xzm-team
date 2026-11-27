@@ -12,7 +12,7 @@ const measures = [
 const questionMetrics = [
   ['delivery_pending', 'ডেলিভারি পেন্ডিং', 'Deliveries pending'],
   ['pickup_pending', 'পিকআপ বাকি', 'Pickups pending'],
-  ['sorting_pending', 'সোর্টিং বাকি', 'Sorting pending'],
+  ['sorting_pending', 'সর্টিং বাকি', 'Sorting pending'],
   ['spare_capacity', 'আরও নেওয়ার ক্ষমতা', 'Spare parcel capacity'],
   ['backup_needed', 'প্রয়োজনীয় ব্যাকআপ জনবল', 'Backup people needed'],
 ] as const
@@ -236,11 +236,11 @@ function PlanningSuggestions({ hub, questions, loading }: { hub: Hub; questions:
   const backup = latest.get('backup_needed')?.value ?? 0
   const routeReview = delivery > 0 || pickup > 0
   const suggestions = [
-    extra > 0 && L(`গড়ের চেয়ে ${n(extra)}টি বেশি পার্সেল এসেছে। আজকের সোর্টিং ও রুটের সক্ষমতা মিলিয়ে দেখুন।`, `${n(extra)} parcels above average. Review today’s sorting and route capacity.`),
+    extra > 0 && L(`গড়ের চেয়ে ${n(extra)}টি বেশি পার্সেল এসেছে। আজকের সর্টিং ও রুটের সক্ষমতা মিলিয়ে দেখুন।`, `${n(extra)} parcels above average. Review today’s sorting and route capacity.`),
     delivery > 0 && L(`সর্বশেষ উত্তরে ${n(delivery)}টি ডেলিভারি পেন্ডিং। এলাকা ও বর্তমান অ্যাসাইনমেন্ট দেখে কাজ ভাগ করার প্রস্তাব।`, `The latest reply reports ${n(delivery)} pending deliveries. Review areas and existing assignments to split the work.`),
     pickup > 0 && L(`সর্বশেষ উত্তরে ${n(pickup)}টি পিকআপ বাকি। মার্চেন্টের এলাকা ধরে পিকআপের কাজ ভাগ করার প্রস্তাব।`, `The latest reply reports ${n(pickup)} pending pickups. Review merchant locations to share the pickup work.`),
     routeReview && capacity > 0 && L(`একটি উত্তরে আরও ${n(capacity)}টি পার্সেল নেওয়ার সক্ষমতা জানানো হয়েছে। এলাকা, বর্তমান দায়িত্ব ও উপস্থিতি মিলিয়ে দেখার জন্য এই তথ্য ব্যবহার করা যাবে।`, `One reply reports spare capacity for ${n(capacity)} parcels. Check area, current assignments and attendance before using it.`),
-    sorting > 0 && L(`সর্বশেষ উত্তরে ${n(sorting)}টি সোর্টিং বাকি। শিফটের লোকবল দেখে সোর্টিংয়ে সহায়তা দেওয়ার প্রস্তাব।`, `The latest reply reports ${n(sorting)} awaiting sorting. Review shift staffing for sorting support.`),
+    sorting > 0 && L(`সর্বশেষ উত্তরে ${n(sorting)}টি সর্টিং বাকি। শিফটের লোকবল দেখে সর্টিংয়ে সহায়তা দেওয়ার প্রস্তাব।`, `The latest reply reports ${n(sorting)} awaiting sorting. Review shift staffing for sorting support.`),
     backup > 0 && L(`সর্বশেষ উত্তরে ${n(backup)} জন ব্যাকআপ চাওয়া হয়েছে। দায়িত্ব ও উপস্থিতি দেখে জোনাল ম্যানেজার সিদ্ধান্ত দেবেন।`, `The latest reply requests ${n(backup)} backup workers. The Zonal Manager decides after reviewing duties and availability.`),
   ].filter((item): item is string => typeof item === 'string')
 

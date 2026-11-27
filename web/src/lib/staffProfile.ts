@@ -39,7 +39,7 @@ export const staffProfile = {
 
 export const MODULE_LABEL: Record<WorkModule, [string, string]> = {
   morning: ['সকালের জনবল', 'Morning input'], attendance: ['দৈনিক হাজিরা খাতা', 'Daily register'], route: ['রুট প্ল্যান', 'Route plan'],
-  daily_ops: ['দৈনিক সংখ্যা (পিকআপ/ডেলিভারি)', 'Daily numbers'], hub_ops: ['হাব অপারেশন', 'Hub operations'], sorting: ['সোর্টিং', 'Sorting'],
+  daily_ops: ['দৈনিক সংখ্যা (পিকআপ/ডেলিভারি)', 'Daily numbers'], hub_ops: ['হাব অপারেশন', 'Hub operations'], sorting: ['সর্টিং', 'Sorting'],
   issues: ['সমস্যা কেন্দ্র', 'Problem Center'], fleet: ['গাড়ি / জ্বালানি', 'Vehicle / fuel'], accounts: ['হিসাব', 'Accounts'], other: ['অন্যান্য', 'Other'],
 }
 export const FIELD_MODULES: WorkModule[] = ['morning', 'route', 'daily_ops', 'hub_ops', 'sorting']
@@ -52,8 +52,8 @@ export const ACTIVITY_LABEL: Record<string, [string, string]> = {
   present: ['উপস্থিত', 'Present'], late: ['দেরিতে', 'Late'], half_day: ['অর্ধদিবস', 'Half day'], absent: ['অনুপস্থিত', 'Absent'], leave: ['ছুটি', 'Leave'], holiday: ['সরকারি ছুটি', 'Holiday'],
   weekly_off: ['সাপ্তাহিক ছুটি', 'Weekly off'], pending_leave: ['ছুটির আবেদন বিচারাধীন', 'Leave request waiting'], unchecked: ['যাচাই বাকি', 'Not checked'],
   route_assigned: ['রুট বরাদ্দ', 'Route assigned'], route_cancelled: ['রুট বরাদ্দ বাতিল', 'Route cancelled'], daily_numbers: ['দৈনিক সংখ্যা', 'Daily numbers'],
-  driver_run: ['ড্রাইভারের ট্রিপ', 'Driver run'], handover_hub_to_sorting: ['হাব থেকে সোর্টিংয়ে হস্তান্তর', 'Handover to sorting'], handover_sorting_to_hub: ['সোর্টিং থেকে হাবে হস্তান্তর', 'Handover to hub'],
-  drive_hub_to_sorting: ['হাব থেকে সোর্টিংয়ে গাড়ি চালানো', 'Drove to sorting'], drive_sorting_to_hub: ['সোর্টিং থেকে হাবে গাড়ি চালানো', 'Drove to hub'], hub_ops_row: ['হাব অপারেশন রিপোর্টে', 'On the hub report'],
+  driver_run: ['ড্রাইভারের ট্রিপ', 'Driver run'], handover_hub_to_sorting: ['হাব থেকে সর্টিংয়ে হস্তান্তর', 'Handover to sorting'], handover_sorting_to_hub: ['সর্টিং থেকে হাবে হস্তান্তর', 'Handover to hub'],
+  drive_hub_to_sorting: ['হাব থেকে সর্টিংয়ে গাড়ি চালানো', 'Drove to sorting'], drive_sorting_to_hub: ['সর্টিং থেকে হাবে গাড়ি চালানো', 'Drove to hub'], hub_ops_row: ['হাব অপারেশন রিপোর্টে', 'On the hub report'],
   hub_ops_present: ['হাব রিপোর্টে উপস্থিত', 'Present on the hub report'], hub_ops_absent: ['হাব রিপোর্টে অনুপস্থিত', 'Absent on the hub report'],
   hub_ops_leave_applied: ['হাব রিপোর্টে ছুটি (আবেদনসহ)', 'Leave on the hub report'], hub_ops_leave_not_applied: ['হাব রিপোর্টে ছুটি (আবেদন ছাড়া)', 'Leave, no application'],
 }
