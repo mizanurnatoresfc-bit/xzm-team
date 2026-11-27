@@ -19,10 +19,17 @@ export type Fuel = { id: string; no: number; center_id: string; route_id: string
   request_date: string; fuel_date: string | null; litres: number | null; rate: number | null; amount: number; odometer_km: number | null
   pump_name: string | null; slip_no: string | null; slip_path: string | null; note: string | null; status: 'submitted' | 'approved' | 'rejected' | 'withdrawn'
   charge_to: 'center' | 'hub'; charge_hub_id: string | null; claim_id: string | null; review_note: string | null; created_by: string | null }
+export type ReceiveLocation = {
+  network: 'wifi' | 'cellular' | 'ethernet' | 'other' | 'unknown'
+  result: 'near_hub' | 'outside_hub' | 'low_accuracy' | 'hub_missing' | 'unavailable'
+  distance_m: number | null
+  accuracy_m: number | null
+  exception_reason: string | null
+}
 export type Handover = { id: string; no: number; center_id: string; route_id: string | null; hub_id: string; direction: 'hub_to_sorting' | 'sorting_to_hub'
   work_date: string; vehicle_id: string | null; driver_id: string | null; handed_by_name: string | null; parcel_count: number; bag_count: number | null
   wrong_count: number; returned_count: number; damaged_count: number; note: string | null; status: 'sent' | 'received' | 'disputed'
-  received_count: number | null; received_by_name: string | null; received_at: string | null; receive_note: string | null }
+  received_count: number | null; received_by_name: string | null; received_at: string | null; receive_note: string | null; sorting_receive_location?: ReceiveLocation | null }
 export type DriverReport = { id: string; center_id: string; route_id: string; work_date: string; driver_id: string | null; vehicle_id: string | null
   depart_at: string | null; return_at: string | null; start_km: number | null; end_km: number | null; hubs_reached: number | null
   parcels_out: number | null; parcels_in: number | null; status: 'done' | 'late' | 'missed' | 'breakdown'; note: string | null }
@@ -124,7 +131,7 @@ export const sorting = {
   decideFuel: (id: string, approve: boolean, note: string | null) => rpc<void>('sorting_fuel_decide', { p_id: id, p_approve: approve, p_note: note }),
   withdrawFuel: (id: string, reason: string) => rpc<void>('sorting_fuel_withdraw', { p_id: id, p_reason: reason }),
   handovers: async (center: string, from: string, to: string) => {
-    const { data, error } = await supabase.from('sorting_handovers').select('*').eq('center_id', center).gte('work_date', from).lte('work_date', to)
+    const { data, error } = await supabase.from('sorting_handovers').select('*, sorting_receive_location(*)').eq('center_id', center).gte('work_date', from).lte('work_date', to)
       .order('no', { ascending: false }); fail(error); return (data ?? []) as Handover[]
   },
   saveHandover: async (h: Record<string, unknown>, id?: string) => {
@@ -132,6 +139,12 @@ export const sorting = {
   },
   receive: (id: string, count: number, wrong: number | null, returned: number | null, damaged: number | null, note: string | null) =>
     rpc<void>('sorting_handover_receive', { p_id: id, p_count: count, p_wrong: wrong, p_returned: returned, p_damaged: damaged, p_note: note }),
+  receiveAtHub: (id: string, count: number, wrong: number | null, returned: number | null, damaged: number | null,
+    note: string | null, point: { lat: number; lng: number; accuracy: number } | null, network: ReceiveLocation['network'], reason: string) =>
+    rpc<void>('sorting_receive_with_location', {
+      p_id: id, p_count: count, p_wrong: wrong, p_returned: returned, p_damaged: damaged, p_note: note,
+      p_lat: point?.lat ?? null, p_lng: point?.lng ?? null, p_accuracy: point?.accuracy ?? null, p_network: network, p_reason: reason,
+    }),
   trips: async (center: string, from: string, to: string) => {
     const { data, error } = await supabase.from('sorting_driver_reports').select('*').eq('center_id', center).gte('work_date', from).lte('work_date', to)
       .order('work_date', { ascending: false }); fail(error); return (data ?? []) as DriverReport[]
