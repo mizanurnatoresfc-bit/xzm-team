@@ -580,6 +580,7 @@ function Parcels({ ctx }: { ctx: Ctx }) {
     const type = (navigator as Navigator & { connection?: { type?: string } }).connection?.type
     return type === 'wifi' || type === 'cellular' || type === 'ethernet' || type === 'other' ? type : 'unknown'
   })()
+  const hubWifi = ctx.hubs.find(hub => hub.id === rc?.row.hub_id)?.trip_wifi_ssid
   const networkLabel = {
     wifi: 'Wi-Fi', cellular: L('মোবাইল ডাটা', 'Mobile data'), ethernet: 'Ethernet',
     other: L('অন্য সংযোগ', 'Other connection'), unknown: L('সংযোগের ধরন পাওয়া যায়নি', 'Connection type unavailable'),
@@ -731,6 +732,7 @@ function Parcels({ ctx }: { ctx: Ctx }) {
         <Field label={L('ব্যাক', 'Returned')}><input inputMode="numeric" value={rc.returned} onChange={e => setRc({ ...rc, returned: e.target.value })} placeholder={String(rc.row.returned_count)} /></Field>
         <Field label={L('ড্যামেজ', 'Damaged')}><input inputMode="numeric" value={rc.damaged} onChange={e => setRc({ ...rc, damaged: e.target.value })} placeholder={String(rc.row.damaged_count)} /></Field>
         {rc.row.direction === 'sorting_to_hub' && <>
+          {hubWifi && <p className="muted small">{L('হাবের Wi-Fi', 'Hub Wi-Fi')} · <strong>{hubWifi}</strong></p>}
           <p className="muted small">{L('রিসিভ করার সময় ফোনের লোকেশন হাবের সঙ্গে মেলানো হবে।', 'The phone location is checked against the hub when you receive.')} · {networkLabel[network]}</p>
           <Field label={L('লোকেশন না মিললে রিসিভের কারণ', 'Reason to receive without a location match')} wide>
             <input maxLength={500} value={locationReason} onChange={e => setLocationReason(e.target.value)} />
