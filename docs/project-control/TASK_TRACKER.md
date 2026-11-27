@@ -541,7 +541,7 @@
 | Acceptance Criteria | Existing route, authorized reports, verified workflow and role isolation |
 | Test Evidence | See XZM-010 audit and TEST_REPORT |
 | Owner Approval | Development authorized; policy and release decisions pending |
-| Commit / PR Link | Branch `codex/xzm-010-problem-center` |
+| Commit / PR Link | [Draft PR #220](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/220) |
 | GitHub Issue # | — |
 | Deployment Status | Unreleased |
 | Blockers | Isolated Supabase/Android coverage and Owner policy approval |

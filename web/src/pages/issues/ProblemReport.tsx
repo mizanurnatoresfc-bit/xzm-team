@@ -66,7 +66,7 @@ export function ProblemReport({ view, hubs, onOpen, revision }: { view: ProblemV
       <Field label="হাব"><select value={hub} onChange={e => select('hub', e.target.value)}><option value="">সব দৃশ্যমান হাব</option>{hubs.map(h => <option key={h.hub_id} value={h.hub_id}>{h.hub_name}</option>)}</select></Field>
       <Field label="দায়িত্বপ্রাপ্ত"><PersonPicker value={person} onChange={setPerson} /></Field>
       <Field label="ক্যাটাগরি"><select value={kind} onChange={e => select('kind', e.target.value)}><option value="">সব ক্যাটাগরি</option>{options(KIND_BN)}</select></Field>
-      <Field label="গুরুত্ব"><select value={priority} onChange={e => select('priority', e.target.value)}><option value="">সব গুরুত্ব</option>{options(PRIORITY_BN)}</select></Field>
+      <Field label="গুরুত্ব"><select aria-label="গুরুত্ব" value={priority} onChange={e => select('priority', e.target.value)}><option value="">সব গুরুত্ব</option>{options(PRIORITY_BN)}</select></Field>
       {['history', 'hub-report', 'employee-report'].includes(view) && <>
         <Field label="অবস্থা"><select value={status} onChange={e => select('status', e.target.value)}><option value="">সব অবস্থা</option>{options(STATUS)}</select></Field>
         <Field label="রিপোর্টের ধরন"><select value={queue} onChange={e => select('queue', e.target.value)}><option value="">সব সমস্যা</option>{options(QUEUE)}</select></Field>

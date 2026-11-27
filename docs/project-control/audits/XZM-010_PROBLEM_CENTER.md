@@ -7,17 +7,17 @@ Audited main at `6831f29ddc853290af7442eabd3026930a91d6a3`. GitHub listed XZM-01
 | Finding | Verified in source and production definition |
 |---|---|
 | Assignment | `issue_create` and `issue_assign` check active/unarchived status for explicit assignees but lack a destination-scope check. The parcel auto-assignment path checks only archival status. The configured Store/IT recipient is a separate valid cross-hub case. |
-| Visibility | Issue RLS permits the creator, giver, assignee or Hub Group members. `issue_panels` and `issue_detail` use caller RLS. `issue_events` uses parent visibility. Hub posts carry issue-linked notes and photos. There is no issue-level privacy classification. |
+| Visibility | Issue RLS permits the creator, giver, assignee or Hub Group members. `issue_panels` and `issue_detail` use caller RLS. `issue_events` uses parent visibility. Hub posts carry issue-linked notes and photos. There is no issue-level privacy classification. The definer hub-list RPC also counts all open issue rows at each visible hub. |
 | Storage | `issue-photos` is private. Existing object policies grant Hub Group, eligible assignment and Zone Group access through helpers. Restricting issue RLS alone would leave paths through hub feed and signed URLs. |
 | Approval | `issue_act` treats creator/giver and scoped approvers as reviewers. An assignee who is also the giver/creator can pass both checks. Store/IT review flags exclude scoped approvers, while approve/reopen currently allow them. |
 | Reassignment | `issue_assign` changes status to open and clears the nudge timestamp, while preserving stale solution fields. |
 | Review queue | A null assignee or caller employee ID can produce NULL booleans, causing otherwise visible issues to drop out of `issue_panels`. |
 | Deadline | `issue_panels` computes work overdue for open/in-progress issues. `issue_nudge_due` uses one inactivity interval and shared nudge timestamp; there is no dedicated review deadline. |
 | Hub context | On audited main the shortcut, toolbar and order form can choose the first hub. PR #219 provides shared working-hub defaults and still falls back to the first available hub. |
-| Group membership | `in_hub_group` checks archival status for employee membership. `in_zone_group` also checks active status. Both have a scoped permission path. `hub_group_hubs` and `zone_group_list` derive visible groups from these helpers. |
+| Group membership | `in_hub_group` checks archival status for employee membership. `in_zone_group` also checks active status. Both have a scoped permission path. The zone list separately computes its display preference without checking active status. `hub_group_hubs` and `zone_group_list` derive visible groups from these helpers. |
 | Create vs group view | `issue_create` calls `in_hub_group`, which accepts the group-view grant. Creation and group viewing therefore do not have distinct authorization boundaries. `zone_manager_tell` has its own membership/contact path and rate limit. |
 
-The UI uses existing issue data and status values. History and reports apply work queue/date/hub/employee/kind/priority/status filters before reading up to 500 rows through issue RLS. The existing DataTable handles print and export. Related names remain subject to the related table's RLS. Resolved means approved. Returned means returned at least once. Date filters use the issue creation date in Asia/Dhaka.
+The UI uses existing issue data and status values. History and reports apply work queue/date/hub/employee/kind/priority/status filters before reading up to 500 rows through issue RLS. The existing DataTable handles print and export. Truncated reports disable print and export. Related names remain subject to the related table's RLS. Resolved means approved. Returned means returned at least once. Date filters use the issue creation date in Asia/Dhaka.
 
 ## SQL draft and rollback
 
@@ -34,3 +34,15 @@ Rehearse on isolated Supabase with synthetic accounts. Snapshot the function def
 - Store a separate review deadline at solution submission using the approved zone setting. Keep work due and review due as independent timestamps and show them in Dhaka. Extend `issue_nudge_due` and `private.notify` for work-not-started, pre-deadline, overdue, pending-review and escalation notices with atomic per-stage deduplication. Reuse existing push and Android deep-link handling. Keep zone settings restricted to authorized zone managers and Super Admin. Hourly nudge cadence and existing delivery behavior need explicit verification before changing the schedule.
 
 Approval configuration, full category/metadata fields, privacy enforcement, review deadlines, extended status events and notification/escalation changes remain pending. Use synthetic accounts for role/RLS/Storage/push coverage, including separate unauthorized-hub, unauthorized-destination, legitimate cross-hub, private evidence and duplicate-report cases.
+
+## Test evidence
+
+- TypeScript and a Vite build with a synthetic Supabase endpoint passed. A Dhaka wall-clock conversion matched the expected UTC instant with the client timezone set to America/Los_Angeles.
+- Targeted Chromium checks passed at desktop and phone viewport sizes for report filtering, parcel duplicate warning, issue creation with evidence, Store orders, chat, Hub Group and board. A full browser suite attempt was interrupted by a local preview HTTP failure. Native Android was audited at source level.
+- The migration and rollback ran in embedded PostgreSQL against synthetic records. Assertions exercise source hub access, explicit assignment, configured Store cross-hub routing, an authorized cross-hub manager, unmapped actors, reassignment reset, duplicate solution submission, distinct approval, queue membership and calls to the existing notification contract. This fixture does not use the Supabase role/RLS engine or send push notifications.
+- Reproduce the draft test from the repository root with an isolated dependency install:
+  ```sh
+  npm install --prefix /tmp/xzm-010-pg @electric-sql/pglite@0.3.15
+  NODE_PATH=/tmp/xzm-010-pg/node_modules node supabase/tests/xzm-010-draft.mjs
+  ```
+- Independent review caught a fail-open nullable authorization comparison in the original action path, inconsistent self-review flags in the draft, and stale report data after creation. The draft now fails closed and aligns review flags and actions. Create/action success invalidates report data. A Git three-way merge check on the updated branch against #219 passed.

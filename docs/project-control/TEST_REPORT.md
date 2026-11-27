@@ -2,7 +2,7 @@
 
 ## XZM-010 Problem Center
 
-See the [XZM-010 audit](audits/XZM-010_PROBLEM_CENTER.md) for verification scope. Live database checks used read-only catalog queries. No production or production-preview writes.
+Passed TypeScript, isolated Vite build, targeted desktop/mobile Chromium checks, navigation tests and embedded PostgreSQL migration/rollback assertions. The full browser suite was interrupted by a local preview HTTP failure. Supabase RLS/Storage integration and native Android runtime coverage remain pending. Live checks used read-only catalog queries. [XZM-010 test evidence](audits/XZM-010_PROBLEM_CENTER.md)
 
 
 > Per-task test evidence। প্রতিটি approved task-এর test result এখানে append হবে।

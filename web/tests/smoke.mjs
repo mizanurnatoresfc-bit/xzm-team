@@ -1450,13 +1450,14 @@ try {
     await page.goto(`${BASE}/app/issues`)
     await page.getByRole('button', { name: 'সমাধান হয়েছে', exact: true }).click()
     await page.getByText('Completed parcel issue').first().waitFor()
-    const filtered = page.waitForRequest(request => {
-      const url = new URL(request.url())
-      return url.pathname === '/rest/v1/issues' && url.searchParams.get('priority') === 'eq.high'
-        && url.searchParams.get('status') === 'eq.approved'
-    })
-    await page.getByLabel('গুরুত্ব', { exact: true }).selectOption('high')
-    await filtered
+    await Promise.all([
+      page.waitForRequest(request => {
+        const url = new URL(request.url())
+        return url.pathname === '/rest/v1/issues' && url.searchParams.get('priority') === 'eq.high'
+          && url.searchParams.get('status') === 'eq.approved'
+      }),
+      page.getByRole('combobox', { name: 'গুরুত্ব', exact: true }).selectOption('high'),
+    ])
     await fits('problem report')
 
     await page.goto(`${BASE}/app/issues`); await page.waitForSelector('.mg-row')
