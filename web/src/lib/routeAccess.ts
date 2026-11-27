@@ -4,6 +4,7 @@
 
 /** The one page of the module. Each part ("pane") is `?tab=<id>`. */
 export const ROUTE_PAGE = '/app/routes'
+export const ROUTE_PDFS_PAGE = '/app/routes/parcel-pdfs'
 
 /** The permissions behind the parts. A pane lists the ones it needs ("any of"); the database checks again on every call. */
 export const ROUTE_PERMS = {
