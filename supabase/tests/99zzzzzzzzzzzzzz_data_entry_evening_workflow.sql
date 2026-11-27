@@ -23,10 +23,9 @@ with merchant as (
 )
 insert into tests.ids select 'evening_merchant',id from merchant;
 
-insert into public.role_permissions (role_id, permission_id)
-select r.id, p.id from public.roles r cross join public.permissions p
-where r.code = 'zonal_manager' and p.code = 'data_entry.team.edit'
-on conflict do nothing;
+insert into public.user_permission_overrides (user_id,permission_id,effect,scope_type,zone_id,reason)
+select tests.id('zonal_a'),p.id,'grant','zone',tests.id('zone_a'),'DEMO zone-scoped Data Entry access'
+from public.permissions p where p.code='data_entry.team.edit';
 
 select tests.login(tests.id('hub_mgr'));
 select tests.throws(format('select public.data_entry_shift_control(%L,null)', tests.id('hub_a1')),
