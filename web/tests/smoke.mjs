@@ -504,6 +504,13 @@ try {
       if (u.includes('/rest/v1/employees') && u.includes('mobile=eq.01711000000')) return j([{ id: 'e01', employee_code: '1001', full_name: 'Staff 01', status: 'active', hub_id: 'h2' }])
       if (u.includes('/rest/v1/employees') && u.includes('hub_id=eq.h2') && r.request().method() === 'GET') return j(staffRows)
       if (u.includes('/rest/v1/issues') && u.includes('DUP123456')) return j([{ id: 'i9', issue_no: 'IS-0009', title: 'x', status: 'open' }])
+      if (u.includes('/rest/v1/issues')) {
+        const query = new URL(u).searchParams
+        if (query.get('status') !== 'eq.approved' || query.get('hub_id') === 'eq.h2') return j([])
+        return j([{ id: 'completed', issue_no: 'IS-00013', title: 'Completed parcel issue', kind: 'parcel', priority: 'high',
+          status: 'approved', hub_id: 'h1', due_at: null, created_at: '2026-11-15T05:00:00Z', reopen_count: 0,
+          assignee_id: 'e07', hub_info: { name: 'Natore Sadar' }, employee_info: { full_name: 'Staff 07' } }])
+      }
       // আমার অফিস / আবাসিক: one office and two residences, three people in a flat for two, one rent recorded this month
       if (u.includes('/rest/v1/office_properties') && r.request().method() === 'PATCH') { officePatches.push({ u, body: r.request().postDataJSON() }); return j(null) }
       if (u.includes('/rest/v1/office_properties') && u.includes('archived_at=not.is.null')) return j([officeGone])
@@ -1440,6 +1447,19 @@ try {
     await page.waitForURL(/accounts\/daily\/s9/, { timeout: 8000 }).catch(() => {})
     check(started.at(-1)?.p_hub === 'h4' || Object.values(started.at(-1) ?? {}).includes('h4'), `${size}: a sheet is started for the chosen hub`)
     // the chat view: list on the left, the conversation on the right (on a phone: one at a time)
+    await page.goto(`${BASE}/app/issues`)
+    await page.getByRole('button', { name: 'সমাধান হয়েছে', exact: true }).click()
+    await page.getByText('Completed parcel issue').first().waitFor()
+    await Promise.all([
+      page.waitForRequest(request => {
+        const url = new URL(request.url())
+        return url.pathname === '/rest/v1/issues' && url.searchParams.get('priority') === 'eq.high'
+          && url.searchParams.get('status') === 'eq.approved'
+      }),
+      page.getByRole('combobox', { name: 'গুরুত্ব', exact: true }).selectOption('high'),
+    ])
+    await fits('problem report')
+
     await page.goto(`${BASE}/app/issues`); await page.waitForSelector('.mg-row')
     check(await page.locator('.mg-row').count() === 5 && await page.locator('.mg-row.grp .mg-n').innerText() === '2' && await page.locator('.mg-row.zgrp .mg-n').innerText() === '3', `${size}: issues, orders, the hub group and the zone group sit in one chat-like list`)
     await fits('issue chat list')

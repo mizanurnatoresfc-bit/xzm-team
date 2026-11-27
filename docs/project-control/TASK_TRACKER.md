@@ -526,25 +526,26 @@
 | Blockers | Awaiting ChatGPT independent review |
 | Next Action | ChatGPT review → Owner approval on B4-G findings → open XZM-011/014/015/016 as separate approved PRs |
 
-### XZM-010 — Problem Center Enhancement *(proposed)*
+### XZM-010 — Problem Center Enhancement
+
 | Field | Value |
 |---|---|
-| Module | Issues / Hub Problem Center |
+| Module | Existing Issues / Hub Problem Center |
 | Category | ZM + UX |
-| Requirement | Auto-routing hub problem → zonal → hub-manager/call-center + per-rider tag + hub-wise leaderboard |
-| Business Objective | Faster rider problem resolution; accountability |
+| Requirement | Problem Center workflow tabs, reporting, scoped security and review |
+| Business Objective | Faster problem resolution and accountability |
 | Priority | P2 |
-| Assigned AI | TBD (ChatGPT scope + Claude UI, pending approval) |
-| Dependencies | XZM-007A/B-3 Finding G-1 |
-| Current Status | **PROPOSED** |
-| Acceptance Criteria | Clarified scope vs existing `Issues.tsx`; implementation plan; owner approval |
-| Test Evidence | — (none yet; task not approved) |
-| Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
+| Assigned AI | ChatGPT Work |
+| Dependencies | XZM-007A/B-3 Finding G-1; XZM-012 working hub |
+| Current Status | **IN REVIEW** — web increment and SQL draft |
+| Acceptance Criteria | Existing route, authorized reports, verified workflow and role isolation |
+| Test Evidence | See XZM-010 audit and TEST_REPORT |
+| Owner Approval | Development authorized; policy and release decisions pending |
+| Commit / PR Link | [Draft PR #220](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/220) |
 | GitHub Issue # | — |
-| Deployment Status | N/A |
-| Blockers | Owner clarification whether existing `Issues.tsx` is intended target |
-| Next Action | Clarify scope with Owner |
+| Deployment Status | Unreleased |
+| Blockers | Isolated Supabase/Android coverage and Owner policy approval |
+| Next Action | Review SQL draft, test migration and complete privacy/deadline configuration |
 
 ### XZM-011 — Smart Route & Backup Manpower Planning *(proposed)*
 | Field | Value |
