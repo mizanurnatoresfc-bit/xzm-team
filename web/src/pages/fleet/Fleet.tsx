@@ -1,3 +1,4 @@
+import { DispatchBoard } from '../sorting/DispatchBoard'
 import { useMemo, useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -12,8 +13,10 @@ import { Combo } from '../../components/inputs'
 import { refs } from '../../lib/refs'
 import { Thumb, bnNum, dayBn, timeBn, tk, todayDhaka } from './common'
 
-type Tab = 'list' | 'today' | 'approve' | 'reports' | 'log' | 'settings'
-const TABS: Array<[Tab, string, string]> = [['list', 'গাড়ি ও দায়িত্ব', 'truck'], ['today', 'আজ: খোরাকি ও গ্যারেজ', 'cal'], ['approve', 'অনুমোদন', 'check'],
+import { ManagerDailyChecks } from './DailyChecks'
+
+type Tab = 'checks' | 'list' | 'today' | 'approve' | 'reports' | 'log' | 'settings'
+const TABS: Array<[Tab, string, string]> = [['checks', 'আজকের গাড়ি চেক', 'check'], ['list', 'গাড়ি ও দায়িত্ব', 'truck'], ['today', 'আজ: খোরাকি ও গ্যারেজ', 'cal'], ['approve', 'অনুমোদন', 'check'],
   ['reports', 'হাব রিপোর্ট', 'hub'], ['log', 'এস্যাইন লগ', 'log'], ['settings', 'সেটিং', 'gear']]
 const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return x.toLocaleDateString('en-CA') }
 
@@ -22,8 +25,10 @@ export function Fleet() {
   const { can } = useAuth()
   const [sp, setSp] = useSearchParams()
   const canSet = can('vehicle.settings.configure')
-  const tabs = TABS.filter(([k]) => (k !== 'settings' || canSet) && (k !== 'reports' || can('vehicle.report.view') || can('vehicle.vehicle.view')))
-  const tab = (tabs.find(t => t[0] === sp.get('tab'))?.[0] ?? 'list') as Tab
+  const canCheck = can('vehicle.check.view') || can('vehicle.check.approve')
+  const canManage = can('vehicle.vehicle.view') || can('vehicle.log.approve')
+  const tabs = TABS.filter(([key]) => key === 'checks' ? canCheck : canManage || key === 'reports' || key === 'settings').filter(([k]) => (k !== 'settings' || canSet) && (k !== 'reports' || can('vehicle.report.view') || can('vehicle.vehicle.view')))
+  const tab = (tabs.find(t => t[0] === sp.get('tab'))?.[0] ?? (canManage ? 'list' : tabs[0]?.[0])) as Tab
   const go = (t: Tab) => { const n = new URLSearchParams(sp); n.set('tab', t); setSp(n, { replace: true }) }
   const [hub, setHub] = useState('')
   const settings = useLoad(() => fleet.settings().catch(() => ({} as Settings)), [])
@@ -36,12 +41,14 @@ export function Fleet() {
 
   return <AppShell title="গাড়ি" subtitle="জোনের গাড়ি, হাবে দেওয়া, ড্রাইভার-হেল্পার, খোরাকি, গ্যারেজ, অনুমোদন ও রিপোর্ট">
     <div className="fl">
+      <DispatchBoard />
       <div className="nv-chips fl-tabs" role="tablist">{tabs.map(([k, l, ic]) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`nv-chip${tab === k ? ' on' : ''}`} onClick={() => go(k)}>
         <Icon name={ic} size={15} />{l}{k === 'approve' && waitCount > 0 && <b>{bnNum(waitCount)}</b>}</button>)}</div>
       {(tab === 'list' || tab === 'today') && hubs.length > 1 && <div className="nv-chips">
         <button type="button" className={`nv-chip${!hub ? ' on' : ''}`} onClick={() => setHub('')}>সব হাব</button>
         {hubs.map(([id, name]) => <button key={id} type="button" className={`nv-chip${hub === id ? ' on' : ''}`} onClick={() => setHub(id)}>{name}</button>)}</div>}
-      {board.error ? <p className="da-error">{fleetFriendly(board.error)}</p> : null}
+      {tab !== 'checks' && board.error ? <p className="da-error">{fleetFriendly(board.error)}</p> : null}
+      {tab === 'checks' && <ManagerDailyChecks />}
       {tab === 'list' && <Vehicles rows={rows} loading={board.loading && !board.data} settings={settings.data} canAdd={can('vehicle.vehicle.create')} onChanged={reload} />}
       {tab === 'today' && <Today rows={rows} settings={settings.data} onChanged={reload} />}
       {tab === 'approve' && <Approvals data={waiting.data} loading={waiting.loading && !waiting.data} onChanged={reload} />}

@@ -1,3 +1,4 @@
+import { DispatchBoard } from './DispatchBoard'
 import { askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
@@ -593,6 +594,22 @@ function Parcels({ ctx }: { ctx: Ctx }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const rows = (q.data ?? []).filter(r => !dir || r.direction === dir)
   const hubsOfRoute = (route: string) => route ? (refs.rh.data ?? []).filter(h => h.route_id === route).map(h => h.hub_id) : ctx.hubs.map(h => h.id)
+  const [dispatchRoute, setDispatchRoute] = useState('')
+  const [dispatchRevision, setDispatchRevision] = useState(0)
+  async function dispatch() {
+    if (!dispatchRoute) return
+    setBusy(true)
+    setErr('')
+    try {
+      await sorting.startDispatch(dispatchRoute, today())
+      setDispatchRevision(value => value + 1)
+      toast(L('গাড়ি ছাড়ার আপডেট দেওয়া হয়েছে', 'Departure recorded'))
+    } catch (cause) {
+      setErr(hrFriendly(cause))
+    } finally {
+      setBusy(false)
+    }
+  }
   async function save() {
     if (!f) return
     if (!f.hub) return setErr(L('হাব বেছে নিন', 'Choose the hub'))
@@ -629,6 +646,18 @@ function Parcels({ ctx }: { ctx: Ctx }) {
   const t = (k: 'parcel_count' | 'wrong_count' | 'returned_count' | 'damaged_count', d?: Handover['direction']) => (q.data ?? []).filter(r => !d || r.direction === d).reduce((a, r) => a + r[k], 0)
   const creator = can('sorting.parcel.create')
   return <>{node}
+    {creator && <section className="panel">
+      <div className="da-bar">
+        <h2>{L('আজকের গাড়ি ছাড়ুন', "Dispatch today's vehicle")}</h2>
+        <select aria-label={L('রুট', 'Route')} value={dispatchRoute} onChange={event => setDispatchRoute(event.target.value)}>
+          <option value="">{L('রুট বেছে নিন', 'Choose route')}</option>
+          {(refs.routes.data ?? []).filter(route => route.status === 'active').map(route =>
+            <option key={route.id} value={route.id}>{route.name}</option>)}
+        </select>
+        <button type="button" disabled={busy || !dispatchRoute} onClick={() => void dispatch()}>{L('গাড়ি ছাড়ুন', 'Dispatch vehicle')}</button>
+      </div>
+    </section>}
+    <DispatchBoard key={dispatchRevision} />
     <div className="da-stats">
       <Stat icon="box" label={L('হাব → সোর্টিং', 'Hub → sorting')} value={n(t('parcel_count', 'hub_to_sorting'))} />
       <Stat icon="truck" label={L('সোর্টিং → হাব', 'Sorting → hub')} value={n(t('parcel_count', 'sorting_to_hub'))} />

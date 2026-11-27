@@ -9,6 +9,19 @@ async function rpc<T>(fn: string, args: Record<string, unknown> = {}): Promise<T
   const { data, error } = await supabase.rpc(fn, args); fail(error); return data as T
 }
 
+export type DispatchReport = {
+  id: string; route: string; hub: string; category: string; detail: string
+  instruction: string | null; reply: string | null; resolution: string | null
+  assignee: string | null; can_manage: boolean; can_reply: boolean
+}
+export type DispatchStop = {
+  position: number; hub: string; arrived_at: string | null; departed_at: string | null
+  parcels: number | null; bags: number | null; received: boolean | null
+}
+export type Dispatch = {
+  id: string; route: string; vehicle: string; driver: string | null; helper: string | null
+  departed_at: string; completed_at: string | null; can_step: boolean; stops: DispatchStop[]
+}
 export type Center = { id: string; code: string; name: string; name_bn: string | null; zone_id: string; address: string | null; phone: string | null; status: string; archived_at: string | null; home_hub_id?: string | null }
 export type Route = { id: string; center_id: string; zone_id: string; code: string; name: string; vehicle_id: string | null; driver_id: string | null
   depart_time: string | null; note: string | null; status: string; archived_at: string | null }
@@ -145,6 +158,15 @@ export const sorting = {
       p_id: id, p_count: count, p_wrong: wrong, p_returned: returned, p_damaged: damaged, p_note: note,
       p_lat: point?.lat ?? null, p_lng: point?.lng ?? null, p_accuracy: point?.accuracy ?? null, p_network: network, p_reason: reason,
     }),
+  dispatches: () => rpc<Dispatch[]>('sorting_dispatch_board'),
+  startDispatch: (route: string, date: string) => rpc<string>('sorting_dispatch_start', { p_route: route, p_date: date }),
+  stepDispatch: (trip: string, position: number, arrive: boolean) =>
+    rpc<void>('sorting_dispatch_step', { p_trip: trip, p_stop: position, p_arrive: arrive }),
+  dispatchReports: () => rpc<DispatchReport[]>('sorting_dispatch_report_list'),
+  reportDispatch: (id: string, trip: string, stop: number, category: string, detail: string) =>
+    rpc<void>('sorting_dispatch_report', { p_id: id, p_trip: trip, p_stop: stop, p_category: category, p_detail: detail }),
+  actOnDispatchReport: (id: string, action: string, note: string, code: string) =>
+    rpc<void>('sorting_dispatch_report_act', { p_id: id, p_action: action, p_text: note, p_code: code || null }),
   trips: async (center: string, from: string, to: string) => {
     const { data, error } = await supabase.from('sorting_driver_reports').select('*').eq('center_id', center).gte('work_date', from).lte('work_date', to)
       .order('work_date', { ascending: false }); fail(error); return (data ?? []) as DriverReport[]

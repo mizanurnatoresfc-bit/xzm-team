@@ -1,3 +1,4 @@
+import { DispatchBoard } from '../sorting/DispatchBoard'
 import { useState } from 'react'
 import { Contact } from '../../components/Contact'
 import { AppShell } from '../../components/AppShell'
@@ -6,6 +7,8 @@ import { COST_KIND, COST_STATUS, REPORT_STATUS, REQ_KIND, REQ_STATUS, ROLE_BN, f
   type Mine, type MyVehicle, type ReportStatus, type ReqKind } from '../../lib/fleet'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { FormFields, PhotoPick, Thumb, dayBn, missing, tk, todayDhaka } from './common'
+
+import { CrewDailyChecks } from './DailyChecks'
 
 type Open = '' | 'report' | 'fuel' | 'request'
 
@@ -22,11 +25,13 @@ export function FleetMine() {
   return <AppShell title="আমার গাড়ি" subtitle={v ? `${v.name}${v.reg_no ? ` · ${v.reg_no}` : ''}` : 'ড্রাইভার ও হেল্পারের প্যানেল'}>
     <div className="sd sp fl">
       {node}
+      <DispatchBoard />
       {d.error ? <p className="da-error">{fleetFriendly(d.error)}</p> : !m && d.loading ? <p className="muted">লোড হচ্ছে…</p>
         : !m || !v ? <div className="nv-empty panel"><Icon name="truck" size={30} /><p>আপনার নামে এখন কোনো গাড়ি নেই।</p>
             <p className="small">গাড়ির ড্রাইভার বা হেল্পার করা হলে এখানে দেখা যাবে।</p></div> : <>
         {m.vehicles.length > 1 && <div className="nv-chips">{m.vehicles.map((x, i) => <button key={x.id + x.role} type="button" className={`nv-chip${i === pick ? ' on' : ''}`} onClick={() => setPick(i)}>{x.name}</button>)}</div>}
         <Hero v={v} />
+        <CrewDailyChecks vehicle={v} />
         <div className="fl-acts">
           {fnOn(m.functions, 'hub_report') && <button type="button" className="fl-act t-b" onClick={() => setOpen('report')}><span className="i"><Icon name="hub" size={22} /></span>হাব রিপোর্ট দিন</button>}
           {fnOn(m.functions, 'fuel') && <button type="button" className="fl-act t-o" onClick={() => setOpen('fuel')}><span className="i"><Icon name="cash" size={22} /></span>তেল / স্লিপ দিন</button>}
@@ -45,8 +50,10 @@ export function FleetMine() {
 
 function Hero({ v }: { v: MyVehicle }) {
   return <div className="sp-hero fl-hero">
-    <span className="nv-av"><Icon name="truck" size={26} /></span>
-    <span className="tx"><small>{ROLE_BN[v.role]} · {v.hub_name ?? '—'}</small><b>{v.name}</b><span>{v.reg_no ?? 'নম্বর লেখা নেই'}</span>
+    <span className={`nv-av fleet-avatar fleet-avatar-${v.role === 'helper' ? 'helper' : v.kind === 'auto' ? 'auto' : 'driver'}`} aria-hidden="true">
+      {v.role === 'helper' ? '📦' : v.kind === 'auto' ? '🛺' : '🚚'}
+    </span>
+    <span className="tx"><small>{v.role === 'driver' && v.kind === 'auto' ? 'অটো ড্রাইভার' : ROLE_BN[v.role]} · {v.hub_name ?? '—'}</small><b>{v.name}</b><span>{v.reg_no ?? 'নম্বর লেখা নেই'}</span>
       {v.crew.map(c => <span key={c.role}>{ROLE_BN[c.role]}: {c.name}{c.mobile && <> <Contact phone={c.mobile} showNumber={false} /></>}</span>)}</span>
     {v.allowance ? <span className="sp-att"><Icon name="wallet" size={15} />খোরাকি {tk(v.allowance)}</span> : null}
   </div>
