@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-11-27 (late night) — D-012: XZM-006A + XZM-006B scope docs (docs + read-only verification)
+
+- **Decision:** Open the XZM-006A and XZM-006B audit docs under new PR `docs/xzm-006ab-critical-backup-recovery` with Owner-executable procedures and three read-only verification signals:
+  - XZM-006A identifies (via workflow citation, not secret read) the current production signer-match logic and specifies the three-part procedure Owner will execute to locate, verify, and encrypt-backup the original keystore.
+  - XZM-006B names `ndgnhvbpmtxrpplgsslz` as the production project on the strength of 8 cross-matched read-only MCP signals (DB size, table/RPC/policy/bucket counts, auth-user count, Edge Function set, API URL, ACTIVE_HEALTHY status) and proposes a three-layer backup (daily DB dump + daily Storage snapshot + weekly dashboard-config doc snapshot) with R2 as primary target and GitHub Releases as secondary.
+- **Rationale:** Deep verification (D-010/D-011) identified these two as the top-priority sub-tasks (CRITICAL + HIGH); turning them from PROPOSED into UNDER_REVIEW with concrete executable procedures unblocks Owner action. Plan choice is parked on Owner (Free $0 / Pro $25 / Pro+PITR $125) — the audit lays out all three with honest cost/coverage trade-offs rather than pushing one.
+- **Scope kept constant:** No live change. No secret read, written or rotated. MCP queries against production were SELECT-only. No GitHub Actions workflow added in this PR; both the helper scripts (XZM-006A-impl) and the backup workflow (XZM-006B-impl) are explicitly deferred to follow-up PRs after Owner approvals.
+
+---
+
 ## 2026-11-27 (post-merge evening) — D-010: XZM-006 Deep Verification + 9 sub-tasks XZM-006A..I
 - **Decision:** XZM-006 central audit rewritten into full 11-section deep-verification document; **9** proposed sub-tasks opened (XZM-006A Android signing export, XZM-006B Supabase recovery coverage + production-binding documentation, XZM-006C migration drift reconciliation (structural, per-migration), XZM-006D Cloudflare/Netlify rollback + zone export, XZM-006E missing edge functions source via `supabase functions download`, XZM-006F git tag policy, XZM-006G RPO/RTO Owner questionnaire, XZM-006H 7 security advisors remediation, **XZM-006I Isolated Backup Restore Test** (new)). Risk→Sub-task mapping updated in RISK_REGISTER.
 - **Rationale:** ChatGPT Independent Review on first XZM-006 summary returned PARTIAL — EVIDENCE REQUIRED. Owner Second Review accepted the direction; a subsequent 6-point correction pass fixed inaccurate claims (Free-plan PITR, Edge Function download feasibility, migration-drift arithmetic, Preview/Production conflation) and added XZM-006I as an explicit isolated restore drill.

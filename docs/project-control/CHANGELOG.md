@@ -4,6 +4,18 @@
 
 ---
 
+## 2026-11-27 (XZM-006A + XZM-006B Critical Backup Recovery — docs + read-only verification)
+
+- **XZM-006A — Android Signing Key** audit doc added: `docs/project-control/audits/XZM-006A_ANDROID_SIGNING_KEY.md`. Covers (a) six-location Owner checklist for finding the original keystore; (b) `apksigner verify --print-certs` fingerprint extraction from the public live APK + `keytool -list -v` match verification against any found `.jks`; (c) GPG-AES256 encrypted bundle (keystore + keystore.properties + README) stored in two independent locations (password-manager vault + offline media), with passphrase kept separately. Cites `.github/workflows/android-apk.yml` lines 115–140 and 171–196 for the production signer-match logic. XZM-006A status → UNDER_REVIEW; follow-up XZM-006A-impl opens helper scripts + PROJECT_CONNECTIONS.md §11 fingerprint record.
+
+- **XZM-006B — Supabase Backup Plan** audit doc added: `docs/project-control/audits/XZM-006B_SUPABASE_BACKUP_PLAN.md`. Production project identified as `ndgnhvbpmtxrpplgsslz` via 8 cross-matched read-only MCP signals (181 tables all RLS-enabled, 1 view, 468 RPC functions, 255 policies, 7 private Storage buckets, 40 objects ~5.5 MB, 85 auth users, ~200 MB DB, Edge Function set matches `web/` call sites). Three-layer backup plan: (A) daily GitHub Actions `supabase db dump` → GPG-AES256 → Cloudflare R2 (primary) + GitHub Releases (secondary); (B) parallel Storage object snapshot per bucket; (C) Owner's weekly doc snapshot of Auth/SMTP/providers/hooks/Edge Function secret names/Realtime config under `docs/project-control/supabase-config/`. Plan options compared: Free + Layer A/B/C ($0), Pro ($25/mo), Pro + PITR 7d ($125/mo); recommendation at today's scale is Free + A/B/C, with Pro recommended once DB > 500 MB. Retention: 14 daily / 12 weekly / 12 monthly. XZM-006B status → UNDER_REVIEW; follow-up XZM-006B-impl opens the workflow + supabase-config/ folder + PROJECT_CONNECTIONS.md §10.
+
+- **Scope kept constant:** docs-only inside `docs/project-control/`. Read-only MCP SELECT queries against production for sizing only; no `apply_migration`, no `execute_sql` writes, no Storage object bytes read, no Edge Function deploy, no secret rotation, no GitHub Actions secret read, no production change.
+
+- **Status:** Draft PR `docs/xzm-006ab-critical-backup-recovery`, awaiting ChatGPT Independent Review → Owner approval of §7 action items in each audit doc, then follow-up implementation PRs (XZM-006A-impl, XZM-006B-impl).
+
+---
+
 ## 2026-11-27 (XZM-006 Deep Verification + 6-Point Correction Pass, post-merge)
 
 - **XZM-006 — Backup & Recovery Deep Verification (Draft PR):** Per ChatGPT Independent Review (PARTIAL — EVIDENCE REQUIRED), the central audit `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` is rewritten from a 5-section summary into a full 11-section deep-verification document carrying: 18-asset matrix with 5-tier status (BACKUP AVAILABLE / RESTORE TESTED / UNVERIFIED / MISSING / ACCESS REQUIRED); 7 disaster-recovery procedures in full; Android signing-key reverification acknowledging GitHub Actions secrets are write-only after creation (not directly exportable); Supabase PITR/Auth/Storage coverage gap-analysis; live-vs-repo migration drift; missing edge functions recovery feasibility (`nodi-route-plan`, `osm-fetch-places`); Cloudflare + Netlify rollback; Preview↔Production isolation (VERIFIED read-only); per-system RPO/RTO gap-analysis. Introduces proposed sub-tasks **XZM-006A..I** (letter-suffix namespace, no conflict with XZM-### numeric IDs). Updates TASK_TRACKER, RISK_REGISTER (R-001 clarification on GitHub secret write-only + Risk→Sub-task mapping table), AUDIT_REPORT, AI_HANDOVER.

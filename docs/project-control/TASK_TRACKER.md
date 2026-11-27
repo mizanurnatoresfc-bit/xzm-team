@@ -254,46 +254,49 @@
 | Blockers | Awaiting ChatGPT Independent Second Review on deep verification |
 | Next Action | ChatGPT Second Review of 6-point correction pass → Owner approves XZM-006A..I → open each as separate PR |
 
-### XZM-006A — Android Signing Key Off-GitHub Export Procedure *(proposed)*
+### XZM-006A — Android Signing Key: Original Backup + Match Verification + Encrypted Storage
 | Field | Value |
 |---|---|
 | Module | Android signing / CI secrets |
 | Category | DS — Database & Security |
-| Requirement | Verify Owner has original keystore file off-GitHub; export encrypted copy to password-manager vault + offline media; document the export/import procedure |
+| Requirement | Three-part procedure delivered in `docs/project-control/audits/XZM-006A_ANDROID_SIGNING_KEY.md`: (a) six-location Owner checklist for finding the original keystore; (b) `apksigner verify --print-certs` fingerprint extraction from the live APK + `keytool -list -v` match verification against any found `.jks`; (c) GPG-AES256 encrypted bundle (keystore + keystore.properties + README) stored in two independent locations (password-manager vault + offline media), passphrase kept separately |
 | Business Objective | Remove CRITICAL single-point-of-failure on Android update channel |
 | Priority | P0 (CRITICAL) |
-| Assigned AI | Owner (export) + Claude (procedure doc) |
+| Assigned AI | Claude (procedure doc — done) + Owner (locate file + encrypt + store) |
 | Dependencies | XZM-006 §3.3 Owner verification |
-| Current Status | **PROPOSED** |
-| Acceptance Criteria | Owner confirms off-GitHub keystore copy exists in two locations; procedure doc committed; R-001 moves from OPEN → MITIGATED |
-| Test Evidence | — |
+| Current Status | **UNDER_REVIEW** — audit doc complete; awaiting ChatGPT review + Owner execution |
+| Acceptance Criteria | Owner locates matching `.jks`; `apksigner`/`keytool` SHA-256 verification passes; two encrypted off-GitHub copies in independent locations; public fingerprint recorded in PROJECT_CONNECTIONS.md §11; R-001 moves OPEN → MITIGATED |
+| Test Evidence | `docs/project-control/audits/XZM-006A_ANDROID_SIGNING_KEY.md` + workflow line-item citations into `.github/workflows/android-apk.yml` (lines 115–140, 171–196) |
 | Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
+| Commit / PR Link | PR `docs/xzm-006ab-critical-backup-recovery` (this PR) |
 | GitHub Issue # | — |
-| Deployment Status | N/A |
-| Blockers | Owner locates original keystore file (laptop / backup drive search) |
-| Next Action | Owner performs §3.3 location checks |
+| Deployment Status | N/A (docs-only + Owner-executed manual steps) |
+| Blockers | Owner performs §2 checks 1–6 on their machine |
+| Next Action | Owner runs §2 (locate) → §3.1 Method A (extract fingerprint) → §4 (verify match) → §5 (encrypted backup) |
+| Follow-up impl PR | **XZM-006A-impl** — `scripts/verify-apk-signer.sh` + `scripts/verify-local-keystore.sh` + PROJECT_CONNECTIONS.md §11 fingerprint record + RISK_REGISTER R-001 → MITIGATED (opened after Owner steps 1–3 complete) |
 | Conflict check | No XZM-006A elsewhere — SAFE |
 
-### XZM-006B — Supabase Recovery Coverage Documentation *(proposed)*
+### XZM-006B — Supabase Backup Plan: Production Identification + DB/Schema/Auth/RLS/RPC/Storage + Daily Automation + Retention/Cost/Recovery
 | Field | Value |
 |---|---|
-| Module | Supabase (DB, Auth, Storage, Edge Function secrets, Realtime) + production-binding documentation |
+| Module | Supabase (DB, Auth, RLS, RPC, Storage, Edge Function secrets, Realtime) + production-binding documentation |
 | Category | DS — Database & Security |
-| Requirement | Owner plan-upgrade decision (Free → Pro/PITR, or stay Free with scheduled `pg_dump`); schedule `pg_dump` export off-platform; document Auth config snapshot + Storage bucket inventory + Edge Function secret inventory + Realtime channels; record live `VITE_SUPABASE_URL` in PROJECT_CONNECTIONS.md; add explicit "production despite its name" annotation to `xzm-team-erp-dev` (XZM-006B.5) |
-| Business Objective | Known-good recovery posture for every Supabase sub-system; no ambiguity about which project is production |
+| Requirement | Three-layer backup plan delivered in `docs/project-control/audits/XZM-006B_SUPABASE_BACKUP_PLAN.md`: (A) daily GitHub Actions workflow runs `supabase db dump` → gzip → GPG-AES256 → uploads to R2 (primary) + GitHub Releases (secondary); (B) same workflow streams Storage object bytes per bucket and uploads encrypted tar; (C) Owner's weekly doc-snapshot of Auth/SMTP/providers/hooks/Edge Function secret names/Realtime config in `docs/project-control/supabase-config/`. Owner plan decision between Free + Layer A/B/C ($0), Pro ($25/mo), or Pro + PITR 7-day ($125/mo). Retention: 14 daily + 12 weekly + 12 monthly. Record live `VITE_SUPABASE_URL` in PROJECT_CONNECTIONS.md §10 with explicit "production despite its name" annotation on `xzm-team-erp-dev` (XZM-006B.5) |
+| Business Objective | Known-good recovery posture for every Supabase sub-system; no ambiguity about which project is production; measurable RPO/RTO |
 | Priority | P1 (HIGH) |
-| Assigned AI | Owner (plan decision + dashboard screenshots) + Claude (documentation) |
+| Assigned AI | Claude (plan doc + read-only verification — done) + Owner (plan decision + dashboard reads + bucket provisioning) + ChatGPT Backend Team (review) |
 | Dependencies | XZM-006 §6.2, §5.2 |
-| Current Status | **PROPOSED** |
-| Acceptance Criteria | Plan decision recorded; `pg_dump` schedule running; Auth config export written; Storage bucket list documented; `VITE_SUPABASE_URL` recorded; production annotation added to PROJECT_CONNECTIONS.md |
+| Current Status | **UNDER_REVIEW** — audit doc + read-only verification complete; awaiting ChatGPT review + Owner plan decision |
+| Acceptance Criteria | Plan decision recorded in DECISION_LOG; backup workflow green on first run; first encrypted dump landed on primary target; `supabase-config/` folder seeded; `VITE_SUPABASE_URL` + production annotation in PROJECT_CONNECTIONS.md; R-010 + R-011 → MITIGATED |
+| Verified in this PR (read-only) | Production project ref = `ndgnhvbpmtxrpplgsslz` (8 signals cross-match); 181 tables (all RLS-enabled) + 1 view + 468 RPCs + 255 policies + 7 private Storage buckets + 85 auth users + ~200 MB DB + ~5.5 MB storage; API URL `https://ndgnhvbpmtxrpplgsslz.supabase.co` |
 | Test Evidence | — |
 | Owner Approval | ⏳ pending |
 | Commit / PR Link | — |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
-| Blockers | Owner dashboard access |
-| Next Action | Owner provides Supabase dashboard screenshots |
+| Blockers | Owner plan decision (A/B/C per audit §4.2); Owner Netlify dashboard confirmation |
+| Next Action | Owner confirms `VITE_SUPABASE_URL` from Netlify Site Settings → records in PROJECT_CONNECTIONS.md §10; picks plan option; provisions R2 bucket + API token |
+| Follow-up impl PR | **XZM-006B-impl** — `.github/workflows/supabase-daily-backup.yml` + `docs/project-control/supabase-config/*.md` + PROJECT_CONNECTIONS.md §10 + BACKUP_LOG.md (opened after Owner decisions) |
 | Conflict check | No XZM-006B elsewhere — SAFE |
 
 ### XZM-006C — Supabase Migration Drift Reconciliation (structural, per-migration) *(proposed)*
