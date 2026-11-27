@@ -281,20 +281,20 @@
 |---|---|
 | Module | Supabase (DB, Auth, RLS, RPC, Storage, Edge Function secrets, Realtime) + production-binding documentation |
 | Category | DS — Database & Security |
-| Requirement | Three-layer backup plan delivered in `docs/project-control/audits/XZM-006B_SUPABASE_BACKUP_PLAN.md`: (A) daily GitHub Actions workflow runs `supabase db dump` → gzip → GPG-AES256 → uploads to R2 (primary) + GitHub Releases (secondary); (B) same workflow streams Storage object bytes per bucket and uploads encrypted tar; (C) Owner's weekly doc-snapshot of Auth/SMTP/providers/hooks/Edge Function secret names/Realtime config in `docs/project-control/supabase-config/`. Owner plan decision between Free + Layer A/B/C ($0), Pro ($25/mo), or Pro + PITR 7-day ($125/mo). Retention: 14 daily + 12 weekly + 12 monthly. Record live `VITE_SUPABASE_URL` in PROJECT_CONNECTIONS.md §10 with explicit "production despite its name" annotation on `xzm-team-erp-dev` (XZM-006B.5) |
+| Requirement | Owner approved staying on Supabase Free with encrypted database and separate Storage backups to private Cloudflare R2. Retain 14 daily, 12 weekly and 12 monthly copies. See the audit plan for dashboard-only configuration coverage. Confirm the effective published Supabase URL before targeting production. |
 | Business Objective | Known-good recovery posture for every Supabase sub-system; no ambiguity about which project is production; measurable RPO/RTO |
 | Priority | P1 (HIGH) |
-| Assigned AI | Claude (plan doc + read-only verification — done) + Owner (plan decision + dashboard reads + bucket provisioning) + ChatGPT Backend Team (review) |
+| Assigned AI | ChatGPT Work (implementation and verification) + Claude (audit plan in #215) + Owner (R2 checkout and production authorization) |
 | Dependencies | XZM-006 §6.2, §5.2 |
-| Current Status | **UNDER_REVIEW** — audit doc + read-only verification complete; awaiting ChatGPT review + Owner plan decision |
+| Current Status | **IN_PROGRESS** — approach approved and issue opened. Backup activation and first run pending. |
 | Acceptance Criteria | Plan decision recorded in DECISION_LOG; backup workflow green on first run; first encrypted dump landed on primary target; `supabase-config/` folder seeded; `VITE_SUPABASE_URL` + production annotation in PROJECT_CONNECTIONS.md; R-010 + R-011 → MITIGATED |
 | Verified in this PR (read-only) | Production project ref = `ndgnhvbpmtxrpplgsslz` (8 signals cross-match); 181 tables (all RLS-enabled) + 1 view + 468 RPCs + 255 policies + 7 private Storage buckets + 85 auth users + ~200 MB DB + ~5.5 MB storage; API URL `https://ndgnhvbpmtxrpplgsslz.supabase.co` |
 | Test Evidence | — |
-| Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
-| GitHub Issue # | — |
+| Owner Approval | Approved 2026-11-27 (Asia/Dhaka) — keep Free and use private R2. |
+| Commit / PR Link | Audit plan [#215](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/215) |
+| GitHub Issue # | [#216](https://github.com/mizanurnatoresfc-bit/xzm-team/issues/216) |
 | Deployment Status | N/A |
-| Blockers | Owner plan decision (A/B/C per audit §4.2); Owner Netlify dashboard confirmation |
+| Blockers | R2 active and Standard bucket verified private. Backup credentials and effective Supabase URL in the published build still pending. |
 | Next Action | Owner confirms `VITE_SUPABASE_URL` from Netlify Site Settings → records in PROJECT_CONNECTIONS.md §10; picks plan option; provisions R2 bucket + API token |
 | Follow-up impl PR | **XZM-006B-impl** — `.github/workflows/supabase-daily-backup.yml` + `docs/project-control/supabase-config/*.md` + PROJECT_CONNECTIONS.md §10 + BACKUP_LOG.md (opened after Owner decisions) |
 | Conflict check | No XZM-006B elsewhere — SAFE |
