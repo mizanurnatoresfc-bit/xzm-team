@@ -1,4 +1,4 @@
-# XZM-TEAM ERP — Implementation Plan
+# XZM TEAM — Implementation Plan
 
 Each phase ends with a report in `docs/PROGRESS.md` (features, files, DB changes, tests **actually executed**, open bugs, missing credentials, next phase). A phase is "done" only when its acceptance tests run green.
 

@@ -215,13 +215,33 @@ jobs:
           path: web/dist
           retention-days: 30
 
+  # Production publish. Runs only on main (push, or a manual run with publish_apk) and uses the GitHub Environment "production":
+  # with "Required reviewers" set on that Environment (repo Settings -> Environments -> production), nothing reaches the live site
+  # until the Super Admin approves this job. The pages are the exact "site-dist" artifact built and tested by the job above.
+  deploy:
+    needs: apk
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.publish_apk)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: site-dist
+          path: web/dist
+
       # Uploads the finished pages straight to Netlify. Netlify runs no build of its own,
       # so this does not use Netlify build minutes/credits.
       # One-time setup: Netlify -> User settings -> Applications -> New access token,
       # then GitHub -> repo Settings -> Secrets and variables -> Actions -> New repository
       # secret named NETLIFY_AUTH_TOKEN. Without the secret this step is skipped.
       - name: Publish the website to Netlify
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.publish_apk)
         # Netlify's credits ran out (27 Nov 2026): a refused upload must not stop the Cloudflare publish below.
         continue-on-error: true
         env:
@@ -233,6 +253,7 @@ jobs:
             exit 0
           fi
           # --no-build: upload dist exactly as made above. Without it the CLI reads netlify.toml, runs the build again and drops dist/download (the APK).
+          cd web
           npx -y netlify-cli@latest deploy --prod --no-build --dir dist --site "$NETLIFY_SITE_ID" --message "GitHub build ${GITHUB_SHA:0:7}"
 
       # Uploads the same finished pages to Cloudflare (Workers static assets, see wrangler.jsonc at the repo root).
@@ -240,7 +261,6 @@ jobs:
       # then GitHub -> repo Settings -> Secrets and variables -> Actions -> New repository secret:
       # CLOUDFLARE_API_TOKEN (that token) and CLOUDFLARE_ACCOUNT_ID (Workers & Pages -> right side). Without them this step is skipped.
       - name: Publish the website to Cloudflare
-        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.publish_apk)
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -250,4 +270,5 @@ jobs:
             exit 0
           fi
           # the config lives in the repo root; its assets folder (./web/dist) is the site made above, APK included
+          cd web
           npx -y wrangler@4 deploy --config ../wrangler.jsonc --message "GitHub build ${GITHUB_SHA:0:7}"

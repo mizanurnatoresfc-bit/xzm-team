@@ -1,4 +1,4 @@
-# UI/UX & Reference Audit — XZM-TEAM ERP
+# UI/UX & Reference Audit — XZM TEAM
 
 Date: 2026-11-11 · Scope: brief §3 "Branding and UI Design" + user request "UI/UX & Reference Audit"
 

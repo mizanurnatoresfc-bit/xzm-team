@@ -1,4 +1,4 @@
-# XZM-TEAM — Management + Accounts ERP: Architecture
+# XZM TEAM — Management + Accounts System: Architecture
 
 Status: **Phase 0 draft — awaiting approval.** Decisions marked _(default)_ were taken as sensible professional defaults and can be changed; decisions marked **[NEEDS APPROVAL]** affect security, money or irreversible data and must be confirmed.
 

@@ -1,4 +1,4 @@
-# XZM-TEAM ERP — Approved Production Roadmap
+# XZM TEAM — Approved Production Roadmap
 
 > **Superseded (22 Nov 2026):** this is the plan of 13 Nov, kept for history. The current audit and roadmap are in `GO_LIVE_ROADMAP.md`.
 
@@ -65,7 +65,7 @@ The courier and zonal database migrations already exist, but do not expose their
 
 ## Known blockers to close before Release 1
 
-1. The current repository contains a sample HTML/JavaScript demo backed by browser/local demo data; it is not the production app and must not be deployed as the ERP.
+1. The current repository contains a sample HTML/JavaScript demo backed by browser/local demo data; it is not the production app and must not be deployed as the system.
 2. The initial React scaffold is now under `web/`; dependency installation and a production build have not yet been run in this environment.
 3. The architecture document describes an `auth-login` Edge Function and lockout-aware login flow, but no Edge Function implementation is present in this ZIP. Implement and test it, or formally replace that flow with a verified Supabase Auth rate-limit/lockout design before go-live.
 4. Real Supabase migration/RLS/Storage/Auth testing is outstanding. The reported 427 SQL assertions passed only against PostgreSQL with a local Supabase shim.
