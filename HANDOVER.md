@@ -1046,4 +1046,4 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - **Approved counts are locked** for the staff member (`wf_pending_today` refuses a different count, returns `approved`); the manager can send an approved count back with a reason, which unlocks it.
 - **Staff month:** `wf_pending_own_month` + two new columns (পেন্ডিং, যাচাই) in "আমার মাসের কাজের হিসাব".
 - Page: manager queue refreshes after the manager submits their own count; the pending card icon is no longer a back arrow; cards no longer stretch; number steps wrap.
-- Left as is (ask the owner): a hub manager can still enter a count on behalf of a zonal manager who is a staff member of the same hub.
+- Owner decision ("হাব ম্যানেজার জোনাল ম্যানেজারের সিদ্ধান্ত দিবে না"): a hub manager can neither enter nor review a zonal manager's count; only a company-wide `ops.staff_daily.edit` holder (admin / head office) can (`private.wf_pending_is_zonal`, row flag `above_you`).

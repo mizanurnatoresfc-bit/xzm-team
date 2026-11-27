@@ -208,6 +208,8 @@ export type PendingHubRow = {
   proxy_reason: string | null; approved: boolean; return_reason: string | null
   /** The signed-in person's own row: nobody reviews their own count. */
   is_self: boolean
+  /** A zonal manager's row, seen by someone below company level: only a company-wide approver decides on it. */
+  above_you: boolean
 }
 
 export type OwnPendingDay = { date: IsoDate; count: number; approved: boolean; return_reason: string | null }

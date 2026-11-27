@@ -78,6 +78,7 @@ function PendingQueue({ hub }: { hub: string }) {
         {row.return_reason && <p>{L('ফেরতের কারণ', 'Return reason')} · {row.return_reason}</p>}
         {row.is_self ? (row.snapshot && !row.approved && !row.return_reason
           ? <p className="muted">{L('নিজের সংখ্যা নিজে অনুমোদন করা যায় না — উপরের স্তরের ম্যানেজার যাচাই করবেন।', 'You cannot approve your own count — a manager above you reviews it.')}</p> : null)
+        : row.above_you ? <p className="muted">{L('জোনাল ম্যানেজারের সংখ্যায় হাব ম্যানেজার সিদ্ধান্ত দিতে পারেন না — হেড অফিস যাচাই করবে।', 'A hub manager cannot decide on a zonal manager’s count — head office reviews it.')}</p>
           : <>
             {data.can_review && row.snapshot && !row.return_reason && <>
               {!row.approved && <button type="button" disabled={busy} onClick={() => void save(row)}>{L('অনুমোদন', 'Approve')}</button>}
@@ -89,7 +90,7 @@ function PendingQueue({ hub }: { hub: string }) {
               setProxy(row.employee_id); setCount(''); setReason('')
             }}>{L('পক্ষে এন্ট্রি দিন', 'Enter on behalf')}</button>}
           </>}
-        {returning === row.employee_id && row.snapshot && !row.return_reason && !row.is_self &&
+        {returning === row.employee_id && row.snapshot && !row.return_reason && !row.is_self && !row.above_you &&
           <form onSubmit={event => { event.preventDefault(); void save(row, true) }}>
             <Field label={L('ফেরতের কারণ', 'Return reason')}>
               <input maxLength={500} value={returnReason} onChange={event => setReturnReason(event.target.value)} />

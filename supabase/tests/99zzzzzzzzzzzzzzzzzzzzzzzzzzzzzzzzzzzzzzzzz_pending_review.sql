@@ -61,6 +61,26 @@ select tests.throws(format('select public.wf_pending_manager_save(%L, %L, %L, %s
   'a decided count cannot be approved twice', '40001');
 select tests.logout();
 
+-- a hub manager does not decide on the zonal manager's count; nobody below company level does
+select tests.login(tests.id('zonal_a'));
+select public.wf_pending_today(6, tests.td());
+select tests.logout();
+select tests.login(tests.id('hub_mgr'));
+select tests.ok((select (r ->> 'above_you')::boolean from jsonb_array_elements(public.wf_pending_hub_today(tests.id('hub_a1')) -> 'rows') r where r ->> 'name' = 'Karim Zonal'),
+  'the zonal manager''s row is marked as above the hub manager');
+select tests.ok(not (select (r ->> 'above_you')::boolean from jsonb_array_elements(public.wf_pending_hub_today(tests.id('hub_a1')) -> 'rows') r where r ->> 'name' = 'Rahim Rider'),
+  'a rider''s row is not');
+select tests.throws(format('select public.wf_pending_manager_save(%L, %L, %L, %s, null, null, false)', tests.id('hub_a1'), tests.id('e_zonal'), tests.td(), tests.snap('e_zonal')),
+  'a hub manager cannot approve the zonal manager''s count', '42501');
+select tests.throws(format('select public.wf_pending_manager_save(%L, %L, %L, null, 5, %L, false)', tests.id('hub_a1'), tests.id('e_zonal'), tests.td(), 'x'),
+  'a hub manager cannot enter a count for the zonal manager', '42501');
+select tests.logout();
+select tests.login(tests.id('admin'));
+select tests.ok(not exists (select 1 from jsonb_array_elements(public.wf_pending_hub_today(tests.id('hub_a1')) -> 'rows') r where (r ->> 'above_you')::boolean),
+  'a company-wide approver is not blocked on any row');
+select public.wf_pending_manager_save(tests.id('hub_a1'), tests.id('e_zonal'), tests.td(), tests.snap('e_zonal')::bigint, null, null, false);
+select tests.logout();
+
 -- other zones stay out of reach
 select tests.login(tests.id('zonal_a'));
 select tests.throws(format('select public.wf_pending_manager_save(%L, %L, %L, %s, null, null, false)', tests.id('hub_b1'), tests.id('e_staff'), tests.td(), tests.snap('e_staff')),

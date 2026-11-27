@@ -4,7 +4,26 @@
 --     the review queue says which row is the caller's own so the page can hide the buttons.
 --  2. Staff could overwrite an approved count and silently lose the approval. An approved count is now locked for the
 --     staff member; the manager can send it back with a reason, which unlocks it. Staff also see "approved".
+--     A hub manager does not decide on a zonal manager's count (entering or reviewing): that needs a company-wide edit right.
 --  3. Staff get their own month of pending counts (current and previous month), like the month of pickups/deliveries.
+
+-- A person who holds the zonal dashboard right (zone or company scope) is above the hub manager in this book.
+create function private.wf_pending_is_zonal(p_employee uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.employees e
+    join public.user_roles ur on ur.user_id = e.profile_id
+    join public.profiles pr on pr.id = ur.user_id and pr.status = 'active' and pr.archived_at is null
+    join public.roles r on r.id = ur.role_id and r.status = 'active' and r.archived_at is null
+    left join public.role_permissions rp on rp.role_id = r.id
+    left join public.permissions p on p.id = rp.permission_id
+    where e.id = p_employee and ur.revoked_at is null
+      and ur.valid_from <= current_date and (ur.valid_to is null or ur.valid_to >= current_date)
+      and ur.scope_type in ('zone', 'global')
+      and (p.code = 'zonal.dashboard.view' or r.is_super)
+  )
+$$;
+revoke all on function private.wf_pending_is_zonal(uuid) from public, anon, authenticated;
 
 create or replace function public.wf_pending_today(p_count integer default null, p_work_date date default null)
 returns jsonb
@@ -64,6 +83,7 @@ declare
   zone uuid;
   today date := private.wf_today();
   can_edit boolean;
+  company boolean;
 begin
   select h.zone_id into zone from public.hubs h where h.id = p_hub;
   if not found or auth.uid() is null
@@ -71,6 +91,7 @@ begin
     raise exception 'You may not view this hub' using errcode = '42501';
   end if;
   can_edit := coalesce(private.has_permission('ops.staff_daily.edit', zone, p_hub), false);
+  company := coalesce(private.has_permission('ops.staff_daily.edit', null, null), false);
 
   return jsonb_build_object(
     'date', today,
@@ -79,7 +100,8 @@ begin
     'rows', (select coalesce(jsonb_agg(jsonb_build_object(
       'employee_id', e.id, 'name', e.full_name, 'snapshot', s.id::text, 'count', s.pending_count,
       'proxy_reason', s.proxy_reason, 'approved', a.snapshot_id is not null and a.return_reason is null,
-      'return_reason', a.return_reason, 'is_self', e.profile_id is not distinct from auth.uid()
+      'return_reason', a.return_reason, 'is_self', e.profile_id is not distinct from auth.uid(),
+      'above_you', not company and private.wf_pending_is_zonal(e.id)
     ) order by e.full_name, e.id), '[]'::jsonb)
     from public.employees e
     left join lateral (
@@ -109,6 +131,7 @@ begin
     and (coalesce(private.has_permission('ops.staff_daily.edit', zone, p_hub), false)
       or (p_snapshot is not null and coalesce(private.has_permission('zonal.dashboard.view', zone, null), false)));
   if not coalesce(allowed, false)
+     or (private.wf_pending_is_zonal(p_employee) and not coalesce(private.has_permission('ops.staff_daily.edit', null, null), false))
      or not exists (select 1 from public.employees e where e.id = p_employee and e.hub_id = p_hub
        and e.archived_at is null and e.status = 'active' and e.profile_id is distinct from auth.uid()) then
     raise exception 'You may not update this entry' using errcode = '42501';
