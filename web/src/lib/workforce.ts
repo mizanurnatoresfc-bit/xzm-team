@@ -205,14 +205,35 @@ export type PendingMonthDay = {
 
 export type PendingHubRow = {
   employee_id: string; name: string; snapshot: string | null; count: number | null
-  proxy_reason: string | null; approved: boolean; return_reason: string | null
+  proxy_reason: string | null; approved: boolean; return_reason: string | null; can_review: boolean
+}
+
+export type HubRegisterNumbers = OpsInput & { pending: number }
+export type HubRegisterStatus = {
+  source_key: string
+  staff_totals: HubRegisterNumbers
+  approved_count: number
+  unresolved_count: number
+  submitted: {
+    version: number
+    source_key: string
+    manual: HubRegisterNumbers
+    totals: HubRegisterNumbers
+    note: string | null
+    submitted_at: string
+  } | null
 }
 
 export const wf = {
+  hubRegisterStatus: (hub: string, date: IsoDate) =>
+    rpc<HubRegisterStatus>('wf_hub_register_status', { p_hub: hub, p_date: date }),
+  submitHubRegister: (hub: string, date: IsoDate, status: HubRegisterStatus, manual: HubRegisterNumbers, note: string) =>
+    rpc<number>('wf_hub_register_submit', { p_hub: hub, p_date: date,
+      p_source_key: status.source_key, p_version: status.submitted?.version ?? 0, p_manual: manual, p_note: note || null }),
   pendingMonth: (hub: string, month: IsoDate) =>
     rpc<PendingMonthDay[]>('wf_pending_month', { p_hub: hub, p_month: month }),
-  pendingHubToday: (hub: string) => rpc<{ date: IsoDate; can_edit: boolean; rows: PendingHubRow[] }>(
-    'wf_pending_hub_today', { p_hub: hub }),
+  pendingHubOn: (hub: string, date: IsoDate) => rpc<{ date: IsoDate; can_edit: boolean; rows: PendingHubRow[] }>(
+    'wf_pending_hub_on', { p_hub: hub, p_date: date }),
   savePendingManager: (hub: string, employee: string, date: IsoDate, snapshot: string | null, count?: number, reason?: string, returned = false) =>
     rpc<void>('wf_pending_manager_save', { p_hub: hub, p_employee: employee, p_date: date, p_snapshot: snapshot,
       p_count: count ?? null, p_reason: reason ?? null, p_return: returned }),
@@ -275,6 +296,9 @@ export const wf = {
 
 // ------------------------------------------------------------------ errors in plain Bangla
 const BN: Array<[RegExp, string]> = [
+  [/staff entries changed|another manager submitted/i, 'খাতার তথ্য বদলেছে। নতুন তথ্য দেখে আবার জমা দিন।'],
+  [/review or correct the outstanding entries/i, 'খাতা জমা দেওয়ার আগে বাকি এন্ট্রিগুলো যাচাই বা সংশোধন করুন।'],
+  [/choose a (hub and a )?valid register date/i, 'খাতার জন্য সঠিক তারিখ বেছে নিন।'],
   [/morning input is locked/i, 'সকালের ইনপুট জমা হয়ে লক হয়েছে — জোনাল ম্যানেজার ফেরত না দিলে বদলানো যায় না'],
   [/morning input of this hub is not submitted/i, 'এই হাবের সকালের ইনপুট এখনো জমা হয়নি — আগে সেটা জমা হতে হবে'],
   [/morning input is for today/i, 'সকালের ইনপুট শুধু আজ বা আগের দুই দিনের'],

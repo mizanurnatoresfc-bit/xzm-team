@@ -18,6 +18,9 @@ export function HubRegisters() {
   const [showMonth, setShowMonth] = useState(false)
   const zone = ATTENDANCE_ZONE.some(access.can)
   const hub = ATTENDANCE_HUB.some(access.can)
+  const reviewsOps = access.can('ops.staff_daily.view') && access.can('ops.staff_daily.edit')
+  const reviewsAttendance = access.can('hr.attendance.view') && access.can('hr.attendance.create')
+  const review = '/app/attendance?view=hub&tab=review'
   const operations = zone ? '/app/attendance?view=zone&tab=ops' :
     hub && access.can('ops.staff_daily.view') ? '/app/attendance?view=hub&tab=ops' : '/app/staff'
   const books = [
@@ -25,12 +28,15 @@ export function HubRegisters() {
       icon: 'truck', title: L('ডেলিভারি ও টাকা খাতা', 'Delivery and cash register'),
       links: [
         ['/app/accounts/mine', L('আমার ডেলিভারির হিসাব', 'My delivery accounts')],
-        ['/app/accounts/daily', L('হাবের দৈনিক হিসাব', 'Hub daily accounts')],
+        ['/app/accounts/daily', L('রাইডারের হিসাব গ্রহণ ও হাবের খাতা জমা', 'Accept rider accounts and submit hub sheet')],
       ],
     },
     {
       icon: 'box', title: L('পিকআপ ও মার্চেন্ট ফেরত খাতা', 'Pickup and merchant return register'),
-      links: [[operations, L('পিকআপ ও ফেরতের এন্ট্রি', 'Pickup and return entries')]],
+      links: [
+        [operations, L('পিকআপ ও ফেরতের এন্ট্রি', 'Pickup and return entries')],
+        ...(reviewsOps && !zone ? [[review, L('স্টাফ এন্ট্রি অনুমোদন ও হাবের খাতা জমা', 'Review staff entries and submit hub register')]] : []),
+      ],
     },
     {
       icon: 'back', title: L('পেন্ডিং ও রিটার্ন খাতা', 'Pending and return register'),
@@ -43,6 +49,7 @@ export function HubRegisters() {
         [zone ? '/app/attendance?view=zone&tab=final' : hub ? '/app/attendance?view=hub&tab=final' : '/app/attendance?view=me',
           zone || hub ? L('দিনের হাজিরা', 'Daily attendance') : L('আমার মাসিক হাজিরা', 'My monthly attendance')],
         ...(access.can('hr.attendance.view') ? [['/app/attendance?view=hub&tab=month', L('হাবের মাসিক হাজিরা', 'Monthly hub attendance')]] : []),
+        ...(reviewsAttendance && !zone ? [[review, L('স্টাফের হাজিরা যাচাই', 'Review staff attendance')]] : []),
       ],
     },
     {
@@ -58,7 +65,7 @@ export function HubRegisters() {
     <div className="hub-register-grid">
       {books.map(book => {
         const links = book.links.filter(([to]) => linkAllowed(to, access))
-        if (!links.length) return null
+        if (!links.length && !('pending' in book)) return null
         return <section key={book.icon} className="panel hub-register-card">
           <h2><Icon name={book.icon} size={22} />{book.title}</h2>
           {'pending' in book && <>
