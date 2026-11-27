@@ -13,6 +13,10 @@ create function tests.stop(p text) returns uuid language sql security definer se
   $$ select id from public.hub_route_stops where route_id = (select id from public.hub_routes where name = 'Town East' and archived_at is null) and name = p and archived_at is null $$;
 grant execute on function tests.stop(text) to authenticated;
 create function tests.dhaka_day(p timestamptz) returns date language sql immutable as $$ select (p at time zone 'Asia/Dhaka')::date $$;
+-- Anchor the replacement sequence to one Dhaka work date. Even at midnight,
+-- yesterday's 20:00–22:30 readings are in the past and within the 48-hour window.
+create function tests.yesterday_reading(p time) returns timestamptz language sql stable as
+  $$ select ((tests.dhaka_day(now()) - 1) + p) at time zone 'Asia/Dhaka' $$;
 
 select tests.login(tests.id('zonal_a'));
 insert into tests.ids select 'route1', public.route_save(jsonb_build_object('hub_id', tests.id('hub_a1'), 'name', 'Town East',
@@ -28,8 +32,8 @@ select tests.ok((select abs(extract(epoch from now() - visited_at)) < 5 and work
 select tests.ok((public.route_checkin(p_stop => tests.stop('Kazla'), p_lat => 24.3641, p_lng => 88.6291, p_accuracy => 10) ->> 'near')::boolean, 'a named call without p_at is not ambiguous');
 
 -- a late check-in keeps the time the phone took it
-select tests.ok((public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, now() - interval '3 hours') ->> 'near')::boolean, 'a check-in from 3 hours ago is accepted');
-select tests.ok((select abs(extract(epoch from (now() - interval '3 hours') - visited_at)) < 2 from public.route_stop_visits where stop_id = tests.stop('Binodpur')),
+select tests.ok((public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, tests.yesterday_reading(time '20:00')) ->> 'near')::boolean, 'a delayed check-in is accepted');
+select tests.ok((select abs(extract(epoch from (tests.yesterday_reading(time '20:00')) - visited_at)) < 2 from public.route_stop_visits where stop_id = tests.stop('Binodpur') and work_date = tests.dhaka_day(now()) - 1),
   'it is stamped with the time it was taken, not the time it arrived');
 
 -- it counts for the Bangladesh day it was taken on
@@ -44,15 +48,15 @@ select tests.throws(format($$select public.route_checkin(%L, 24.3641, 88.6291, 1
 select tests.ok((public.route_checkin(tests.stop('Kazla'), 24.3641, 88.6291, 10, null, now() + interval '2 minutes') ->> 'near')::boolean, 'a little clock slack (2 minutes ahead) is allowed');
 
 -- out of order and repeated
-select public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, now() - interval '1 hour');
-select tests.ok((select abs(extract(epoch from (now() - interval '1 hour') - visited_at)) < 2 from public.route_stop_visits where stop_id = tests.stop('Binodpur')), 'a later reading replaces the earlier one');
-select tests.ok((public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, now() - interval '2 hours') ->> 'kept')::boolean, 'an older reading that arrives late is kept out');
-select tests.ok((select abs(extract(epoch from (now() - interval '1 hour') - visited_at)) < 2 from public.route_stop_visits where stop_id = tests.stop('Binodpur')), 'the saved time did not go back');
-select public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, now() - interval '1 hour');
-select tests.ok((select count(*) = 1 from public.route_stop_visits where stop_id = tests.stop('Binodpur') and work_date = tests.dhaka_day(now())), 'sending the same reading twice makes one visit');
+select public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, tests.yesterday_reading(time '22:00'));
+select tests.ok((select abs(extract(epoch from (tests.yesterday_reading(time '22:00')) - visited_at)) < 2 from public.route_stop_visits where stop_id = tests.stop('Binodpur') and work_date = tests.dhaka_day(now()) - 1), 'a later reading replaces the earlier one');
+select tests.ok((public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, tests.yesterday_reading(time '21:00')) ->> 'kept')::boolean, 'an older reading that arrives late is kept out');
+select tests.ok((select abs(extract(epoch from (tests.yesterday_reading(time '22:00')) - visited_at)) < 2 from public.route_stop_visits where stop_id = tests.stop('Binodpur') and work_date = tests.dhaka_day(now()) - 1), 'the saved time did not go back');
+select public.route_checkin(tests.stop('Binodpur'), 24.3691, 88.6411, 10, null, tests.yesterday_reading(time '22:00'));
+select tests.ok((select count(*) = 1 from public.route_stop_visits where stop_id = tests.stop('Binodpur') and work_date = tests.dhaka_day(now()) - 1), 'sending the same reading twice makes one visit');
 
 -- the near rules and the permission checks are the old ones
-select tests.ok((public.route_checkin(tests.stop('Binodpur'), 24.3900, 88.6411, 10, null, now() - interval '30 minutes') ->> 'kept')::boolean, 'a later far reading does not undo a near visit');
+select tests.ok((public.route_checkin(tests.stop('Binodpur'), 24.3900, 88.6411, 10, null, tests.yesterday_reading(time '22:30')) ->> 'kept')::boolean, 'a later far reading does not undo a near visit');
 select tests.logout();
 select tests.login_anon();
 select tests.throws(format($$select public.route_checkin(%L, 24.3641, 88.6291, 10)$$, tests.stop('Kazla')), 'signed out: nothing', '42501');
