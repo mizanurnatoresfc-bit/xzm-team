@@ -4,6 +4,11 @@
 
 ---
 
+## 2026-11-27 (XZM-006 Deep Verification, post-merge)
+
+- **XZM-006 — Backup & Recovery Deep Verification (Draft PR):** Per ChatGPT Independent Review (PARTIAL — EVIDENCE REQUIRED), the central audit `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` is rewritten from a 5-section summary into a full 11-section deep-verification document carrying: 18-asset matrix with 5-tier status (BACKUP AVAILABLE / RESTORE TESTED / UNVERIFIED / MISSING / ACCESS REQUIRED); 7 disaster-recovery procedures in full; Android signing-key reverification acknowledging GitHub Actions secrets are write-only after creation (not directly exportable); Supabase PITR/Auth/Storage coverage gap-analysis; live-vs-repo migration drift (14 orphans); missing edge functions recovery feasibility (`nodi-route-plan`, `osm-fetch-places`); Cloudflare + Netlify rollback; Preview↔Production isolation (VERIFIED read-only); per-system RPO/RTO gap-analysis. Introduces 8 proposed sub-tasks **XZM-006A..H** (letter-suffix namespace, no conflict with XZM-### numeric IDs). Updates TASK_TRACKER (XZM-006 Test Evidence + 8 new sub-task records), RISK_REGISTER (R-001 clarification on GitHub secret write-only + Risk→Sub-task mapping table), AUDIT_REPORT (XZM-006 Deep Verification entry), AI_HANDOVER (in-flight tasks list).
+- **Status:** Draft PR, docs-only. No application code, database, DNS, production config or secret changed. No restore drill performed. Awaiting ChatGPT Independent Second Review → Owner approval for XZM-006A..H as separate PRs.
+
 ## 2026-11-27 (XZM-004R-Final, after Second Review)
 
 - **XZM-004R-Final — Second ChatGPT Independent Review Response:** PR #213 Draft-এ 5-point corrections applied —

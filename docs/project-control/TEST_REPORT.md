@@ -17,6 +17,24 @@ Format:
 
 ---
 
+## XZM-006 — Backup & Recovery Deep Verification — 2026-11-27 (post-merge)
+
+- **Environment:** N/A (read-only audit, no runtime).
+- **Scope:** `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` rewritten into full deep-verification; TASK_TRACKER / RISK_REGISTER / AUDIT_REPORT / AI_HANDOVER updated.
+- **Live reads performed (read-only):**
+  - Supabase MCP `list_projects` → 2 projects confirmed (`ndgnhvbpmtxrpplgsslz` dev, `mbpjvqeizwjjsvnbjerb` staging).
+  - Supabase MCP `list_edge_functions` → 6 ACTIVE functions enumerated.
+  - Supabase MCP `get_advisors` → 7 findings (1 ERROR + 5 WARN + 1 INFO) confirmed.
+  - Supabase MCP `list_branches` → `[]` (no preview DB branches).
+  - Netlify MCP `get-project` / `get-deploy-for-site` → site state `ready`, `deploy_source: "cli"`.
+  - Cloudflare MCP `whoami` → Owner identity confirmed (email held off-repo per redaction policy).
+  - Repo: 141 migration files, 4 edge function source dirs, 0 git tags, 3 workflow files all path-scoped.
+- **No action performed:** no restore drill, no DB write, no migration applied, no secret retrieved (GitHub Actions secrets are write-only after creation), no DNS/code/production config change.
+- **Isolation (VERIFIED read-only):** Netlify Deploy Preview DISABLED (`netlify.toml ignore = exit 0`); Cloudflare Workers Git integration NOT USED; Supabase preview DB branches = 0. Production DB only reachable via trusted-operator MCP.
+- **Secrets review:** No secret value read or retrieved. GitHub Actions secret store is write-only; the audit explicitly does not assume otherwise.
+- **Deliverables:** 18-asset matrix with 5-tier status; 7 DR procedures in full; 10 verification items answered (or marked ACCESS REQUIRED where dashboard access needed); 8 proposed sub-tasks XZM-006A..H.
+- **Outcome:** PASS (documentation deep-verification). Awaiting ChatGPT Second Review → Owner approval of XZM-006A..H as separate PRs.
+
 ## XZM-004R Review-Response — 12-point corrections on PR #213 — 2026-11-27 (evening)
 
 - **Environment:** N/A (documentation only, no runtime)।

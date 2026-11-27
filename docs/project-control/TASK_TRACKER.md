@@ -245,14 +245,182 @@
 | Assigned AI | Claude (verification) + Owner (dashboard access where needed) |
 | Dependencies | XZM-003, XZM-004 |
 | Current Status | **UNDER_REVIEW** |
-| Acceptance Criteria | 18-asset matrix + drift findings + 7 recovery scenarios + 8 action items documented |
-| Test Evidence | `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` |
+| Acceptance Criteria | 18-asset matrix + drift findings + 7 recovery scenarios + 9 action items + 10 verification items + XZM-006A..H sub-tasks documented in central audit file |
+| Test Evidence | `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` (full deep verification, 2026-11-27) |
 | Owner Approval | ⏳ pending |
-| Commit / PR Link | XZM-004R consolidation (PR #213) |
+| Commit / PR Link | Initial: XZM-004R PR #213 (merged `24b348d`). Deep verification: XZM-006-Deep PR (this PR) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
-| Blockers | Awaiting ChatGPT independent review |
-| Next Action | ChatGPT review → Owner decides §5 action items → separate task IDs per item |
+| Blockers | Awaiting ChatGPT Independent Second Review on deep verification |
+| Next Action | ChatGPT Second Review → Owner approves XZM-006A..H → open each as separate PR |
+
+### XZM-006A — Android Signing Key Off-GitHub Export Procedure *(proposed)*
+| Field | Value |
+|---|---|
+| Module | Android signing / CI secrets |
+| Category | DS — Database & Security |
+| Requirement | Verify Owner has original keystore file off-GitHub; export encrypted copy to password-manager vault + offline media; document the export/import procedure |
+| Business Objective | Remove CRITICAL single-point-of-failure on Android update channel |
+| Priority | P0 (CRITICAL) |
+| Assigned AI | Owner (export) + Claude (procedure doc) |
+| Dependencies | XZM-006 §3.3 Owner verification |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | Owner confirms off-GitHub keystore copy exists in two locations; procedure doc committed; R-001 moves from OPEN → MITIGATED |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Owner locates original keystore file (laptop / backup drive search) |
+| Next Action | Owner performs §3.3 location checks |
+| Conflict check | No XZM-006A elsewhere — SAFE |
+
+### XZM-006B — Supabase Recovery Coverage Documentation *(proposed)*
+| Field | Value |
+|---|---|
+| Module | Supabase (DB, Auth, Storage, Edge Function secrets, Realtime) |
+| Category | DS — Database & Security |
+| Requirement | Document Free-plan PITR window + Auth config snapshot + Storage bucket inventory + Edge Function secret inventory + Realtime channels; schedule monthly `pg_dump` export |
+| Business Objective | Known-good recovery posture for every Supabase sub-system |
+| Priority | P1 (HIGH) |
+| Assigned AI | Owner (dashboard screenshots) + Claude (documentation) |
+| Dependencies | XZM-006 §6.2 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | PITR window confirmed; Auth config export written; Storage bucket list documented; monthly backup job scheduled |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Owner dashboard access |
+| Next Action | Owner provides Supabase dashboard screenshots |
+| Conflict check | No XZM-006B elsewhere — SAFE |
+
+### XZM-006C — Supabase Migration Drift Reconciliation (14 orphans) *(proposed)*
+| Field | Value |
+|---|---|
+| Module | `supabase/migrations/` |
+| Category | DS |
+| Requirement | For each of the 14 live-only migrations (`sync_live_functions`, `probe_delete`, `probe_alter`, `vehicle_ops_b1a`, `vehicle_ops_b2`, `vehicle_ops_c`, `vehicle_ops_d`, `vehicle_ops_fix_log_list`, …): either commit back to repo (recovery baseline) OR document deliberate discard with approved task |
+| Business Objective | Repo = authoritative recovery source for schema |
+| Priority | P1 (HIGH) |
+| Assigned AI | ChatGPT Backend Team (intent review) + Claude (file commit) |
+| Dependencies | XZM-006 §3.1 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | 14 orphans resolved (reconciled or formally discarded); clean restore from repo produces live schema |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | ChatGPT Backend Team scope decision per orphan |
+| Next Action | ChatGPT Backend Team reviews orphan list |
+| Conflict check | No XZM-006C elsewhere — SAFE |
+
+### XZM-006D — Cloudflare DNS + Workers + Netlify Rollback Runbook *(proposed)*
+| Field | Value |
+|---|---|
+| Module | Cloudflare DNS, Cloudflare Workers, Netlify |
+| Category | DS + DP |
+| Requirement | Export `xzmteam.com` zone file (Owner); commit redacted zone inventory; write rollback runbooks for Cloudflare Workers deployments + Netlify deploys; document DNS audit-log retention |
+| Business Objective | Known-good DNS + edge rollback procedures |
+| Priority | P1 (HIGH) |
+| Assigned AI | Owner (zone export) + Claude (runbook) |
+| Dependencies | XZM-006 §6.5 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | Zone file exported off-GitHub; rollback runbooks committed; R-005 moves from OPEN → MITIGATED |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Owner Cloudflare dashboard access |
+| Next Action | Owner exports zone file |
+| Conflict check | No XZM-006D elsewhere — SAFE |
+
+### XZM-006E — Missing Edge Functions Source Recovery *(proposed)*
+| Field | Value |
+|---|---|
+| Module | `supabase/functions/nodi-route-plan`, `supabase/functions/osm-fetch-places` |
+| Category | DS |
+| Requirement | Locate original source for both functions (Owner laptop / backup drive); OR re-author from call-site contracts in `web/` + migrations; commit to repo |
+| Business Objective | Redeployability of all 6 live edge functions |
+| Priority | P1 (HIGH) |
+| Assigned AI | Owner (source search) + Claude (re-author if needed, with ChatGPT Backend review) |
+| Dependencies | XZM-006 §3.2 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | Source for both functions committed to `supabase/functions/`; R-004 moves from OPEN → MITIGATED |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Owner locates original source files |
+| Next Action | Owner searches local backup locations |
+| Conflict check | No XZM-006E elsewhere — SAFE |
+
+### XZM-006F — Git Tag Policy + First Live Tag *(proposed)*
+| Field | Value |
+|---|---|
+| Module | Git tags / releases |
+| Category | DP — Deployment |
+| Requirement | Adopt per-release tagging policy; tag the current live commit (`24b348d` or next post-approval live SHA) as `v2026.11.27-live` (or appropriate date) |
+| Business Objective | Named "last known good" for rollback audit |
+| Priority | P2 (MEDIUM) |
+| Assigned AI | Claude |
+| Dependencies | XZM-006 §3.5 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | First tag pushed; policy documented in CHANGELOG + DEPLOYMENT_LOG; R-006 moves from OPEN → MITIGATED |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Owner approval |
+| Next Action | Owner approves tag strategy |
+| Conflict check | No XZM-006F elsewhere — SAFE |
+
+### XZM-006G — RPO/RTO Owner Questionnaire + Target Definition *(proposed)*
+| Field | Value |
+|---|---|
+| Module | Documentation (Business inputs → DR targets) |
+| Category | AU — Audit |
+| Requirement | Collect Owner's max tolerable data-loss window (RPO) + restore-time window (RTO) per system tier (DB, Netlify, Cloudflare DNS, Android signing, Edge Functions); record in RISK_REGISTER + AUDIT_REPORT |
+| Business Objective | Measurable DR targets to test against drills |
+| Priority | P2 (MEDIUM) |
+| Assigned AI | Owner (business inputs) + ChatGPT (DR target review) + Claude (doc) |
+| Dependencies | XZM-006 §6.7 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | RPO + RTO numbers filled for each tier; drill success criteria defined |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Owner business inputs |
+| Next Action | Questionnaire delivered to Owner |
+| Conflict check | No XZM-006G elsewhere — SAFE |
+
+### XZM-006H — Supabase Security Advisors Remediation (7 findings) *(proposed)*
+| Field | Value |
+|---|---|
+| Module | Supabase RLS + security_definer views/functions + extensions |
+| Category | DS |
+| Requirement | Fix 1 ERROR (`rls_enabled_no_policy` on `v_user_sidebar`) + 5 WARN categories + 1 INFO (`auth_leaked_password_protection`) — one migration per logical category |
+| Business Objective | Clean security posture; reduce latent privilege-escalation risk |
+| Priority | P2 (MEDIUM) |
+| Assigned AI | ChatGPT Backend Team (fix migrations) + Claude (verification) |
+| Dependencies | XZM-006 §3.4 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | `get_advisors` returns 0 ERROR; WARN count reduced to known-accepted; R-007 moves from OPEN → MITIGATED |
+| Test Evidence | — |
+| Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | ChatGPT Backend Team scope |
+| Next Action | ChatGPT Backend Team scopes fix migrations per category |
+| Conflict check | No XZM-006H elsewhere — SAFE |
 
 ### XZM-007A/B-1 — Audit Batch 1 *(evidence gap)*
 | Field | Value |

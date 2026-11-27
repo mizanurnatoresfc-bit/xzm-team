@@ -12,7 +12,8 @@
 - **Description:** `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` live ONLY in GitHub Actions secrets. No off-platform backup is documented.
 - **Impact:** If the GitHub org/repo is lost, no further compatible APK can be published. Existing installs will refuse to update because they verify the publisher signature; users must uninstall and reinstall — effectively a channel-wide reset.
 - **Mitigation (not yet executed):** Export keystore to two encrypted off-GitHub locations (password manager vault + offline media). Document the export/import procedure. **Owner approval required before export is performed.**
-- **Status:** OPEN — tracked under XZM-006 action item #1.
+- **Clarification (XZM-006 Deep Verification 2026-11-27):** GitHub Actions secrets are **write-only after creation** — the keystore cannot be exported from the secret store. Mitigation requires Owner to produce the **original** keystore file (Owner's laptop / backup drive / password manager). If no off-GitHub original exists, R-001 is **unmitigable** until a new signing chain is accepted (Play Store treats as different app, existing installs cannot update).
+- **Status:** OPEN — tracked under XZM-006 action item #1 → new sub-task **XZM-006A**.
 
 ---
 
@@ -112,3 +113,23 @@
 
 - Reviewed by Owner + ChatGPT at each audit close.
 - Any new CRITICAL or HIGH risk surfaced during a task MUST be added here before the task closes.
+
+---
+
+## Risk → Sub-task Mapping (XZM-006 Deep Verification, 2026-11-27)
+
+| Risk | Current status | Resolution sub-task |
+|---|---|---|
+| R-001 CRITICAL — Android signing key SPOF | OPEN | **XZM-006A** |
+| R-002 MED — Legacy ERP App ID | OPEN (guardrail documented) | — (no action planned) |
+| R-003 HIGH — Supabase migration drift | OPEN | **XZM-006C** |
+| R-004 HIGH — Missing edge function source | OPEN | **XZM-006E** |
+| R-005 HIGH — No Cloudflare DNS export | OPEN | **XZM-006D** |
+| R-006 MED — No git tags | OPEN | **XZM-006F** |
+| R-007 MED — 7 Supabase security advisors | OPEN | **XZM-006H** |
+| R-008 HIGH — Documentation dual source | IN_PROGRESS (merge done; both-AI read verification pending) | — (R-008 resolution step) |
+| R-009 MED — No E2E restore drill | OPEN | **XZM-006B** + **XZM-006D** (restore drill combines DB + edge rollback) |
+
+Supplementary Owner-input sub-tasks:
+- **XZM-006B** — Supabase recovery coverage (PITR + Auth + Storage)
+- **XZM-006G** — RPO/RTO Owner questionnaire + target definition

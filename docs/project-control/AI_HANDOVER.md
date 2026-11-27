@@ -103,8 +103,9 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 - **XZM-006** UNDER_REVIEW — backup & recovery.
 - **XZM-007A/B-1, -2** EVIDENCE NOT ON FILE — re-audit pending.
 - **XZM-007A/B-3, -4** UNDER_REVIEW — Batch 3 & Batch 4 audits (both reports now in `docs/project-control/audits/`; Batch 4 ported in XZM-004R Review-Response).
-- **XZM-010..013** PROPOSED / AUDIT PENDING — from Batch 3 G-1..G-4.
+- **XZM-010..013** PROPOSED — from Batch 3 G-1..G-4.
 - **XZM-014..017** PROPOSED — new from Batch 3 Correction G-6..G-8 + Q.3.11.
+- **XZM-006A..H** PROPOSED — new from XZM-006 Deep Verification (2026-11-27): Android signing export (A), Supabase recovery coverage (B), Migration drift reconciliation (C), Cloudflare DNS + rollback runbook (D), Missing edge functions source (E), Git tag policy (F), RPO/RTO Owner questionnaire (G), 7 security advisors remediation (H).
 
 ## 8. Current Blockers
 
