@@ -6,7 +6,8 @@ import { usePrefs } from '../../lib/prefs'
 import { placeToStop } from '../zonal/RoutePlaces'
 
 type AreaCount = { place: Place; historical: number; incoming: number }
-type Preview = { areas: AreaCount[]; unresolved: number; total: number; historicalDays: number; errors: string[] }
+type FileSummary = { name: string; parsed: number; declared: number | null; newParcels: number | null; oldParcels: number | null; mismatch: boolean }
+type Preview = { files: FileSummary[]; areas: AreaCount[]; unresolved: number; total: number; historicalDays: number; errors: string[] }
 type Parcel = { matches: Set<string>; day: string | null }
 const words = (text: string) => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim()
 const sameStop = (a: RouteStop, b: RouteStop) => a.lat === b.lat && a.lng === b.lng
@@ -45,10 +46,19 @@ async function previewFiles(files: File[], places: Place[]): Promise<Preview> {
   const incoming = new Map<number, Parcel>()
   const dates = new Set<string>()
   const errors: string[] = []
+  const summaries: FileSummary[] = []
   for (const file of files) {
     try {
       const rows: PdfAreaRow[] = []
       const doc = await readPlanPdf(file, rows)
+      summaries.push({
+        name: file.name,
+        parsed: doc.kind === 'dispatch' ? doc.counts.pieces : doc.parcel_ids.length,
+        declared: (doc.kind === 'dispatch' ? doc.counts.declared_pieces : doc.counts.declared_parcels) || null,
+        newParcels: doc.counts.declared_new ?? null,
+        oldParcels: doc.counts.declared_old ?? null,
+        mismatch: doc.warnings.includes('rows'),
+      })
       const source = doc.kind === 'dispatch' ? incoming : historical
       if (source === historical && doc.doc_date) dates.add(doc.doc_date)
       for (const row of rows) {
@@ -72,7 +82,7 @@ async function previewFiles(files: File[], places: Place[]): Promise<Preview> {
       else if (key === 'incoming' || day) area[key]++
     }
   }
-  return { areas: [...counts.values()].filter(a => a.historical || a.incoming).sort((a, b) => b.incoming - a.incoming || b.historical - a.historical),
+  return { files: summaries, areas: [...counts.values()].filter(a => a.historical || a.incoming).sort((a, b) => b.incoming - a.incoming || b.historical - a.historical),
     unresolved, total: historical.size + incoming.size, historicalDays: dates.size, errors }
 }
 
@@ -117,6 +127,14 @@ export function RoutePdfDraft({ places, stops, maxStops, initiallyOpen, loadingP
     {error && <p className="da-error" role="alert">{error}</p>}
     {preview && <div className="rm-pdf-results">
       {preview.errors.map((text, i) => <p key={i} className="da-error">{text}</p>)}
+      {preview.files.filter(file => file.newParcels !== null || file.oldParcels !== null || file.mismatch).map((file, i) =>
+        <p key={i} className={file.mismatch ? 'da-error' : 'small'}>
+          <b>{file.name}</b>{' · '}{L('পড়া পার্সেল', 'Parcels read')} {n(file.parsed)}
+          {file.newParcels !== null && <> · {L('নতুন (PDF অনুযায়ী)', 'New (PDF total)')} {n(file.newParcels)}</>}
+          {file.oldParcels !== null && <> · {L('পুরোনো (PDF অনুযায়ী)', 'Old (PDF total)')} {n(file.oldParcels)}</>}
+          {file.mismatch && <> · {L('PDF-এর ঘোষিত সংখ্যার সঙ্গে মিলছে না', 'PDF total does not match')}
+            {file.declared !== null && ` (${n(file.declared)})`}</>}
+        </p>)}
       <p className="small">{L('পড়া পার্সেল', 'Parcels read')} <b>{n(preview.total)}</b>{' · '}{L('এলাকা যাচাই বাকি', 'Area pending verification')} <b>{n(preview.unresolved)}</b></p>
       <p className="small">{L('বর্তমান স্টপে ইনকামিং', 'Incoming for current stops')} <b>{n(totals.incoming)}</b>
         {' · '}{L('দৈনিক গড়', 'Daily average')} <b>{preview.historicalDays ? n(Math.round(totals.historical / preview.historicalDays)) : '—'}</b>

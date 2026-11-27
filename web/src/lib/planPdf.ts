@@ -24,10 +24,29 @@ const statusKey = (s: string) => `status:${tidy(s).toLowerCase().replace(/[^a-z]
 
 /** The table of one page: where each column starts, and the items under the heading. */
 function table(page: PdfItem[], heads: string[]) {
-  const first = page.find(i => i.s === heads[0] && heads.slice(1).every(h => page.some(j => j.s === h && Math.abs(j.y - i.y) < 2)))
-  if (!first) return null
-  const col = Object.fromEntries(heads.map(h => [h, page.find(j => j.s === h && Math.abs(j.y - first.y) < 2)!.x]))
-  return { col, body: page.filter(i => i.y < first.y - 2) }
+  for (const first of page.filter(i => tidy(i.s) === heads[0])) {
+    const line = page.filter(i => i.x >= first.x && Math.abs(i.y - first.y) < 2).sort((a, b) => a.x - b.x)
+    const col: Record<string, number> = {}
+    let cursor = 0
+    for (const heading of heads) {
+      for (; cursor < line.length; cursor++) {
+        const x = line[cursor].x
+        let label = ''
+        for (let i = cursor; i < line.length; i++) {
+          label = tidy(label + ' ' + line[i].s)
+          if (!heading.startsWith(label)) break
+          if (heading === label) {
+            col[heading] = x
+            cursor = i + 1
+            break
+          }
+        }
+        if (heading in col) break
+      }
+    }
+    if (Object.keys(col).length === heads.length) return { col, body: page.filter(i => i.y < first.y - 2) }
+  }
+  return null
 }
 /** Items of a row: from just above its first line down to the next row (or a little below, for the last row of a page). */
 function bands(body: PdfItem[], starts: PdfItem[], above: number, lastDepth: number) {
@@ -139,6 +158,8 @@ function deliveryList(pages: PdfItem[][], head: string, areaRows: PdfAreaRow[]) 
   const hub = head.match(/\bHub\s*:\s*(.+?)\s+Assigned By\s*:/)?.[1] ?? null
   const hubLabel = hub?.split('(')[0].trim().toLowerCase()
   const declared = Number(head.match(/\bGrand Total\s*:\s*(\d+)/)?.[1] ?? 0)
+  const declaredNew = head.match(/\bTotal Parcels\s*\(\s*New\s*\)\s*:\s*(\d+)/i)
+  const declaredOld = head.match(/\bTotal Parcels\s*\(\s*Old from other lists\s*\)\s*:\s*(\d+)/i)
   const ids = new Set<number>()
   for (const page of pages) {
     const t = table(page, ['ID', 'MERCHANT DETAILS', 'INVOICE', 'CUSTOMER DETAILS'])
@@ -146,6 +167,7 @@ function deliveryList(pages: PdfItem[][], head: string, areaRows: PdfAreaRow[]) 
     const starts = t.body.filter(i => Math.abs(i.x - t.col.ID) < 4 && /^#\d{8,12}$/.test(i.s.trim()))
     for (const row of bands(t.body, starts, 2, 48)) {
       const id = Number(row.start.s.trim().slice(1))
+      if (ids.has(id)) continue
       ids.add(id)
       const items = inCol(row.items, t.col['CUSTOMER DETAILS'], Infinity)
         .filter(i => i.y < row.start.y - 2 && row.start.y - i.y <= 42 && i.s.trim().toLowerCase() !== hubLabel)
@@ -164,7 +186,9 @@ function deliveryList(pages: PdfItem[][], head: string, areaRows: PdfAreaRow[]) 
   return {
     kind: 'update_list', doc_no: '', doc_date: date ? iso(date[2], date[1], date[3]) : null,
     hub_text: hub, from_text: null, rider_code: null, rider_name: null,
-    counts: { parcels: ids.size, declared_parcels: declared },
+    counts: { parcels: ids.size, declared_parcels: declared,
+      ...(declaredNew && { declared_new: Number(declaredNew[1]) }),
+      ...(declaredOld && { declared_old: Number(declaredOld[1]) }) },
     parcel_ids: [...ids], warnings: declared && declared !== ids.size ? ['rows'] : [],
   } satisfies ParsedPdf
 }

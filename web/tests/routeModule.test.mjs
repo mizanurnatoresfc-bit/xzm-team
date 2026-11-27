@@ -229,3 +229,29 @@ test('distance helper agrees with the parser (a point read back lands where it w
   const p = parseLocation('24.3745, 88.6042')
   assert.ok(meters(p, { lat: 24.3745, lng: 88.6042 }) < 1)
 })
+
+test('delivery PDF draft reads split table headers and counts each parcel once', async () => {
+  const { parsePlanPdf } = await import('../src/lib/planPdf.ts')
+  const item = (s, x, y) => ({ s, x, y })
+  const summary = [
+    item('Delivery List Information', 0, 100),
+    item('Date: November 25, 2026 Hub: Naldanga Assigned By: Demo', 0, 90),
+    item('Total Parcels ( New ): 1 Total Parcels ( Old from other lists ): 1 Grand Total: 2', 0, 80),
+  ]
+  const splitHeader = [
+    item('ID', 46, 100), item('MERCHANT', 122, 100), item('DETAILS', 180, 100),
+    item('INVOICE', 266, 100), item('CUSTOMER', 414, 100), item('DETAILS', 471, 100),
+  ]
+  const combinedHeader = [
+    item('ID', 46, 100), item('MERCHANT DETAILS', 122, 100),
+    item('INVOICE', 266, 100), item('CUSTOMER DETAILS', 414, 100),
+  ]
+  const first = [item('#10000001', 46, 81), item('খাজুরা', 414, 67)]
+  const second = [item('#10000002', 46, 81), item('মাদনাগ', 414, 67)]
+  const areas = []
+  const result = parsePlanPdf([summary, [...splitHeader, ...first], [...combinedHeader, ...second],
+    [...splitHeader, ...first]], areas)
+  assert.deepEqual(result.counts, { parcels: 2, declared_parcels: 2, declared_new: 1, declared_old: 1 })
+  assert.deepEqual(result.warnings, [])
+  assert.deepEqual(areas, [{ id: 10000001, text: 'খাজুরা' }, { id: 10000002, text: 'মাদনাগ' }])
+})
