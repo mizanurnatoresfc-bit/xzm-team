@@ -1034,10 +1034,11 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp')
       const links = await page.locator('.side a.nl').evaluateAll(els => els.map(e => e.getAttribute('href')))
       const adminPanels = (await panels()).split(',')
-      check(['accounts', 'hr', 'self', 'hub', 'zone', 'admin'].every(k => adminPanels.includes(k)) && new Set(adminPanels).size === adminPanels.length
-        && await inPanel('self', 'আমার হিসাব') === 1 && await inPanel('hr', 'কর্মী তালিকা') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
-        `${size}: the Super Admin sees the accounts and HR groups plus staff, manager and zonal panels`)
-      check(await page.locator('.side .ngrp[data-panel=self] a.nl[href="/app/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the staff panel`)
+      check(['accounts', 'hr', 'zone', 'admin'].every(k => adminPanels.includes(k)) && !adminPanels.includes('self') && !adminPanels.includes('hub') && new Set(adminPanels).size === adminPanels.length
+        && await inPanel('hr', 'কর্মী তালিকা') === 1 && await inPanel('admin', 'অ্যাডভান্সড রোল ও পারমিশন') === 1 && await inPanel('zone', 'রোল ও অনুমতি') === 0,
+        `${size}: the Super Admin sees the accounts and HR groups and the zonal panel, but no staff or manager panel`)
+      check(await page.locator('.side > a.nl[href="/app/fleet"]').count() === 1 && await page.locator('.side .ngrp a.nl[href="/app/fleet"]').count() === 0, `${size}: vehicle management sits in the main rows, not in a panel`)
+      check(await page.locator('.side a.nl[href="/app/attendance"]').count() === 0, `${size}: personal attendance is not repeated in the menu`)
       const officeLinks = page.locator('.side a.nl[href^="/app/office/"]')
       check(await officeLinks.count() === 1 && (await officeLinks.innerText()).includes('অফিস ও আবাসিক'),
         `${size}: the sidebar has one office and residential entry`)
@@ -1194,10 +1195,10 @@ try {
       await page.goto(`${BASE}/app`); await page.waitForSelector('.side .ngrp'); await page.waitForSelector('.da-main .greet h2')
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: a manager's screen has no training centre, AI helper or first-steps box`)
       const managerPanels = (await panels()).split(',')
-      check(['accounts', 'self', 'hub', 'sorting'].every(k => managerPanels.includes(k)) && new Set(managerPanels).size === managerPanels.length
-        && await inPanel('hub', 'হাব তালিকা ও ম্যাপ') === 1 && await inPanel('hub', 'পার্সেল আদান-প্রদান') === 0 && await inPanel('sorting', 'পার্সেল আদান-প্রদান') === 1
+      check(['accounts', 'sorting'].every(k => managerPanels.includes(k)) && !managerPanels.includes('self') && !managerPanels.includes('hub') && new Set(managerPanels).size === managerPanels.length
+        && await page.locator('.side > a.nl[href="/app/org/hubs"]').count() === 1 && !managerPanels.includes('zone') && await inPanel('zone', 'পার্সেল আদান-প্রদান') === 0 && await inPanel('sorting', 'পার্সেল আদান-প্রদান') === 1
         && await inPanel('accounts', 'নতুন ভাউচার') === 1 && await inPanel('accounts', 'হিসাব সেটিংস') === 0,
-        `${size}: a hub manager gets the staff and manager panels; higher pages they may open sit in their own panel`)
+        `${size}: a hub manager has no staff or manager panel; the zonal pages they may open are plain main rows`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-manager.png` })
       { const dl = page.locator('.app-dl'); await dl.waitFor({ timeout: 5000 }).catch(() => {})
         check(await dl.count() === 1 && await dl.locator('input').count() === 0 && await dl.locator('button').count() === 4,
@@ -1219,8 +1220,8 @@ try {
         check(c.p_manager === 'u7' && c.p_pickup === 4 && c.p_delivery === 12 && c.p_amount === 2500 && c.p_office === false && await page.locator('.rsend .rs-done').count() === 1,
           `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
-      check((await panels()).split(',').sort().join() === 'routes,self' && await inPanel('self', 'আজকের পিকআপ খাতা') === 1 && await inPanel('routes', 'রুট কেন্দ্র') === 1 && await inPanel('routes', 'তথ্য সংগ্রহ কেন্দ্র') === 0 && await inPanel('self', 'রোল ও অনুমতি') === 0,
-        `${size}: a rider sees their personal panel and Route Centre under Operations Central`)
+      check((await panels()).split(',').sort().join() === 'routes' && await inPanel('routes', 'রুট কেন্দ্র') === 1 && await inPanel('routes', 'তথ্য সংগ্রহ কেন্দ্র') === 0 && await inPanel('routes', 'রোল ও অনুমতি') === 0,
+        `${size}: a rider sees only Route Centre under Operations Central, no staff panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
       permsNow = null; asEmployee = false }
     // arranging a role's home page: add, remove, put in order — and the home page follows the saved order
@@ -1271,8 +1272,7 @@ try {
     if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/${size}-team.png` })
     check(await page.locator('.eb-chips .chip-toggle').count() >= 2, `${size}: the staff list opens from a limited menu and shows a chip per post`)
     const sideLinks = await page.locator('aside.side a[href^="/app/"]').evaluateAll(a => [...new Set(a.map(x => x.getAttribute('href')))])
-    const expectedSideLinks = ['/app/staff/list', '/app/attendance', '/app/accounts/khata', '/app/hub-registers',
-      '/app/staff', '/app/accounts/mine', '/app/fleet/mine', '/app/references', '/app/notices']
+    const expectedSideLinks = ['/app/staff/list', '/app/accounts/khata', '/app/hub-registers', '/app/references', '/app/notices']
     check(sideLinks.length === expectedSideLinks.length && expectedSideLinks.every(path => sideLinks.includes(path)),
       `${size}: the limited menu shows its assigned pages, hub registers and personal shortcuts (${sideLinks.join(' ')})`)
     { await page.goto(`${BASE}/app/hub/days`); await page.waitForURL(/\/app\/attendance/, { timeout: 10000 }).catch(() => {})

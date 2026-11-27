@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { menuApi, type RoleMenu } from '../../lib/menu'
-import { ACCOUNTS, ADMIN, GROUPS, HOME, HR, OFFICE, ROUTES, SORTING } from '../../components/AppShell'
+import { ACCOUNTS, ADMIN, GROUPS, HOME, HR, OFFICE, PANEL_PAGES, ROUTES, SORTING } from '../../components/AppShell'
 import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { Badge, Modal, useLoad, useToast } from '../accounts/ui'
@@ -98,7 +98,7 @@ function PagesEditor({ role, onClose, onDone }: { role: RoleMenu; onClose: () =>
   const [picked, setPicked] = useState<string[]>(role.menu ?? [])
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
   const toggle = (to: string) => setPicked(p => p.includes(to) ? p.filter(x => x !== to) : [...p, to])
-  const groups = [{ key: 'home', bn: 'শুরু', en: 'Start', items: HOME.filter(i => i.to !== '/app') }, ACCOUNTS, HR, OFFICE, ROUTES, SORTING, ADMIN, ...GROUPS]
+  const groups = [{ key: 'home', bn: 'শুরু', en: 'Start', items: HOME.filter(i => i.to !== '/app') }, ACCOUNTS, HR, OFFICE, ROUTES, SORTING, ADMIN, ...GROUPS, PANEL_PAGES]
   const groupOf = (to: string) => groups.find(g => g.items.some(i => i.to === to))?.key ?? ''
   const movePage = (to: string, direction: -1 | 1) => setPicked(current => {
     const peers = current.map((value, index) => ({ value, index })).filter(x => groupOf(x.value) === groupOf(to))

@@ -1,7 +1,7 @@
 // Shared pieces of the access pages: the catalogue hook, the permission grid (module → sub-menu → six kinds of
 // access), the detailed matrix (every single permission) and the hub / zone picker.
 import { useMemo, useState, type ReactNode } from 'react'
-import { ACCOUNTS, GROUPS, HOME, HR, OFFICE, ROUTES } from '../../components/AppShell'
+import { ACCOUNTS, GROUPS, HOME, HR, OFFICE, PANEL_PAGES, ROUTES } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
 import { useLoad } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
@@ -17,7 +17,7 @@ const pretty = (s: string) => s.replace(/_/g, ' ').replace(/^./, c => c.toUpperC
 
 /** Every entry of the menu, as the catalogue needs it. */
 export const menuEntries = (): MenuEntry[] =>
-  [...HOME, ...ACCOUNTS.items, ...HR.items, ...OFFICE.items, ...ROUTES.items, ...GROUPS.flatMap(g => g.items)].map(i => ({ to: i.to, bn: i.bn, en: i.en, perms: i.perms }))
+  [...HOME, ...ACCOUNTS.items, ...HR.items, ...OFFICE.items, ...ROUTES.items, ...PANEL_PAGES.items, ...GROUPS.flatMap(g => g.items)].map(i => ({ to: i.to, bn: i.bn, en: i.en, perms: i.perms }))
 
 /** Roles, permissions and each role's page list, with the catalogue built from them. */
 export function useAccessBase(key: unknown = 0) {
