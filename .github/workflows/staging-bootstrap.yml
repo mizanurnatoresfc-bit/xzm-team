@@ -1,0 +1,23 @@
+# Builds the Staging database (project xzm-team-staging) from the repository. Manual run only.
+# Needs the repository secret STAGING_DB_URL (Staging project's database connection string, Session pooler).
+# The script refuses to run against the live project or against a Staging database that already has tables.
+name: Staging database bootstrap
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Build Staging
+        env:
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+        run: bash scripts/system-control/staging-bootstrap.sh

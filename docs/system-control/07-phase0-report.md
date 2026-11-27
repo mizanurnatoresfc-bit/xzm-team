@@ -27,3 +27,11 @@
 ## ৭.৪ পরের ধাপ (Phase 1 — Staging-এ, আপনার অনুমোদনে)
 
 লাইভ-ড্রিফট + সব Migration দিয়ে Staging বানানো → Master Function Registry (`scan.mjs`) → Dependency Map → System Settings → Audit Center → Health → Error Log → Permission Audit → DEMO Test Foundation। লাইভে প্রয়োগ Pro-র ব্যাকআপ চালু হওয়া ও আপনার আলাদা অনুমোদনের পর।
+
+## ৭.৫ Staging তৈরি হয়েছে (২৭ নভেম্বর ২০২৬)
+
+- প্রজেক্ট **`xzm-team-staging`**, ref `mbpjvqeizwjjsvnbjerb`, সংস্থা XSFCTEAM, Singapore, Free plan, Postgres 17 (লাইভের সমান), অবস্থা `ACTIVE_HEALTHY`। খরচ-নিশ্চিতকরণ লাগেনি।
+- এখনো **খালি** — কোনো টেবিল নেই। লাইভের ডাটা কপি করা হয়নি, হবেও না।
+- **Staging ভরার ব্যবস্থা:** `scripts/system-control/staging-bootstrap.sh` + হাতে-চালানো workflow `.github/workflows/staging-bootstrap.yml`। এটি `supabase/migrations/` ও `supabase/live-drift/` একসাথে সময়ক্রমে প্রয়োগ করে। স্ক্রিপ্ট লাইভ প্রজেক্টের সংযোগ-স্ট্রিং দিলে ও Staging ছাড়া অন্য কিছু দিলে **প্রত্যাখ্যান** করে (দুটোই পরীক্ষিত), আর Staging-এ আগে থেকে টেবিল থাকলেও থেমে যায়।
+- চ্যাট-টুল দিয়ে ১৪৪টি ফাইল (কয়েকটি ৮০KB+) পাঠানো বাস্তবসম্মত নয়, তাই workflow ব্যবহার। এর জন্য আপনাকে একবার করতে হবে: Supabase → প্রজেক্ট `xzm-team-staging` → Database password রিসেট/সেট → Connect → **Session pooler** স্ট্রিং কপি → GitHub → Settings → Secrets and variables → Actions → New repository secret `STAGING_DB_URL`। **পাসওয়ার্ড চ্যাটে দেবেন না।**
+- সতর্কতা: বিদ্যমান ১৪০টি Migration এতদিন শুধু লোকাল shim-এ পরীক্ষিত, আসল Supabase-এ নয় (README-তে লেখা)। Staging-এ প্রথম প্রয়োগে কিছু ধাপ ভাঙতে পারে — এটাই Staging-এর কাজ; ভাঙলে কারণসহ জানাব, লাইভে কিছু হবে না।
