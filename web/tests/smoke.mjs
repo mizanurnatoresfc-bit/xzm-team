@@ -106,9 +106,7 @@ try {
 
     // --- signed in as the Super Admin
     const ctx = await browser.newContext({ viewport, serviceWorkers: 'block' })
-    await ctx.addInitScript(({ key, value }) => { localStorage.setItem(key, value) }, {
-      key: process.env.XZM_SMOKE_AUTH_KEY ?? 'sb-ndgnhvbpmtxrpplgsslz-auth-token', value: JSON.stringify(session),
-    })
+    await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
     let morningDone = false

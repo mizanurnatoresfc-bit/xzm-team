@@ -90,10 +90,10 @@ export function Issues() {
   const openGroup = (h: string) => put(n => { n.delete('id'); n.delete('z'); n.set('g', h) })
   const openZone = (z: string) => put(n => { n.delete('id'); n.delete('g'); n.set('z', z) })
   const closeChat = () => put(n => { n.delete('id'); n.delete('g'); n.delete('z') })
-  const refresh = () => { void panels.reload(); void groups.reload(); void zones.reload() }
-  const refreshReport = () => setReportRevision(revision => revision + 1)
-  const changed = () => { refresh(); refreshReport(); toast('হয়েছে') }
-  useEvery(ui.refresh, refresh)
+  const refreshPanels = () => { void panels.reload(); void groups.reload(); void zones.reload() }
+  const refresh = () => { refreshPanels(); setReportRevision(revision => revision + 1) }
+  const changed = () => { refresh(); toast('হয়েছে') }
+  useEvery(ui.refresh, refreshPanels)
   // A shortcut link (/app/issues?new=1) opens the new-issue form at once.
   useEffect(() => {
     if (!sp.get('new') || !hubs.length) return
@@ -106,7 +106,7 @@ export function Issues() {
     const k = sp.get('order')
     if (!k || !hubs.length) return
     setOrdering(isOrder(k) ? k : 'store')
-    const n = new URLSearchParams(sp); n.delete('order'); n.set('tab', 'orders'); setSp(n, { replace: true })
+    const n = new URLSearchParams(sp); n.delete('order'); n.delete('problem'); n.set('tab', 'orders'); setSp(n, { replace: true })
   }, [sp, hubs, setSp])
 
   // Every open issue / order this person can see, whichever panel it sits in — newest first.
@@ -191,8 +191,8 @@ export function Issues() {
     {settings && <UiSettings ui={ui} onChange={setUi} onClose={() => setSettings(false)} />}
     {desk && <Modal wide title="স্টোর / আইটি অর্ডার কে পাবেন" onClose={() => setDesk(false)} actions={<button type="button" onClick={() => setDesk(false)}>বন্ধ</button>}>
       <OrderDesk canOrder={hubs.length > 0} onOrder={k => { setDesk(false); setOrdering(k) }} /></Modal>}
-    {creating && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); refreshReport(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
-    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('problem'); n.delete('g'); n.set('id', id) }) }} />}
+    {creating && <NewIssue hubs={hubs} hub={creating} residential={residential} onClose={() => { setCreating(null); setResidential(false) }} onDone={id => { setCreating(null); setResidential(false); refresh(); toast('ইস্যু তৈরি হয়েছে'); openIssue(id) }} />}
+    {ordering && <NewOrder hubs={hubs} kind={ordering} onClose={() => setOrdering(null)} onDone={id => { setOrdering(null); refresh(); toast('অর্ডার দেওয়া হয়েছে'); put(n => { n.set('tab', 'orders'); n.delete('g'); n.set('id', id) }) }} />}
     {node}
   </AppShell>
 }
