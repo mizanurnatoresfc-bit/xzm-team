@@ -1,4 +1,4 @@
-# XZM-TEAM ERP — Handover (14 Nov 2026)
+# XZM TEAM — Handover (14 Nov 2026)
 
 এই ফাইলটা নতুন কোনো Claude চ্যাটে (বা নতুন ডেভেলপারকে) দিলে প্রজেক্ট কোথায় আছে, কী লাইভ, কী বাকি — সব এক জায়গায় পাবে।
 Give this file (and the project zip) to a new Claude chat or developer to continue the work.
@@ -9,7 +9,7 @@ Give this file (and the project zip) to a new Claude chat or developer to contin
 
 | | |
 |---|---|
-| কী | কুরিয়ার ব্যবসার ERP: হেড অফিস → জোন → হাব। HR, হাজিরা, ছুটি, দৈনিক হিসাব খাতা, জোনাল ম্যানেজমেন্ট, কুরিয়ার অপারেশন। বাংলা/English UI। |
+| কী | কুরিয়ার ব্যবসার সিস্টেম: হেড অফিস → জোন → হাব। HR, হাজিরা, ছুটি, দৈনিক হিসাব খাতা, জোনাল ম্যানেজমেন্ট, কুরিয়ার অপারেশন। বাংলা/English UI। |
 | Frontend | React 19 + Vite + TypeScript + react-router 7 (`web/`) |
 | Backend | Supabase (PostgreSQL 16, Auth, Storage, Edge Functions) — সব নিয়ম ডাটাবেসে (RLS, SECURITY DEFINER ফাংশন, audit log) |
 | লাইভ সাইট | https://xzm-team-erp.netlify.app  (স্টাফ লগইন: `/staff/login`) |
@@ -131,7 +131,7 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 
 ## 8. নতুন Claude চ্যাটে যা লিখবেন / Starter message for a new chat
 
-> আমার XZM-TEAM ERP প্রজেক্টের কাজ চালিয়ে যেতে চাই। প্রজেক্টের জিপ আর HANDOVER.md দিলাম। আগে HANDOVER.md পড়ুন। সব লাইভে বসানো আছে; এখন ৫ নম্বর অংশের তালিকা ধরে পরের কাজ (পার্সেল বারকোড স্ক্যান পেজ) শুরু করুন। আমাকে বাংলায় উত্তর দেবেন।
+> আমার XZM TEAM প্রজেক্টের কাজ চালিয়ে যেতে চাই। প্রজেক্টের জিপ আর HANDOVER.md দিলাম। আগে HANDOVER.md পড়ুন। সব লাইভে বসানো আছে; এখন ৫ নম্বর অংশের তালিকা ধরে পরের কাজ (পার্সেল বারকোড স্ক্যান পেজ) শুরু করুন। আমাকে বাংলায় উত্তর দেবেন।
 
 ## 2026-11-15 — Region → Area → Hub, hub map
 - Migration `20261115000400_regions_hub_gps.sql`: `regions` table (Rajshahi Region, code RAJ), `zones.region_id` (zones = Areas; "Natore Zone" renamed "Natore Area"),

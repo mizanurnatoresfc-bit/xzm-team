@@ -1,5 +1,5 @@
 @echo off
-rem XZM-TEAM ERP: builds the website for upload to Netlify.
+rem XZM TEAM: builds the website for upload to Netlify.
 cd /d "%~dp0web"
 if not exist ".env.local" (
   echo web\.env.local not found. Run web\create-env.bat first.

@@ -1,6 +1,6 @@
-# XZM-TEAM — Management + Accounts ERP
+# XZM TEAM — Management + Accounts System
 
-Enterprise management ERP for Head Office, Zones, Hubs, HR and courier operations, with Accounts (Daily Accounts module done in the database and React) growing in later releases.
+Management system for Head Office, Zones, Hubs, HR and courier operations, with Accounts (Daily Accounts module done in the database and React) growing in later releases.
 
 **Approved architecture:** React + TypeScript + Vite + Supabase (Auth, PostgreSQL, RLS, Storage, RPC and Edge Functions).
 
