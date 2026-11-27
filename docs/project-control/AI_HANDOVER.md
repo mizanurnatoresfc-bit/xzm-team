@@ -49,6 +49,15 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 - Draft PR default; owner approval-এর পর ready-for-review।
 - কোনো unrelated change একই task-এ মেশানো নয়।
 
+### 4.1 Shared Task Tracker (set in XZM-005)
+
+- **Master context:** `docs/project-control/TASK_TRACKER.md` (15-field schema, 14 categories)।
+- **Live status / assignment / comments:** GitHub Issues (https://github.com/mizanurnatoresfc-bit/xzm-team/issues)।
+- Conflict হলে **GitHub Issues = live state**, markdown = durable context।
+- Owner বা ChatGPT কোনো task-কে issue বানালে title-এ `[XZM-###]` prefix রাখবেন; issue number markdown-এর `GitHub Issue #` field-এ update হবে।
+- প্রতিটি কাজের শেষে বাধ্যতামূলকভাবে update: `TASK_TRACKER.md`, `AI_HANDOVER.md` (যদি protocol পরিবর্তন হয়), `CHANGELOG.md`, এবং deploy হলে `DEPLOYMENT_LOG.md`।
+- প্রমাণ (commit SHA / PR link / TEST_REPORT entry) ছাড়া কোনো task **VERIFIED / CLOSED** চিহ্নিত হবে না।
+
 ## 5. Secrets
 
 - কখনো commit নয়।
