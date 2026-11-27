@@ -1,0 +1,11 @@
+// Cloudflare: the website (web/dist, built by the GitHub workflow) is served as a Workers static-assets site.
+// The workflow uploads it with `wrangler deploy`; see .github/workflows/android-apk.yml ("Publish the website to Cloudflare").
+{
+  "name": "xzm-team",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./web/dist",
+    // Single-page app: every route (/staff/login, /app/...) is served by index.html, as in netlify.toml.
+    "not_found_handling": "single-page-application"
+  }
+}
