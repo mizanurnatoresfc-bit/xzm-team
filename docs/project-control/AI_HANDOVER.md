@@ -41,6 +41,10 @@ Single source of truth lives in **`docs/project-control/`** on `main`। Order o
 14. `AI_HANDOVER.md` — this file
 15. `RISK_REGISTER.md` — project-level cross-task risks *(added XZM-004R)*
 16. `audits/` — per-task audit evidence files *(added XZM-004R)*
+    - `XZM-006_BACKUP_RECOVERY.md`
+    - `XZM-007AB-3_BATCH3_ZONAL_DUTY_AUDIT.md`
+    - `XZM-007AB-3_BATCH3_CORRECTION.md`
+    - `XZM-007AB-4_BATCH4_COURIER_OPS_AUDIT.md` *(ported in XZM-004R Review-Response, 2026-11-27)*
 
 Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite নয়।
 
@@ -98,7 +102,7 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 - **XZM-005** REVIEW — task tracker schema PR.
 - **XZM-006** UNDER_REVIEW — backup & recovery.
 - **XZM-007A/B-1, -2** EVIDENCE NOT ON FILE — re-audit pending.
-- **XZM-007A/B-3, -4** UNDER_REVIEW — Batch 3 & Batch 4 audits.
+- **XZM-007A/B-3, -4** UNDER_REVIEW — Batch 3 & Batch 4 audits (both reports now in `docs/project-control/audits/`; Batch 4 ported in XZM-004R Review-Response).
 - **XZM-010..013** PROPOSED / AUDIT PENDING — from Batch 3 G-1..G-4.
 - **XZM-014..017** PROPOSED — new from Batch 3 Correction G-6..G-8 + Q.3.11.
 
@@ -109,24 +113,26 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 
 ## 9. Next Action
 
-- ChatGPT: Independent Review of XZM-004R, XZM-006, XZM-007A/B-3 on this PR.
+- ChatGPT: Independent Review of XZM-004R, XZM-006, XZM-007A/B-3, XZM-007A/B-4 on this PR (second review after XZM-004R Review-Response corrections of 2026-11-27).
 - Owner: approval decision after ChatGPT review.
 - Claude: hold on implementation until approved Task ID lands.
 
-## 5. Secrets
+## 10. Secrets Policy
 
 - কখনো commit নয়।
-- Supabase service-role / ANTHROPIC_API_KEY / Netlify tokens — nijh dashboard-এ রক্ষিত।
+- Supabase service-role / ANTHROPIC_API_KEY / Netlify tokens — নিজ নিজ dashboard-এ রক্ষিত।
 - Repo-র `.gitignore` + Netlify/Supabase/Cloudflare environment variables ব্যবহার।
+- Operational identifiers (Supabase project ref, Netlify site ID, Cloudflare account ID, owner email) — public identifier, secret নয়; কিন্তু XZM-004R Review-Response-এ operational-security review-এর জন্য flag করা (see PROJECT_CONNECTIONS §10)।
 
-## 6. Currently Known Gaps (as of 2026-11-27)
+## 11. Currently Known Gaps (as of 2026-11-27)
 
-- Netlify, Cloudflare, Figma, Subframe verification incomplete → XZM-005।
+- Netlify, Cloudflare, Figma, Subframe পূর্ণাঙ্গ verification incomplete → XZM-003।
 - Android source path & build version → PENDING।
 - Supabase `xzm-team-staging` ownership confirmation → PENDING।
-- Full table + RLS inventory → PENDING।
+- Full table + RLS inventory → PENDING (XZM-007 scope)।
+- End-to-end restore drill → PENDING (R-009)।
 
-## 7. Session Hand-off Checklist (both AIs)
+## 12. Session Hand-off Checklist (both AIs)
 
 Before starting a task:
 1. Read latest `TASK_TRACKER.md` + `DECISION_LOG.md` tail।
@@ -136,10 +142,11 @@ Before starting a task:
 5. Write evidence in `TEST_REPORT.md` before claiming done।
 6. Append entry to `CHANGELOG.md` and (if applicable) `DEPLOYMENT_LOG.md`।
 
-## 8. Do-Not List
+## 13. Do-Not List
 
 - No credentials in commits/docs।
 - No duplicate modules।
 - No silent removal of existing features।
 - No branding drift (XZM TEAM only, ERP suffix gone from UI)।
 - No business-rule change without approved task।
+- No "RESOLVED" label on a risk until merge + both-AI read verification (R-008 lesson, XZM-004R Review-Response)।

@@ -17,6 +17,18 @@ Format:
 
 ---
 
+## XZM-004R Review-Response — 12-point corrections on PR #213 — 2026-11-27 (evening)
+
+- **Environment:** N/A (documentation only, no runtime)।
+- **Scope:** `docs/project-control/` branch `docs/xzm-004r-consolidated`-এ corrections (no code / DB / production config)।
+- **Files touched:** TASK_TRACKER, AI_HANDOVER, CHANGELOG, DECISION_LOG, TEST_REPORT, RISK_REGISTER, PROJECT_CONNECTIONS, new audits/XZM-007AB-4_BATCH4_COURIER_OPS_AUDIT।
+- **CI check:** Repo-local path-scoped workflows (`website.yml`, `android-apk.yml`, `tests.yml`) — zero trigger (paths all under `docs/project-control/`)।
+  Netlify Deploy Preview — triggers per PR configuration; prior preview on this PR verified SUCCESS by ChatGPT (docs-only, isolated preview URL)।
+  Cloudflare Workers Git integration — auto builds on push; produces isolated `*.mizanurnatore-sfc.workers.dev` preview URL (not production `xzmteam.com`)।
+- **Isolation verification:** Netlify preview does not write to production domain; Cloudflare Workers production route for `xzm-team` service is bound to zone DNS only via explicit deploy, not preview URLs. Preview environments considered **functionally isolated for docs-only branches**।
+- **Secrets review:** No secret introduced. Operational identifiers (Supabase project ref, Netlify site ID, Cloudflare account ID, owner email) catalogued in PROJECT_CONNECTIONS §10 for Owner review — not treated as secrets but exposure flagged।
+- **Outcome:** PASS (documentation-only Review-Response)।
+
 ## XZM-004 — Central Project Documentation Setup — 2026-11-27
 
 - **Environment:** N/A (documentation only, no runtime)।

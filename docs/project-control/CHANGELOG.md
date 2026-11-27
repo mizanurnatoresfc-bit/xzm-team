@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-11-27 (Review-Response, evening)
+
+- **XZM-004R — ChatGPT Independent Review Response:** PR #213 Draft-এ 12-point corrections applied (no application code, no DB, no production config change) —
+  (1) PR description-এ actual 19 changed files + 3 commits উল্লেখ।
+  (2) XZM-006 duplicate record consolidated to one master.
+  (3) XZM-001 = **ChatGPT Workspace Setup**; XZM-002 = **Claude Workspace Setup** — properly labelled.
+  (4) `AI_HANDOVER.md` duplicate section numbers (5–8 twice) merged; new numbering 1–13 continuous.
+  (5) Batch 4 report ported to `docs/project-control/audits/XZM-007AB-4_BATCH4_COURIER_OPS_AUDIT.md` with COMPLETE status (not "preliminary").
+  (6) TASK_TRACKER-এর সব records 15-field schema-এ aligned; status ভাষা consistent (PROPOSED / UNDER_REVIEW / REVIEW / CLOSED).
+  (7) "Zero Deployment Trigger Risk" dubbed down to "Zero trigger for repo-local CI workflows" and Netlify + Cloudflare Workers preview build-এর isolation acknowledged as a separate category.
+  (8) Netlify Deploy Preview SUCCESS from PR #213 noted (ChatGPT verified); Cloudflare Workers preview URL also builds on push — docs-only PR expected safe but build run confirmed.
+  (9) PROJECT_CONNECTIONS §10 added: operational identifiers (Supabase project ref, Netlify site ID, Cloudflare account ID, owner email) listed with Owner-review recommendation (not secrets, but public-repo exposure flagged).
+  (10) `RISK_REGISTER.md` R-008 status changed from RESOLVED → **IN_PROGRESS — pending merge + both-AI read verification**.
+  (11) `TEST_REPORT.md`, `DECISION_LOG.md`, `TASK_TRACKER.md`, `AI_HANDOVER.md`, `CHANGELOG.md` cross-synchronized with XZM-004R Review-Response entries.
+  (12) XZM-010..017 all verified as PROPOSED.
+- **Status:** PR #213 remains Draft. Awaiting Second ChatGPT Independent Review.
+
 ## 2026-11-27
 
 - **XZM-004R:** Central Documentation Recovery & Synchronization — consolidated `docs/project-control-init` + `docs/xzm-005-task-tracker` + durable `claude/*` reports। নতুন ফাইল: `RISK_REGISTER.md`, `audits/XZM-006_BACKUP_RECOVERY.md`, `audits/XZM-007AB-3_BATCH3_ZONAL_DUTY_AUDIT.md`, `audits/XZM-007AB-3_BATCH3_CORRECTION.md`। `TASK_TRACKER.md`-এ XZM-006..017 যোগ। `AI_HANDOVER.md` verified-environment snapshot + risks + in-flight tasks। Owner decision: `docs/project-control/` = single source of truth; `claude/` = scratch। Draft PR, docs-only (web/**, supabase/** CI trigger নয়)।

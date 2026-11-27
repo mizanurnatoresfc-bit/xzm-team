@@ -94,3 +94,22 @@
 - কোনো API key, token, service-role key, password এই Documentation-এ লেখা হবে না।
 - Secret management Supabase/Netlify/Cloudflare dashboard-এ নিজ নিজ স্থানে থাকবে।
 - `ANTHROPIC_API_KEY` Supabase edge function secret হিসেবে configured (memory-reference only)।
+
+## 10. Operational Identifiers Review *(XZM-004R Review-Response, 2026-11-27)*
+
+ChatGPT Independent Review requested review of operational security details present in public-repo docs. এগুলো **secret নয়**, কিন্তু public exposure-এর কারণে Owner-এর জন্য awareness flag:
+
+| Identifier | Where it appears | Sensitivity | Owner action required? |
+|---|---|---|---|
+| Supabase dev project ref `ndgnhvbpmtxrpplgsslz` | `PROJECT_CONNECTIONS.md` §2, `AI_HANDOVER.md` §5 | LOW — already public via REST URL pattern `https://ndgnhvbpmtxrpplgsslz.supabase.co` | No — RLS + anon key policy handles access control |
+| Supabase staging ref `mbpjvqeizwjjsvnbjerb` | same | LOW — same reasoning | No |
+| Netlify site ID `2909a0bd-55bc-4b11-930f-73750fb34bd4` | `AI_HANDOVER.md` §5 | LOW — UUID is identifier only; not usable without token | No |
+| Cloudflare account ID `80d49a409ddcfa2db3c7289621ce19ba` | `AI_HANDOVER.md` §5 | LOW — account ID is public in Workers URLs | No |
+| Owner email `mizanurnatore.sfc@gmail.com` | `AI_HANDOVER.md` §5 | MED — PII, already visible in git commit author history | Owner choice: redact to `[owner]` in docs or leave as-is (commit history shows it anyway) |
+| Android `appId com.xzmteam.erp` | Multiple docs | LOW — public via Play Store | No |
+
+**Actual secrets confirmed absent from this PR / repo-tracked docs:**
+- ❌ No API key, service-role key, Netlify auth token, GitHub PAT, Cloudflare API token, Firebase/APNs key, ANTHROPIC_API_KEY, SMTP creds, DB password, OAuth client secret।
+- ✅ Audited by file grep against `docs/project-control/` on 2026-11-27 — zero hits for common secret patterns।
+
+**Recommendation to Owner:** Decide whether owner-email should be redacted in future docs। The listed UUIDs/IDs are operational identifiers that do not grant access on their own, so no remediation is urgent। If any of the above were previously treated as confidential, flag the specific item and a separate task will scrub it from the repo history।

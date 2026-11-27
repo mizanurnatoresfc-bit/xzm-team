@@ -62,38 +62,38 @@
 
 ## 4. Task Records
 
-### XZM-001 — Project Workspace Initialization (historical)
+### XZM-001 — ChatGPT Workspace Setup (historical)
 | Field | Value |
 |---|---|
 | Module | Workspace / Documentation |
 | Category | AU — Audit |
-| Requirement | Claude workspace প্রজেক্টে attach করা, project doc পড়া, context seed |
-| Business Objective | AI-এর জন্য reliable project context |
+| Requirement | ChatGPT (Director/Architect/Auditor) side workspace attach, project context seed, Director role setup |
+| Business Objective | ChatGPT-এর জন্য reliable project context + independent review authority |
 | Priority | P1 |
-| Assigned AI | Claude |
+| Assigned AI | ChatGPT |
 | Dependencies | — |
 | Current Status | **CLOSED** |
-| Acceptance Criteria | Project attached, CLAUD.txt ingested, workspace report delivered |
+| Acceptance Criteria | ChatGPT attached to project context; authority split confirmed; initial review workflow established |
 | Test Evidence | Prior conversation seed; no PR |
-| Owner Approval | ✅ (pre-tracker, stated in CLAUD.txt flow) |
+| Owner Approval | ✅ (pre-tracker) |
 | Commit / PR Link | — (no code change) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
 | Blockers | none |
 | Next Action | — closed |
 
-### XZM-002 — Claude Workspace Initialization Report
+### XZM-002 — Claude Workspace Setup
 | Field | Value |
 |---|---|
 | Module | Workspace / Documentation |
 | Category | AU — Audit |
-| Requirement | 12-point workspace যাচাই ও বাংলা report; কোনো code/DB change নয় |
-| Business Objective | Setup verification, ChatGPT independent review |
+| Requirement | Claude (Implementation Engineer) side workspace attach, 12-point workspace verification report in Bengali; কোনো code/DB change নয় |
+| Business Objective | Setup verification, ChatGPT Independent Review trigger |
 | Priority | P1 |
 | Assigned AI | Claude |
 | Dependencies | XZM-001 |
 | Current Status | **CLOSED** |
-| Acceptance Criteria | 12 items VERIFIED/UNVERIFIED/ACCESS_REQUIRED labeled; final report in Bengali |
+| Acceptance Criteria | 12 items VERIFIED/UNVERIFIED/ACCESS_REQUIRED labeled; final report in Bengali; Claude attached to CLAUD.txt flow |
 | Test Evidence | Conversation turn (pre-PR workflow) |
 | Owner Approval | ✅ — owner replied with XZM-003 next |
 | Commit / PR Link | — |
@@ -162,25 +162,7 @@
 | Blockers | none |
 | Next Action | Owner + ChatGPT review → merge after XZM-004 |
 
-### XZM-006 — Backup & Recovery Verification *(planned)*
-| Field | Value |
-|---|---|
-| Module | Supabase (backup, PITR), Netlify (deploy rollback), GitHub (branch protection), Android (build artifact archive) |
-| Category | DS — Database & Security |
-| Requirement | প্রতিটি tier-এর backup/restore/rollback প্রক্রিয়া verify; RPO/RTO documented |
-| Business Objective | Disaster recovery readiness |
-| Priority | P1 |
-| Assigned AI | Claude (verification) + Owner (dashboard access where needed) |
-| Dependencies | XZM-003, XZM-004 |
-| Current Status | **PROPOSED** |
-| Acceptance Criteria | Supabase daily backup state, PITR window, Netlify instant rollback demonstrated, GitHub branch protection rules, Android build archive policy — সব documented |
-| Test Evidence | future |
-| Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
-| GitHub Issue # | — |
-| Deployment Status | N/A |
-| Blockers | Requires owner dashboard access for some settings |
-| Next Action | Approval → plan sub-checks per tier |
+*(XZM-006 initial PROPOSED stub consolidated into the single master record below — see "XZM-006 — Backup & Recovery Verification (UNDER_REVIEW)")*
 
 ### XZM-007 — Full Web, Android & Database Audit *(planned)*
 | Field | Value |
@@ -242,21 +224,21 @@
 | Blockers | Needs XZM-008 output |
 | Next Action | Complete XZM-006 → 007 → 008 → start |
 
-### XZM-006 — Backup & Recovery Verification *(active, under review)*
+### XZM-006 — Backup & Recovery Verification
 | Field | Value |
 |---|---|
-| Module | Infrastructure / Documentation |
-| Category | AU — Audit |
-| Requirement | Read-only audit of backup, disaster recovery and rollback readiness across GitHub, Supabase, Netlify, Cloudflare, Android signing |
-| Business Objective | Known-good recovery posture before any production task |
+| Module | Infrastructure / Documentation (Supabase PITR, Netlify rollback, GitHub branch protection, Android signing, Cloudflare DNS) |
+| Category | AU — Audit (Database & Security scope) |
+| Requirement | Read-only audit of backup, disaster recovery and rollback readiness across GitHub, Supabase, Netlify, Cloudflare, Android signing; RPO/RTO documented |
+| Business Objective | Known-good recovery posture before any production task; disaster recovery readiness |
 | Priority | P1 |
-| Assigned AI | Claude |
-| Dependencies | XZM-003 |
+| Assigned AI | Claude (verification) + Owner (dashboard access where needed) |
+| Dependencies | XZM-003, XZM-004 |
 | Current Status | **UNDER_REVIEW** |
 | Acceptance Criteria | 18-asset matrix + drift findings + 7 recovery scenarios + 8 action items documented |
 | Test Evidence | `docs/project-control/audits/XZM-006_BACKUP_RECOVERY.md` |
 | Owner Approval | ⏳ pending |
-| Commit / PR Link | XZM-004R consolidation (this PR) |
+| Commit / PR Link | XZM-004R consolidation (PR #213) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
 | Blockers | Awaiting ChatGPT independent review |
@@ -268,13 +250,17 @@
 | Module | Audit |
 | Category | AU |
 | Requirement | First-batch audit of XZM TEAM subsystems (originally planned) |
+| Business Objective | Historical coverage; input to CURRENT_SYSTEM_MAP |
 | Priority | P2 |
 | Assigned AI | Claude |
+| Dependencies | — |
 | Current Status | **EVIDENCE NOT ON FILE → RE-AUDIT PENDING** |
 | Acceptance Criteria | Re-audit report under new task `XZM-007A/B-1R` upon Owner approval |
 | Test Evidence | None — searched 164 remote branches + Project docs + GitHub API on 2026-11-27, no artefact found |
 | Owner Approval | ⏳ pending (decide: re-audit vs cancel) |
 | Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
 | Blockers | Owner decision |
 | Next Action | Owner decision |
 
@@ -284,13 +270,17 @@
 | Module | Accounts |
 | Category | AU |
 | Requirement | Accounts module audit (originally planned) |
+| Business Objective | Historical coverage; input to CURRENT_SYSTEM_MAP |
 | Priority | P2 |
 | Assigned AI | Claude |
+| Dependencies | — |
 | Current Status | **EVIDENCE NOT ON FILE → RE-AUDIT PENDING** |
 | Acceptance Criteria | Re-audit report under new task `XZM-007A/B-2R` upon Owner approval |
 | Test Evidence | None — same search as Batch 1 |
 | Owner Approval | ⏳ pending |
 | Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
 | Blockers | Owner decision |
 | Next Action | Owner decision |
 
@@ -314,24 +304,27 @@
 | Blockers | Awaiting ChatGPT independent review |
 | Next Action | ChatGPT review → open G-1..G-8 as task IDs (XZM-010..016 already proposed below) |
 
-### XZM-007A/B-4 — Courier Operations & Planning Audit (Batch 4) *(under review)*
+### XZM-007A/B-4 — Courier Operations & Planning Audit (Batch 4)
 | Field | Value |
 |---|---|
 | Module | Courier Operations & Planning |
 | Category | AU — Audit |
-| Requirement | Read-only Batch 4 audit at HEAD `2836a07` |
+| Requirement | Read-only Batch 4 audit at HEAD `2836a07` covering Merchant Pickup, Data Entry, Route Management, Rider Assignment, Backup Rider, Morning Attendance, Zonal Route Approval, Published Route Plan, Pickup/Delivery Return, Sorting Center, Big Parcel, Vehicle Load, Hub-wise Operations Report, Zonal Manager Control, Web ↔ Android Sync |
+| Business Objective | Feature coverage evidence for ChatGPT independent review |
 | Priority | P1 |
 | Assigned AI | Claude |
 | Dependencies | XZM-007A/B-3 |
 | Current Status | **UNDER_REVIEW** |
-| Acceptance Criteria | Report pending full writeup; preliminary findings cross-referenced from Batch 3 |
-| Test Evidence | `claude/BATCH4_COURIER_OPS_AUDIT.md` (claude workspace — to be consolidated in a follow-up) |
+| Acceptance Criteria | 42-item matrix (35 SOURCE VERIFIED / 4 SOURCE PARTIAL / 3 NOT FOUND / 0 RUNTIME VERIFIED / 0 ACCESS REQUIRED); Fair Work Distribution analysis (§6); 5 Batch-4 findings (B4-G-1..B4-G-5) mapped to proposed XZM-011/014/015/016 |
+| Test Evidence | `docs/project-control/audits/XZM-007AB-4_BATCH4_COURIER_OPS_AUDIT.md` (ported to central folder in XZM-004R Review-Response) |
 | Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
-| Blockers | Report writeup pending |
-| Next Action | Complete Batch 4 writeup → consolidate into `docs/project-control/audits/` |
+| Commit / PR Link | XZM-004R consolidation (PR #213) |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting ChatGPT independent review |
+| Next Action | ChatGPT review → Owner approval on B4-G findings → open XZM-011/014/015/016 as separate approved PRs |
 
-### XZM-010 — Problem Center Enhancement *(proposed, audit pending)*
+### XZM-010 — Problem Center Enhancement *(proposed)*
 | Field | Value |
 |---|---|
 | Module | Issues / Hub Problem Center |
@@ -339,64 +332,97 @@
 | Requirement | Auto-routing hub problem → zonal → hub-manager/call-center + per-rider tag + hub-wise leaderboard |
 | Business Objective | Faster rider problem resolution; accountability |
 | Priority | P2 |
-| Assigned AI | TBD |
+| Assigned AI | TBD (ChatGPT scope + Claude UI, pending approval) |
 | Dependencies | XZM-007A/B-3 Finding G-1 |
-| Current Status | **PROPOSED / AUDIT PENDING** |
+| Current Status | **PROPOSED** |
 | Acceptance Criteria | Clarified scope vs existing `Issues.tsx`; implementation plan; owner approval |
+| Test Evidence | — (none yet; task not approved) |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
 | Blockers | Owner clarification whether existing `Issues.tsx` is intended target |
 | Next Action | Clarify scope with Owner |
 
-### XZM-011 — Smart Route & Backup Manpower Planning *(proposed, audit pending)*
+### XZM-011 — Smart Route & Backup Manpower Planning *(proposed)*
 | Field | Value |
 |---|---|
 | Module | zonal.plan RPC + RoutePlan.tsx |
 | Category | COP + ZM |
 | Requirement | Capacity-surge logic (less-busy routes first → spare pool); backup rider suggestion engine; confirmation vs auto-dispatch |
+| Business Objective | Handle parcel-count spikes without manual re-shuffling by zonal/hub manager |
 | Priority | P1 |
 | Assigned AI | ChatGPT Backend Team (RPC) + Claude (UI) |
-| Dependencies | XZM-007A/B-3 Finding G-2, XZM-007A/B-4 |
-| Current Status | **PROPOSED / AUDIT PENDING** |
-| Acceptance Criteria | Backend audit of `zonal.plan` SQL + UI confirmation flow |
+| Dependencies | XZM-007A/B-3 Finding G-2, XZM-007A/B-4 B4-G-2 |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | Backend audit of `zonal.plan` SQL + UI confirmation flow approved |
+| Test Evidence | — |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting Owner approval |
+| Next Action | Owner approval → backend contract to ChatGPT Backend Team |
 
-### XZM-012 — Hub Switching Verification *(proposed, audit pending)*
+### XZM-012 — Hub Switching Verification *(proposed)*
 | Field | Value |
 |---|---|
 | Module | AppShell + all pages |
 | Category | UX + AU |
 | Requirement | grep-verify singleton hub-switcher widget in global header; UI QA confirms no per-page duplicate |
+| Business Objective | Confirm Owner memory rule — single hub switcher — holds across all pages |
 | Priority | P3 |
 | Assigned AI | Claude |
 | Dependencies | XZM-007A/B-3 Finding G-3 |
-| Current Status | **PROPOSED / AUDIT PENDING** |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | grep-backed inventory of HubPicker usages + screenshot evidence; zero duplicates found |
+| Test Evidence | — |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting Owner approval |
+| Next Action | Owner approval → Claude runs grep audit |
 
-### XZM-013 — Employee Duty Evidence *(proposed, audit pending)*
+### XZM-013 — Employee Duty Evidence *(proposed)*
 | Field | Value |
 |---|---|
 | Module | hubApi.taskComplete + EvidencePicker |
 | Category | EDM + UX |
 | Requirement | Policy: whether duty completion requires evidence (photo/file) attach via EvidencePicker |
+| Business Objective | Compliance proof for duty completion when demanded by ops/HR |
 | Priority | P3 |
-| Assigned AI | TBD |
+| Assigned AI | TBD (Owner policy → Claude UI) |
 | Dependencies | XZM-007A/B-3 Finding G-4 |
-| Current Status | **PROPOSED / AUDIT PENDING** |
+| Current Status | **PROPOSED** |
+| Acceptance Criteria | Owner policy decision documented + (if yes) implementation plan |
+| Test Evidence | — |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting Owner policy decision |
+| Next Action | Owner policy decision |
 
 ### XZM-014 — Fair Workload & Performance Evaluation *(proposed)*
 | Field | Value |
 |---|---|
-| Module | wf_daily_ops + zonal dashboard |
+| Module | wf_daily_ops + zonal dashboard + StaffWorkProfile |
 | Category | EDM + CR |
-| Requirement | Fairness index for staff data entries — detect when parcel distribution skews peer ranking |
-| Business Objective | Prevent mis-ranking of staff when route planner (not staff) assigned the parcel load |
+| Requirement | Fairness index for staff data entries — detect when parcel distribution skews peer ranking; peer-average comparison strip; evaluation safeguard flag |
+| Business Objective | Prevent mis-ranking of staff when route planner (not staff) assigned the parcel load; address Owner's self-reinforcing-bias concern (B4-G-4) |
 | Priority | P2 |
 | Assigned AI | ChatGPT Backend Team (fairness RPC) + Claude (UI) |
-| Dependencies | XZM-007A/B-3 Correction Finding G-6 |
+| Dependencies | XZM-007A/B-3 Correction Finding G-6 + XZM-007A/B-4 Finding B4-G-4 |
 | Current Status | **PROPOSED** |
-| Acceptance Criteria | Peer-average comparison + fairness badge in StaffWorkProfile |
+| Acceptance Criteria | Peer-average comparison + fairness badge in StaffWorkProfile + consecutive-under-average flag |
+| Test Evidence | — |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting Owner approval |
+| Next Action | Owner approval → scope confirmation |
 | Conflict check | No XZM-014 elsewhere — SAFE |
 
 ### XZM-015 — Daily Three-Slot Operations Reporting *(proposed)*
@@ -405,13 +431,19 @@
 | Module | hub_ops_reports + OperationsCollection |
 | Category | CR + COP |
 | Requirement | Add `report_slot` / `shift` field to `hub_ops_reports`; enforce morning/mid/night submissions |
-| Business Objective | Match business rule of 3-times-daily hub ops reporting |
+| Business Objective | Match business rule of 3-times-daily hub ops reporting (B4-G-5) |
 | Priority | P2 |
 | Assigned AI | ChatGPT Backend Team (schema) + Claude (UI) |
-| Dependencies | XZM-007A/B-3 Correction Finding G-7 |
+| Dependencies | XZM-007A/B-3 Correction Finding G-7 + XZM-007A/B-4 Finding B4-G-5 |
 | Current Status | **PROPOSED** |
 | Acceptance Criteria | Migration adds slot column + UI prompts for missed slots |
+| Test Evidence | — |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting Owner approval |
+| Next Action | Owner approval → backend contract |
 | Conflict check | No XZM-015 elsewhere — SAFE |
 
 ### XZM-016 — Route Approval Push Notification *(proposed)*
@@ -420,13 +452,19 @@
 | Module | route_plan_decide + push-send edge function |
 | Category | COP + WA |
 | Requirement | On route plan approval, automatically push notification to each assigned rider (currently manual "আবার পাঠান") |
-| Business Objective | Rider gets today's assignment without hub manager re-sending |
+| Business Objective | Rider gets today's assignment without hub manager re-sending (B4-G-3) |
 | Priority | P2 |
 | Assigned AI | ChatGPT Backend Team (RPC hook) + Claude (test) |
-| Dependencies | XZM-007A/B-3 Correction Finding G-8 |
+| Dependencies | XZM-007A/B-3 Correction Finding G-8 + XZM-007A/B-4 Finding B4-G-3 |
 | Current Status | **PROPOSED** |
 | Acceptance Criteria | Approval triggers `private.notify()` for every rider on the plan |
+| Test Evidence | — |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting Owner approval |
+| Next Action | Owner approval → backend contract |
 | Conflict check | No XZM-016 elsewhere — SAFE |
 
 ### XZM-017 — Operations Report Export *(proposed)*
@@ -441,7 +479,13 @@
 | Dependencies | XZM-007A/B-3 Correction Q.3.11 (PARTIAL) + XZM-008 column spec |
 | Current Status | **PROPOSED** |
 | Acceptance Criteria | Downloadable XLSX from Operations Collection respecting Zonal column config |
+| Test Evidence | — |
 | Owner Approval | ⏳ pending |
+| Commit / PR Link | — |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Awaiting Owner approval + XZM-008 column spec |
+| Next Action | Owner approval → design XLSX export |
 | Conflict check | No XZM-017 elsewhere — SAFE |
 
 ### XZM-004R — Central Documentation Recovery & Synchronization *(this task)*
@@ -455,7 +499,7 @@
 | Assigned AI | Claude |
 | Dependencies | XZM-004, XZM-005 |
 | Current Status | **REVIEW** (Draft PR) |
-| Acceptance Criteria | (a) no file deleted; (b) three updated central docs (TASK_TRACKER, AI_HANDOVER, CHANGELOG); (c) new `audits/XZM-006`, `audits/XZM-007AB-3*` files; (d) new `RISK_REGISTER.md`; (e) no secrets; (f) no CI deploy trigger (verified: `web/**`, `supabase/**` paths only); (g) Draft PR open |
+| Acceptance Criteria | (a) no file deleted; (b) updated central docs (TASK_TRACKER, AI_HANDOVER, CHANGELOG, DECISION_LOG, TEST_REPORT, RISK_REGISTER, PROJECT_CONNECTIONS); (c) new `audits/XZM-006`, `audits/XZM-007AB-3*`, `audits/XZM-007AB-4*` files; (d) new `RISK_REGISTER.md`; (e) no secrets; (f) zero trigger of repo-local path-scoped CI workflows (`website.yml`, `android-apk.yml`, `tests.yml` — all paths are code-dir scoped, PR touches only `docs/project-control/`); Netlify Deploy Preview + Cloudflare Workers preview builds **do** run per their respective Git integrations, producing isolated preview URLs — production domain untouched; (g) Draft PR open |
 | Test Evidence | This PR (docs-only diff) |
 | Owner Approval | ⏳ pending (ChatGPT Independent Review → Owner approval) |
 | Commit / PR Link | Branch `docs/xzm-004r-consolidated` (this PR) |

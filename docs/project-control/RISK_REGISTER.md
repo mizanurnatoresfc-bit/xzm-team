@@ -82,12 +82,18 @@
 
 ---
 
-## R-008 — Documentation Dual Source of Truth (RESOLVED by XZM-004R)
+## R-008 — Documentation Dual Source of Truth
 
-- **Severity:** HIGH (historical)
+- **Severity:** HIGH
 - **Source:** XZM-007A/B-3 Correction Finding G-A7-1, G-A7-2, G-A7-3.
-- **Resolution:** XZM-004R consolidates all durable `claude/*` reports into `docs/project-control/`. After XZM-004R merges to `main`, `claude/` reverts to temporary session scratch.
-- **Status:** RESOLVED on merge of XZM-004R.
+- **Description:** Durable project knowledge dual-sourced between `claude/` and `docs/project-control/` — ChatGPT ও Claude উভয়ের জন্য source of truth ambiguity।
+- **Mitigation (in-progress):** XZM-004R PR #213 consolidates all durable `claude/*` reports into `docs/project-control/` + ports Batch 4 report + reorganizes task tracker + risk register.
+- **Resolution condition (all three required):**
+  1. PR #213 merged to `main` after Owner approval।
+  2. Claude's next session reads `docs/project-control/` from `main` and confirms single-source consistency।
+  3. ChatGPT's independent read of the merged state confirms no stale `claude/*` reference remains authoritative।
+- **Status:** **IN_PROGRESS — pending merge + both-AI read verification** *(corrected from premature "RESOLVED" during XZM-004R Review-Response, 2026-11-27)*।
+- **Historical note:** Previous RISK_REGISTER.md labelled this as "RESOLVED on merge of XZM-004R" before merge happened — flagged by ChatGPT Independent Review as premature closure। Resolution label will only be set once all three conditions above hold।
 
 ---
 

@@ -4,6 +4,12 @@
 
 ---
 
+## 2026-11-27 (evening) — D-008: XZM-004R Review-Response, 12-point corrections on PR #213 (Draft)
+- **Decision:** ChatGPT Independent Review (REQUEST CHANGES — HOLD) গৃহীত; PR #213-এর একই branch `docs/xzm-004r-consolidated`-এ 12-point corrections। নতুন PR খোলা হয়নি।
+- **Key changes:** XZM-001/002 (ChatGPT/Claude workspace setup) relabeled; XZM-006 duplicate consolidated; AI_HANDOVER section numbering repaired; Batch 4 report ported to central `audits/` folder; "Zero Deployment Trigger Risk" claim softened to repo-local CI workflows only (Netlify + Cloudflare Workers preview builds acknowledged separately); R-008 status rolled back to IN_PROGRESS; operational-identifier review added to PROJECT_CONNECTIONS §10.
+- **Rationale:** Accuracy, auditability, and alignment with ChatGPT Review feedback; keep PR Draft until Second Independent Review.
+- **Impact:** docs-only। No code, DB, or production change. Still awaiting ChatGPT Second Review → Owner approval → merge.
+
 ## 2026-11-27 — D-007: Central Project Documentation under `docs/project-control/`
 - **Decision:** `docs/project-control/` ফোল্ডারে 14টি standard documentation ফাইল — PROJECT_MASTER, PROJECT_CONNECTIONS, CURRENT_SYSTEM_MAP, COMPANY_RULES, REPORT_FORMATS, REQUIREMENTS, TASK_TRACKER, DECISION_LOG, AUDIT_REPORT, BUG_REGISTER, TEST_REPORT, CHANGELOG, DEPLOYMENT_LOG, AI_HANDOVER।
 - **Rationale:** ChatGPT ও Claude উভয়ের জন্য single source of truth; existing `docs/` অপরিবর্তিত থাকবে।
