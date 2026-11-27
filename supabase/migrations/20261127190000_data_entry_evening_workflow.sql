@@ -35,7 +35,7 @@ do $audit$
 declare name text;
 begin
   foreach name in array array['data_entry_shift_settings','data_entry_seed_pickups','data_entry_heads',
-    'data_entry_shift_reports','data_entry_extra_duties','data_entry_peer_updates','data_entry_target_limits']
+    'data_entry_shift_reports','data_entry_extra_duties','data_entry_peer_updates','data_entry_target_limits','data_entry_shift_availability']
   loop
     execute format('revoke all on private.%I from public, anon, authenticated', name);
     execute format('create trigger data_entry_audit after insert or update on private.%I
@@ -271,6 +271,12 @@ begin
         assign_duties=excluded.assign_duties, active=true,approved_by=excluded.approved_by;
     when 'revoke_head' then
       update private.data_entry_heads set active=false,approved_by=actor where hub_id=p_hub and active;
+    when 'availability' then
+      if p_day<>day_window.day or not exists (select 1 from private.data_entry_target_team(p_hub) where member_id=target) then
+        raise exception 'Choose a worker and the current operating date' using errcode = '22023';
+      end if;
+      insert into private.data_entry_shift_availability values(p_hub,p_day,target,p_values->>'state',note_value,actor)
+      on conflict (hub_id,work_date,member_id) do update set state=excluded.state,note=excluded.note,approved_by=excluded.approved_by;
     when 'limit' then
       if p_day<>day_window.day or not exists (select 1 from private.data_entry_target_team(p_hub) where member_id=target) then
         raise exception 'Choose a team member and the current operating date' using errcode = '22023';
@@ -281,7 +287,7 @@ begin
       update private.data_entry_peer_updates set read_at=now(),read_by=actor where id=item and hub_id=p_hub and read_at is null;
     else raise exception 'Unknown Data Entry action' using errcode = '22023';
   end case;
-  if p_action in ('seed_pickups','limit') then
+  if p_action in ('seed_pickups','limit','availability') then
     perform private.data_entry_target_refresh(p_hub,day_window.day,p_action);
   end if;
 end $$;

@@ -76,6 +76,7 @@ const reasonNames: Record<string, [string, string]> = {
   seed_pickups: ['শুরুর পিকআপ তথ্য বদলেছে', 'Opening pickup history changed'],
   shift_report_verified: ['শিফট রিপোর্ট যাচাই হয়েছে', 'Shift report verified'],
   extra_duty_assigned: ['অতিরিক্ত দায়িত্ব দেওয়া হয়েছে', 'Extra duty assigned'],
+  availability: ['সন্ধ্যার হাজিরা বদলেছে', 'Evening availability changed'],
   first_calculation: ['প্রথম হিসাব', 'First calculation'],
   verified_pickup_changed: ['যাচাইকৃত পিকআপ বদলেছে', 'Verified pickup changed'],
   verified_history_changed: ['যাচাইকৃত পিকআপের ইতিহাস বদলেছে', 'Verified pickup history changed'],

@@ -34,6 +34,17 @@ create table private.data_entry_extra_duties (
 );
 create index data_entry_extra_duties_hub_idx on private.data_entry_extra_duties(hub_id, work_date);
 create index data_entry_extra_duties_member_idx on private.data_entry_extra_duties(member_id, work_date);
+create table private.data_entry_shift_availability (
+  hub_id uuid not null references public.hubs(id),
+  work_date date not null,
+  member_id uuid not null references public.data_entry_team_members(id),
+  state text not null check (state in ('present','absent','late','half_day')),
+  note text not null check (length(btrim(note)) between 1 and 250),
+  approved_by uuid not null,
+  primary key(hub_id,work_date,member_id)
+);
+create index data_entry_shift_availability_member_idx on private.data_entry_shift_availability(member_id);
+
 create table private.data_entry_target_limits (
   hub_id uuid not null references public.hubs(id),
   work_date date not null,
@@ -247,12 +258,14 @@ language sql stable set search_path = '' as $$
            past.parcel_days, past.parcel_minutes, past.point_days, past.point_minutes,
            past.parcel_rate, past.point_rate, past.accuracy,
            day.attendance, coalesce(done.completed, 0) as completed, limit_cfg.maximum,
-           duties.duty_detail, duties.duty_minutes, duties.spent_minutes, active_hubs.count as hub_count
+           duties.duty_detail, duties.duty_minutes, duties.assigned_duty_minutes, duties.spent_minutes, active_hubs.count as hub_count
     from private.data_entry_target_team(p_hub) t
     left join private.data_entry_target_rules r using (member_id)
     left join observed_work done on done.member_id = t.member_id and done.hub_id = p_hub
     left join private.data_entry_target_limits limit_cfg
       on limit_cfg.member_id = t.member_id and limit_cfg.hub_id = p_hub and limit_cfg.work_date = p_day
+    left join private.data_entry_shift_availability evening
+      on evening.hub_id = p_hub and evening.work_date = p_day and evening.member_id = t.member_id
     left join public.attendance_records ar on ar.employee_id = t.employee_id and ar.work_date = p_day
     left join lateral (
       select l.state from public.wf_morning_subs s join public.wf_morning_lines l on l.sub_id = s.id
@@ -260,6 +273,7 @@ language sql stable set search_path = '' as $$
     ) am on true
     cross join lateral (
       select case when private.wf_leave_on(t.employee_id, p_day) is not null then 'leave'
+                  when evening.state is not null then evening.state
                   when am.state is not null and am.state <> 'unknown' then am.state
                   else coalesce(ar.status, 'pending') end as attendance
     ) day

@@ -1,5 +1,7 @@
 # XZM TEAM · Explainable Smart Daily Target Engine
 
+> Historical implementation note. The [simplified evening workflow](DATA_ENTRY_EVENING_WORKFLOW.md) supersedes its menu, scheduling and role defaults.
+
 The smart mode is the default algorithm when a zonal manager enables automatic distribution for a hub. The branch contains no live rollout and adds no automatic role grants. The Team page reuses the Phase 1 zone-management permission. The authenticated Staff panel reads only the signed-in employee's own rows and aggregated hub figures.
 
 | Input | Source and decision |

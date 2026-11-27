@@ -167,6 +167,15 @@ function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; de
       </details>}
       <DutyList duties={data.duties ?? []} onAction={save} />
     </>}
+    {page === 'live' && data.is_owner && <details>
+      <summary>{L('সন্ধ্যার শিফটে কর্মীর উপস্থিতি নিশ্চিত করুন', 'Confirm availability for the evening shift')}</summary>
+      <ActionForm onSave={form => save('availability',{member_id:fieldValue(form,'member'),state:fieldValue(form,'state'),note:fieldValue(form,'note')})}>
+        <Choose name="member" label={L('কর্মী', 'Employee')} choices={data.team} />
+        <Choose name="state" label={L('শিফটের উপস্থিতি', 'Shift availability')}
+          choices={labels(Object.fromEntries(Object.entries(attendanceNames).filter(([key]) => ['present','absent','late','half_day'].includes(key))))} />
+        <Notes label={L('পরিবর্তনের কারণ', 'Reason for change')} required />
+      </ActionForm>
+    </details>}
     {page === 'live' && data.schedule && <details>
       <summary>{L('সন্ধ্যার শিফট ও তিনটি পপ-আপের সময়', 'Evening shift and three check-ins')}</summary>
       <Schedule settings={data.schedule} save={save} />
