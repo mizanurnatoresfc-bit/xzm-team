@@ -13,7 +13,10 @@
     "test:smoke": "node tests/smoke.mjs",
     "test:parser": "node --experimental-strip-types --test tests/reportParser.test.mjs",
     "test:nav": "node --experimental-strip-types --test tests/navAccess.test.mjs",
-    "test:routes": "node --experimental-strip-types --test tests/routeModule.test.mjs"
+    "test:routes": "node --experimental-strip-types --test tests/routeModule.test.mjs",
+    "test:plan": "node --experimental-strip-types --test tests/routePlan.test.mjs",
+    "test:checkin": "node --experimental-strip-types --test tests/routeOffline.test.mjs",
+    "test:offline": "node tests/offline.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

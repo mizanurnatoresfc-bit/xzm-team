@@ -1039,3 +1039,38 @@ make-android.bat       Android অ্যাপ (APK) বানায়
 - Tests: `npm run test:routes` (22, new; added to website.yml), tsc clean, build ok, whole browser smoke test passes (route scenario moved to `/app/routes`, new checks for locations, undo, many-at-once, redirects).
   `npm run test:nav`: the same 2 failures as before this change (phone tab for `/app/hr/leave`; a bare `<Navigate to="/app/staff/list">` in App.tsx) — not touched here.
 - Not done: dragging a pin on the map, resolving short Google links (browser cannot follow the redirect), a map for sorting → hub routes, route rules switchable per zone (`runChecks` has the hook).
+
+## 2026-11-26 — রুট কেন্দ্র, ধাপ ১: একসাথে এডিটের লক, হালকা জোন ডাটা, পরিকল্পনার টেস্ট (Route centre step 1: save lock, light overview, plan tests)
+
+- **Why:** a review of the route centre found three weak spots before the company-wide launch: two managers editing one route overwrote each other (last save won), the zone data
+  carried every route's road line (up to 3000 points each) on every tab, and the plan suggestion (`suggestPlan`) had no test.
+- **Migration `20261127030000_route_lock_and_light_overview.sql`** (additive; **not applied to live Supabase yet — the owner must say yes first**). It replaces `route_save` and
+  `route_zone_overview` with the same text plus one change each, and adds `route_road_paths(zone)`:
+  - `route_save`: an optional `expected_updated_at` in the payload. If the route was saved by someone else since (its `updated_at` differs), nothing is written and the call fails with SQLSTATE `40001`
+    ("This route was changed by someone else"). A caller that does not send it behaves exactly as before; a new route ignores it.
+  - `route_zone_overview`: each route has no `road_path` any more, only `has_road` (boolean).
+  - `route_road_paths(zone)`: `{route_id: [[lat,lng],…]}` for the routes with a line; same right as the overview (`ops.route_setting.view`), signed-out and other zones refused.
+  - **Order is safe either way:** the web code works with the old database too (the old `route_save` ignores `expected_updated_at`; the old overview still carries `road_path`, and if
+    `route_road_paths` does not exist yet its failure is ignored and the lines from the overview are used). Still apply the migration first so the lock and the lighter data take effect.
+- **Web:** `RouteEditor` sends the `updated_at` it opened with; `routeFriendly` shows a Bangla "someone else changed this route — reload" message. `RouteModule` asks for the road lines only
+  while the map tab or the editor is open and merges them into the zone data (the other tabs never ask). `lib/routePlanCore.ts` is new: the pure plan arithmetic (`capacityOf`, `capacityToday`,
+  `isHere`, `share`, `suggestPlan`, `spreadRoutes`) moved out of `routePlan.ts` unchanged, which re-exports it, so tests can run without the browser.
+- **Tests:** `99…_route_lock_light_overview.sql` (15 assertions; the rest of the SQL suite passes on local PostgreSQL 16, 2793 assertions in the run before this file was fixed), `npm run test:plan` (16 new tests, added to website.yml), `test:routes` 22 and
+  `test:nav` 16 pass, typecheck and build clean, browser smoke test passes (new check: the map asks for the road lines once, the route list does not ask again).
+- **Known edges:** any other write to `hub_routes` (e.g. the typed parcel average on "পার্সেল ও পরামর্শ") also changes `updated_at`, so an open editor can be refused once and must be reopened — the message says so.
+  The first moment of the map tab draws dashed straight lines until the road lines arrive.
+- **Next (from the review, not started):** one map-provider layer with an Edge Function proxy and cache (tiles, geocoding, OSRM), drag-a-pin editing, offline check-in, realtime check-ins tab,
+  splitting `pages/zonal/RoutePlan.tsx` (517 lines), per-zone switches for the warning rules.
+
+## 2026-11-27 — রুট কেন্দ্র, ধাপ ২: অফলাইন চেক-ইন (Route centre step 2: offline check-in)
+
+- **Why:** riders work where there is no signal, and the Android app is the live site in a WebView (it showed only `offline.html` without internet). The owner asked to go live with offline check-in.
+- **Migration `20261127040000_route_checkin_offline.sql`** (replaces `route_checkin`: the old 5-argument signature is dropped, the new one has an optional 6th `p_at timestamptz`): the time the phone took the reading; not in the future (5 min slack), not older than 48 h (else 22023);
+  counted for the Bangladesh day of `p_at`; an older reading never replaces a later one of the same stop and day; "near stays near" unchanged. Without `p_at` it behaves exactly as before. **Apply it to live Supabase before (or with) publishing** — until then late check-ins wait on the phone.
+- **Web:** `public/sw.js` (service worker: page shell + all `/assets/*`, network first for pages, never touches database calls) + `precache.json` from the build + registration in `main.tsx` + header rules in `netlify.toml`;
+  `lib/routeOffline.ts` (queue, send oldest first, classify failures, withTimeout) and `lib/authOffline.ts` (kept permissions, stored login); `AuthProvider` opens with them when there is no internet; `MyRoute.tsx` keeps the route, queues the check-in, sends it by itself, shows the notices; `StaffPanel` shows the card from a saved route.
+- **Found on the way:** the Supabase library retries an expired token's renewal for minutes and holds its lock meanwhile (every request waits): waits are now limited, and the library's null `INITIAL_SESSION` no longer signs the person out while a stored login exists.
+- **Tests:** `99…_route_checkin_offline.sql` (16 assertions; whole SQL suite 2821 pass, 0 failing files), `npm run test:checkin` (19), `npm run test:offline` (a real browser with the internet off; all checks pass, run 3 times), smoke test passes (service workers blocked there), `test:routes` 22, `test:plan` 16, `test:nav` 16. CI runs all of them.
+- **Not done:** offline map tiles; opening pages other than the route card with their data offline; push of a rejected-check-in notice to the manager. First online visit per phone is needed to save the app.
+- **Switching the service worker off:** see the comment at the top of `web/public/sw.js`.
+

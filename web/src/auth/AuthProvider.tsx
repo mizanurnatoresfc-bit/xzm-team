@@ -8,6 +8,8 @@ import {
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import { menuApi } from '../lib/menu'
+import { browserStore, classifyError, withTimeout } from '../lib/routeOffline'
+import { clearAuthSnapshot, readAuthSnapshot, readStoredSession, saveAuthSnapshot } from '../lib/authOffline'
 
 export type PermissionGrant = {
   permission_code: string
@@ -62,6 +64,22 @@ export class LoginError extends Error {
   constructor(code: string, lockedUntil?: string) { super(code); this.code = code; this.lockedUntil = lockedUntil }
 }
 
+const offlineStore = browserStore()
+/** No internet (or the server did not answer): then what the phone kept is used instead of throwing the person to the login page. */
+const looksOffline = (e: unknown) => (typeof navigator !== 'undefined' && navigator.onLine === false) || classifyError(e) === 'network'
+/** The signed-in session; with no internet and an access token that cannot be renewed, the login kept on the phone (the library renews it by itself once there is internet). */
+async function currentSession(): Promise<Session | null> {
+  const stored = () => readStoredSession<Session>(offlineStore, import.meta.env.VITE_SUPABASE_URL ?? '')
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+  // no internet: do not wait for the library, which keeps trying to renew an expired access token for minutes
+  if (offline) { const s = stored(); if (s) return s }
+  // a weak signal (the phone thinks it is online) can also hang that renewal: after 4 seconds the stored login names the person
+  try {
+    const { data } = await withTimeout(supabase.auth.getSession(), 4000)
+    return data.session
+  } catch (e) { return classifyError(e) === 'network' ? stored() : null }
+}
+
 const RECOVER_KEY = 'xzm_recover'
 // The email link lands with "type=recovery" in the address; note it before the sign-in library tidies the address.
 const cameByRecoveryLink = typeof location !== 'undefined' && /type=recovery/.test(location.hash + location.search)
@@ -86,35 +104,51 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }, [])
 
   const refreshGrants = useCallback(async () => {
-    const { data: { session: current } } = await supabase.auth.getSession()
+    const current = await currentSession()
     if (!current) {
       setGrants([])
       setMustChange(false)
       setOwnMenu(undefined)
       return
     }
-    const [{ data, error }, prof] = await Promise.all([
-      supabase.rpc('my_permissions'),
-      supabase.from('profiles').select('must_change_password').eq('id', current.user.id).maybeSingle(),
-    ])
-    if (error) throw error
-    if (prof.error) throw prof.error
-    setMustChange(Boolean((prof.data as { must_change_password?: boolean } | null)?.must_change_password))
-    setGrants((data ?? []) as PermissionGrant[])
-    setOwnMenu(await menuApi.mine().catch(() => undefined))
+    try {
+      const [{ data, error }, prof] = await withTimeout(Promise.all([
+        supabase.rpc('my_permissions'),
+        supabase.from('profiles').select('must_change_password').eq('id', current.user.id).maybeSingle(),
+      ]), 8000)
+      if (error) throw error
+      if (prof.error) throw prof.error
+      const mustChange = Boolean((prof.data as { must_change_password?: boolean } | null)?.must_change_password)
+      const loaded = (data ?? []) as PermissionGrant[]
+      const menu = await menuApi.mine().catch(() => undefined)
+      setMustChange(mustChange)
+      setGrants(loaded)
+      setOwnMenu(menu)
+      saveAuthSnapshot(offlineStore, current.user.id, { grants: loaded, mustChange, menu })
+    } catch (e) {
+      // no internet: open with what was loaded last time (the database still refuses anything the person may not do)
+      const kept = looksOffline(e) ? readAuthSnapshot<PermissionGrant>(offlineStore, current.user.id) : null
+      if (!kept) throw e
+      setMustChange(kept.mustChange)
+      setGrants(kept.grants)
+      setOwnMenu(kept.menu)
+    }
   }, [])
 
   useEffect(() => {
     let alive = true
-    supabase.auth.getSession().then(async ({ data }) => {
+    currentSession().then(async found => {
       if (!alive) return
-      setSession(data.session)
-      if (data.session) {
+      setSession(found)
+      if (found) {
         try { await refreshGrants() } catch { setGrants([]) }
       }
       if (alive) setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, next) => {
+      // The library found no usable login only because it could not renew an expired one with no internet (the login is still stored): keep the person in.
+      // It renews by itself once there is internet and then sends TOKEN_REFRESHED. A real sign-out removes the stored login, so it is not affected.
+      if (event === 'INITIAL_SESSION' && !next && readStoredSession(offlineStore, import.meta.env.VITE_SUPABASE_URL ?? '')) return
       if (event === 'PASSWORD_RECOVERY') markRecovery(true)
       if (event === 'SIGNED_OUT') markRecovery(false)
       setSession(next)
@@ -157,9 +191,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     clearAllDrafts()
     await removePushDevice(pushToken()).catch(() => undefined)
     setViewAs(null)
+    const me = session?.user.id
     const { error } = await supabase.auth.signOut()
     if (error) throw error
-  }, [setViewAs])
+    if (me) clearAuthSnapshot(offlineStore, me)
+  }, [setViewAs, session])
 
   const isSuperAdmin = useMemo(() => grants.some(g => g.is_super), [grants])
   // The preview only ever narrows what a real Super Admin sees; nobody else can turn it on.

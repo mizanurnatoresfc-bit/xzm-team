@@ -149,7 +149,7 @@ export function RouteEditor({ o, start, hubOf, onClose, onSaved }: {
     if (o.rules.gps_required && gpsCount < f.stops.length) return setErr(L('এই জোনে প্রতিটি স্টপের লোকেশন দিতে হয়', 'Every stop needs a location in this zone'))
     setBusy('save'); setErr('')
     try {
-      const id = await routeApi.save({ id: f.id, hub_id: f.hub_id, code: f.code.trim() || undefined, name: f.name.trim(), note: f.note.trim() || null, color: f.color, shift: f.shift,
+      const id = await routeApi.save({ id: f.id, expected_updated_at: old?.updated_at ?? null, hub_id: f.hub_id, code: f.code.trim() || undefined, name: f.name.trim(), note: f.note.trim() || null, color: f.color, shift: f.shift,
         stops: f.stops.map(s => ({ ...s, name: s.name.trim() })), road: roadFresh ? { km: roadFresh.km, minutes: roadFresh.minutes, path: roadFresh.path } : null })
       onSaved(id, f.hub_id)
     } catch (e) { setErr(routeFriendly(e)) } finally { setBusy('') }

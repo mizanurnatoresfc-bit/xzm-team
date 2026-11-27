@@ -1,7 +1,8 @@
 import { scrollBehavior } from '../../lib/a11y'
-import { Fragment, useEffect, useState, type MouseEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useState, type MouseEvent, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
+import { browserStore, readMine } from '../../lib/routeOffline'
 import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
 import { Icon } from '../../components/Icon'
@@ -51,6 +52,8 @@ const quiet = <T,>(p: PromiseLike<T>, or: T): Promise<T> => Promise.resolve(p).t
 export function StaffPanel() {
   const { L, n, lang } = usePrefs()
   const { session, menu } = useAuth()
+  // with no internet the list of own routes cannot be read: a route kept on the phone still shows the route card (and check-in)
+  const hasSavedRoute = useMemo(() => !!session && !!readMine(browserStore(), session.user.id), [session])
   // A role limited to a list of pages: rows that lead off the list are left out.
   const ok = (to: string) => pageAllowed(menu, to)
   const today = todayDhaka()
@@ -243,7 +246,7 @@ export function StaffPanel() {
             : <p className="muted small">{L('কোনো দায়িত্ব লেখা নেই', 'No duties written')}</p>}</div>
       </div>
       <MyParcelsCard />
-      {routes.length > 0 && <MyRouteCard />}
+      {(routes.length > 0 || hasSavedRoute) && <MyRouteCard />}
 
       {(v?.car?.vehicles.length ?? 0) > 0 && <div className="nv-rows">{row('/app/fleet/mine', 'o', 'truck', `${L('আমার গাড়ি', 'My vehicle')} — ${v!.car!.vehicles[0].name}`,
         L('হাব রিপোর্ট, তেল/স্লিপ, সার্ভিস রিকুইজিশন, গ্যারেজ বিল ও খরচ', 'Hub report, fuel slip, service request, garage bills and costs'))}</div>}

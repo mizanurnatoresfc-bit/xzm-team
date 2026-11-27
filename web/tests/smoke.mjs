@@ -80,7 +80,7 @@ const browser = await chromium.launch(process.env.CHROME ? { executablePath: pro
 try {
   for (const [size, viewport] of [['pc', { width: 1366, height: 800 }], ['phone', { width: 390, height: 800 }]]) {
     // --- not signed in: every app page goes to the login screen
-    const anon = await browser.newContext({ viewport })
+    const anon = await browser.newContext({ viewport, serviceWorkers: 'block' })
     await anon.route(/supabase\.co|fonts\.(googleapis|gstatic)/, r => r.abort())
     const lp = await anon.newPage()
     await lp.goto(`${BASE}/app/hr/employees`); await lp.waitForURL(/\/staff\/login/, { timeout: 8000 }).catch(() => {})
@@ -105,7 +105,7 @@ try {
     await anon.close()
 
     // --- signed in as the Super Admin
-    const ctx = await browser.newContext({ viewport })
+    const ctx = await browser.newContext({ viewport, serviceWorkers: 'block' })
     await ctx.addInitScript(s => { localStorage.setItem('sb-ndgnhvbpmtxrpplgsslz-auth-token', s) }, JSON.stringify(session))
     await ctx.route(/fonts\.(googleapis|gstatic)|cdn\.jsdelivr\.net|tile\.openstreetmap\.org|nominatim\.openstreetmap\.org|router\.project-osrm\.org/, r => r.abort())
     const nodiParts = { chat: true, teach: true, office: true, gaps: true, followup: true }
@@ -220,6 +220,7 @@ try {
       if (u.includes('rpc/route_load_save')) { loadSaved = r.request().postDataJSON().p; flowCalls.push({ fn: 'route_load_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/route_zones')) return j([{ id: 'z1', code: 'NT', name: 'Natore Area' }])
       if (u.includes('rpc/route_zone_overview')) return j(routeOverview)
+      if (u.includes('rpc/route_road_paths')) { flowCalls.push({ fn: 'route_road_paths' }); return j({}) }
       if (u.includes('rpc/route_day')) return j({ date: '2026-11-19', routes: [{ route_id: 'rt1', hub_id: 'h1', hub_name: 'Natore Sadar', code: 'R01', name: 'শহর পূর্ব', color: '#2563EB', stops: 3, stops_gps: 3,
         riders: [{ employee_id: 'e01', name: 'Staff 01', code: '1001', visited: 2, far: 1, first_at: '2026-11-19T04:10:00Z', last_at: '2026-11-19T05:00:00Z' }],
         visits: [{ stop_id: 'st1', stop: 'কানাইখালী', seq: 1, employee_id: 'e01', at: '2026-11-19T04:10:00Z', lat: 24.4105, lng: 88.9862, distance_m: 40, near: true, accuracy_m: 12, note: null },
@@ -1817,8 +1818,12 @@ try {
       { const t = await page.locator('main').innerText()
         check(t.includes('শহর পূর্ব') && t.includes('২/৩') && t.includes('Staff 01') && await page.locator('.osm-pin.num').count() >= 3, `${size}: route settings show the zone map with numbered stops, the route card and stops with location`) }
       await fits('route settings map')
+      const roadAsks = () => flowCalls.filter(c => c.fn === 'route_road_paths').length
+      const onMap = roadAsks()
       await page.locator('[data-pane="routes"]').click()
       await page.waitForURL(/tab=routes/)
+      await page.waitForSelector('.da-table')
+      check(onMap >= 1 && roadAsks() === onMap, `${size}: the map asks for the road lines (${onMap} call), the route list does not ask again`)
       await page.goBack()
       await page.locator('[data-pane="map"][aria-current="page"]').waitFor()
       check(true, `${size}: browser Back restores the map tab`)
