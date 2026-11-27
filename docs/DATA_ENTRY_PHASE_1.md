@@ -18,7 +18,7 @@ Reviewed GitHub main at `40574ff4a809355c6b1c1dcfcfe5d1491506a285`, key Web/Andr
 
 ## Phase 1 implementation
 
-**Menu** · ডাটা এন্ট্রি → ডাটা এন্ট্রি টিম · `/app/data-entry/team`. The link is in the existing department sidebar, access catalog and menu editor.
+**Menu** · ডাটা এন্ট্রি → ডাটা এন্ট্রি টিম · `/app/data-entry/team`. The link is in the existing department sidebar, access catalog, role menu matrix and menu editor.
 
 1. Select a permitted active zone. Search existing active employees by name or employee code.
 2. Select one primary hub and any number of distinct additional hubs in that zone.

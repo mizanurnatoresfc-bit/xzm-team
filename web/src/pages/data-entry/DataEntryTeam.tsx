@@ -110,6 +110,11 @@ function ZoneTeam({ zone }: { zone: string }) {
       />}
       <section className="panel data-entry-panel">
         <h2>{L('টিম সদস্য', 'Team members')}</h2>
+        <button type="button" className="secondary" disabled={team.loading} onClick={() => {
+          setCandidate(null)
+          setEditing(null)
+          void team.reload()
+        }}>{L('তালিকা আপডেট করুন', 'Refresh team')}</button>
         {team.data.members.length === 0 && <p>{L('এই জোনে এখনো কোনো টিম সদস্য নেই।', 'This zone has no team members yet.')}</p>}
         {team.data.members.map(member => <div className="data-entry-member" key={member.id}>
           <div>
