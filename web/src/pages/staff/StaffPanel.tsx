@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { browserStore, readMine } from '../../lib/routeOffline'
 import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
+import { MyDataEntryTarget } from '../data-entry/DataEntryTargets'
 import { Icon } from '../../components/Icon'
 import { OperationsQuestions } from '../zonal/OperationsCollection'
 import { NodiGaps } from '../../components/NodiGaps'
@@ -290,6 +291,7 @@ export function StaffPanel() {
   return <AppShell title={L('স্টাফ প্যানেল', 'Staff panel')} subtitle={who || L('আমার আজকের সব কাজ এক জায়গায়', 'My whole day in one place')}>
     <div className="sd sp">
       <OperationsQuestions />
+      <MyDataEntryTarget />
       {node}
       <div className="sp-hero">
         <MyAvatarUpload className="sp-av" onDone={m => { toast(m); void d.reload() }} />

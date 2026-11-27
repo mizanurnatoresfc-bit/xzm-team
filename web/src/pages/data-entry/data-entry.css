@@ -9,3 +9,7 @@
 .data-entry-check { display: flex; align-items: center; gap: .65rem; min-height: 44px; }
 .data-entry-member { padding-block: .65rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem; }
 .data-entry-panel button { min-height: 44px; }
+
+.data-entry-target-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0 1rem; }
+.data-entry-panel details > summary { cursor: pointer; min-height: 44px; padding-block: .65rem; }
+.data-entry-panel details { margin-block: .35rem; }

@@ -4,6 +4,7 @@ import { AppShell } from '../../components/AppShell'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { useLoad } from '../accounts/ui'
+import { DataEntryTargetSettings } from './DataEntryTargets'
 import './data-entry.css'
 
 type Choice = { id: string; name: string }
@@ -103,6 +104,7 @@ function ZoneTeam({ zone }: { zone: string }) {
     {team.loading && <p role="status">{L('টিম লোড হচ্ছে…', 'Loading team…')}</p>}
     {team.error ? <p className="da-error" role="alert">{errorText(team.error)}</p> : null}
     {team.data && <>
+      <DataEntryTargetSettings hubs={team.data.hubs.filter(hub => hub.available)} />
       {(candidate || editing) && <MemberForm
         key={editing?.id ?? candidate?.id}
         zone={zone} member={editing} candidate={candidate} hubs={team.data.hubs}
