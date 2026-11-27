@@ -1,0 +1,8 @@
+.fleet-check-card { padding: 14px; margin-block: 10px; }
+.fleet-check-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 10px; }
+.fleet-check-line > div { min-width: 0; overflow-wrap: anywhere; }
+.fleet-check-line > button { flex-shrink: 0; }
+.fl .fleet-avatar { font-size: 27px; border: 2px solid currentColor; border-radius: 14px; }
+.fl .fleet-avatar-driver { color: #66b4ff; background: #173863; }
+.fl .fleet-avatar-helper { color: #ffcb73; background: #583411; }
+.fl .fleet-avatar-auto { color: #63e3aa; background: #144837; }
