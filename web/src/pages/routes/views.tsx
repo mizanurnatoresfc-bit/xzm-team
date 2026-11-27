@@ -11,6 +11,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { MorningPolicy, ZoneMorningTab } from '../workforce/Morning'
 import { usePrefs } from '../../lib/prefs'
 import { LocationsPane } from './LocationsPane'
+import { RouteParcelPdfs } from './RouteParcelPdfs'
 import type { PaneCtx } from './panes'
 import type { ZoneOverview } from '../../lib/routes'
 
@@ -54,3 +55,5 @@ export function WarnView({ c }: P) {
       {w.code === 'stop_no_gps' && <> · <button className="secondary sm" onClick={() => c.go('locations', { route: null })}><Icon name="pin" size={13} />{L('লোকেশন দিন', 'Set location')}</button></>}</li>)}</ul>
       : <p className="muted">{L('সব ঠিক আছে — কোনো সতর্কতা নেই।', 'All good — nothing to fix.')}</p>}</section>
 }
+
+export function ParcelPdfsView({ c }: P) { return <RouteParcelPdfs c={c} /> }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { routePdfAreaMatcher } from '../../lib/routePdfAreas'
 import { Icon } from '../../components/Icon'
 import type { PdfAreaRow } from '../../lib/planPdf'
 import { hasGps, placeName, type Place, type RouteStop } from '../../lib/routes'
@@ -9,39 +10,11 @@ type AreaCount = { place: Place; historical: number; incoming: number }
 type FileSummary = { name: string; parsed: number; declared: number | null; newParcels: number | null; oldParcels: number | null; mismatch: boolean }
 type Preview = { files: FileSummary[]; areas: AreaCount[]; unresolved: number; total: number; historicalDays: number; errors: string[] }
 type Parcel = { matches: Set<string>; day: string | null }
-const words = (text: string) => text.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ' ').trim()
 const sameStop = (a: RouteStop, b: RouteStop) => a.lat === b.lat && a.lng === b.lng
 
 async function previewFiles(files: File[], places: Place[]): Promise<Preview> {
   const { readPlanPdf } = await import('../../lib/planPdf')
-  const names = new Map<string, Set<string>>()
-  for (const place of places) {
-    for (const alias of [place.name, place.name_bn]) {
-      const key = words(alias ?? '')
-      if (key.length < 3) continue
-      const ids = names.get(key) ?? new Set<string>()
-      ids.add(place.id); names.set(key, ids)
-    }
-  }
-  const aliases = [...names].map(([name, ids]) => ({ name, ids, compact: name.replace(/ /g, '') }))
-  function match(text: string) {
-    const normalized = words(text)
-    const whole = ' ' + normalized + ' '
-    const compact = normalized.replace(/ /g, '')
-    let best = 0
-    const matches = new Set<string>()
-    for (const alias of aliases) {
-      const size = alias.compact.length
-      if (size < best) continue
-      const exact = whole.includes(' ' + alias.name + ' ')
-      // Mobile PDFs can insert spaces inside Bangla place names.
-      const joined = size >= 5 && /[\u0980-\u09ff]/.test(alias.name) && compact.includes(alias.compact)
-      if (!exact && !joined) continue
-      if (size > best) { matches.clear(); best = size }
-      for (const id of alias.ids) matches.add(id)
-    }
-    return matches
-  }
+  const match = routePdfAreaMatcher(places)
   const historical = new Map<number, Parcel>()
   const incoming = new Map<number, Parcel>()
   const dates = new Set<string>()
