@@ -33,7 +33,8 @@ export function StaffPendingCard() {
 
   if (query.error) return <p className="da-error" role="alert">{wfFriendly(query.error)}</p>
   if (query.loading && !today) return <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
-  if (!today) return null
+  if (!today) return <p>{L('পেন্ডিং জমা দিতে সক্রিয় কর্মী প্রোফাইল ও হাবের দায়িত্ব প্রয়োজন।',
+    'An active employee profile and hub assignment are required to submit pending counts.')}</p>
 
   return <form onSubmit={event => { event.preventDefault(); void submit() }}>
     <p aria-live="polite">

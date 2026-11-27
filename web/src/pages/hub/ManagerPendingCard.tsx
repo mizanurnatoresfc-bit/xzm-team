@@ -1,23 +1,33 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
+import { todayDhaka } from '../../lib/hr'
 import { usePrefs } from '../../lib/prefs'
 import { toLatinDigits } from '../../lib/validate'
-import { useLiveLoad, wf, wfFriendly, type PendingHubRow } from '../../lib/workforce'
+import { useWorkHub } from '../../lib/workHub'
+import { announceWfChange, useLiveLoad, wf, wfFriendly, type PendingHubRow } from '../../lib/workforce'
 import { Field } from '../accounts/ui'
 import { PendingMonthReport } from './PendingMonthReport'
 import { useHubList } from '../workforce/shared'
 
 export function ManagerPendingCard() {
   const { L } = usePrefs()
-  const { can } = useAuth()
+  const { can, grants, session } = useAuth()
   const [monthly, setMonthly] = useState(false)
   const options = useHubList()
+  const preferred = useWorkHub(session?.user.id ?? '')
   const [selected, setSelected] = useState('')
-  const hubs = options.data?.hubs ?? []
-  const hub = hubs.find(item => item.id === selected)?.id ?? hubs[0]?.id ?? ''
+  const hubs = (options.data?.hubs ?? []).filter(item => grants.some(grant => {
+    if (grant.is_super && grant.scope_type === 'global') return true
+    return grant.permission_code === 'ops.staff_daily.view' &&
+      (grant.scope_type === 'global' || (grant.scope_type === 'hub' && grant.hub_id === item.id) ||
+        (grant.scope_type === 'zone' && grant.zone_id === item.zone_id))
+  }))
+  const hub = hubs.find(item => item.id === (selected || preferred))?.id ?? hubs[0]?.id ?? ''
 
   return <div>
     {Boolean(options.error) && <p role="alert">{wfFriendly(options.error)}</p>}
+    {options.data && !hubs.length && <p>{L('পেন্ডিং খাতা দেখার জন্য আপনার অনুমোদিত কোনো হাব নেই।',
+      'No hubs are available for pending-entry review.')}</p>}
     {hubs.length > 0 && <Field label={L('হাব', 'Hub')}>
       <select value={hub} onChange={event => setSelected(event.target.value)}>
         {hubs.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
@@ -28,14 +38,14 @@ export function ManagerPendingCard() {
         {monthly ? L('আজকের যাচাই তালিকা', 'Today’s review queue') : L('মাসিক পেন্ডিং রিপোর্ট', 'Monthly pending report')}
       </button>
       {monthly ? <PendingMonthReport key={hub} hub={hub} archive={can('zonal.dashboard.view')} />
-        : <PendingQueue key={hub} hub={hub} />}
+        : <PendingQueue key={hub} hub={hub} date={todayDhaka()} />}
     </>}
   </div>
 }
 
-function PendingQueue({ hub }: { hub: string }) {
+export function PendingQueue({ hub, date, onChange }: { hub: string; date: string; onChange?: () => void }) {
   const { L, n } = usePrefs()
-  const query = useLiveLoad(() => wf.pendingHubToday(hub), [hub])
+  const query = useLiveLoad(() => wf.pendingHubOn(hub, date), [hub, date])
   const [proxy, setProxy] = useState<string | null>(null)
   const [returning, setReturning] = useState<string | null>(null)
   const [returnReason, setReturnReason] = useState('')
@@ -47,13 +57,16 @@ function PendingQueue({ hub }: { hub: string }) {
 
   async function save(row: PendingHubRow, returned = false) {
     if (!data || busy) return
-    if (row.snapshot === null && (count === '' || Number(count) > 100000 || !reason.trim())) return
+    const manual = row.snapshot === null || (proxy === row.employee_id && !!row.return_reason)
+    if (manual && (count === '' || Number(count) > 100000 || !reason.trim())) return
     if (returned && !returnReason.trim()) return
     setBusy(true)
     setError('')
     try {
       await wf.savePendingManager(hub, row.employee_id, data.date, row.snapshot,
-        row.snapshot === null ? Number(count) : undefined, returned ? returnReason : reason, returned)
+        manual ? Number(count) : undefined, returned ? returnReason : manual ? reason : undefined, returned)
+      announceWfChange()
+      onChange?.()
       setProxy(null)
       setReturning(null)
     } catch (failure) {
@@ -76,7 +89,7 @@ function PendingQueue({ hub }: { hub: string }) {
           : `${n(row.count)} · ${row.approved ? L('অনুমোদিত', 'Approved') : row.return_reason ? L('ফেরত দেওয়া হয়েছে', 'Returned') : L('যাচাই বাকি', 'Review due')}`}</p>
         {row.proxy_reason && <p>{L('পক্ষে জমা', 'Submitted on behalf')} · {row.proxy_reason}</p>}
         {row.return_reason && <p>{L('ফেরতের কারণ', 'Return reason')} · {row.return_reason}</p>}
-        {data.can_edit && !row.approved && !row.return_reason && (row.snapshot
+        {data.can_edit && row.can_review && !row.approved && (row.snapshot && !row.return_reason
           ? <>
             <button type="button" disabled={busy} onClick={() => void save(row)}>{L('অনুমোদন', 'Approve')}</button>
             <button type="button" className="secondary" disabled={busy} onClick={() => {
@@ -93,7 +106,7 @@ function PendingQueue({ hub }: { hub: string }) {
             </Field>
             <button type="submit" disabled={busy || !returnReason.trim()}>{L('কারণসহ ফেরত দিন', 'Return with reason')}</button>
           </form>}
-        {proxy === row.employee_id && row.snapshot === null && <form onSubmit={event => { event.preventDefault(); void save(row) }}>
+        {proxy === row.employee_id && (row.snapshot === null || row.return_reason) && <form onSubmit={event => { event.preventDefault(); void save(row) }}>
           <Field label={L('পেন্ডিং সংখ্যা', 'Pending count')}>
             <input inputMode="numeric" value={count}
               onChange={event => setCount(toLatinDigits(event.target.value).replace(/\D/g, '').slice(0, 6))} />

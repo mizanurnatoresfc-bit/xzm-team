@@ -5,6 +5,8 @@ import { usePrefs } from '../../lib/prefs'
 import { announceWfChange, LIVE, useLiveLoad, wf, wfFriendly, type DailyOps, type Mark } from '../../lib/workforce'
 import { Field } from '../accounts/ui'
 import { FinalSheetTab } from './FinalSheet'
+import { OperationsRegister } from './OperationsRegister'
+import { PendingQueue } from '../hub/ManagerPendingCard'
 import { KindBadge, Loading, NoteDialog, Section, Who } from './shared'
 
 type ReturnItem = { kind: 'attendance'; row: Mark } | { kind: 'ops'; row: DailyOps }
@@ -20,11 +22,14 @@ export function HubReview({ hubId, date, today, canAttendance, canOps, onDate }:
   const [returning, setReturning] = useState<ReturnItem | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [registerRefresh, setRegisterRefresh] = useState(0)
+  const refreshRegister = () => setRegisterRefresh(value => value + 1)
   const pending = ops.data?.rows.filter(row => row.hub_id === hubId && row.work_date === date && !row.review_status) ?? []
   const marks = (attendance.data ?? []).filter(row => row.hub_id === hubId && row.work_date === date && !row.record_status)
 
   async function changed() {
     setReturning(null)
+    refreshRegister()
     announceWfChange()
     refreshShellCounts()
     await Promise.all([attendance.reload(), ops.reload()])
@@ -77,6 +82,13 @@ export function HubReview({ hubId, date, today, canAttendance, canOps, onDate }:
           </li>)}</ul>}
       </section>}
     </Section>
+    {canOps && <>
+      <details className="panel">
+        <summary>{L('স্টাফ ও রাইডারের পেন্ডিং এন্ট্রি যাচাই', 'Review staff and rider pending entries')}</summary>
+        <PendingQueue hub={hubId} date={date} onChange={refreshRegister} />
+      </details>
+      <OperationsRegister hub={hubId} date={date} refresh={registerRefresh} />
+    </>}
     {canAttendance && <details className="panel">
       <summary>{L('হাজিরা অনুমোদন · ফাইনাল খাতা', 'Approve attendance · Final register')}</summary>
       <FinalSheetTab hubId={hubId} />
