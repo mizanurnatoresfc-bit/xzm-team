@@ -32,6 +32,8 @@ select tests.throws($q$select public.da_report_save(tests.id('release_sheet'), '
   'disabled accounts block saving report IDs', '42501');
 select tests.throws($q$select public.da_deposit_save(tests.id('release_sheet'), 5)$q$,
   'disabled accounts block saving deposits', '42501');
+select tests.throws($q$select public.da_apply_fixed(tests.id('release_sheet'))$q$,
+  'disabled accounts block sheet presets through shared edit authorization', '42501');
 
 select tests.login(tests.id('super'));
 select public.module_release_save('accounts', (public.module_release_history('accounts')->0->>'id')::bigint, null,
@@ -39,4 +41,6 @@ select public.module_release_save('accounts', (public.module_release_history('ac
 select tests.login(tests.id('hub_mgr'));
 select tests.throws($q$select public.da_bank_done(tests.id('release_sheet'))$q$,
   'rollback restores bank workflow validation', '22023');
+select tests.ok(public.da_apply_fixed(tests.id('release_sheet')) is not null,
+  'rollback restores sheet presets through shared edit authorization');
 rollback;
