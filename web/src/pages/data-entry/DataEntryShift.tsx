@@ -36,6 +36,11 @@ type Shift = {
 type OwnHub = Choice & { day: string; running: boolean; attendance: string | null; due_slots: number[]; last_attempted: number | null; last_minutes: number | null; colleagues: Choice[]; duties: Duty[] }
 type Own = { hubs: OwnHub[]; heads: Choice[] }
 type Action = (name: string, values: Values, date?: string) => Promise<void>
+type Timing = {
+  day: string; elapsed: number; open_minutes: number; running: boolean; starts_at: string; ends_at: string
+  standing_start: string; departure: string | null; next_day: string; next_departure: string | null
+  checkpoints: { slot: number; minute: number; at: string }[]
+}
 
 const dutyNames: Record<string, [string, string]> = {
   extra_entry: ['অতিরিক্ত এন্ট্রি', 'Extra entry'], big_parcel: ['বিগ পার্সেল', 'Big parcels'],
@@ -177,6 +182,89 @@ function LiveCharts({ data }: { data: Shift }) {
   </div>
 }
 
+/** Shift timing from the vehicle departure time (or the hub's standing start). Refreshes every minute and ticks locally. */
+function useShiftTiming(hub: string) {
+  const state = useLoad(async () => {
+    const timing = await rpc<Timing | null>('data_entry_shift_timing', { p_hub: hub })
+    return timing && typeof timing.starts_at === 'string' && Array.isArray(timing.checkpoints) ? timing : null   // older database: no timing yet
+  }, [hub])
+  const { reload } = state
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = window.setInterval(() => { setNow(Date.now()); void reload() }, 60_000)
+    return () => window.clearInterval(timer)
+  }, [reload])
+  return { ...state, now }
+}
+function ShiftTimingCard({ timing, now }: { timing: Timing; now: number }) {
+  const { L, n } = usePrefs()
+  const clock = (iso: string) => n(new Date(iso).toLocaleTimeString('en-US', { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' }))
+  const span = (minutes: number) => {
+    const m = Math.max(0, Math.round(minutes)), h = Math.floor(m / 60)
+    return (h ? n(h) + ' ' + L('ঘণ্টা', 'h') + ' ' : '') + n(m % 60) + ' ' + L('মিনিট', 'min')
+  }
+  const start = Date.parse(timing.starts_at)
+  const elapsed = Math.floor((now - start) / 60_000)
+  const left = timing.open_minutes - elapsed
+  const state = elapsed < 0 ? 'waiting' : left > 0 ? 'running' : 'closed'
+  return <section className="data-entry-chart" aria-label={L('শিফটের টাইমিং', 'Shift timing')}>
+    <h3>{L('শিফটের টাইমিং', 'Shift timing')}</h3>
+    <div className="data-entry-chart-label">
+      <span>{timing.departure ? L('গাড়ি ছাড়ার সময়', 'Vehicle departure') : L('শিফট শুরু (নির্ধারিত সময়)', 'Shift start (standing time)')}</span>
+      <strong>{clock(timing.starts_at)}</strong>
+    </div>
+    <div className="data-entry-chart-label"><span>{L('শিফট শেষ', 'Shift ends')}</span><strong>{clock(timing.ends_at)}</strong></div>
+    <p role="status">{state === 'waiting' ? L(`শিফট শুরু হতে ${span(-elapsed)} বাকি।`, `Shift starts in ${span(-elapsed)}.`)
+      : state === 'running' ? L(`ঘণ্টা গণনা চলছে — ${span(elapsed)} পার, ${span(left)} বাকি।`, `Hours are counting — ${span(elapsed)} elapsed, ${span(left)} left.`)
+      : L('আজকের শিফট শেষ।', 'This shift has ended.')}</p>
+    {state === 'running' && <div className="data-entry-track data-entry-remaining" aria-hidden="true">
+      <span className="data-entry-verified" style={{ width: Math.max(0, Math.min(100, elapsed / timing.open_minutes * 100)) + '%' }} />
+    </div>}
+    <ol>{timing.checkpoints.map(point => {
+      const at = Date.parse(point.at)
+      return <li key={point.slot} className="data-entry-chart-label">
+        <span>{L(...stages[point.slot - 1])} · {clock(point.at)}</span>
+        <strong>{now >= at ? L('সময় হয়েছে', 'Open') : L(`${span((at - now) / 60_000)} পরে`, `in ${span((at - now) / 60_000)}`)}</strong>
+      </li>
+    })}</ol>
+  </section>
+}
+function DepartureForm({ hub, timing, onSaved }: { hub: string; timing: Timing; onSaved: () => Promise<void> }) {
+  const { L } = usePrefs()
+  const set = async (day: string, time: string | null) => { await rpc('data_entry_shift_departure', { p_hub: hub, p_day: day, p_time: time }); await onSaved() }
+  const days = [{ day: timing.day, label: L('এই শিফট', 'This shift'), set: timing.departure }, { day: timing.next_day, label: L('পরের শিফট', 'Next shift'), set: timing.next_departure }]
+  return <>
+    <p>{L('গাড়ি ছাড়ার সময় ঠিক করলে সেই সময় থেকেই শিফটের ঘণ্টা ও তিনটি রিপোর্টের সময় গণনা হবে। কর্মীর প্যানেলেও একই টাইমিং দেখাবে। না দিলে নির্ধারিত শিফট শুরুর সময় চলবে।',
+      'Once the vehicle departure time is set, shift hours and the three check-ins count from it, and staff see the same timing. Without one, the standing shift start applies.')}</p>
+    <ActionForm key={timing.day + timing.departure + timing.next_departure} label={L('গাড়ি ছাড়ার সময় সংরক্ষণ', 'Save departure time')}
+      onSave={form => set(fieldValue(form, 'day'), fieldValue(form, 'time'))}>
+      <label className="data-entry-field">{L('কোন শিফটের জন্য', 'For which shift')}
+        <select name="day" defaultValue={timing.day}>{days.map(d => <option key={d.day} value={d.day}>{d.label} · {d.day}</option>)}</select></label>
+      <label className="data-entry-field">{L('গাড়ি ছাড়ার সময়', 'Vehicle departure time')}
+        <input name="time" type="time" min="16:00" max="23:59" defaultValue={timing.departure ?? timing.standing_start} required /></label>
+    </ActionForm>
+    {days.filter(d => d.set).map(d => <ActionForm key={d.day} label={L(`${d.label}: নির্ধারিত সময়ে ফিরুন (${d.set})`, `${d.label}: back to standing start (${d.set})`)}
+      onSave={() => set(d.day, null)} />)}
+  </>
+}
+function LiveTiming({ hub, owner, onChanged }: { hub: string; owner: boolean; onChanged: () => Promise<void> }) {
+  const { L } = usePrefs()
+  const timing = useShiftTiming(hub)
+  const { reload } = timing
+  if (!timing.data) return timing.error ? <p className="da-error" role="alert">{String(timing.error)}</p> : timing.loading ? <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p> : null
+  const saved = async () => { await Promise.all([reload(), onChanged()]) }
+  return <>
+    <ShiftTimingCard timing={timing.data} now={timing.now} />
+    {owner && <details><summary>{L('গাড়ি ছাড়ার সময় সেট করুন', 'Set vehicle departure time')}</summary>
+      <DepartureForm hub={hub} timing={timing.data} onSaved={saved} />
+    </details>}
+  </>
+}
+function OwnShiftTiming({ hub }: { hub: string }) {
+  const timing = useShiftTiming(hub)
+  return timing.data ? <ShiftTimingCard timing={timing.data} now={timing.now} /> : null
+}
+
 function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; delegated: boolean }) {
   const { L, n } = usePrefs()
   const [date, setDate] = useState('')
@@ -204,6 +292,7 @@ function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; de
       </label>}
     {page === 'live' && <>
       <p>{data.day} · {data.running ? L('শিফট চলছে', 'Shift active') : L('শিফট বন্ধ', 'Shift closed')}</p>
+      <LiveTiming hub={hub} owner={data.is_owner} onChanged={reload} />
       <EntryMetrics metrics={[
         { label: L('সম্ভাব্য পিকআপ', 'Forecast pickups'), value: data.forecast },
         { label: L('প্রকৃত পিকআপ', 'Actual pickups'), value: data.actual },
@@ -297,7 +386,7 @@ function Schedule({ settings, save }: { settings: Values; save: Action }) {
     second_minute:numberValue(form,'second_minute'),third_minute:numberValue(form,'third_minute'),pickup_only:form.has('pickup_only'),
   })}>
     <p>{L('সময় বাংলাদেশ অনুযায়ী। রিপোর্টের মিনিটগুলো শিফট শুরুর পর থেকে গণনা হবে।', 'Times use Asia/Dhaka. Report offsets are minutes after the shift starts.')}</p>
-    <label className="data-entry-field">{L('শিফট শুরু', 'Shift starts')}
+    <label className="data-entry-field">{L('শিফট শুরু (গাড়ি ছাড়ার সময় না দিলে)', 'Shift starts (when no departure time is set)')}
       <input name="start_time" type="time" min="16:00" max="23:59" defaultValue={String(settings.start_time).slice(0,5)} required />
     </label>
     <Count name="open_minutes" label={L('শিফট মোট মিনিট', 'Shift length in minutes')} value={Number(settings.open_minutes)} min={180} max={720} />
@@ -393,6 +482,7 @@ function OwnShift({ children }: { children: ReactNode }) {
       return <article className="data-entry-record" key={hub.id}>
       <h3>{hub.name}</h3>
       <p>{hub.day} · {hub.running ? L('শিফট চলছে', 'Shift active') : L('শিফট বন্ধ', 'Shift closed')}</p>
+      <OwnShiftTiming hub={hub.id} />
       <EntryMetrics metrics={[
         { label: target == null ? L('সম্ভাব্য টার্গেট', 'Forecast target') : L('আজকের বরাদ্দ', 'Today’s allocation'), value: target ?? worker?.forecast?.parcels ?? null },
         { label: L('জমা এন্ট্রি', 'Reported entries'), value: hub.last_attempted },

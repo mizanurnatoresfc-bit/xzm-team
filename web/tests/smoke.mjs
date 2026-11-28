@@ -223,6 +223,10 @@ try {
         { id:'h1', name:'DEMO Data Entry Hub', day:dhakaToday, running:true, attendance:'present', due_slots:entryDemoSlots,
           last_attempted:0, last_minutes:0, colleagues:[], duties:[] },
       ] : [] })
+      if (u.includes('rpc/data_entry_shift_timing')) { const start = new Date(Date.now() - 30 * 60_000)
+        return j({ day: dhakaToday, elapsed: 30, open_minutes: 480, running: true, starts_at: start.toISOString(), ends_at: new Date(start.getTime() + 480 * 60_000).toISOString(),
+          standing_start: '18:00', departure: '19:30', next_day: dhakaToday, next_departure: null,
+          checkpoints: [0, 90, 180].map((m, i) => ({ slot: i + 1, minute: m, at: new Date(start.getTime() + m * 60_000).toISOString() })) }) }
       if (u.includes('rpc/data_entry_shift_action')) {
         const request = r.request().postDataJSON()
         entryDemoReports.push(request)
@@ -1749,6 +1753,8 @@ try {
     await entryDialog.waitFor({ state:'hidden', timeout:5000 })
     check(entryDemoReports.at(-1)?.p_values?.slot === 2 && entryDemoReports.at(-1)?.p_values?.attempted === 25,
       `${size}: DEMO Data Entry popup submits the new stage even after the earlier stage was deferred`)
+    check(await page.getByRole('region', { name: /শিফটের টাইমিং|Shift timing/ }).first().innerText().then(t => /গাড়ি ছাড়ার সময়|Vehicle departure/.test(t) && /(ঘণ্টা গণনা চলছে|Hours are counting)/.test(t)).catch(() => false),
+      `${size}: the Data Entry staff panel shows the vehicle departure time and the running shift hours`)
     entryDemoSlots = null
     // staff panel: one screen with the person's whole day, in the owner's order
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
