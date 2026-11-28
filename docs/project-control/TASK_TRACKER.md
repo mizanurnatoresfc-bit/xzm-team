@@ -737,6 +737,25 @@
 | PR #178 | Sidebar personal-row follows role menu | MERGED | Shipped 2026-11-26 |
 | PR #208 | Rename sorting dashboard to সর্টিং সেন্টার | CLOSED | Branding consistency |
 
+### DE-V2-R1 — Senior Rank 1–8 (Data Entry V2 · Release 1)
+| Field | Value |
+|---|---|
+| Module | Data Entry |
+| Category | EDM — Employee Duty Management |
+| Requirement | Add zone-scoped Senior Ranks 1–8 with editable percentages; make rank assignable per team member. Keep Phase 1 target-split behavior unchanged in R1. |
+| Business Objective | Foundation for owner-requested Rank/Percentage system (paste 2026-11-28, Phase 02 item 3) and later Smart Setup Center Rank Builder. |
+| Priority | P1 |
+| Assigned AI | Claude |
+| Dependencies | PR #207 (Data Entry Phase 1 — merged) |
+| Current Status | REVIEW |
+| Acceptance Criteria | Migration applies cleanly; seeding creates ranks 1–8 per zone; frontend lets Zonal Manager edit name_bn/multiplier/active and assign a rank to a member; existing Phase 1 flows unchanged; `target_split` calculation NOT modified in R1. |
+| Test Evidence | Pending — draft PR, no CI run yet; `npm install` blocked by offline network in session. |
+| Owner Approval | ⏳ pending (DE-V2 full-ownership handover 2026-11-28) |
+| Commit / PR Link | branch `claude/de-v2-r1-senior-ranks` |
+| Deployment Status | N/A (draft PR) |
+| Blockers | none |
+| Next Action | Owner review + staging apply + prod apply per DE-V2 direct-to-prod instruction. R1.5 (apply rank multiplier to target_split) follows after R1 merges. |
+
 ## 6. GitHub Issues Coordination
 
 - **Live board:** https://github.com/mizanurnatoresfc-bit/xzm-team/issues

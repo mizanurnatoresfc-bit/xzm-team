@@ -19,7 +19,7 @@
 | Final approval, deployment authorization | Project Owner |
 | Product direction, audit, QA, independent review | ChatGPT |
 | Frontend, UI/UX, integration implementation, bug fix | Claude |
-| Backend (schema, RLS, migrations) | ChatGPT Backend Team (via Contract report) |
+| Backend (schema, RLS, migrations) | ChatGPT Backend Team (via Contract report) **— superseded for DE-V2 only: 2026-11-28 Owner handover (Task ID DE-V2-FULL) gives Claude full ownership of the Data Entry V2 module including backend, DB, RLS, migrations, testing and production release. Non-Data-Entry work continues under the original split.** |
 
 ## 3. Documentation Canon
 
