@@ -130,6 +130,49 @@ function EntryMetrics({ metrics }: { metrics: { label: string; value: number | n
   </dl>
 }
 
+function LiveCharts({ data }: { data: Shift }) {
+  const { L, n } = usePrefs()
+  const pickups = [
+    { label: L('সম্ভাব্য', 'Forecast'), value: data.forecast },
+    { label: L('প্রকৃত', 'Actual'), value: data.actual },
+  ]
+  const pickupScale = Math.max(1, ...pickups.map(item => item.value ?? 0))
+  return <div className="data-entry-charts">
+    <section className="data-entry-chart">
+      <h3>{L('পিকআপ তুলনা', 'Pickup comparison')}</h3>
+      <ul>{pickups.map((item, index) => <li key={item.label}>
+        <div className="data-entry-chart-label"><span>{item.label}</span><strong>{item.value == null ? '—' : n(item.value)}</strong></div>
+        {item.value != null && <div className="data-entry-track" aria-hidden="true">
+          <span className={index === 0 ? 'data-entry-forecast' : 'data-entry-verified'} style={{ width: `${item.value / pickupScale * 100}%` }} />
+        </div>}
+      </li>)}</ul>
+      {data.actual == null && <p>{L('প্রকৃত পিকআপের হিসাব এখনও পাওয়া যায়নি।', 'Actual pickup count is pending.')}</p>}
+    </section>
+    <section className="data-entry-chart">
+      <h3>{L('কর্মীভিত্তিক অগ্রগতি', 'Progress by employee')}</h3>
+      {data.team.length === 0 && <p>{L('এই হাবে ডাটা এন্ট্রি কর্মী যোগ করা হয়নি।', 'No data entry employees are assigned to this hub.')}</p>}
+      <ul>{data.team.map(person => {
+        const total = person.completed != null && person.remaining != null ? person.completed + person.remaining : null
+        const percent = total && person.completed != null ? person.completed / total * 100 : 0
+        return <li key={person.id}>
+          <div className="data-entry-chart-label">
+            <strong>{person.name}</strong>
+            <span>{L(...(attendanceNames[person.attendance ?? 'pending'] ?? ['হাজিরা দেখা যাবে', 'Attendance available']))}</span>
+          </div>
+          {total != null && total > 0 && <div className="data-entry-track data-entry-remaining" aria-hidden="true">
+            <span className="data-entry-verified" style={{ width: `${percent}%` }} />
+          </div>}
+          <p>{L('যাচাইকৃত', 'Verified')} {person.completed == null ? '—' : n(person.completed)}
+            {' · '}{L('প্রকৃত বাকি', 'Actual remaining')} {person.remaining == null ? '—' : n(person.remaining)}
+            {person.expected != null && <> · {L('সম্ভাব্য টার্গেট', 'Forecast target')} {n(person.expected)}</>}
+            {person.limit != null && <> · {L('সীমা', 'Limit')} {n(person.limit)}</>}
+          </p>
+        </li>
+      })}</ul>
+    </section>
+  </div>
+}
+
 function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; delegated: boolean }) {
   const { L, n } = usePrefs()
   const [date, setDate] = useState('')
@@ -163,13 +206,14 @@ function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; de
         { label: L('বরাদ্দ বাকি', 'Unassigned'), value: data.unassigned },
         ...(data.can_review ? [{ label: L('যাচাইয়ের অপেক্ষায়', 'Awaiting review'), value: (data.reports ?? []).filter(report => !report.reviewed_at).length }] : []),
       ]} />
+      <LiveCharts data={data} />
     </>}
     {page === 'targets' && <p>
       {data.day} · {data.running ? L('শিফট চলছে', 'Shift active') : L('শিফট বন্ধ', 'Shift closed')}
       {' · '}{L('সম্ভাব্য', 'Forecast')} <b>{show(data.forecast)}</b>
       {' · '}{L('প্রকৃত', 'Actual')} <b>{show(data.actual)}</b>
       {' · '}{L('বরাদ্দ বাকি', 'Unassigned')} <b>{show(data.unassigned)}</b></p>}
-    {(page === 'live' || page === 'targets') && <ul className="data-entry-rows">{data.team.map(person => <li key={person.id}>
+    {page === 'targets' && <ul className="data-entry-rows">{data.team.map(person => <li key={person.id}>
       <b>{person.name}</b> · {L(...(attendanceNames[person.attendance ?? 'pending'] ?? ['হাজিরা দেখা যাবে', 'Attendance available']))}
       {' · '}{L('সম্ভাব্য', 'Forecast')} {show(person.expected)} · {L('যাচাইকৃত', 'Verified')} {show(person.completed)}
       {' · '}{L('প্রকৃত কাজ বাকি', 'Actual remaining')} {show(person.remaining)}

@@ -33,3 +33,25 @@
 }
 .data-entry-metrics dt { font-size: .875rem; }
 .data-entry-metrics dd { margin: .2rem 0 0; font-size: 1.5rem; font-weight: 700; }
+
+.data-entry-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: .75rem;
+  margin: .75rem 0 1rem;
+}
+.data-entry-chart {
+  min-width: 0;
+  padding: .85rem;
+  border: 1px solid var(--border, #85968c);
+  border-radius: .65rem;
+}
+.data-entry-chart ul { list-style: none; padding: 0; margin: 0; }
+.data-entry-chart li + li { margin-top: .8rem; }
+.data-entry-chart-label { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .25rem .6rem; overflow-wrap: anywhere; }
+.data-entry-chart p { margin: .35rem 0 0; }
+.data-entry-track { height: .55rem; margin-top: .35rem; border-radius: 1rem; overflow: hidden; background: #85968c33; }
+.data-entry-track span { display: block; height: 100%; border-radius: inherit; }
+.data-entry-track .data-entry-forecast { background: #6186bb; }
+.data-entry-track .data-entry-verified { background: #2c9f71; }
+.data-entry-track.data-entry-remaining { background: #c28248; }
