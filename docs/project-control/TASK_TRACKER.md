@@ -690,6 +690,27 @@
 | Next Action | Owner approval → design XLSX export |
 | Conflict check | No XZM-017 elsewhere — SAFE |
 
+### XZM-018 — Operation Center Phase 1 (independent-review corrections of PR #222)
+| Field | Value |
+|---|---|
+| Module | AppShell (ROUTES group) + HubOps (OperationCenterDashboard) |
+| Category | ZM + UX |
+| Requirement | Central Operation Dashboard tab on `/app/zonal/hub-ops` (default `tab=center`), 12 KPI tiles, drill-down to existing pages, zonal manager quick-link grid. Additive, read-only; no new RPC/table. Independent-review corrections: (a) missing-data vs actual-zero, (b) preserve zone/hub/date on drill-down, (c) per-tile and per-quick-link permission check, (d) "অসম্পূর্ণ কাজ" tile opens the pending-tasks list, (e) Approval count and Approval details share the same source, (f) Hub filter, (g) zone change hides stale data. |
+| Business Objective | Zonal manager starts the day on one central page; separate Task ID from XZM-014 Fair Workload so the two don't contend. |
+| Priority | P2 |
+| Assigned AI | Claude (frontend) |
+| Dependencies | — (uses existing `hub_ops_summary` + `zm_dashboard` RPCs) |
+| Current Status | **REVIEW** (PR #222 — ChatGPT independent review corrections pushed) |
+| Acceptance Criteria | (1) Missing data shows "—", actual zero shows "০". (2) KPI and quick-link drill-downs carry `zone`, `hub`, `date` query params. (3) Every KPI tile and quick link is gated by the same permissions as its destination page. (4) "অসম্পূর্ণ কাজ" tile links to `/app/zonal?tab=tasks` (the pending-tasks list). (5) "অনুমোদনের অপেক্ষায়" tile and its drill-down both use `claims_pending + awaiting_confirmation`, destination `/app/zonal/requests`. (6) Hub filter added; picking a hub scopes KPIs to that hub. (7) Changing the zone hides stale summary (`sum.data.zone_id !== zone`) and the component is remounted via `key={zone}`. (8) `npm run test:nav`, `test:parser`, `test:routes`, `test:plan`, `test:checkin` all pass. |
+| Test Evidence | See TEST_REPORT.md section 20 (XZM-018). |
+| Owner Approval | ⏳ pending (post review-fix) |
+| Commit / PR Link | PR #222 (branch `feat/xzm-014-operation-center-phase-1`; keep branch name for history, but task ID is **XZM-018** — XZM-014 Fair Workload Task ID is intact and separate) |
+| GitHub Issue # | — |
+| Deployment Status | N/A (not yet merged) |
+| Blockers | None |
+| Next Action | ChatGPT independent re-review → owner approval → merge |
+| Conflict check | XZM-014 (Fair Workload) retains its own Task ID and scope; XZM-018 is the Operation Center work. SAFE. |
+
 ### XZM-004R — Central Documentation Recovery & Synchronization *(this task)*
 | Field | Value |
 |---|---|

@@ -145,7 +145,8 @@ export const SORTING: Group = panel('sorting', 'box', 'সর্টিং সে
  * with `menu: true` shows up here by itself, and each row shows only to a role that may use that part.
  */
 export const ROUTES: Group = panel('routes', 'map', 'অপারেশন সেন্টার', 'Operations Center', [
-  // XZM-014 Phase 1: কেন্দ্রীয় অপারেশন ড্যাশবোর্ড — একই HubOps পাতার ট্যাব হিসেবে সব কাজ, নতুন DB টেবিল ছাড়া।
+  // XZM-018 Phase 1 (Operation Center — separate Task ID from XZM-014 Fair Workload): কেন্দ্রীয় অপারেশন ড্যাশবোর্ড —
+  // একই HubOps পাতার ট্যাব হিসেবে সব কাজ, নতুন DB টেবিল ছাড়া।
   // Rows that overlap with other panels (HR / hub section) use `?from=opsctr` to stay unique in the sidebar
   // (menu-hygiene rule: no href listed twice), while still landing on the same page.
   { bn: 'অপারেশন কেন্দ্র', en: 'Operation centre', items: [
