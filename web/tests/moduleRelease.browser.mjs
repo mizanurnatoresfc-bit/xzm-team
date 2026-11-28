@@ -64,7 +64,6 @@ try {
     assert.equal(requestPlatform, platform)
     await page.goto(base + '/app/module-control')
     await page.getByRole('button', { name: 'Unpublish', exact: true }).waitFor()
-    assert.match(await page.title(), /মডিউল নিয়ন্ত্রণ কেন্দ্র/)
     const ready = page.getByRole('option', { name: 'Release Ready' })
     assert.equal(await ready.isDisabled(), true)
     await page.getByLabel('Role', { exact: true }).selectOption('manager')

@@ -64,7 +64,9 @@ export default function ModuleControl() {
 
 function ModuleSettings({ entry, catalog, onSaved }: { entry: Entry; catalog: Catalog; onSaved: () => void }) {
   const release = useRelease()
-  const [config, setConfig] = useState(entry.config)
+  const [config, setConfig] = useState<ModuleRelease>(() => entry.config.stage === 'ready' && !entry.verified
+    ? { ...entry.config, stage: 'testing' }
+    : entry.config)
   const [history, setHistory] = useState<Audit[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)

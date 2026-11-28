@@ -278,13 +278,26 @@ begin
     from private.release_decisions(p_platform, p_hub, p_preview));
 end $$;
 
+-- Single-endpoint path for RPC and RLS hot paths. Walk only the requested module's dependencies.
+create function private.release_api_allowed(p_module text, p_hub uuid)
+returns boolean language sql stable set search_path = '' as $$
+  with recursive ancestors as (
+    select id, parent, legacy_live from private.release_module where id = p_module
+    union all
+    select m.id, m.parent, m.legacy_live from private.release_module m join ancestors a on m.id = a.parent
+  )
+  select coalesce(bool_and(private.release_rule(coalesce(c.config, private.release_default(a.legacy_live)),
+    null, s.hub, s.roles, s.demo, auth.uid()) is true), false)
+  from ancestors a left join private.release_config c on c.module = a.id
+  cross join private.release_context(p_hub, null) s
+$$;
+
 -- Call inside feature RPCs or edge functions in addition to their own authorization.
 -- Direct APIs have no verified Android/Web identity. Apply the intersection there.
 create function public.module_release_require(p_module text, p_hub uuid default null)
 returns void language plpgsql stable security definer set search_path = '' as $$
 begin
-  if auth.uid() is null or not coalesce((select allowed from private.release_decisions(null, p_hub, null)
-    where module = p_module), false) then
+  if auth.uid() is null or not private.release_api_allowed(p_module, p_hub) then
     raise exception 'Module release access denied' using errcode = '42501';
   end if;
 end $$;
@@ -384,7 +397,7 @@ $$;
 
 revoke execute on function private.release_default(boolean), private.release_ready(text),
   private.release_context(uuid,uuid), private.release_rule(jsonb,text,uuid,text[],boolean,uuid),
-  private.release_decisions(text,uuid,uuid) from public, anon, authenticated;
+  private.release_decisions(text,uuid,uuid), private.release_api_allowed(text,uuid) from public, anon, authenticated;
 revoke execute on function public.module_release_snapshot(text,uuid,uuid), public.module_release_require(text,uuid),
   public.module_release_admin(), public.module_release_history(text), public.module_release_save(text,bigint,jsonb,bigint),
   public.module_release_record_evidence(text,integer,text,bigint,text,text) from public, anon, authenticated;
@@ -488,8 +501,7 @@ grant execute on function public.route_plan_file_save(uuid,date,jsonb) to authen
 -- Restrictive policies compose with the existing permissive policies.
 create function private.release_route_plan_row_allowed(p_hub uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
-  select coalesce((select allowed from private.release_decisions(null, p_hub, null)
-    where module = 'routes.tab-plan'), false)
+  select private.release_api_allowed('routes.tab-plan', p_hub)
 $$;
 revoke execute on function private.release_route_plan_row_allowed(uuid) from public, anon, authenticated;
 grant execute on function private.release_route_plan_row_allowed(uuid) to authenticated;

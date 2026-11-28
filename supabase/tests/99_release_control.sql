@@ -21,6 +21,10 @@ select tests.throws($q$select * from private.route_plan_get(tests.id('demo'))$q$
 select tests.ok((public.module_release_snapshot('web')->'routes'->>'allowed')::boolean, 'existing routes are live by default');
 select tests.ok(not (public.module_release_snapshot('web')->'routes.future'->>'allowed')::boolean, 'new registry entry defaults to planning');
 
+select tests.login(tests.id('noroles'));
+select tests.ok((public.module_release_snapshot('web')->'routes.tab-plan'->>'allowed')::boolean, 'legacy release policy alone allows the plan');
+select tests.throws($q$select public.route_plan_get(tests.id('demo'))$q$, 'release allow still requires the original plan permission', '42501');
+
 select tests.login(tests.id('super'));
 select tests.throws($q$select public.module_release_save('routes',0,'{"stage":"ready"}')$q$, 'Release Ready requires trusted evidence', '22023');
 select tests.throws($q$select public.module_release_save('routes.future',0,'{"stage":"published"}')$q$, 'new module cannot publish without evidence', '22023');
