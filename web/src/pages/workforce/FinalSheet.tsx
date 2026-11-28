@@ -282,8 +282,7 @@ function PersonLine({ p, v, edit, problem, onChange }: { p: SheetPerson; v: Line
         <span>{L('না জানিয়ে অনুপস্থিত (কারণ অজানা)', 'Absent without telling (reason unknown)')}</span></label>
       {!v.unauthorized && <>
         <Field label={L('কারণ (জানা থাকলে)', 'Reason (if known)')}><input type="text" value={v.absence_reason ?? ''} disabled={!edit} maxLength={500} onChange={e => onChange({ absence_reason: e.target.value || null })} /></Field>
-        <Field label={L('অনলাইন আবেদনের তারিখ', 'Online application date')}><input type="date" value={v.absence_app_date ?? ''} disabled={!edit} max={todayDhaka()} onChange={e => onChange({ absence_app_date: e.target.value || null })} /></Field>
-        <Field label={L('আবেদন নম্বর (থাকলে)', 'Application no. (if any)')}><input type="text" value={v.absence_app_ref ?? ''} disabled={!edit} maxLength={60} onChange={e => onChange({ absence_app_ref: e.target.value || null })} /></Field></>}
+        <Field label={L('অনলাইন আবেদনের তারিখ', 'Online application date')}><input type="date" value={v.absence_app_date ?? ''} disabled={!edit} max={todayDhaka()} onChange={e => onChange({ absence_app_date: e.target.value || null })} /></Field></>}
     </div>}
 
     {p.explanations.length > 0 && <div className="as-expl">{p.explanations.map(x => <p key={x.id}>

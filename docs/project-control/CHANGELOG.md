@@ -2,6 +2,11 @@
 
 > Human-readable change log, reverse chronological। Follows task IDs।
 
+## 2026-11-28 · XZM-018 Hub Registers
+
+- Added self and manager proxy entry, zonal assignment and deadline rules, manager progress, reviewed submission with locking, dated correction history, reopening, and reports for the five hub registers.
+- Imported source records through existing database tables and preserved the original entry screens. Added isolated SQL permission coverage and DEMO browser scenarios for Rider, Staff, Manager and Zonal Manager.
+
 ---
 
 ## 2026-11-27 (XZM-006A + XZM-006B Critical Backup Recovery — docs + read-only verification)

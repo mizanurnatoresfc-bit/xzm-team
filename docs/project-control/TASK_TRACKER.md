@@ -690,6 +690,21 @@
 | Next Action | Owner approval → design XLSX export |
 | Conflict check | No XZM-017 elsewhere — SAFE |
 
+### XZM-018 — Hub Registers Workflow
+
+| Field | Detail |
+|---|---|
+| Status | REVIEW |
+| Primary module | Hub operations |
+| Primary category | Feature |
+| Owner approval | 2026-11-28 ChatGPT Work request |
+| Branch | `chatgpt/hub-registers-release` |
+| PR | [Draft PR #225](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/225) |
+| Scope | Attendance, pickup/merchant returns, pending/returns, delivery/cash and hub expenses. Role-scoped roster, self/proxy entry, zonal rules and deadlines, dashboard, verified submission, reopening, and daily/monthly reports. |
+| Evidence | TypeScript and production bundle. Independent review passed 2,857 isolated PostgreSQL assertions, including 36 Hub Registers assertions. Clean merge simulation with #219 at `ce4683d`. DEMO browser scenarios in `web/tests/hubRegisters.mjs`, with desktop Chromium and the Android Capacitor bridge fixture. |
+| Blockers | Production migration history reconciliation (XZM-006C), production backup verification (#216), hosted DEMO acceptance on a migrated staging backend, and a real Android WebView acceptance run. Production catalog prerequisites and scope checked read-only. |
+| Next action | Review the draft and check the isolated CI results before release. |
+
 ### XZM-004R — Central Documentation Recovery & Synchronization *(this task)*
 | Field | Value |
 |---|---|

@@ -1,0 +1,231 @@
+begin;
+select tests.fixture();
+select tests.hr_fixture();
+
+insert into tests.ids values
+ ('demo_staff', tests.make_user('register-staff@test.local','DEMO Staff'));
+insert into tests.ids values
+ ('demo_rider_employee', tests.active_employee('DEMO Rider','861',tests.id('hub_a1'),'01711000861','8610101010',15000,tests.id('rider_login'))),
+ ('demo_staff_employee', tests.active_employee('DEMO Staff','862',tests.id('hub_a2'),'01711000862','8620101010',15000,tests.id('demo_staff')));
+update public.hubs set name = 'DEMO Hub' where id = tests.id('hub_a1');
+select tests.grant_role(tests.id('demo_staff'),'staff','hub',null,tests.id('hub_a1'));
+select tests.grant_role(tests.id('rider_login'),'rider','hub',null,tests.id('hub_a1'));
+insert into tests.ids values ('demo_manager', tests.make_user('register-manager@test.local','DEMO Manager'));
+select tests.grant_role(tests.id('demo_manager'),'hub_manager','hub',null,tests.id('hub_a1'));
+
+create function tests.register_day() returns date language sql stable as $$
+  select (now() at time zone 'Asia/Dhaka')::date
+$$;
+create function tests.register_book(b text) returns jsonb language sql stable as $$
+  select x from jsonb_array_elements(public.hub_register_read(tests.id('hub_a1'))->'books') x where x->>'id' = b
+$$;
+create function tests.register_row(b text,e text) returns jsonb language sql stable as $$
+  select x from jsonb_array_elements(tests.register_book(b)->'rows') x where x->>'employee_id' = tests.id(e)::text
+$$;
+create function tests.register_write(b text,a text,e text default null,d jsonb default null,r text default null)
+returns void language sql as $$
+  select public.hub_register_write(tests.id('hub_a1'),tests.register_day(),b,a,
+    case when e is not null then tests.id(e) end,d,r)
+$$;
+create function tests.register_error(q text) returns text language plpgsql as $$
+begin execute q; return null; exception when others then return sqlstate; end $$;
+
+-- Published work has a pickup and a delivery rider. A second day has the same rider covering another hub.
+with plans as (
+  insert into public.route_day_plans(hub_id,zone_id,plan_date)
+  values (tests.id('hub_a1'),tests.id('zone_a'),tests.register_day()),
+         (tests.id('hub_a2'),tests.id('zone_a'),tests.register_day()-1)
+  returning id,hub_id,zone_id,plan_date
+), versions as (
+  insert into public.route_plan_versions(plan_id,hub_id,zone_id,plan_date,version_no,snapshot)
+  select id,hub_id,zone_id,plan_date,1,'{}' from plans returning id,plan_id,hub_id,plan_date
+)
+insert into public.route_plan_recipients(version_id,plan_id,hub_id,plan_date,role,employee_id,parcels,pickups)
+select id,plan_id,hub_id,plan_date,'rider',tests.id('demo_rider_employee'),12,3 from versions
+union all
+select id,plan_id,hub_id,plan_date,'rider',tests.id('demo_staff_employee'),12,0 from versions
+where hub_id=tests.id('hub_a2');
+
+select tests.login(tests.id('super'));
+select public.hr_transfer_employee(tests.id('demo_staff_employee'),tests.id('hub_a1'),
+  tests.id('dept_ops'),tests.id('pos_rider'),null,tests.register_day(),'DEMO transfer');
+select tests.logout();
+
+insert into public.leave_requests(employee_id,leave_type_id,from_date,to_date,reason,status)
+values(tests.id('demo_staff_employee'),(select id from public.leave_types limit 1),
+  tests.register_day()-1,tests.register_day()-1,'DEMO approved day off','approved');
+
+select tests.ok(exists(select 1 from private.hub_register_rows(tests.id('hub_a2'),tests.register_day()-1,'attendance')
+  where employee_id=tests.id('demo_staff_employee') and payload->>'status'='leave')
+  and not exists(select 1 from private.hub_register_rows(tests.id('hub_a1'),tests.register_day()-1,'attendance')
+    where employee_id=tests.id('demo_staff_employee'))
+  and not exists(select 1 from private.hub_register_rows(tests.id('hub_a2'),tests.register_day()-1,'pending')
+    where employee_id=tests.id('demo_staff_employee')), 'dated transfer stays in the previous hub and leave suppresses stale route duty');
+select tests.ok(exists(select 1 from private.hub_register_rows(tests.id('hub_a2'),tests.register_day()-1,'delivery')
+  where employee_id=tests.id('demo_rider_employee') and required)
+  and not exists(select 1 from private.hub_register_rows(tests.id('hub_a1'),tests.register_day()-1,'delivery')
+    where employee_id=tests.id('demo_rider_employee')), 'published backup assignment works at the receiving hub only');
+
+select tests.ok(not has_function_privilege('anon','public.hub_register_read(uuid,date,date)','execute')
+  and not has_function_privilege('anon','public.hub_register_write(uuid,date,text,text,uuid,jsonb,text)','execute')
+  and not has_function_privilege('authenticated','private.hub_register_source(uuid,date,text,uuid)','execute'),
+  'register RPCs deny anonymous access and source helper access');
+
+select tests.login(tests.id('rider_login'));
+select tests.ok(jsonb_array_length(tests.register_book('attendance')->'rows') = 1,'DEMO Rider sees only their own entry');
+select tests.ok(tests.register_error($$select public.hub_register_read(tests.id('hub_a2'))$$) = '42501','rider cannot read another hub');
+select tests.ok(tests.register_error($$select tests.register_write('pickup','save','demo_staff_employee','{"pickup":1,"merchant_return":0}')$$)
+  = '42501','rider cannot enter on behalf of another employee');
+select tests.register_write('attendance','save','demo_rider_employee',
+  jsonb_build_object('status','leave','application_date',tests.register_day()));
+select tests.ok(tests.register_row('attendance','demo_rider_employee')->'payload' =
+  jsonb_build_object('status','leave','application_date',tests.register_day()),'leave application stores the date alone');
+select tests.register_write('pickup','save','demo_rider_employee','{"pickup":1,"merchant_return":0}');
+select public.wf_pending_today(3,tests.register_day());
+select public.wf_pending_today(4,tests.register_day());
+select tests.ok(tests.register_row('pending','demo_rider_employee')->'payload' = '{"pending":4}'
+  and tests.register_row('pending','demo_rider_employee')->>'complete' = 'false', 'missing delivery return remains missing');
+select tests.ok(tests.register_error($$select tests.register_write('pending','save','demo_rider_employee','{"pending":9,"return":0}')$$) = '55000',
+  'an existing pending count cannot be overridden by supplemental input');
+select tests.register_write('pending','save','demo_rider_employee','{"pending":4,"return":0}');
+select tests.ok(tests.register_row('pending','demo_rider_employee')->'payload' = '{"pending":4,"return":0}'
+  and tests.register_row('pending','demo_rider_employee')->>'complete' = 'true', 'explicit zero fills the missing delivery return');
+select tests.ok(tests.register_error($$select tests.register_write('attendance','save','demo_rider_employee',
+  jsonb_build_object('status','leave','application_date',tests.register_day()+1))$$) = '22023', 'staff RPC rejects future external application date');
+select tests.logout();
+
+select tests.login(tests.id('demo_staff'));
+select tests.register_write('expense','save','demo_staff_employee','{"expense":25.50,"bills":1}');
+select tests.ok(tests.register_row('expense','demo_staff_employee') #>> '{payload,expense}' = '25.50'
+  and tests.register_row('expense','demo_rider_employee') is null,'DEMO Staff saves and sees their own expense alone');
+select tests.ok(tests.register_error($$select tests.register_write('expense','submit')$$) = '42501','staff cannot submit a whole book');
+select tests.logout();
+
+insert into public.wf_daily_ops(employee_id,hub_id,work_date,pickup,pickup_return,delivery,delivery_return)
+values(tests.id('demo_rider_employee'),tests.id('hub_a1'),tests.register_day(),5,2,7,1);
+
+-- A staff bill can be taken into a later Accounts session. It stays on the original bill date once.
+with claim as (
+  insert into public.da_expense_claims(employee_id,hub_id,zone_id,expense_name,category,amount,bill_date)
+  values(tests.id('demo_staff_employee'),tests.id('hub_a1'),tests.id('zone_a'),'DEMO supplies','office',60,tests.register_day()-1)
+  returning id
+), session as (
+  insert into public.da_sessions(hub_id,zone_id,account_date,started_by)
+  values(tests.id('hub_a1'),tests.id('zone_a'),tests.register_day(),tests.id('demo_manager'))
+  returning id
+)
+insert into public.da_expenses(session_id,hub_id,zone_id,kind,employee_id,expense_name,category,amount,bill_date,claim_id)
+select session.id,tests.id('hub_a1'),tests.id('zone_a'),'employee',tests.id('demo_staff_employee'),
+  'DEMO supplies','office',60,tests.register_day()-1,claim.id from session cross join claim cross join generate_series(1,2);
+select tests.ok(private.hub_register_source(tests.id('hub_a1'),tests.register_day()-1,'expense',tests.id('demo_staff_employee'))
+  = '{"expense":60,"bills":1}'
+  and private.hub_register_source(tests.id('hub_a1'),tests.register_day(),'expense',tests.id('demo_staff_employee')) is null,
+  'linked staff claim and duplicate Accounts lines count once on the original bill date');
+
+select tests.login(tests.id('demo_manager'));
+select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,'expense','review',
+  tests.id('demo_staff_employee'),'["existing",{"expense":60,"bills":1}]');
+select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,'expense','submit');
+select tests.logout();
+update public.da_expenses set remarks='Unrelated note' where claim_id is not null;
+select tests.ok(tests.register_error($$update public.da_expenses set amount=61 where claim_id is not null$$) = '55000'
+  and (select bool_and(remarks='Unrelated note' and amount=60) from public.da_expenses where claim_id is not null),
+  'locked expense rejects amount changes and permits unrelated Accounts notes');
+select tests.login(tests.id('demo_manager'));
+select tests.ok(tests.register_error($$select public.hub_register_read(tests.id('hub_a2'))$$) = '42501',
+  'hub manager cannot read another hub');
+select tests.ok(jsonb_array_length(public.hub_register_read(tests.id('hub_a1'))->'books') = 5
+  and jsonb_array_length(tests.register_book('pickup')->'rows') = 1
+  and jsonb_array_length(tests.register_book('attendance')->'rows') = 2
+  and tests.register_row('expense','demo_rider_employee')->>'required' = 'false',
+  'DEMO Manager sees five books, only duty-specific operational roster and optional expenses');
+select tests.ok(tests.register_row('pickup','demo_rider_employee') #>> '{payload,pickup}' = '5'
+  and tests.register_row('pending','demo_rider_employee')->'payload' = '{"pending":4,"return":1}',
+  'existing operation takes precedence and latest pending snapshot counts once');
+select tests.ok(tests.register_error($$select tests.register_write('pickup','submit')$$) = '22023','missing or unreviewed entries block final submission');
+select tests.ok(tests.register_error($$select tests.register_write('pickup','rule',null,'{"required":false,"duty":"All","due_at":"10:00"}')$$)
+  = '42501','manager cannot configure deadlines');
+select tests.register_write('delivery','save','demo_rider_employee','{"delivery":7,"cash":700,"mobile":25,"due":10}','DEMO handover');
+select tests.ok(tests.register_row('delivery','demo_rider_employee')->>'source' = 'proxy','manager can fill missing data on behalf of rider');
+select tests.logout();
+
+select tests.login(tests.id('zonal_a'));
+select tests.ok(tests.register_error($$select public.hub_register_read(tests.id('hub_b1'))$$) = '42501','DEMO Zonal Manager cannot read another zone');
+select tests.register_write('pending','rule',null,'{"required":false,"duty":"No assigned duty","due_at":"13:00"}');
+select tests.register_write('pending','rule','demo_rider_employee','{"required":true,"duty":"Parcel handover","due_at":"16:30"}');
+select tests.ok(jsonb_array_length(tests.register_book('pending')->'rows') = 1
+  and tests.register_row('pending','demo_rider_employee')->>'duty' = 'Parcel handover'
+  and ((tests.register_row('pending','demo_rider_employee')->>'due')::timestamptz at time zone 'Asia/Dhaka')::time = time '16:30',
+  'employee assignment overrides hub default and sets Dhaka deadline');
+select tests.logout();
+
+select tests.login(tests.id('demo_manager'));
+select tests.ok(tests.register_error($$select tests.register_write('pending','review','demo_rider_employee','["existing",{"pending":3,"return":1}]')$$)
+  = '40001','stale review is rejected');
+select tests.register_write('pending','review','demo_rider_employee','["existing",{"pending":4,"return":1}]');
+select tests.register_write('pending','submit');
+select tests.register_write('pending','submit');
+select tests.ok(tests.register_book('pending')->>'locked' = 'true'
+  and (select count(*) from jsonb_array_elements(tests.register_book('pending')->'history') e where e->>'action' = 'submit') = 1,
+  'submission locks the book and a repeated request does not duplicate it');
+select tests.ok((select count(*) from jsonb_array_elements(public.hub_register_read(tests.id('hub_a1'),null,tests.register_day())->'month') j
+  where j->>'book'='pending' and j#>>'{totals,pending}'='4') = 1, 'monthly report includes locked daily totals once');
+select tests.ok(tests.register_error($$select tests.register_write('pending','reopen',null,null,'Manager reason')$$) = '42501',
+  'manager cannot reopen a locked book');
+select tests.logout();
+
+select tests.login(tests.id('rider_login'));
+select tests.ok(tests.register_error($$select public.wf_pending_today(8,tests.register_day())$$) = '55000',
+  'legacy staff pending RPC cannot change a locked register');
+select tests.ok(tests.register_error($$select public.wf_ops_submit(5,2,7,0,null,tests.register_day())$$) = '55000',
+  'legacy operations RPC cannot change the return count of a locked pending register');
+select public.wf_ops_submit(6,2,7,1,null,tests.register_day());
+select tests.ok(tests.register_row('pending','demo_rider_employee')->'payload' = '{"pending":4,"return":1}',
+  'legacy pickup-only update succeeds while the pending register stays frozen');
+select tests.logout();
+
+select tests.login(tests.id('zonal_a'));
+select tests.register_write('pending','reopen',null,null,'Correct pending count');
+select tests.ok(tests.register_book('pending')->>'locked' = 'false' and tests.register_book('pending')->>'reopened' = 'true'
+  and tests.register_book('pending') #>> '{history,0,data,reason}' = 'Correct pending count',
+  'zonal manager reopens with a recorded reason');
+select tests.logout();
+select tests.login(tests.id('rider_login'));
+select public.wf_pending_today(8,tests.register_day());
+select tests.ok(tests.register_row('pending','demo_rider_employee')->'payload' = '{"pending":8,"return":1}'
+  and tests.register_row('pending','demo_rider_employee')->>'reviewed' = 'false', 'legacy RPC works after reopening and changes require a fresh review');
+select tests.logout();
+
+with sheet as (
+  insert into public.att_day_sheets(hub_id,zone_id,work_date)
+  values (tests.id('hub_a1'),tests.id('zone_a'),tests.register_day())
+  returning id
+)
+insert into tests.ids select 'review_att_sheet',id from sheet;
+select tests.ok(tests.register_error($$insert into public.att_day_lines(sheet_id,employee_id,final_status,absence_app_date)
+  values (tests.id('review_att_sheet'),tests.id('demo_rider_employee'),'absent',tests.register_day()+1)$$) = '22023',
+  'legacy attendance table rejects future external application dates');
+insert into private.hub_register_events(hub_id,work_date,book,action,actor,data)
+values (tests.id('hub_a1'),tests.register_day(),'attendance','submit',tests.id('demo_manager'),'{"rows":[],"totals":{}}');
+select tests.ok(tests.register_error($$insert into public.att_day_lines(sheet_id,employee_id,final_status,absence_app_date)
+  values (tests.id('review_att_sheet'),tests.id('demo_rider_employee'),'absent',tests.register_day())$$) = '55000',
+  'legacy attendance write respects the locked register');
+
+
+-- Once a work day has passed, the author can correct their own supplemental entry after a zonal reopen.
+select tests.login(tests.id('rider_login'));
+select tests.ok(tests.register_error($$select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,
+  'attendance','save',tests.id('demo_rider_employee'),'{"status":"present"}')$$) = '42501',
+  'staff cannot post on a past day without reopening');
+select tests.logout();
+insert into private.hub_register_events(hub_id,work_date,book,action,actor,data)
+values (tests.id('hub_a1'),tests.register_day()-1,'attendance','submit',tests.id('demo_manager'),'{"rows":[],"totals":{}}');
+select tests.login(tests.id('zonal_a'));
+select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,'attendance','reopen',null,null,'DEMO correction');
+select tests.logout();
+select tests.login(tests.id('rider_login'));
+select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,'attendance','save',tests.id('demo_rider_employee'),'{"status":"present"}');
+select tests.ok(public.hub_register_read(tests.id('hub_a1'),tests.register_day()-1) #>> '{books,0,rows,0,payload,status}' = 'present',
+  'staff can correct their own past-day register after zonal reopening');
+select tests.logout();
+rollback;
