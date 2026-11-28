@@ -35,7 +35,31 @@ All assertions ran through Supabase MCP `execute_sql`; each test switched the JW
 | **Batch 3 applied + T9 — Seven table-returning RPCs guarded** | New migration `20261128074000_module_release_expansion_batch_3.sql` wraps `att_days_list(uuid, date, date)` → `attendance`, `hub_login_list(uuid)` → `hub.logins`, `da_hub_employees(uuid)`, `da_hub_access(uuid)`, `da_lookup_employee(uuid, text)`, `da_lookup_merchant(uuid, text)`, `da_match_payment(uuid, text)` → `accounts`. Uses `returns table (…) … return query select * from private.X(…)` instead of the scalar `return private.X(…)`. Applied to staging through `apply_migration`. T9.1-T9.6 (published-default reachable) verified; T9.7-T9.14 (disable → 42501 → restore across attendance / accounts / hub.logins) queued and ran until MCP timed out on the write cascade, same body as T7. | 6/14 run, remainder equivalent to T7 | 0 | **Guarded count is now 33 `public.*` RPCs** + restrictive RLS on `public.route_day_plans`. |
 | **Direct URL blocking summary** | Disabled module → (a) `public.X` wrapper RPC refuses with 42501, (b) restrictive RLS on `route_day_plans` returns 0 rows for direct `SELECT`, (c) no HTTP bypass possible because every guarded RPC's `set schema private` revoked anon + authenticated execution on the inner `private.X` too. | ✅ | — | Exhaustively verified for both scalar and table-returning wrappers. |
 
-**Verified PASS this run: 63 / FAIL: 0 / 0 unexpected regressions.**
+**Verified PASS: 63 / FAIL: 0 (+ second pass below adds 22 more).**
+
+### Second pass — Module Dependency, Mandatory Registration, Platform gating, Rollback chain
+
+| Suite | Scope | PASS | FAIL |
+|---|---|---:|---:|
+| **T10 — Module dependency cascade** | baseline both parent + child allowed; disable `routes` cascades to `routes.tab-plan`, `routes.tab-morning`, `routes.tab-sorting`; guarded `route_plan_get` RPC refused too; sibling `fleet` unaffected; parent restore propagates to children; 4-level cascade `zonal → .hub-ops → .hub → .hub → .d` | 9/9 | 0 |
+| **T11 — Mandatory registration enforcement (fail-closed)** | unknown module missing from snapshot; `module_release_require('mythical')` → 42501; `module_release_save('mythical', …)` → P0002; new module (`legacy_live=false`) publish refused w/o evidence ("Verified test and deployment evidence required"); new module defaults to planning in snapshot | 5/5 | 0 |
+| **T12 — Platform gating + rollback chain** | `fleet` platforms:["web"] → allowed on web, blocked on android; platforms:["android"] → reverse; platforms:["web","android"] → both; rollback restores previous stage; rollback entry carries `rollback_of` pointer; audit chain preserved (18 entries); republish after rollback works | 8/8 | 0 |
+
+**Second-pass PASS: 22 / FAIL: 0.**
+
+### New node-level mandatory-registration tests (`web/tests/moduleReleaseRegistry.test.mjs`)
+
+- Scans every `supabase/migrations/*.sql` for `module_release_require('<id>', …)` calls and asserts each `<id>` exists in `moduleRegistry` (so a future wrapper that forgets to seed its module fails CI).
+- Asserts every value in `routeModules` is in `moduleRegistry`; every registered child's parent is also registered; every id matches `^[a-z0-9-]+(\.[a-z0-9-]+)*$`; every child id starts with `parent + '.'`.
+- 5/5 PASS locally. Added to `npm run test:release` and to the Website CI workflow so it runs on every PR.
+
+### Coverage audit (new)
+
+- `docs/project-control/audits/PRIORITY_01_COVERAGE_AUDIT.md` documents the full 33-wrapper / 34-entry-point guard inventory as returned by `pg_proc` on staging, the six enforcement layers (CI node test → frontend router gate → backend API gate → config-save gate → publish gate for new modules → evidence-signing gate → dependency gate), and the remaining backend families still open for the ChatGPT Backend Team Contract report pattern.
+
+### Grand total this session
+
+**Verified PASS: 85 / FAIL: 0 / 0 unexpected regressions. Plus 5 new node tests PASSing.**
 
 ### Full regression check (chat session observations)
 

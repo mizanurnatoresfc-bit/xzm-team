@@ -37,7 +37,7 @@ jobs:
       - name: TypeScript check
         run: npm run typecheck
       - name: Release registry and access tests
-        run: node --experimental-strip-types --test tests/moduleRelease.test.mjs
+        run: node --experimental-strip-types --test tests/moduleRelease.test.mjs tests/moduleReleaseRegistry.test.mjs
       - name: Route module tests
         run: npm run test:routes
       - name: Parcel plan tests
