@@ -33,6 +33,7 @@ try {
         }, { android, session })
         const calls = []
         let payload = null
+        let pending = { pending: 4 }
         let reviewed = false
         let locked = configure
         const hubs = manage ? [{ id: 'demo', name: 'DEMO Hub' }, ...(configure ? [{ id: 'second', name: 'Second Hub' }] : [])] : []
@@ -48,16 +49,19 @@ try {
               positions: [{ id: 'rider', name: 'Rider' }], people: [{ id: 'employee', name: 'DEMO Rider' }], rules: [],
               month: args.p_month ? [{ day, book: 'attendance', totals: { present: 1 } }] : null,
               books: books.map(id => ({ id, locked: id === 'attendance' && locked, totals: {}, history: [], rows: [{
-                employee_id: 'employee', name: manage ? 'DEMO Rider' : `DEMO ${role}`, duty: id,
-                due: `${day}T16:59:00Z`, payload: id === 'attendance' ? payload : null,
-                source: payload && id === 'attendance' ? (manage ? 'proxy' : 'self') : null, reviewed: reviewed && id === 'attendance',
+                employee_id: 'employee', required: id !== 'expense',
+                complete: id === 'attendance' ? Boolean(payload) : id === 'pending' && 'return' in pending,
+                source_payload: id === 'pending' ? { pending: 4 } : null, name: manage ? 'DEMO Rider' : `DEMO ${role}`, duty: id,
+                due: `${day}T16:59:00Z`, payload: id === 'attendance' ? payload : id === 'pending' ? pending : null,
+                source: id === 'pending' ? 'existing' : payload && id === 'attendance' ? (manage ? 'proxy' : 'self') : null, reviewed: reviewed && id === 'attendance',
               }] })),
             })
           }
           if (path.endsWith('/hub_register_write')) {
             const body = route.request().postDataJSON()
             calls.push(body)
-            if (body.p_action === 'save') payload = body.p_data
+            if (body.p_action === 'save' && body.p_book === 'attendance') payload = body.p_data
+            if (body.p_action === 'save' && body.p_book === 'pending') pending = body.p_data
             if (body.p_action === 'review') reviewed = true
             if (body.p_action === 'submit') locked = true
             if (body.p_action === 'reopen') locked = false
@@ -105,6 +109,20 @@ try {
             await workflow.locator('input[type=month]').fill(day.slice(0, 7))
             await workflow.getByRole('heading', { name: /মাসের জমা খাতার রিপোর্ট|Monthly report of submitted registers/ }).waitFor()
           }
+        }
+        const expense = workflow.locator('.hub-register-card').last()
+        await expense.locator('summary').first().click()
+        await expense.getByText(/খরচ হলে এন্ট্রি দিন|Enter only if there was an expense/).waitFor()
+        if (role === 'Rider') {
+          const pendingBook = workflow.locator('.hub-register-card').nth(2)
+          await pendingBook.locator('summary').first().click()
+          await pendingBook.getByText(/ফেরতের তথ্য বাকি|Return count missing/).waitFor()
+          await pendingBook.locator('.hub-pending-rows button').first().click()
+          assert.equal(await pendingBook.locator('form input[readonly]').inputValue(), '4')
+          await pendingBook.locator('form input:not([readonly])').fill('0')
+          await pendingBook.locator('form button[type=submit]').click()
+          await pendingBook.getByText(/যাচাই বাকি|Review due/).waitFor()
+          assert.deepEqual(calls.at(-1).p_data, { pending: 4, return: 0 })
         }
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true)
         console.log(`PASS ${android ? 'Android bridge fixture' : 'desktop web'} · DEMO ${role}`)

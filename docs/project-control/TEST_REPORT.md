@@ -74,3 +74,15 @@ Format:
 - PR #177 (route setup OSM load + draw area) — merged, user-tested OK।
 - PR #178 (sidebar personal rows) — merged।
 - Supabase edge functions `nodi-ai`, `nodi-route-plan`, `osm-fetch-places` — deployed & tested by owner।
+
+### XZM-018 independent review · Draft PR #225 · 2026-11-28
+
+| Verification | Result |
+|---|---|
+| PostgreSQL 16 migration replay and permissions | 2,857 assertions passed, 36 in the dedicated register suite, zero failing files |
+| Duty roster | Transfers follow dated HR assignments. Approved leave suppresses stale operational duties. A published backup rider is included at the receiving hub. Expense entries are optional |
+| Lock and correction | Legacy pending and operations RPCs and attendance/expense writes cannot change values projected by a locked book. Pickup-only changes and Accounts notes remain available when their affected book is open. Reopening allows entry changes and requires a fresh review when values change |
+| Values and deduplication | Future external dates rejected by the workflow RPC and legacy attendance table. A missing return stays missing until explicitly set, including zero. Latest pending snapshots and linked expense claims count once, even with duplicate linked Accounts lines |
+| Frontend | Local TypeScript and production build. Four role fixtures on desktop Chromium and Android-sized Chromium with a Capacitor bridge |
+| Production catalog preflight (read-only) | PostgreSQL 17.11. Required source tables, sampled columns and helper signatures exist. The live Manager grants are hub-scoped and Zonal Manager is zone-scoped. Production has one DEMO Hub and uses two older register migrations. The draft version and its workflow RPC are absent |
+| Hosted DEMO and real Android | Pending. Designated staging lacks roles, hubs and register RPCs. This environment has no Android SDK, emulator or device bridge |

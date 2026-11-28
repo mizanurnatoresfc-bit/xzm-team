@@ -19,7 +19,9 @@ create table private.hub_register_rules (
   required boolean not null,
   duty text not null check (length(btrim(duty)) between 1 and 120),
   due_at time not null,
-  unique nulls not distinct (hub_id, book, position_id, employee_id)
+  effective_from date not null,
+  enabled boolean not null default true,
+  unique nulls not distinct (hub_id, book, position_id, employee_id, effective_from)
 );
 
 create table private.hub_register_entries (
@@ -77,11 +79,14 @@ returns jsonb language sql stable set search_path = '' as $$
       (select jsonb_build_object('pickup', o.pickup, 'merchant_return', o.pickup_return)
        from public.wf_daily_ops o where o.hub_id = p_hub and o.work_date = p_date and o.employee_id = p_employee)
     when 'pending' then
-      (select case when a.return_reason is null and s.hub_id = p_hub then
-         jsonb_build_object('pending', s.pending_count, 'return', coalesce(o.delivery_return, 0)) end
-       from public.wf_pending_snapshots s left join public.wf_pending_approvals a on a.snapshot_id = s.id
-       left join public.wf_daily_ops o on o.employee_id = s.employee_id and o.work_date = s.work_date and o.hub_id = s.hub_id
-       where s.employee_id = p_employee and s.work_date = p_date order by s.id desc limit 1)
+      (select nullif(jsonb_strip_nulls(jsonb_build_object('pending', s.pending_count, 'return', o.delivery_return)), '{}'::jsonb)
+       from (values (1)) anchor(n)
+       left join lateral (
+         select case when a.return_reason is null then x.pending_count end as pending_count
+         from public.wf_pending_snapshots x left join public.wf_pending_approvals a on a.snapshot_id = x.id
+         where x.employee_id = p_employee and x.work_date = p_date and x.hub_id = p_hub order by x.id desc limit 1
+       ) s on true
+       left join public.wf_daily_ops o on o.employee_id = p_employee and o.work_date = p_date and o.hub_id = p_hub)
     when 'delivery' then
       (select jsonb_build_object('delivery', sum(l.delivery_qty), 'cash', sum(l.paid_amount), 'mobile', sum(l.mobile_banking), 'due', sum(l.due))
        from public.da_sessions s join public.da_rider_lines l on l.session_id = s.id
@@ -90,10 +95,14 @@ returns jsonb language sql stable set search_path = '' as $$
     when 'expense' then
       (select jsonb_build_object('expense', sum(z.amount), 'bills', count(*))
        from (
-         select l.amount from public.da_sessions s join public.da_expenses l on l.session_id = s.id
-         left join public.da_expense_claims c on c.id = l.claim_id
-         where s.hub_id = p_hub and coalesce(c.bill_date,l.bill_date) = p_date and l.removed_at is null
-           and coalesce(c.employee_id,l.employee_id,l.paid_by_employee) is not distinct from p_employee
+         select linked.amount from (
+           select distinct on (l.claim_id is null,coalesce(l.claim_id,l.id)) l.amount
+           from public.da_sessions s join public.da_expenses l on l.session_id=s.id
+           left join public.da_expense_claims c on c.id=l.claim_id
+           where coalesce(c.hub_id,s.hub_id)=p_hub and coalesce(c.bill_date,l.bill_date)=p_date and l.removed_at is null
+             and coalesce(c.employee_id,l.employee_id,l.paid_by_employee) is not distinct from p_employee
+           order by l.claim_id is null,coalesce(l.claim_id,l.id),l.created_at,l.id
+         ) linked
          union all
          select c.amount from public.da_expense_claims c
          where c.hub_id = p_hub and c.bill_date = p_date and c.employee_id = p_employee and c.status = 'submitted'
@@ -102,39 +111,104 @@ returns jsonb language sql stable set search_path = '' as $$
   end
 $$;
 
+-- Choose the dated HR assignment before testing hub membership. Same-day transfers can overlap.
+create function private.hub_register_assignment(p_employee uuid, p_date date)
+returns table (hub_id uuid, position_id uuid, active boolean)
+language sql stable set search_path = '' as $$
+  select case when a.id is not null then a.hub_id
+           when not exists(select 1 from public.employee_assignments x where x.employee_id=e.id) then e.hub_id end,
+         case when a.id is not null then a.position_id else e.position_id end,
+         coalesce(p_date >= e.joining_date,true) and a.change_type is distinct from 'exit'
+           and coalesce(st.to_status, (select h.from_status from public.employee_status_history h
+             where h.employee_id=e.id and h.effective_date>p_date and h.from_status is not null
+             order by h.effective_date,h.created_at,h.id limit 1),
+             case when e.status_since > p_date and a.id is not null then 'active' else e.status end) = 'active'
+           and (e.archived_at is null or (e.archived_at at time zone 'Asia/Dhaka')::date > p_date)
+  from public.employees e
+  left join lateral (
+    select x.* from public.employee_assignments x where x.employee_id=e.id
+      and x.effective_from<=p_date and (x.effective_to is null or x.effective_to>=p_date)
+    order by x.effective_from desc,(x.effective_to is null) desc,x.created_at desc,x.id desc limit 1
+  ) a on true
+  left join lateral (
+    select h.to_status from public.employee_status_history h where h.employee_id=e.id and h.effective_date<=p_date
+    order by h.effective_date desc,h.created_at desc,h.id desc limit 1
+  ) st on true
+  where e.id=p_employee
+$$;
+
 create function private.hub_register_rows(p_hub uuid, p_date date, p_book text)
 returns table (employee_id uuid, profile_id uuid, position_id uuid, name text, position_name text,
-  duty text, due timestamptz, payload jsonb, source text, reviewed boolean)
+  duty text, due timestamptz, payload jsonb, source text, reviewed boolean,
+  required boolean, complete boolean, source_payload jsonb)
 language sql stable set search_path = '' as $$
-  select e.id, e.profile_id, e.position_id, e.full_name, coalesce(nullif(po.name_bn,''),po.name),
+  with published as materialized (
+    select v.id from public.route_plan_versions v
+    where v.hub_id=p_hub and v.plan_date=p_date and v.superseded_at is null
+  ), planned as materialized (
+    select r.employee_id, bool_or(r.pickups > 0) pickup, bool_or(r.role='rider') rider,
+      bool_or(r.parcels > 0) parcels
+    from public.route_plan_recipients r join published v on v.id=r.version_id
+    where r.hub_id=p_hub and r.plan_date=p_date and r.status='active' and r.role in ('rider','helper') and r.employee_id is not null
+    group by r.employee_id
+  )
+  select e.id, e.profile_id, job.position_id, e.full_name, coalesce(nullif(po.name_bn,''),po.name),
     coalesce(rule.duty, p_book),
-    (p_date + coalesce(rule.due_at, time '23:59')) at time zone 'Asia/Dhaka',
-    v.payload, v.source, coalesce(r.reviewed = jsonb_build_array(v.source,v.payload),false) and v.payload is not null
+    (p_date + coalesce(rule.due_at,time '23:59')) at time zone 'Asia/Dhaka',
+    v.payload, v.source, coalesce(r.reviewed = jsonb_build_array(v.source,v.payload),false) and ready.complete,
+    eligible.required, ready.complete, s.payload
   from public.employees e
-  left join public.positions po on po.id = e.position_id
+  cross join lateral private.hub_register_assignment(e.id,p_date) job
+  left join public.positions po on po.id=job.position_id
+  left join planned plan on plan.employee_id=e.id
   left join lateral (
-    select a.required, a.duty, a.due_at from private.hub_register_rules a
-    where a.hub_id = p_hub and a.book = p_book and (a.employee_id is null or a.employee_id = e.id)
-      and (a.position_id is null or a.position_id = e.position_id)
-    order by (a.employee_id is not null) desc, (a.position_id is not null) desc limit 1
+    select a.required,a.duty,a.due_at from (
+      select distinct on (v.position_id,v.employee_id) v.*
+      from private.hub_register_rules v
+      where v.hub_id=p_hub and v.book=p_book and v.effective_from<=p_date
+        and (v.employee_id is null or v.employee_id=e.id) and (v.position_id is null or v.position_id=job.position_id)
+      order by v.position_id,v.employee_id,v.effective_from desc
+    ) a where a.enabled order by (a.employee_id is not null) desc,(a.position_id is not null) desc limit 1
   ) rule on true
-  left join private.hub_register_entries x on (x.hub_id,x.work_date,x.book,x.employee_id) = (p_hub,p_date,p_book,e.id)
-  cross join lateral (select private.hub_register_source(p_hub,p_date,p_book,e.id) as payload) s
-  cross join lateral (select coalesce(s.payload,x.payload) as payload,
-    case when s.payload is not null then 'existing' when x.reason is not null then 'proxy'
-      when x.payload is not null then 'self' end as source) v
-  left join private.hub_register_reviews r on (r.hub_id,r.work_date,r.book,r.employee_id) = (p_hub,p_date,p_book,e.id)
-  where (
-    e.hub_id = p_hub and e.status = 'active' and e.archived_at is null
-      and (e.joining_date is null or e.joining_date <= p_date)
-      and coalesce(rule.required,true)
-  ) or x.employee_id is not null
+  left join private.hub_register_entries x on (x.hub_id,x.work_date,x.book,x.employee_id)=(p_hub,p_date,p_book,e.id)
+  cross join lateral (
+    select case when job.hub_id=p_hub and p_book='attendance' and lv.leave is not null
+      then jsonb_strip_nulls(jsonb_build_object('status','leave','application_date',lv.leave->>'applied_on'))
+      else private.hub_register_source(p_hub,p_date,p_book,e.id) end as payload,
+      lv.leave is not null as on_leave
+    from (select private.wf_leave_on(e.id,p_date) as leave) lv
+  ) s
+  cross join lateral (
+    select p_book <> 'expense'
+      and (p_book='attendance' or not s.on_leave)
+      and case when p_book='attendance' then job.active and job.hub_id is not distinct from p_hub and coalesce(rule.required,true)
+        else coalesce(rule.required,
+          case p_book when 'pickup' then coalesce(plan.pickup,false)
+            when 'pending' then coalesce(plan.rider and plan.parcels,false)
+            when 'delivery' then coalesce(plan.rider and plan.parcels,false) else false end
+          or (p_book in ('pending','delivery') and not exists(select 1 from published)
+            and exists(select 1 from public.rider_routes rr where rr.employee_id=e.id and rr.hub_id=p_hub
+              and rr.effective_from<=p_date and (rr.effective_to is null or rr.effective_to>=p_date))))
+          and ((job.active and job.hub_id=p_hub) or plan.employee_id is not null)
+      end as required
+  ) eligible
+  cross join lateral (
+    select case when s.payload is null then x.payload
+        when p_book <> 'pending' then s.payload
+        else coalesce(x.payload,'{}'::jsonb) || s.payload end as payload,
+      case when s.payload is not null then 'existing' when x.reason is not null then 'proxy'
+        when x.payload is not null then 'self' end as source
+  ) v
+  cross join lateral (select v.payload is not null and (p_book <> 'pending' or v.payload ?& array['pending','return']) as complete) ready
+  left join private.hub_register_reviews r on (r.hub_id,r.work_date,r.book,r.employee_id)=(p_hub,p_date,p_book,e.id)
+  where eligible.required or v.payload is not null or (p_book='expense' and job.active and job.hub_id=p_hub)
   union all
   select null,null,null,'Hub expenses',null,'expense',
     (p_date + time '23:59') at time zone 'Asia/Dhaka', s.payload,'existing',
     exists (select 1 from private.hub_register_reviews r
       where (r.hub_id,r.work_date,r.book,r.employee_id) = (p_hub,p_date,p_book,'00000000-0000-0000-0000-000000000000'::uuid)
         and r.reviewed = jsonb_build_array('existing',s.payload))
+    , false, true, s.payload
   from (select private.hub_register_source(p_hub,p_date,'expense',null) as payload) s
   where p_book = 'expense' and s.payload is not null
 $$;
@@ -211,7 +285,13 @@ begin
     raise exception 'An active account is required' using errcode = '42501';
   end if;
   select coalesce(jsonb_agg(jsonb_build_object('id',h.id,'name',coalesce(nullif(h.name_bn,''),h.name)) order by h.name,h.id),'[]')
-    into options from private.wf_hubs('ops.hub_register.edit') x join public.hubs h on h.id = x.hub_id;
+    into options from (
+      select hub_id from private.wf_hubs('ops.hub_register.edit')
+      union select a.hub_id from private.hub_register_assignment(me.id,day) a where a.active
+      union select r.hub_id from public.route_plan_recipients r join public.route_plan_versions v on v.id=r.version_id
+        where r.employee_id=me.id and r.plan_date=day and r.status='active' and r.role in ('rider','helper')
+          and v.superseded_at is null and (v.hub_id,v.plan_date)=(r.hub_id,r.plan_date)
+    ) x join public.hubs h on h.id=x.hub_id and h.archived_at is null;
   if p_hub is null and jsonb_array_length(options) > 0 and not exists (
     select 1 from jsonb_array_elements(options) x where x->>'id' = hub::text
   ) then
@@ -220,7 +300,10 @@ begin
   if hub is null then return jsonb_build_object('hubs',options,'books','[]'::jsonb,'day',day); end if;
   can_manage := coalesce(private.has_permission('ops.hub_register.edit',private.hub_zone(hub),hub),false);
   can_configure := can_manage and coalesce(private.has_permission('ops.hub_register.configure',private.hub_zone(hub),hub),false);
-  if (not can_manage and hub is distinct from me.hub_id)
+  if (not can_manage and (me.id is null or (hub is distinct from me.hub_id and not exists (
+    select 1 from unnest(array['attendance','pickup','pending','delivery','expense']) b(book),
+      lateral private.hub_register_rows(hub,day,b.book) r where r.employee_id=me.id
+  ))))
     or not exists(select 1 from public.hubs h where h.id = hub and h.archived_at is null) then
     raise exception 'Hub access is required' using errcode = '42501';
   end if;
@@ -269,11 +352,17 @@ begin
   return jsonb_build_object('hub',hub,'hubs',options,'day',day,'manage',can_manage,'configure',can_configure,
     'me',me.id,'books',books,'month',month_report,
     'positions', case when can_configure then (select coalesce(jsonb_agg(jsonb_build_object('id',p.id,'name',coalesce(nullif(p.name_bn,''),p.name))
-      order by p.name,p.id),'[]') from public.positions p where p.archived_at is null) end,
+      order by p.name,p.id),'[]') from public.positions p
+      left join public.departments d on d.id=p.department_id
+      join public.hubs h on h.id=hub join public.zones z on z.id=h.zone_id
+      where p.archived_at is null and (d.organization_id=z.organization_id or p.department_id is null)) end,
     'people', case when can_configure then (select coalesce(jsonb_agg(jsonb_build_object('id',e.id,'name',e.full_name)
-      order by e.full_name,e.id),'[]') from public.employees e where e.hub_id = hub and e.status = 'active' and e.archived_at is null) end,
+      order by e.full_name,e.id),'[]') from public.employees e
+      cross join lateral private.hub_register_assignment(e.id,day) a where a.hub_id=hub and a.active) end,
     'rules', case when can_configure then (select coalesce(jsonb_agg(to_jsonb(r) order by r.book,r.rule_id),'[]')
-      from private.hub_register_rules r where r.hub_id = hub) end);
+      from (select distinct on (x.book,x.position_id,x.employee_id) x.* from private.hub_register_rules x
+        where x.hub_id=hub and x.effective_from<=day order by x.book,x.position_id,x.employee_id,x.effective_from desc) r
+      where r.enabled) end);
 end
 $$;
 
@@ -310,7 +399,7 @@ begin
   if (p_action in ('rule','remove_rule','reopen') and not can_configure)
     or (p_action in ('review','submit') and not can_manage)
     or (p_action = 'save' and (p_employee is null or (not can_manage and
-      ((p_hub,p_employee) is distinct from (me.hub_id,me.id))))) then
+      (p_employee is distinct from me.id)))) then
     raise exception 'Register action is outside your scope' using errcode = '42501';
   end if;
 
@@ -319,21 +408,20 @@ begin
   if p_action in ('rule','remove_rule') then
     position := nullif(p_data->>'position_id','')::uuid;
     if p_action = 'rule' and p_employee is not null then
-      select e.position_id into employee_position from public.employees e
-      where e.id = p_employee and e.hub_id = p_hub and e.archived_at is null and e.status = 'active';
+      select a.position_id into employee_position from private.hub_register_assignment(p_employee,p_date) a
+      where a.hub_id=p_hub and a.active;
       if not found or (position is not null and employee_position is distinct from position) then
         raise exception 'Employee and position must match the selected hub' using errcode = '22023';
       end if;
     end if;
-    if p_action = 'remove_rule' then
-      delete from private.hub_register_rules r where (r.hub_id,r.book) = (p_hub,p_book)
-        and (r.position_id,r.employee_id) is not distinct from (position,p_employee);
-    else
-      insert into private.hub_register_rules (hub_id,book,position_id,employee_id,required,duty,due_at)
-      values (p_hub,p_book,position,p_employee,(p_data->>'required')::boolean,btrim(p_data->>'duty'),(p_data->>'due_at')::time)
-      on conflict (hub_id,book,position_id,employee_id) do update
-      set required = excluded.required,duty = excluded.duty,due_at = excluded.due_at;
-    end if;
+    insert into private.hub_register_rules (hub_id,book,position_id,employee_id,required,duty,due_at,effective_from,enabled)
+    values (p_hub,p_book,position,p_employee,
+      case when p_action='remove_rule' then false else (p_data->>'required')::boolean end,
+      case when p_action='remove_rule' then p_book else btrim(p_data->>'duty') end,
+      case when p_action='remove_rule' then time '23:59' else (p_data->>'due_at')::time end,
+      p_date,p_action='rule')
+    on conflict (hub_id,book,position_id,employee_id,effective_from) do update
+      set required=excluded.required,duty=excluded.duty,due_at=excluded.due_at,enabled=excluded.enabled;
     return;
   end if;
 
@@ -355,7 +443,7 @@ begin
     raise exception 'This register is locked' using errcode = '55000';
   elsif p_action = 'submit' then
     select coalesce(jsonb_agg(to_jsonb(r) - 'profile_id' order by r.employee_id),'[]') into rows
-    from private.hub_register_rows(p_hub,p_date,p_book) r;
+    from private.hub_register_rows(p_hub,p_date,p_book) r where r.required or r.payload is not null;
     if exists (select 1 from jsonb_array_elements(rows) r where not (r->>'reviewed')::boolean) then
       raise exception 'Complete and review all required entries before submitting' using errcode = '22023';
     end if;
@@ -366,7 +454,7 @@ begin
     if not found then raise exception 'Employee is not assigned to this register' using errcode = '42501'; end if;
 
     if p_action = 'review' then
-      if target.payload is null or p_data is distinct from jsonb_build_array(target.source,target.payload) then
+      if not target.complete or p_data is distinct from jsonb_build_array(target.source,target.payload) then
         raise exception 'The entry changed. Reload before reviewing' using errcode = '40001';
       end if;
       if target.reviewed then return; end if;
@@ -377,7 +465,10 @@ begin
       if p_employee is distinct from me.id and reason is null then
         raise exception 'Give the reason for entering on behalf of the employee' using errcode = '22023';
       end if;
-      if target.source = 'existing' or (p_employee is distinct from me.id and target.source = 'self')
+      if (target.source = 'existing' and (p_book <> 'pending' or target.source_payload ?& array['pending','return']))
+        or (p_employee is distinct from me.id and exists (
+          select 1 from private.hub_register_entries x where (x.hub_id,x.work_date,x.book,x.employee_id)=(p_hub,p_date,p_book,p_employee)
+            and x.reason is null))
         or (target.reviewed and last_action is distinct from 'reopen') then
         raise exception 'Use the original entry or reopen the reviewed register' using errcode = '55000';
       end if;
@@ -385,9 +476,16 @@ begin
       if p_book = 'attendance' and (p_data->>'application_date')::date > private.wf_today() then
         raise exception 'External application date cannot be in the future' using errcode = '22023';
       end if;
+      if p_book='pending' and target.source_payload is not null then
+        if not p_data @> target.source_payload then
+          raise exception 'Existing register values must be changed at their source' using errcode = '55000';
+        end if;
+      end if;
       previous := target.payload;
       if previous = p_data then return; end if;
-      insert into private.hub_register_entries values (p_hub,p_date,p_book,p_employee,p_data,auth.uid(),reason)
+      insert into private.hub_register_entries values (p_hub,p_date,p_book,p_employee,
+        case when p_book='pending' and target.source_payload is not null
+          then p_data - array(select jsonb_object_keys(target.source_payload)) else p_data end,auth.uid(),reason)
       on conflict (hub_id,work_date,book,employee_id) do update
       set payload = excluded.payload,actor = excluded.actor,reason = excluded.reason;
       delete from private.hub_register_reviews r
@@ -400,9 +498,89 @@ begin
 end
 $$;
 
-revoke all on function private.hub_register_source(uuid,date,text,uuid), private.hub_register_rows(uuid,date,text),
+revoke all on function private.hub_register_assignment(uuid,date), private.hub_register_source(uuid,date,text,uuid), private.hub_register_rows(uuid,date,text),
   private.hub_register_check(text,jsonb), private.hub_register_totals(jsonb) from public, anon, authenticated;
 revoke all on function public.hub_register_read(uuid,date,date),
   public.hub_register_write(uuid,date,text,text,uuid,jsonb,text) from public, anon;
 grant execute on function public.hub_register_read(uuid,date,date),
   public.hub_register_write(uuid,date,text,text,uuid,jsonb,text) to authenticated;
+
+-- Source writes and register submissions share a lock. Guard both keys when a row moves.
+create function private.hub_register_guard_keys(p_book text, p_old_hub uuid, p_old_date date, p_new_hub uuid, p_new_date date)
+returns void language plpgsql security definer set search_path = '' as $$
+declare k record;
+begin
+  for k in select distinct h,d from (values (p_old_hub,p_old_date),(p_new_hub,p_new_date)) v(h,d)
+    where h is not null and d is not null order by h,d
+  loop
+    perform pg_advisory_xact_lock(hashtextextended('hub_register:' || k.h || ':' || p_book,0));
+    if (select action from private.hub_register_events j
+        where (j.hub_id,j.work_date,j.book)=(k.h,k.d,p_book) and j.action in ('submit','reopen')
+        order by j.id desc limit 1) = 'submit' then
+      raise exception 'The % register for % is locked. Ask the zonal manager to reopen it.', p_book,k.d using errcode='55000';
+    end if;
+  end loop;
+end
+$$;
+
+create function private.hub_register_guard_source()
+returns trigger language plpgsql security definer set search_path = '' as $$
+declare
+  a jsonb := case when tg_op <> 'INSERT' then to_jsonb(old) else '{}'::jsonb end;
+  b jsonb := case when tg_op <> 'DELETE' then to_jsonb(new) else '{}'::jsonb end;
+  book text := tg_argv[0];
+  old_hub uuid := (a->>'hub_id')::uuid;
+  new_hub uuid := (b->>'hub_id')::uuid;
+  old_day date := (a->>tg_argv[1])::date;
+  new_day date := (b->>tg_argv[1])::date;
+  fields text[] := string_to_array(tg_argv[2],',');
+begin
+  if tg_table_name='att_day_lines' and a->'absence_app_date' is distinct from b->'absence_app_date'
+     and (b->>'absence_app_date')::date > private.wf_today() then
+    raise exception 'External application date cannot be in the future' using errcode='22023';
+  end if;
+  if not exists (select 1 from unnest(fields) k where a->k is distinct from b->k) then
+    return case when tg_op='DELETE' then old else new end;
+  end if;
+  if tg_table_name='att_day_lines' then
+    select s.hub_id,s.work_date into old_hub,old_day from public.att_day_sheets s where s.id=(a->>'sheet_id')::uuid;
+    select s.hub_id,s.work_date into new_hub,new_day from public.att_day_sheets s where s.id=(b->>'sheet_id')::uuid;
+  elsif tg_table_name='wf_pending_approvals' then
+    select s.hub_id,s.work_date into old_hub,old_day from public.wf_pending_snapshots s where s.id=(a->>'snapshot_id')::bigint;
+    select s.hub_id,s.work_date into new_hub,new_day from public.wf_pending_snapshots s where s.id=(b->>'snapshot_id')::bigint;
+  elsif tg_table_name='da_rider_lines' then
+    select s.hub_id,s.account_date into old_hub,old_day from public.da_sessions s where s.id=(a->>'session_id')::uuid;
+    select s.hub_id,s.account_date into new_hub,new_day from public.da_sessions s where s.id=(b->>'session_id')::uuid;
+  elsif tg_table_name='da_expenses' then
+    select coalesce(c.hub_id,s.hub_id),coalesce(c.bill_date,old_day) into old_hub,old_day
+      from public.da_sessions s left join public.da_expense_claims c on c.id=(a->>'claim_id')::uuid where s.id=(a->>'session_id')::uuid;
+    select coalesce(c.hub_id,s.hub_id),coalesce(c.bill_date,new_day) into new_hub,new_day
+      from public.da_sessions s left join public.da_expense_claims c on c.id=(b->>'claim_id')::uuid where s.id=(b->>'session_id')::uuid;
+  end if;
+  perform private.hub_register_guard_keys(book,old_hub,old_day,new_hub,new_day);
+  return case when tg_op='DELETE' then old else new end;
+end
+$$;
+
+create trigger hub_register_attendance_lines after insert or update or delete on public.att_day_lines
+for each row execute function private.hub_register_guard_source('attendance','work_date','sheet_id,employee_id,final_status,leave_applied_on,absence_app_date');
+create trigger hub_register_attendance_sheets after update of hub_id,work_date or delete on public.att_day_sheets
+for each row execute function private.hub_register_guard_source('attendance','work_date','hub_id,work_date');
+create trigger hub_register_attendance_marks after insert or update or delete on public.attendance_self_marks
+for each row execute function private.hub_register_guard_source('attendance','work_date','hub_id,work_date,employee_id,kind,status,decided_as');
+create trigger hub_register_ops_pending after insert or update or delete on public.wf_daily_ops
+for each row execute function private.hub_register_guard_source('pending','work_date','hub_id,work_date,employee_id,delivery_return');
+create trigger hub_register_ops_pickup after insert or update or delete on public.wf_daily_ops
+for each row execute function private.hub_register_guard_source('pickup','work_date','hub_id,work_date,employee_id,pickup,pickup_return');
+create trigger hub_register_pending after insert or update or delete on public.wf_pending_snapshots
+for each row execute function private.hub_register_guard_source('pending','work_date','hub_id,work_date,employee_id,pending_count');
+create trigger hub_register_pending_review after insert or update or delete on public.wf_pending_approvals
+for each row execute function private.hub_register_guard_source('pending','work_date','snapshot_id,return_reason');
+create trigger hub_register_delivery after insert or update or delete on public.da_rider_lines
+for each row execute function private.hub_register_guard_source('delivery','account_date','session_id,employee_id,delivery_qty,paid_amount,mobile_banking,due,removed_at');
+create trigger hub_register_expenses after insert or update or delete on public.da_expenses
+for each row execute function private.hub_register_guard_source('expense','bill_date','session_id,employee_id,paid_by_employee,amount,bill_date,claim_id,removed_at');
+create trigger hub_register_claims after insert or update or delete on public.da_expense_claims
+for each row execute function private.hub_register_guard_source('expense','bill_date','hub_id,bill_date,employee_id,amount,status');
+revoke all on function private.hub_register_guard_keys(text,uuid,date,uuid,date),private.hub_register_guard_source()
+from public,anon,authenticated;

@@ -14,7 +14,7 @@ type Payload = Record<string, string | number>
 type Option = { id: string; name: string }
 type Row = {
   employee_id: string | null; name: string; position_name: string | null; duty: string; due: string
-  payload: Payload | null; source: 'existing' | 'self' | 'proxy' | null; reviewed: boolean
+  payload: Payload | null; source_payload: Payload | null; required: boolean; complete: boolean; source: 'existing' | 'self' | 'proxy' | null; reviewed: boolean
 }
 type Rule = { rule_id: number; book: BookId; position_id: string | null; employee_id: string | null; duty: string; due_at: string; required: boolean }
 type Book = {
@@ -74,10 +74,10 @@ export function RegisterWorkflow() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const initial = useLiveLoad(async () => {
-    const { data, error } = await supabase.rpc('hub_register_read')
+    const { data, error } = await supabase.rpc('hub_register_read', { p_date: day })
     if (error) throw error
     return data as Register
-  }, [session?.user.id])
+  }, [session?.user.id, day])
   const allowed = initial.data?.hubs ?? []
   const preferred = selection?.workHub === workingHub ? selection.hub : workingHub
   const hub = allowed.find(item => item.id === preferred)?.id ?? initial.data?.hub ?? ''
@@ -120,21 +120,21 @@ export function RegisterWorkflow() {
   const open = register.books.filter(book => !book.locked)
   const missing = new Map<string, string>()
   for (const book of open) for (const row of book.rows) {
-    if (!row.payload && row.employee_id) missing.set(row.employee_id, row.name)
+    if ((row.required || row.payload) && !row.complete && row.employee_id) missing.set(row.employee_id, row.name)
   }
   const stats: [string, string, number][] = [
     ['মোট খাতা', 'Total registers', register.books.length],
     ['জমা হয়েছে', 'Submitted', register.books.length - open.length],
     ['জমা বাকি', 'Submission due', open.length],
     ['যাদের তথ্য বাকি', 'People with missing entries', missing.size],
-    ['যাচাই বাকি', 'Entries awaiting review', open.flatMap(book => book.rows).filter(row => row.payload && !row.reviewed).length],
-    ['চূড়ান্ত সাবমিট বাকি', 'Ready for final submission', open.filter(book => book.rows.every(row => row.reviewed)).length],
-    ['সময় অতিক্রম করেছে', 'Overdue registers', open.filter(book => book.rows.some(row => Date.parse(row.due) <= Date.now())).length],
+    ['যাচাই বাকি', 'Entries awaiting review', open.flatMap(book => book.rows).filter(row => row.complete && !row.reviewed).length],
+    ['চূড়ান্ত সাবমিট বাকি', 'Ready for final submission', open.filter(book => book.rows.every(row => row.reviewed || !row.required && !row.payload)).length],
+    ['সময় অতিক্রম করেছে', 'Overdue registers', open.filter(book => book.rows.some(row => (row.required || row.payload) && Date.parse(row.due) <= Date.now())).length],
   ]
 
   return <div className="hub-register-workflow">
     <div className="panel hub-register-filters">
-      {register.manage && <Field label={L('হাব', 'Hub')}>
+      {(register.manage || allowed.length > 1) && <Field label={L('হাব', 'Hub')}>
         <select disabled={busy} value={hub} onChange={event => {
           setError('')
           setSelection({ workHub: workingHub, hub: event.target.value })
@@ -169,7 +169,7 @@ export function RegisterWorkflow() {
 function RegisterBook({ book, register, busy, write }: { book: Book; register: Register; busy: boolean; write: Write }) {
   const { L, lang } = usePrefs()
   const [reason, setReason] = useState('')
-  const complete = book.rows.every(row => row.reviewed)
+  const complete = book.rows.every(row => row.reviewed || !row.required && !row.payload)
   return <section className="panel hub-register-card">
     <h2>{L(...titles[book.id])}</h2>
     <p>{book.locked ? L('জমা হয়েছে · লক করা', 'Submitted · Locked') : L('খোলা', 'Open')}</p>
@@ -181,14 +181,16 @@ function RegisterBook({ book, register, busy, write }: { book: Book; register: R
         <li key={row.employee_id ?? 'hub'}>
           <strong>{row.name}</strong>{row.position_name && <> · {row.position_name}</>}
           <p>{L(...(titles[row.duty as BookId] ?? [row.duty, row.duty]))} · {fmtStamp(row.due, lang)}</p>
-          {row.payload ? <p><Values values={row.payload} /> · {row.reviewed ? L('যাচাই হয়েছে', 'Reviewed') : L('যাচাই বাকি', 'Review due')}
+          {row.payload ? <p><Values values={row.payload} /> · {row.reviewed ? L('যাচাই হয়েছে', 'Reviewed') : row.complete ? L('যাচাই বাকি', 'Review due')
+            : !('return' in row.payload) ? L('ফেরতের তথ্য বাকি', 'Return count missing') : L('পেন্ডিং তথ্য বাকি', 'Pending count missing')}
             {row.source === 'proxy' && <> · {L('ম্যানেজার পক্ষে দিয়েছেন', 'Entered on behalf')}</>}</p>
-            : <p>{L('তথ্য বাকি', 'Entry missing')}</p>}
-          {!book.locked && register.manage && row.payload && !row.reviewed &&
+            : <p>{row.required ? L('তথ্য বাকি', 'Entry missing') : L('খরচ হলে এন্ট্রি দিন', 'Enter only if there was an expense')}</p>}
+          {!book.locked && register.manage && row.complete && !row.reviewed &&
             <button type="button" disabled={busy} onClick={() => void write('review', row.employee_id, [row.source, row.payload])}>
               {L('যাচাই করুন', 'Verify entry')}
             </button>}
-          {!book.locked && row.employee_id && row.source !== 'existing' &&
+          {!book.locked && row.employee_id && (row.source !== 'existing' || book.id === 'pending' &&
+            fields.pending.some(key => !(key in (row.source_payload ?? {})))) &&
             (row.employee_id === register.me ? register.manage || register.day === todayDhaka() || book.reopened : register.manage && row.source !== 'self') &&
             (!row.reviewed || book.reopened) &&
             <EntryForm key={JSON.stringify(row.payload)} book={book.id} row={row} proxy={row.employee_id !== register.me} busy={busy} write={write} />}
@@ -250,7 +252,7 @@ function EntryForm({ book, row, proxy, busy, write }: {
         <input type="date" max={todayDhaka()} required={status === 'leave'} value={date} onChange={event => setDate(event.target.value)} />
       </Field>}
     </> : fields[book].map(key => <Field key={key} label={L(...labels[key])}>
-      <input required inputMode={money.has(key) ? 'decimal' : 'numeric'} value={values[key]}
+      <input required readOnly={key in (row.source_payload ?? {})} inputMode={money.has(key) ? 'decimal' : 'numeric'} value={values[key]}
         pattern={money.has(key) ? '[0-9]{1,12}([.][0-9]{1,2})?' : '[0-9]{1,6}'} maxLength={15}
         onChange={event => setValues(current => ({ ...current, [key]: toLatinDigits(event.target.value) }))} />
     </Field>)}
@@ -286,13 +288,13 @@ function RuleForm({ book, register, busy, write }: { book: BookId; register: Reg
       </select></Field>
       <Field label={L('দায়িত্ব', 'Duty')}><input required maxLength={120} value={duty} onChange={event => setDuty(event.target.value)} /></Field>
       <Field label={L('জমার সময় (ঢাকা)', 'Deadline (Dhaka)')}><input type="time" required value={time} onChange={event => setTime(event.target.value)} /></Field>
-      <label><input type="checkbox" checked={required} onChange={event => setRequired(event.target.checked)} /> {L('এই খাতা প্রযোজ্য', 'Register applies')}</label>
+      {book !== 'expense' && <label><input type="checkbox" checked={required} onChange={event => setRequired(event.target.checked)} /> {L('এই খাতা প্রযোজ্য', 'Register applies')}</label>}
       <p><button type="submit" disabled={busy || !duty.trim()}>{L('দায়িত্ব সংরক্ষণ', 'Save assignment')}</button></p>
     </form>
     <ul>{register.rules?.filter(rule => rule.book === book).map(rule => <li key={rule.rule_id}>
       {register.positions?.find(item => item.id === rule.position_id)?.name ?? all} ·{' '}
       {register.people?.find(item => item.id === rule.employee_id)?.name ?? all} · {rule.duty} · {rule.due_at.slice(0, 5)} ·{' '}
-      {rule.required ? L('প্রযোজ্য', 'Applies') : L('অব্যাহতি', 'Exempt')}{' '}
+      {book === 'expense' ? L('খরচ হলে প্রযোজ্য', 'Applies when there is an expense') : rule.required ? L('প্রযোজ্য', 'Applies') : L('অব্যাহতি', 'Exempt')}{' '}
       <button type="button" className="secondary" disabled={busy} onClick={() => void write('remove_rule', rule.employee_id, { position_id: rule.position_id })}>
         {L('সরান', 'Remove')}
       </button>
