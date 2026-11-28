@@ -375,7 +375,7 @@ function OwnShift({ children }: { children: ReactNode }) {
   if (state.loading && !state.data && !state.error) return <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
   if (!state.data?.hubs.length && !state.data?.heads.length && !unmatched.length) return <>{children}</>
   const dedicated = Boolean(state.data?.hubs.length || unmatched.length)
-  const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await reload() }
+  const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await Promise.all([reload(), reloadTargets()]) }
   return <>
   <section className="panel data-entry-panel">
     <h2>{L('আজকের ডাটা এন্ট্রি', 'Today’s data entry')}</h2>
@@ -395,6 +395,22 @@ function OwnShift({ children }: { children: ReactNode }) {
         { label: L('যাচাইকৃত সম্পন্ন', 'Verified complete'), value: worker?.completed ?? null },
         { label: L('প্রকৃত কাজ বাকি', 'Actual remaining'), value: remaining },
       ]} />
+      <section className="data-entry-chart" aria-label={L('আজকের অগ্রগতি', 'Today’s progress')}>
+        <div className="data-entry-chart-label">
+          <strong>{L('আজকের যাচাইকৃত অগ্রগতি', 'Verified progress today')}</strong>
+          <strong>{target != null && target > 0 && worker != null ? Math.round(worker.completed / target * 100) + '%' : '—'}</strong>
+        </div>
+        {target != null && target > 0 && worker != null && <div className="data-entry-track data-entry-remaining" aria-hidden="true">
+          <span className="data-entry-verified" style={{ width: Math.max(0, Math.min(100, worker.completed / target * 100)) + '%' }} />
+        </div>}
+        <EntryMetrics metrics={[
+          { label: L('রিপোর্ট বাকি', 'Reports due'), value: due.filter(item => item.hub.id === hub.id).length },
+          { label: L('এন্ট্রি মিনিট', 'Entry minutes'), value: hub.last_minutes },
+          { label: L('দায়িত্ব সম্পন্ন', 'Duties completed'), value: hub.duties.filter(duty => duty.completed_at).length },
+          { label: L('মোট দায়িত্ব', 'Total duties'), value: hub.duties.length },
+        ]} />
+        <p>{target == null ? L('প্রকৃত বরাদ্দ নিশ্চিত হওয়ার অপেক্ষায়।', 'Waiting for confirmed allocation.') : target === 0 ? L('বর্তমানে কোনো বরাদ্দ নেই।', 'No current allocation.') : L('জমা এন্ট্রি ও যাচাইকৃত এন্ট্রি আলাদা।', 'Reported and verified entries are separate.')}</p>
+      </section>
       <div className="data-entry-actions">
       {due.filter(item => item.hub.id === hub.id).map(({slot}) => <button type="button" key={slot}
         onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,slot)))}>
