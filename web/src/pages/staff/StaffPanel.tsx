@@ -5,7 +5,6 @@ import { useAuth } from '../../auth/AuthProvider'
 import { browserStore, readMine } from '../../lib/routeOffline'
 import { pageAllowed } from '../../lib/menu'
 import { AppShell } from '../../components/AppShell'
-import { MyDataEntryTarget } from '../data-entry/DataEntryTargets'
 import { MyDataEntryShift } from '../data-entry/DataEntryShift'
 import { Icon } from '../../components/Icon'
 import { OperationsQuestions } from '../zonal/OperationsCollection'
@@ -292,7 +291,6 @@ export function StaffPanel() {
   return <AppShell title={L('স্টাফ প্যানেল', 'Staff panel')} subtitle={who || L('আমার আজকের সব কাজ এক জায়গায়', 'My whole day in one place')}>
     <div className="sd sp">
       <OperationsQuestions />
-      <MyDataEntryTarget />
       <MyDataEntryShift />
       {node}
       <div className="sp-hero">

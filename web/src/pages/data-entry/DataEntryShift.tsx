@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { Modal, useLoad } from '../accounts/ui'
+import { TargetExplanation, useOwnDataEntryTargets } from './DataEntryTargets'
 import './data-entry.css'
 
 export const dataEntryPages = {
@@ -120,6 +121,15 @@ export function DataEntryShiftHub({ hubs, page, delegated = false, renderTargetS
   </section>
 }
 
+function EntryMetrics({ metrics }: { metrics: { label: string; value: number | null }[] }) {
+  const { n } = usePrefs()
+  return <dl className="data-entry-metrics">
+    {metrics.map(({ label, value }) => <div key={label}>
+      <dt>{label}</dt><dd>{value == null ? '—' : n(value)}</dd>
+    </div>)}
+  </dl>
+}
+
 function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; delegated: boolean }) {
   const { L, n } = usePrefs()
   const [date, setDate] = useState('')
@@ -145,7 +155,16 @@ function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; de
       <label className="data-entry-field">{L('রিপোর্টের তারিখ', 'Report date')}
         <input type="date" value={date || data.operating_day} max={data.operating_day} onChange={e => setDate(e.target.value)} />
       </label>}
-    {(page === 'live' || page === 'targets') && <p>
+    {page === 'live' && <>
+      <p>{data.day} · {data.running ? L('শিফট চলছে', 'Shift active') : L('শিফট বন্ধ', 'Shift closed')}</p>
+      <EntryMetrics metrics={[
+        { label: L('সম্ভাব্য পিকআপ', 'Forecast pickups'), value: data.forecast },
+        { label: L('প্রকৃত পিকআপ', 'Actual pickups'), value: data.actual },
+        { label: L('বরাদ্দ বাকি', 'Unassigned'), value: data.unassigned },
+        ...(data.can_review ? [{ label: L('যাচাইয়ের অপেক্ষায়', 'Awaiting review'), value: (data.reports ?? []).filter(report => !report.reviewed_at).length }] : []),
+      ]} />
+    </>}
+    {page === 'targets' && <p>
       {data.day} · {data.running ? L('শিফট চলছে', 'Shift active') : L('শিফট বন্ধ', 'Shift closed')}
       {' · '}{L('সম্ভাব্য', 'Forecast')} <b>{show(data.forecast)}</b>
       {' · '}{L('প্রকৃত', 'Actual')} <b>{show(data.actual)}</b>
@@ -169,6 +188,11 @@ function ShiftPanel({ hub, page, delegated }: { hub: string; page: EntryPage; de
       </details>}
       <DutyList duties={data.duties ?? []} onAction={save} />
     </>}
+    {page === 'live' && !delegated && data.can_review && <section>
+      <h3>{L('যাচাইয়ের অপেক্ষায়', 'Awaiting review')}</h3>
+      <ReportList reports={(data.reports ?? []).filter(report => !report.reviewed_at)} save={save}
+        empty={L('যাচাইয়ের অপেক্ষায় কোনো রিপোর্ট নেই।', 'No reports are awaiting review.')} />
+    </section>}
     {page === 'live' && data.is_owner && <details>
       <summary>{L('সন্ধ্যার শিফটে কর্মীর উপস্থিতি নিশ্চিত করুন', 'Confirm availability for the evening shift')}</summary>
       <ActionForm onSave={form => save('availability',{member_id:fieldValue(form,'member'),state:fieldValue(form,'state'),note:fieldValue(form,'note')})}>
@@ -235,9 +259,9 @@ function Schedule({ settings, save }: { settings: Values; save: Action }) {
       {L('প্রকৃত পিকআপ অনুমোদনের পর রিপোর্ট দেখান', 'Prompt only after actual pickups are approved')}</label>
   </ActionForm>
 }
-function ReportList({ reports, save }: { reports: Report[]; save: Action }) {
+function ReportList({ reports, save, empty }: { reports: Report[]; save: Action; empty?: string }) {
   const { L, n } = usePrefs()
-  return <div>{!reports.length && <p>{L('এই শিফটের কোনো রিপোর্ট জমা পড়েনি।', 'No reports submitted for this shift.')}</p>}
+  return <div>{!reports.length && <p>{empty ?? L('এই শিফটের কোনো রিপোর্ট জমা পড়েনি।', 'No reports submitted for this shift.')}</p>}
     {reports.map(r => <article className="data-entry-record" key={r.member_id + ':' + r.slot}>
       <b>{r.name} · {L(...stages[r.slot-1])}</b>
       <p>{L('জমা এন্ট্রি', 'Reported entries')} {n(r.attempted)}
@@ -288,28 +312,49 @@ export function MyDataEntryShift() {
   return <OwnShift key={session.user.id} />
 }
 function OwnShift() {
-  const { L, n } = usePrefs()
+  const { L } = usePrefs()
   const state = useLoad(() => rpc<Own>('data_entry_shift_mine'), [])
   const { reload } = state
+  const targets = useOwnDataEntryTargets()
+  const reloadTargets = targets.reload
   const [dismissed, setDismissed] = useState<string[]>([])
   useEffect(() => {
-    const timer = window.setInterval(() => void reload(),60_000)
+    const timer = window.setInterval(() => { void reload(); void reloadTargets() }, 60_000)
     return () => window.clearInterval(timer)
-  }, [reload])
+  }, [reload, reloadTargets])
   const hubKey = (h: OwnHub, slot: number) => [h.id,h.day,slot].join(':')
   const due = (state.data?.hubs ?? []).flatMap(hub => ['present','late','half_day'].includes(hub.attendance ?? '')
     ? hub.due_slots.map(slot => ({ hub, slot })) : [])
   const popup = due.find(({hub,slot}) => !dismissed.includes(hubKey(hub,slot)))
-  if (!state.data?.hubs.length && !state.data?.heads.length) return null
+  const unmatched = (targets.data ?? []).filter(report =>
+    !state.data?.hubs.some(hub => hub.id === report.hub_id && hub.day === report.date))
+  if (!state.data?.hubs.length && !state.data?.heads.length && !unmatched.length) return null
   const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await reload() }
   return <section className="panel data-entry-panel">
-    <h2>{L('আমার ডাটা এন্ট্রি শিফট', 'My data entry shift')}</h2>
-    {state.data?.hubs.map(hub => <article className="data-entry-record" key={hub.id}>
-      <h3>{hub.name} · {hub.day}</h3>
+    <h2>{L('আজকের ডাটা এন্ট্রি', 'Today’s data entry')}</h2>
+    {targets.error ? <p role="status">{L('সর্বশেষ টার্গেট লোড হয়নি।', 'Could not refresh the target.')}</p> : null}
+    {unmatched.map(report => <TargetExplanation key={report.hub_id} report={report} />)}
+    {state.data?.hubs.map(hub => {
+      const report = targets.data?.find(item => item.hub_id === hub.id && item.date === hub.day)
+      const worker = report?.worker
+      const remaining = worker?.actual_remaining?.parcels ?? null
+      const target = remaining == null || worker == null ? null : remaining + worker.completed
+      return <article className="data-entry-record" key={hub.id}>
+      <h3>{hub.name}</h3>
+      <p>{hub.day} · {hub.running ? L('শিফট চলছে', 'Shift active') : L('শিফট বন্ধ', 'Shift closed')}</p>
+      <EntryMetrics metrics={[
+        { label: target == null ? L('সম্ভাব্য টার্গেট', 'Forecast target') : L('আজকের বরাদ্দ', 'Today’s allocation'), value: target ?? worker?.forecast?.parcels ?? null },
+        { label: L('জমা এন্ট্রি', 'Reported entries'), value: hub.last_attempted },
+        { label: L('যাচাইকৃত সম্পন্ন', 'Verified complete'), value: worker?.completed ?? null },
+        { label: L('প্রকৃত কাজ বাকি', 'Actual remaining'), value: remaining },
+      ]} />
+      <div className="data-entry-actions">
       {due.filter(item => item.hub.id === hub.id).map(({slot}) => <button type="button" key={slot}
         onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,slot)))}>
-        {L('রিপোর্ট জমা দিন', 'Submit report')} {n(slot)}
+        {L(...stages[slot - 1])} · {L('জমা দিন', 'Submit')}
       </button>)}
+      </div>
+      {report && <TargetExplanation report={report} compact />}
       <DutyList duties={hub.duties} onAction={save(hub)} own />
       {!!hub.colleagues.length && <details><summary>{L('জোনাল ম্যানেজারকে আপডেট দিন', 'Update the Zonal Manager')}</summary>
         <ActionForm label={L('আপডেট পাঠান', 'Send update')}
@@ -320,7 +365,8 @@ function OwnShift() {
           <Notes label={L('কি হয়েছে?', 'What happened?')} max={500} required />
         </ActionForm>
       </details>}
-    </article>)}
+    </article>
+    })}
     {!!state.data?.heads.length && <details><summary>Data Entry Head</summary>
       <DataEntryShiftHub hubs={state.data.heads} page="live" delegated />
     </details>}

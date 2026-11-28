@@ -1,5 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { useAuth } from '../../auth/AuthProvider'
+import { useState, type FormEvent } from 'react'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
 import { useLoad } from '../accounts/ui'
@@ -39,26 +38,8 @@ async function targetRpc<T>(name: string, args: Record<string, unknown> = {}) {
   return data as T
 }
 
-export function MyDataEntryTarget() {
-  const { viewAs, session } = useAuth()
-  if (viewAs || !session?.user.id) return null
-  return <OwnTargets key={session.user.id} />
-}
-
-function OwnTargets() {
-  const { L } = usePrefs()
-  const targets = useLoad(() => targetRpc<Report[]>('data_entry_target_mine', { p_day: null }), [])
-  const { reload } = targets
-  useEffect(() => {
-    const timer = window.setInterval(() => void reload(), 60_000)
-    return () => window.clearInterval(timer)
-  }, [reload])
-  if (!targets.data?.length) return null
-  return <section className="panel data-entry-panel">
-    <h2>{L('আজকের ডাটা এন্ট্রি টার্গেট', 'Today’s data entry target')}</h2>
-    {targets.data.map(report => <TargetExplanation key={report.hub_id} report={report} />)}
-    {targets.error ? <p className="da-error" role="alert">{L('সর্বশেষ টার্গেট লোড হয়নি। আগের ফল দেখানো হচ্ছে।', 'Could not refresh the target. Showing the last result.')}</p> : null}
-  </section>
+export function useOwnDataEntryTargets() {
+  return useLoad(() => targetRpc<Report[]>('data_entry_target_mine', { p_day: null }), [])
 }
 
 const rateSources: Record<string, [string, string]> = {
@@ -92,17 +73,17 @@ const duties: [string, string, string][] = [
   ['other_minutes', 'অন্যান্য দায়িত্ব', 'Other duties'],
 ]
 
-function TargetExplanation({ report }: { report: Report }) {
+export function TargetExplanation({ report, compact = false }: { report: Report; compact?: boolean }) {
   const { L, n } = usePrefs()
   const { summary: s, worker: w } = report
   const show = (value: number | string | null | undefined) => value == null ? '—' : typeof value === 'number' ? n(value) : value
   const localized = (dict: Record<string, [string, string]>, key: string | number | null) => key && dict[key] ? L(...dict[key]) : '—'
   return <section>
-    <h3>{report.hub} · {report.date}</h3>
+    {!compact && <h3>{report.hub} · {report.date}</h3>}
     {!report.enabled && <p>{L('এই হাবে অটো বণ্টন বন্ধ। এখানে সর্বশেষ হিসাবের ইতিহাস দেখা যাচ্ছে।', 'Automatic distribution is paused at this hub. The last calculation is shown for reference.')}</p>}
-    <p>{L('সম্ভাব্য টার্গেট', 'Forecast target')} <strong>{show(w?.forecast?.parcels)}</strong>
+    {!compact && <p>{L('সম্ভাব্য টার্গেট', 'Forecast target')} <strong>{show(w?.forecast?.parcels)}</strong>
       {' · '}{L('প্রকৃত বরাদ্দ বাকি', 'Actual allocation remaining')} <strong>{show(w?.actual_remaining?.parcels)}</strong>
-      {' · '}{L('যাচাইকৃত সম্পন্ন', 'Verified complete')} <strong>{show(w?.completed)}</strong></p>
+      {' · '}{L('যাচাইকৃত সম্পন্ন', 'Verified complete')} <strong>{show(w?.completed)}</strong></p>}
     <details>
       <summary>{L('আমাকে কেন এই টার্গেট দেওয়া হয়েছে?', 'Why did I receive this target?')}</summary>
       <p>{L('গত ৭ দিনের যাচাইকৃত পিকআপ থেকে হাবের সম্ভাব্য পিকআপ', 'Hub forecast from verified pickups in the last 7 days')} <strong>{show(s.forecast_pickups)}</strong> · {n(s.forecast_sample_days)}/7 {s.forecast_work_points != null && <> · {L('সম্ভাব্য ওয়ার্ক পয়েন্ট', 'Forecast Work Points')} {n(s.forecast_work_points)}</>}</p>
