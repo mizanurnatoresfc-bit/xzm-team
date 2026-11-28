@@ -206,16 +206,56 @@ export type PendingMonthDay = {
 export type PendingHubRow = {
   employee_id: string; name: string; snapshot: string | null; count: number | null
   proxy_reason: string | null; approved: boolean; return_reason: string | null
+  /** final attendance status for the day: 'present' | 'absent' | 'half' | 'late' | 'unknown' (see att_day_lines.final_status). */
+  attendance: string
+  /** when an outside-company leave application covers today, the applied-on date (SEV fix set). */
+  leave_applied_on: IsoDate | null
 }
+
+export type RegisterKind = 'delivery_cash' | 'pickup_return' | 'pending_return' | 'attendance' | 'hub_expense'
+export type DutyRow = { id: string; kind: RegisterKind; employee_id: string; name: string; is_backup: boolean; note: string | null; assigned_at: string }
+
+export type QueueSummary = {
+  date: IsoDate; total_staff: number; approved: number; review_pending: number; returned: number
+  not_submitted_count: number; not_submitted_people: { id: string; name: string }[]; locked: boolean
+}
+
+export type OutsideLeaveRow = { employee_id: string; name: string; leave_applied_on: IsoDate; work_date: IsoDate }
 
 export const wf = {
   pendingMonth: (hub: string, month: IsoDate) =>
     rpc<PendingMonthDay[]>('wf_pending_month', { p_hub: hub, p_month: month }),
   pendingHubToday: (hub: string) => rpc<{ date: IsoDate; can_edit: boolean; rows: PendingHubRow[] }>(
     'wf_pending_hub_today', { p_hub: hub }),
-  savePendingManager: (hub: string, employee: string, date: IsoDate, snapshot: string | null, count?: number, reason?: string, returned = false) =>
+  /** `wf_pending_manager_save` with p_unlock (SEV-001 pairing). An approved snapshot cannot be
+   *  reopened by the same manager except with `unlock=true` and a reason. */
+  savePendingManager: (hub: string, employee: string, date: IsoDate, snapshot: string | null, count?: number, reason?: string, returned = false, unlock = false) =>
     rpc<void>('wf_pending_manager_save', { p_hub: hub, p_employee: employee, p_date: date, p_snapshot: snapshot,
-      p_count: count ?? null, p_reason: reason ?? null, p_return: returned }),
+      p_count: count ?? null, p_reason: reason ?? null, p_return: returned, p_unlock: unlock }),
+  /** HIGH-003: correct an earlier day inside the backdate window */
+  backdateSavePending: (hub: string, employee: string, date: IsoDate, count: number, reason: string) =>
+    rpc<void>('wf_pending_backdate_save', { p_hub: hub, p_employee: employee, p_date: date, p_count: count, p_reason: reason }),
+  /** HIGH-004: bulk-mark multiple staff as on-leave/zero */
+  pendingMarkLeave: (hub: string, date: IsoDate, employees: string[], reason?: string) =>
+    rpc<number>('wf_pending_mark_leave', { p_hub: hub, p_date: date, p_employees: employees, p_reason: reason ?? null }),
+  /** HIGH-006: backup-rider submits for an absent peer */
+  pendingBackup: (forEmployee: string, count: number, reason: string) =>
+    rpc<{ snapshot_id: string; count: number }>('wf_pending_backup_save', { p_for_employee: forEmployee, p_count: count, p_reason: reason }),
+  /** কতজনের তথ্য বাকি / who's missing */
+  pendingQueueSummary: (hub: string) => rpc<QueueSummary>('wf_pending_queue_summary', { p_hub: hub }),
+  /** অন্য কোম্পানির ছুটির আবেদনের শুধু তারিখ */
+  outsideLeaveDates: (hub: string, month: IsoDate) =>
+    rpc<OutsideLeaveRow[]>('wf_outside_leave_dates', { p_hub: hub, p_month: month }),
+  /** খাতাভিত্তিক কর্মীর দায়িত্ব */
+  dutyList: (hub: string) => rpc<DutyRow[]>('wf_register_duty_list', { p_hub: hub }),
+  dutyAssign: (hub: string, kind: RegisterKind, employee: string, isBackup = false, note?: string) =>
+    rpc<string>('wf_register_duty_assign', { p_hub: hub, p_kind: kind, p_employee: employee, p_is_backup: isBackup, p_note: note ?? null }),
+  dutyRetire: (id: string) => rpc<void>('wf_register_duty_retire', { p_id: id }),
+  /** সম্পূর্ণ খাতা সাবমিট ও লক */
+  dayLockSet: (hub: string, date: IsoDate, kind: 'pending_return' | 'all' = 'pending_return') =>
+    rpc<{ locked: true; date: IsoDate }>('wf_register_day_lock_set', { p_hub: hub, p_date: date, p_kind: kind }),
+  dayLockRelease: (hub: string, date: IsoDate, kind: 'pending_return' | 'all', reason: string) =>
+    rpc<{ unlocked: true; date: IsoDate }>('wf_register_day_lock_release', { p_hub: hub, p_date: date, p_kind: kind, p_reason: reason }),
   // staff — attendance book
   myBook: (month?: IsoDate | null) => rpc<MyBook | null>('wf_my_book', { p_month: month ?? null }),
   /** present, or absent with `appliedOnSite = true` plus the website application (its date and number, both required).
@@ -240,7 +280,7 @@ export const wf = {
   opsDeadlines: (zone?: string) => rpc<OpsDeadlines | null>('wf_ops_deadlines_get', { p_zone: zone ?? null }),
   saveOpsDeadlines: (zone: string, times: OpsDeadlineTimes) =>
     rpc<void>('wf_ops_deadlines_save', { p_zone: zone, p_times: times }),
-  pendingToday: () => rpc<{ date: IsoDate; count: number | null; return_reason: string | null } | null>('wf_pending_today'),
+  pendingToday: () => rpc<{ date: IsoDate; count: number | null; approved_at: string | null; return_reason: string | null } | null>('wf_pending_today'),
   savePendingToday: (count: number, date: IsoDate) =>
     rpc<{ date: IsoDate; count: number }>('wf_pending_today', { p_count: count, p_work_date: date }),
   ownOpsMonth: (month: IsoDate) => rpc<DailyOps[]>('wf_ops_own_month', { p_month: month }),

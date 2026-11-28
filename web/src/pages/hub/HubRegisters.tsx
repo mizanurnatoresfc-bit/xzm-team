@@ -8,6 +8,7 @@ import { usePrefs } from '../../lib/prefs'
 import { ManagerPendingCard } from './ManagerPendingCard'
 import { StaffPendingCard } from './StaffPendingCard'
 import { MyHubRegisterMonth } from './MyHubRegisterMonth'
+import { RegisterProgressStrip } from './RegisterProgressStrip'
 import './hub-registers.css'
 
 export function HubRegisters() {
@@ -18,6 +19,7 @@ export function HubRegisters() {
   const [showMonth, setShowMonth] = useState(false)
   const zone = ATTENDANCE_ZONE.some(access.can)
   const hub = ATTENDANCE_HUB.some(access.can)
+  const canManage = access.can('ops.staff_daily.view')
   const operations = zone ? '/app/attendance?view=zone&tab=ops' :
     hub && access.can('ops.staff_daily.view') ? '/app/attendance?view=hub&tab=ops' : '/app/staff'
   const books = [
@@ -55,6 +57,7 @@ export function HubRegisters() {
   ] as const
 
   return <AppShell title={L('হাবের খাতা', 'Hub registers')}>
+    {canManage && <RegisterProgressStrip />}
     <div className="hub-register-grid">
       {books.map(book => {
         const links = book.links.filter(([to]) => linkAllowed(to, access))
