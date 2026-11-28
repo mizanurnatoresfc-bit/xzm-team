@@ -70,6 +70,71 @@ Same as above with optimistic concurrency. **Frontend should migrate to this ove
 ### Downstream effect — target-split engine (R1.5)
 Every ranked member's effective capacity in `private.data_entry_target_snapshot` is multiplied by `rank_multiplier_pct / 100`. Unranked members and inactive ranks fall back to `1.0` — Phase 1 behavior preserved. The snapshot's per-worker output includes `rank_multiplier_pct` and `effective_forecast_capacity` for the UI to display. Snapshot `rule` is `smart_auto_v1_rank`.
 
+## Staff self-view (Phase 1 + R2.A)
+
+### `data_entry_target_mine(p_day date default null)` *(Phase 1)*
+Latest snapshot for the signed-in member across every hub they're on. For each hub returns `{hub, hub_id, date, enabled, summary, worker, history[20]}`. `worker` is the per-worker object the snapshot built; `history` is the last 20 run rows for that (hub, date) with `recorded_at`, `reason`, `forecast_target`, `actual_remaining`.
+
+### `data_entry_staff_week(p_days integer default 7)` *(R2.A — new, for ChatGPT charts)*
+Day-by-day target vs assigned vs submitted vs verified for the signed-in employee, for the trailing `p_days` days (1–90, default 7).
+- Returns: `jsonb` of shape:
+  ```json
+  {
+    "member_id": "uuid|null",
+    "days": 7, "from": "date", "to": "date",
+    "rows": [ {
+      "work_date": "date", "hub_id": "uuid", "hub_name": "text",
+      "target":    integer|null,   // snapshot forecast.parcels
+      "assigned":  integer|null,   // snapshot actual_remaining.parcels
+      "submitted": integer|null,   // shift_reports.attempted at the latest slot
+      "verified":  integer|null    // target_observations.correct
+    } ]
+  }
+  ```
+- Null `member_id` means the caller is not an active Data Entry team member (empty `rows` returned). Days with no engine run, no submitted report and no observation are **omitted** so the chart can draw a sparse series rather than misleading zeros.
+
+### `data_entry_shift_mine()` *(Phase 1)*
+Per-hub shift pop-up status for the signed-in member: which of the three slot checkpoints is due right now, what the last submitted value was, and the schedule configured for the hub.
+
+## Three-slot shift pop-up reports (Phase 1 evening workflow)
+
+The popup schedule lives in `private.data_entry_shift_settings` per hub (`start_time` default 18:00 Dhaka, `open_minutes` default 480, `first_minute` 0, `second_minute` 90, `third_minute` 180). A member submits each slot via `data_entry_shift_action(..., 'report', {slot, attempted, merchants, entry_minutes, note})`. The RPC enforces:
+- the slot must be currently due (`data_entry_report_due` returns true for this hub/date/slot);
+- the member must be rostered (`attendance in ('present','late','half_day')` on the latest run);
+- cumulative monotonicity: attempted and entry_minutes cannot regress from an earlier slot or exceed a later one;
+- the final slot (3) must include `entry_minutes` whenever `attempted > 0`.
+
+Zonal Manager or designated Head verifies with `data_entry_shift_action(..., 'review', {member_id, slot, correct})` — SQL enforces cumulative `correct`, and the slot-3 verification writes a `data_entry_target_observations` row so later targets use real rates.
+
+Pop-up schedule itself is editable via `data_entry_shift_action(..., 'schedule', {start_time, open_minutes, first_minute, second_minute, third_minute, pickup_only})` (Zonal Manager only).
+
+## Post-target extra-work assignment (Phase 1, confirmed for R2)
+
+When a member's `actual_remaining.parcels` is 0, the Zonal Manager or designated Head may assign additional work via `data_entry_shift_action(..., 'assign_duty', {member_id, kind, entry_minutes, note, override?})`. Kinds map to the owner-requested categories:
+
+| Owner's category | `kind` value |
+|---|---|
+| অতিরিক্ত এন্ট্রি (extra entry) | `extra_entry` |
+| বিগ পার্সেল (big parcel) | `big_parcel` |
+| গাড়ি লোড (vehicle load) | `loading` |
+| সহযোগিতার দায়িত্ব (help a colleague) | `assist` |
+
+Plus `training`, `senior`, `other` for shift preparation / senior-support / anything else. `data_entry_shift_action(..., 'assign_duty', {override: true})` is a zone-manager-only explicit exception that assigns duty before the member hits zero remaining; the default path refuses to pile work on someone who still has quota.
+
+The worker closes the duty with `data_entry_shift_action(..., 'complete_duty', {id})` (self). The verifier approves with `data_entry_shift_action(..., 'approve_duty', {id})` so the duty counts toward performance.
+
+## Zonal Manager daily overrides (Phase 1)
+
+| Action | Purpose |
+|---|---|
+| `shift_action('limit', {member_id, maximum})` | **Per-member daily cap** — manual override for today's parcels for one member. |
+| `shift_action('availability', {member_id, state, note})` | Set attendance reason for today (present/late/absent/half_day). |
+| `shift_action('seed_pickups', {parcels, merchants})` | Opening-history entry for a previous day (D-7 to D-1). |
+| `shift_action('appoint_head' / 'revoke_head', …)` | Named Head per hub with report-review/duty-assign flags. |
+| `shift_action('schedule', …)` | Edit shift start, open minutes, three popup offsets. |
+
+**Equal distribution:** not a separate mode in Phase 1 — the smart engine splits proportional to each member's capacity × rank multiplier. To force an equal share temporarily, set the same `maximum` on every member via `shift_action('limit')`. A first-class `distribution_mode='equal'` is tracked for R2.B.
+
 ## Database-level invariants (R1.1)
 
 - `data_entry_team_members_rank_zone` trigger (BEFORE INSERT OR UPDATE of `rank_id`, `zone_id` on `data_entry_team_members`): rejects any row where a non-null `rank_id` points to a rank in a different zone, even if the write bypasses the RPC layer.
@@ -88,4 +153,5 @@ Every ranked member's effective capacity in `private.data_entry_target_snapshot`
 
 ## Change log for this file
 
-- 2026-11-28 — initial publication alongside DE-V2-R1.1 (PR #TBD) to coordinate with the newly-split frontend ownership.
+- 2026-11-28 — initial publication alongside DE-V2-R1.1 (PR #231) to coordinate with the newly-split frontend ownership.
+- 2026-11-28 — R2.A (PR #TBD): add `data_entry_staff_week(p_days)` for ChatGPT's staff-dashboard charts; document the full Phase 1 shift-popup / extra-duty / zonal-override surface so the frontend branch doesn't rebuild existing RPCs. Equal-distribution mode remains tracked for R2.B.
