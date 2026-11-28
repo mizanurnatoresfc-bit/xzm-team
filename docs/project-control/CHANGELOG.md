@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-11-28 — DE-V2-R1 Senior Rank 1–8 (Data Entry V2 · Release 1)
+
+- New migration `20261128190000_data_entry_senior_ranks.sql`: adds `public.data_entry_ranks` (zone-scoped, rank 1–8, editable `name_bn` and `target_multiplier_pct` default 100), adds nullable `rank_id` on `data_entry_team_members`, four RPCs (`data_entry_rank_list`, `data_entry_rank_seed_defaults`, `data_entry_rank_save`, `data_entry_rank_assign`), and extends `data_entry_team_snapshot` with `rank_id` + `rank_number` member fields. Permission reused: `data_entry.team.edit`.
+- Frontend `DataEntryTeam.tsx` grows a Senior Rank panel (seed defaults 1–8 if empty, inline name + percent + active edit) and an inline rank selector on each team member.
+- `target-split` engine deliberately unchanged in R1 — rank multiplier readable but not yet applied to distribution; wiring deferred to R1.5 for a separate safe release.
+- Opens as draft PR; direct production deploy decided by Owner per `AI_HANDOVER` revision for DE-V2 full ownership.
+
 ## 2026-11-28 — DE-01 Data Entry integration
 
 - Verified the Data Entry draft against current main, recorded the panel, database and RPC inventory, and added regression evidence to the draft PR.

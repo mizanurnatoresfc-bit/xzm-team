@@ -55,3 +55,14 @@
 .data-entry-track .data-entry-forecast { background: #6186bb; }
 .data-entry-track .data-entry-verified { background: #2c9f71; }
 .data-entry-track.data-entry-remaining { background: #c28248; }
+
+.data-entry-rank-badge { color: var(--muted, #475569); font-size: 0.9em; }
+.data-entry-ranks { display: grid; gap: 0.5rem; }
+.data-entry-rank-row { display: grid; grid-template-columns: auto 1fr 7rem auto auto; gap: 0.5rem; align-items: end; }
+.data-entry-rank-row input[type="number"] { width: 100%; }
+.data-entry-rank-assign { margin-top: 0.25rem; display: flex; gap: 0.5rem; align-items: center; }
+.data-entry-rank-assign label { display: flex; gap: 0.35rem; align-items: center; font-size: 0.9em; }
+.data-entry-note { color: var(--muted, #64748b); font-size: 0.85em; margin-top: 0.5rem; }
+@media (max-width: 600px) {
+  .data-entry-rank-row { grid-template-columns: 1fr 1fr; }
+}
