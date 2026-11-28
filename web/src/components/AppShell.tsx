@@ -144,11 +144,28 @@ export const SORTING: Group = panel('sorting', 'box', 'সর্টিং সে
  * The first row opens the module; the others jump to one of its parts. Rows come from the module's part list (lib/routeModule.ts), so a new part
  * with `menu: true` shows up here by itself, and each row shows only to a role that may use that part.
  */
-export const ROUTES: Group = panel('routes', 'map', 'অপারেশন সেন্ট্রাল', 'Operations Central', [
-  { bn: '', en: '', items: [
-    { to: ROUTE_PAGE, icon: 'map', bn: 'রুট কেন্দ্র', en: 'Route centre', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
-    { to: '/app/zonal/hub-ops', icon: 'chart', bn: 'জোন অপারেশন', en: 'Zone Operations', perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
-    { to: '/app/zonal/hub-ops?tab=collection', icon: 'doc', bn: 'তথ্য সংগ্রহ কেন্দ্র', en: 'Operations Data Collection', perms: ['zonal.hub_ops.view'] },
+export const ROUTES: Group = panel('routes', 'map', 'অপারেশন সেন্টার', 'Operations Center', [
+  // XZM-014 Phase 1: কেন্দ্রীয় অপারেশন ড্যাশবোর্ড — একই HubOps পাতার ট্যাব হিসেবে সব কাজ, নতুন DB টেবিল ছাড়া।
+  { bn: 'অপারেশন কেন্দ্র', en: 'Operation centre', items: [
+    { to: '/app/zonal/hub-ops', icon: 'dash', bn: 'আজকের অপারেশন', en: "Today's operations", hint: { bn: 'জোনের কেন্দ্রীয় অপারেশন ড্যাশবোর্ড — সব হাব, কর্মী, পার্সেল, কাজ ও অনুমোদন এক পাতায়', en: 'Central operations dashboard — all hubs, staff, parcels, tasks and approvals in one place' }, perms: ['zonal.hub_ops.view', 'zonal.hub_ops.create'] },
+    { to: '/app/zonal/hub-ops?tab=hubs', icon: 'hub', bn: 'হাব মনিটরিং', en: 'Hub monitoring', perms: ['zonal.hub_ops.view'] },
+    { to: '/app/hr/duties', icon: 'tasks', bn: 'কর্মী ও দায়িত্ব', en: 'Staff & duties', perms: ['hr.duty.view', 'hr.duty.edit'] },
+  ] },
+  { bn: 'রুট ও পরিকল্পনা', en: 'Routes & planning', items: [
+    { to: ROUTE_PAGE, icon: 'map', bn: 'রুট ও জনবল পরিকল্পনা', en: 'Routes & manpower planning', hint: { bn: 'রুটের সব কাজ এক জায়গায় — ম্যাপ, লোকেশন, পরিকল্পনা, চেক-ইন, সর্টিং রুট', en: 'All route work in one place — map, locations, planning, check-ins, sorting routes' }, perms: [...ROUTE_ANY] },
+  ] },
+  { bn: 'দায়িত্ব ও কাজ', en: 'Duties & tasks', items: [
+    { to: '/app/hub/tasks', icon: 'checkall', bn: 'দায়িত্ব যাচাই', en: 'Duty verification', perms: [...HUB_SECTION_PERMS.tasks] },
+    { to: '/app/zonal?tab=tasks', icon: 'clock', bn: 'অসম্পূর্ণ কাজ', en: 'Pending tasks', perms: ['zonal.dashboard.view'] },
+  ] },
+  { bn: 'পার্সেল ও তথ্য', en: 'Parcels & data', items: [
+    { to: '/app/hub/ops', icon: 'box', bn: 'পার্সেল কার্যক্রম', en: 'Parcel operations', perms: [...HUB_SECTION_PERMS.ops] },
+    { to: '/app/zonal/hub-ops?tab=collection', icon: 'doc', bn: 'তথ্য সংগ্রহ কেন্দ্র', en: 'Operations data collection', perms: ['zonal.hub_ops.view'] },
+  ] },
+  { bn: 'অনুমোদন ও রিপোর্ট', en: 'Approvals & reports', items: [
+    { to: '/app/zonal/requests', icon: 'check', bn: 'অনুমোদন কেন্দ্র', en: 'Approval centre', perms: ['hr.request.approve'] },
+    { to: '/app/zonal/hub-ops?tab=boss', icon: 'chart', bn: 'অপারেশন রিপোর্ট', en: 'Operations report', perms: ['zonal.hub_ops.view'] },
+    { to: '/app/zonal/hub-ops?tab=settings', icon: 'gear', bn: 'অপারেশন সেটিংস', en: 'Operations settings', perms: ['zonal.hub_ops.view'] },
   ] },
 ])
 

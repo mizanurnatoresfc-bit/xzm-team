@@ -1,6 +1,7 @@
 import { askConfirm, askText } from '../../components/ask'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { DataTable } from '../../components/DataTable'
 import { Icon } from '../../components/Icon'
@@ -10,13 +11,15 @@ import {
   ATT, JOB, PERIOD, STATUS, dhakaToday, hubOps, hubOpsFriendly, numOr, shiftDay,
   type BossPeriod, type Group, type HubSummary, type LogRow, type PeriodType, type Settings, type Summary,
 } from '../../lib/hubOps'
+import { zonal, type ZmDashboard } from '../../lib/zonal'
 import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { useOrg } from '../hr/common'
 import { HistoryModal, SummaryView } from './HubOpsParts'
 
 import { OperationsCollection } from './OperationsCollection'
 
-type Tab = 'collection' | 'hubs' | 'summary' | 'boss' | 'log' | 'settings'
+// XZM-014 Phase 1: 'center' হলো নতুন কেন্দ্রীয় অপারেশন ড্যাশবোর্ড (default landing)।
+type Tab = 'center' | 'collection' | 'hubs' | 'summary' | 'boss' | 'log' | 'settings'
 const monthStart = (iso: string) => iso.slice(0, 8) + '01'
 /** Bangladesh week: Saturday to Friday. */
 const weekStart = (iso: string) => { const d = new Date(iso + 'T00:00:00Z'); const back = (d.getUTCDay() - 6 + 7) % 7; return shiftDay(iso, -back) }
@@ -30,25 +33,27 @@ export function HubOps() {
   const { L } = usePrefs()
   const o = useOrg()
   const [sp, setSp] = useSearchParams()
-  const tab = (sp.get('tab') as Tab) || 'hubs'
+  // XZM-014: default tab 'center' — the new central Operations Dashboard.
+  const tab = (sp.get('tab') as Tab) || 'center'
   const zones = o.data?.zones ?? []
   const [zone, setZone] = useState(sp.get('zone') ?? '')
   useEffect(() => { if (!zone && zones.length) setZone(zones[0].id) }, [zones, zone])
   const setTab = (t: Tab) => { const x = new URLSearchParams(sp); x.set('tab', t); setSp(x, { replace: true }) }
 
-  return <AppShell title={L('জোন অপারেশন', 'Zone Operations')}
-    subtitle={L('জোনের প্রতিটি হাবের পার্সেল, পিকআপ, কর্মী, হাজিরা ও ছুটি — এক জায়গায়; সেখান থেকে বসের কাছে দৈনিক, সাপ্তাহিক ও মাসিক রিপোর্ট।',
-      'Parcels, pickups, staff, attendance and leave of every hub in the zone — in one place, and daily, weekly and monthly reports to the boss.')}>
+  return <AppShell title={L('অপারেশন সেন্টার', 'Operations Center')}
+    subtitle={L('জোনের কেন্দ্রীয় অপারেশন ড্যাশবোর্ড — হাব, কর্মী, পার্সেল, দায়িত্ব ও অনুমোদন এক পাতায়; সেখান থেকে বসের কাছে দৈনিক, সাপ্তাহিক ও মাসিক রিপোর্ট।',
+      'Central operations dashboard for the zone — hubs, staff, parcels, duties and approvals in one place; daily, weekly and monthly reports to the boss from here.')}>
     {zones.length > 1 && <section className="da-filters panel no-print">
       <Field label={L('জোন', 'Zone')}><select value={zone} onChange={e => setZone(e.target.value)}>{zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
     </section>}
     <nav className="emp-tabs no-print" role="tablist">
-      {([['hubs', 'হাবগুলো', 'Hubs', 'hub'], ['summary', 'জোনাল সারাংশ', 'Zonal summary', 'chart'], ['boss', 'বসের রিপোর্ট', 'Boss reports', 'doc'],
+      {([['center', 'আজকের অপারেশন', "Today's operations", 'dash'], ['hubs', 'হাবগুলো', 'Hubs', 'hub'], ['summary', 'জোনাল সারাংশ', 'Zonal summary', 'chart'], ['boss', 'বসের রিপোর্ট', 'Boss reports', 'doc'],
         ['collection', 'তথ্য সংগ্রহ কেন্দ্র', 'Operations Data Collection', 'doc'], ['log', 'স্ট্যাটাস লগ', 'Status log', 'log'], ['settings', 'সেটিং', 'Settings', 'gear']] as const).map(([k, b, e, ic]) =>
         <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={16} />{L(b, e)}</button>)}
     </nav>
     {o.loading && !zone && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
     {!o.loading && !zones.length && <p className="da-error">{L('আপনার কোনো জোন দেখার অনুমতি নেই।', 'You cannot see any zone.')}</p>}
+    {zone && tab === 'center' && <OperationCenterDashboard zone={zone} />}
     {zone && tab === 'hubs' && <HubsDay zone={zone} />}
     {zone && tab === 'collection' && <OperationsCollection key={zone} zone={zone} />}
     {zone && tab === 'summary' && <PeriodSummary zone={zone} />}
@@ -56,6 +61,114 @@ export function HubOps() {
     {zone && tab === 'log' && <StatusLog zone={zone} />}
     {zone && tab === 'settings' && <ZoneSettings zone={zone} />}
   </AppShell>
+}
+
+/**
+ * XZM-014 Phase 1 — অপারেশন সেন্টার ড্যাশবোর্ড।
+ * ১২টি KPI টাইল — সবই বিদ্যমান RPC (`hub_ops_summary`, `zm_dashboard`) থেকে আসছে, নতুন টেবিল/RPC নেই।
+ * প্রতি টাইলে ক্লিক করলে বিদ্যমান পাতা/ট্যাবে বিস্তারিত দেখা যাবে। জোন ও তারিখ ফিল্টার — Asia/Dhaka টাইমজোন।
+ * শূন্য বা ভুয়া তথ্য দেখানো হবে না — RPC ব্যর্থ হলে বা অনুমতি না থাকলে বার্তা দেখাবে।
+ */
+function OperationCenterDashboard({ zone }: { zone: string }) {
+  const { L, n } = usePrefs()
+  const { can } = useAuth()
+  const [sp, setSp] = useSearchParams()
+  const date = sp.get('date') || dhakaToday()
+  const setDate = (d: string) => { const x = new URLSearchParams(sp); x.set('date', d); setSp(x, { replace: true }) }
+  // দৈনিক KPI — আজকের একদিনের hub_ops_summary (রিপোর্ট জমা, কর্মী, পার্সেল, পিকআপ, হাজিরা)
+  const sum = useLoad(() => hubOps.summary(zone, date, date), [zone, date])
+  // সময়কাল KPI — zm_dashboard (দায়িত্ব / অনুমোদন / ক্লেইম)
+  const dash = useLoad<ZmDashboard | null>(() => can('zonal.dashboard.view')
+    ? zonal.dashboard(zone, date, date).catch(() => null) : Promise.resolve(null), [zone, date])
+  const s = sum.data
+  const d = dash.data
+  const today = s?.today ?? dhakaToday()
+  const missing = s ? Math.max(0, (s.zone.hubs_expected ?? 0) - (s.zone.hubs_reported ?? 0)) : 0
+  const err = sum.error ? hubOpsFriendly(sum.error) : null
+  const anyLoading = sum.loading || dash.loading
+
+  // ক্লিকযোগ্য টাইল: Link দিয়ে বিদ্যমান পাতায় drill-down (অতিরিক্ত state নয়)
+  const tile = (to: string, icon: string, label: string, value: string, tone?: 'ok' | 'warn' | 'bad', sub?: string, title?: string) =>
+    <Link to={to} className="zd-stat" style={{ display: 'block' }} title={title ?? L('বিস্তারিত দেখুন', 'View details')}>
+      <Stat icon={icon} label={label} value={value} tone={tone} sub={sub} />
+    </Link>
+
+  return <>
+    <section className="da-filters panel no-print">
+      <button type="button" className="secondary" onClick={() => setDate(shiftDay(date, -1))} aria-label={L('আগের দিন', 'Previous day')}>‹</button>
+      <Field label={L('তারিখ', 'Date')}>
+        <input type="date" value={date} max={today} onChange={e => e.target.value && setDate(e.target.value)} />
+      </Field>
+      <button type="button" className="secondary" disabled={date >= today} onClick={() => setDate(shiftDay(date, 1))} aria-label={L('পরের দিন', 'Next day')}>›</button>
+      {date !== today && <button type="button" className="secondary sm" onClick={() => setDate(today)}>{L('আজ', 'Today')}</button>}
+      <span className="muted small">{dmy(date)} · {L('বাংলাদেশ সময়', 'Asia/Dhaka')}</span>
+      {anyLoading && <span className="muted small">{L('লোড হচ্ছে…', 'Loading…')}</span>}
+    </section>
+    {err && <p className="da-error">{err}</p>}
+    {!s && !sum.loading && !err && <p className="muted">{L('তথ্য পাওয়া যায়নি।', 'No data available.')}</p>}
+
+    {s && <>
+      {/* সারি ১ — হাব ও রিপোর্ট জমার অবস্থা */}
+      <h3 className="zd-h">{L('হাব ও রিপোর্ট', 'Hubs & reports')} <span className="muted small">{L('— টাইলে চাপলে বিস্তারিত', '— tap a tile to drill down')}</span></h3>
+      <div className="da-stats">
+        {tile(`/app/zonal/hub-ops?tab=hubs&date=${date}`, 'hub', L('মোট হাব', 'Total hubs'), n(s.zone.hubs_expected ?? 0))}
+        {tile(`/app/zonal/hub-ops?tab=hubs&date=${date}`, 'check', L('রিপোর্ট জমা দিয়েছে', 'Hubs reported'), n(s.zone.hubs_reported ?? 0), 'ok',
+          s.zone.pending ? L(`${n(s.zone.pending)}টি খসড়া`, `${s.zone.pending} drafts`) : undefined)}
+        {tile(`/app/zonal/hub-ops?tab=hubs&date=${date}`, 'alert', L('রিপোর্ট জমা দেয়নি', 'Hubs missing'), n(missing), missing ? 'bad' : 'ok',
+          missing ? L('চাপ দিয়ে দেখুন কোন হাব', 'Tap to see which hubs') : undefined)}
+        {tile(`/app/zonal/hub-ops?tab=boss`, 'doc', L('অনুমোদনের অপেক্ষায়', 'Awaiting approval'), n((d?.claims_pending ?? 0) + (d?.tasks?.awaiting_confirmation ?? 0)),
+          ((d?.claims_pending ?? 0) + (d?.tasks?.awaiting_confirmation ?? 0)) ? 'warn' : undefined,
+          d ? L('রিপোর্ট / ক্লেইম / কাজ', 'Reports / claims / tasks') : undefined)}
+      </div>
+
+      {/* সারি ২ — কর্মী ও হাজিরা */}
+      <h3 className="zd-h">{L('কর্মী ও হাজিরা', 'Staff & attendance')}</h3>
+      <div className="da-stats">
+        {tile(`/app/staff/list`, 'users', L('মোট কর্মী', 'Total staff'), n(s.zone.staff_latest ?? 0))}
+        {tile(`/app/attendance?view=zone`, 'check', L('উপস্থিত', 'Present'), n(s.zone.att?.present ?? 0), 'ok',
+          L(`কর্মী ${n(s.zone.staff_latest ?? 0)} এর মধ্যে`, `of ${n(s.zone.staff_latest ?? 0)}`))}
+        {tile(`/app/attendance?view=zone`, 'userx', L('অনুপস্থিত', 'Absent'), n(s.zone.att?.absent ?? 0), (s.zone.att?.absent ?? 0) ? 'bad' : undefined,
+          L(`ছুটি ${n((s.zone.att?.leave_applied ?? 0) + (s.zone.att?.leave_not_applied ?? 0))}`,
+            `Leave ${(s.zone.att?.leave_applied ?? 0) + (s.zone.att?.leave_not_applied ?? 0)}`))}
+      </div>
+
+      {/* সারি ৩ — পার্সেল কার্যক্রম */}
+      <h3 className="zd-h">{L('পার্সেল কার্যক্রম', 'Parcel operations')}</h3>
+      <div className="da-stats">
+        {tile(`/app/hub/pickup`, 'truck', L('মোট পিকআপ', 'Total pickups'), numOr(s.zone.total_pickups, n))}
+        {tile(`/app/hub/ops`, 'box', L('মোট পার্সেল', 'Total parcels'), numOr(s.zone.total_parcels, n))}
+      </div>
+
+      {/* সারি ৪ — দায়িত্ব ও অনুমোদন */}
+      <h3 className="zd-h">{L('দায়িত্ব ও কাজ', 'Duties & tasks')}</h3>
+      <div className="da-stats">
+        {d
+          ? <>
+            {tile(`/app/hub/tasks`, 'tasks', L('চলমান দায়িত্ব', 'Open duties'), n(d.tasks?.open ?? 0))}
+            {tile(`/app/hub/tasks`, 'form', L('অসম্পূর্ণ কাজ', 'Pending submissions'), n(d.tasks?.pending_submissions ?? 0),
+              (d.tasks?.pending_submissions ?? 0) ? 'warn' : undefined)}
+            {tile(`/app/hub/tasks`, 'clock', L('সময় পার হওয়া দায়িত্ব', 'Overdue duties'), n(d.tasks?.overdue ?? 0),
+              (d.tasks?.overdue ?? 0) ? 'bad' : undefined)}
+          </>
+          : can('zonal.dashboard.view')
+            ? <p className="muted small">{L('দায়িত্বের তথ্য লোড হয়নি।', 'Duty data not loaded.')}</p>
+            : <p className="muted small">{L('এই অংশ দেখার অনুমতি নেই (zonal.dashboard.view দরকার)।', 'You do not have zonal.dashboard.view.')}</p>}
+      </div>
+
+      {/* দ্রুত লিঙ্ক — ১১ মেনুর বাকিগুলোয় সরাসরি যাওয়ার সুবিধা */}
+      <section className="panel" style={{ marginTop: 14 }}>
+        <div className="da-bar"><h2 style={{ margin: 0 }}><Icon name="map" size={18} /> {L('দ্রুত লিঙ্ক', 'Quick links')}</h2></div>
+        <div className="row-acts" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <Link to="/app/routes" className="btn-ghost"><Icon name="map" size={14} />{L('রুট ও জনবল পরিকল্পনা', 'Routes & manpower plan')}</Link>
+          <Link to="/app/hr/duties" className="btn-ghost"><Icon name="tasks" size={14} />{L('কর্মী ও দায়িত্ব', 'Staff & duties')}</Link>
+          <Link to="/app/zonal/requests" className="btn-ghost"><Icon name="check" size={14} />{L('অনুমোদন কেন্দ্র', 'Approval centre')}</Link>
+          <Link to={`/app/zonal/hub-ops?tab=collection&date=${date}`} className="btn-ghost"><Icon name="doc" size={14} />{L('তথ্য সংগ্রহ কেন্দ্র', 'Data collection')}</Link>
+          <Link to="/app/zonal/hub-ops?tab=boss" className="btn-ghost"><Icon name="chart" size={14} />{L('অপারেশন রিপোর্ট', 'Operations report')}</Link>
+          <Link to="/app/zonal/hub-ops?tab=settings" className="btn-ghost"><Icon name="gear" size={14} />{L('অপারেশন সেটিংস', 'Operations settings')}</Link>
+        </div>
+      </section>
+    </>}
+  </>
 }
 
 /** Every hub of the zone for one day: status, totals and staff at a glance; tap a hub to open its input panel. */
