@@ -157,13 +157,13 @@ function ModuleSettings({ entry, catalog, onSaved }: { entry: Entry; catalog: Ca
     </section>
     <section className="panel">
       <h2>Saved release policy preview</h2>
-      <label>Role <select value={role} onChange={event => { setRole(event.target.value); setPreview(undefined) }}>
+      <label>Role <select aria-label="Role" value={role} onChange={event => { setRole(event.target.value); setPreview(undefined) }}>
         <option value="">My roles</option>{catalog.roles.map(choice => <option key={choice.id} value={choice.id}>{choice.name}</option>)}
       </select></label>{' '}
-      <label>Hub <select value={hub} onChange={event => { setHub(event.target.value); setPreview(undefined) }}>
+      <label>Hub <select aria-label="Hub" value={hub} onChange={event => { setHub(event.target.value); setPreview(undefined) }}>
         <option value="">Default scope</option>{catalog.hubs.map(choice => <option key={choice.id} value={choice.id}>{choice.name} ({choice.code})</option>)}
       </select></label>{' '}
-      <label>Platform <select value={platform} onChange={event => { setPlatform(event.target.value as ReleasePlatform); setPreview(undefined) }}>
+      <label>Platform <select aria-label="Platform" value={platform} onChange={event => { setPlatform(event.target.value as ReleasePlatform); setPreview(undefined) }}>
         <option value="web">Web</option><option value="android">Android</option>
       </select></label>{' '}
       <button onClick={() => void previewSaved()}>Preview</button>

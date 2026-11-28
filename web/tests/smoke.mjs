@@ -166,7 +166,6 @@ try {
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (u.includes('/auth/v1/user')) return j(session.user)
       if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
-      if (u.includes('rpc/module_release_snapshot')) return j(Object.fromEntries(Object.keys(moduleRegistry).map(id => [id, { allowed: true, order: null }])))
       if (u.includes('rpc/my_permissions') && permsNow) return j(permsNow.map(c => ({ permission_code: c, scope_type: 'global', zone_id: null, hub_id: null, is_super: false })))
       if (u.includes('rpc/my_permissions')) return j(plainStaff ? [{ permission_code: 'hr.attendance.self', scope_type: 'global', zone_id: null, hub_id: null, is_super: false }]
         : [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])
@@ -229,6 +228,7 @@ try {
           { stop_id: 'st2', stop: 'আলাইপুর', seq: 2, employee_id: 'e01', at: '2026-11-19T05:00:00Z', lat: 24.4210, lng: 88.9790, distance_m: 640, near: false, accuracy_m: 20, note: null }] }] })
       if (/rpc\/(route_save|route_riders_set|route_settings_save|route_archive)(\?|$)/.test(u)) { const fn = u.split('rpc/')[1].split('?')[0]; flowCalls.push({ fn, ...r.request().postDataJSON() })
         return j(fn === 'route_save' ? 'rt9' : fn === 'route_riders_set' ? { added: 1, ended: 0 } : fn === 'route_settings_save' ? routeOverview.rules : null) }
+      if (u.includes('rpc/module_release_snapshot')) return j(Object.fromEntries(Object.keys(moduleRegistry).map(id => [id, { allowed: true, order: null }])))
       if (u.includes('rpc/nodi_settings')) return j({ enabled: true, model: 'claude-sonnet-5-5', daily_limit: 50, max_tokens: 1024, features: { ...nodiParts } })
       if (u.includes('rpc/nodi_features_configure')) { const f = r.request().postDataJSON()?.p_features ?? {}; Object.assign(nodiParts, f); flowCalls.push({ fn: 'nodi_features_configure', ...f }); return j(null) }
       if (u.includes('rpc/nodi_features')) return j({ ...nodiParts })

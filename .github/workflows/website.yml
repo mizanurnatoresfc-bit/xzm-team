@@ -60,9 +60,9 @@ jobs:
         run: npx playwright install chromium
       - name: Chromium system packages
         run: npx playwright install-deps chromium
-      - name: Browser smoke tests
-        run: npm run test:smoke
       - name: Module Release Control in Web and Android fixtures
         run: node tests/moduleRelease.browser.mjs
+      - name: Browser smoke tests
+        run: npm run test:smoke
       - name: Offline check-in in a browser
         run: npm run test:offline

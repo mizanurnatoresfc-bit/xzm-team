@@ -26,10 +26,16 @@ const ReleaseContext = createContext({
   refresh: () => {},
 })
 
+const validHub = (id: string | null | undefined) =>
+  id && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) ? id : null
+
 export function ReleaseProvider({ children }: PropsWithChildren) {
   const { session, viewAs } = useAuth()
-  const { pathname } = useLocation()
-  const hub = pathname.match(/^\/app\/zonal\/hub-ops\/hub\/([0-9a-f-]{36})\/?$/i)?.[1] ?? null
+  const { pathname, search } = useLocation()
+  const path = pathname.toLowerCase().replace(/\/+$/, '')
+  const params = new URLSearchParams(search)
+  const routePoint = path === '/app/routes' && ['plan', 'morning'].includes(params.get('tab') ?? '')
+  const hub = validHub(routePoint ? params.get('hub') : path.match(/^\/app\/zonal\/hub-ops\/hub\/([^/]+)$/)?.[1])
   const user = session?.user.id
   const preview = viewAs?.id ?? null
   const platform = isNativeApp() ? 'android' : 'web'
