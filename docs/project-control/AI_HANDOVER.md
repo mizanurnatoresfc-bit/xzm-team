@@ -6,11 +6,11 @@
 
 ## Hub Registers handover · 2026-11-28
 
-- XZM-018 is on `chatgpt/hub-registers-release`. The existing `/app/hub-registers` route serves the employee forms, manager dashboard and zonal controls. The global working-hub selection is resolved against the authorized list.
+- XZM-018 is in [Draft PR #225](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/225) on `chatgpt/hub-registers-release`. The existing `/app/hub-registers` route serves the employee forms, manager dashboard and zonal controls. The global working-hub selection is resolved against the authorized list.
 - `hub_register_read` and `hub_register_write` use the company employee and permission models. The four private workflow tables hold assignments, supplemental entries, reviews and events. Existing attendance, daily operations, pending snapshots and Accounts records remain the source when present. An Accounts claim and the linked expense line are counted once on the bill date.
 - Active hub employees are included by default. An employee rule takes priority over a position rule and a hub default. An applicable employee without activity can report zero. Deadlines use Dhaka local time, and late entry remains possible while the register is open.
 - Final submission preserves the reviewed roster and totals. Reopening requires scoped configuration permission and a reason. Admin retains the permissions needed to delegate the existing Hub Manager and Zonal Manager roles. Monthly reporting uses the latest locked version for each day and book. Pending is shown as a daily snapshot.
-- Isolated verification uses `scripts/test-db.sh` and `node tests/hubRegisters.mjs` after building `web`. The browser test fakes API data and includes an Android bridge fixture. A live DEMO session, real Android WebView and production compatibility still need verification before release. The draft has no production migration execution or deployment.
+- Isolated verification uses `scripts/test-db.sh` and `node tests/hubRegisters.mjs` after building `web`. The simulated merge with #219 at `ce4683d` passed 2,843 isolated PostgreSQL assertions. The browser test fakes API data and includes an Android bridge fixture. A live DEMO session, real Android WebView and production compatibility still need verification before release. The draft has no production migration execution or deployment.
 
 ## 1. Project Snapshot
 

@@ -699,9 +699,9 @@
 | Primary category | Feature |
 | Owner approval | 2026-11-28 ChatGPT Work request |
 | Branch | `chatgpt/hub-registers-release` |
-| PR | [Draft for the release branch](https://github.com/mizanurnatoresfc-bit/xzm-team/pulls?q=is%3Apr+head%3Achatgpt%2Fhub-registers-release) |
+| PR | [Draft PR #225](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/225) |
 | Scope | Attendance, pickup/merchant returns, pending/returns, delivery/cash and hub expenses. Role-scoped roster, self/proxy entry, zonal rules and deadlines, dashboard, verified submission, reopening, and daily/monthly reports. |
-| Evidence | TypeScript and production bundle. Isolated PostgreSQL migrations and role tests. DEMO browser scenarios in `web/tests/hubRegisters.mjs`, with desktop Chromium and the Android Capacitor bridge fixture. |
+| Evidence | TypeScript and production bundle. Isolated PostgreSQL passed 2,843 assertions, including 22 Hub Registers assertions. Clean merge simulation with #219 at `ce4683d`. DEMO browser scenarios in `web/tests/hubRegisters.mjs`, with desktop Chromium and the Android Capacitor bridge fixture. |
 | Blockers | Production migration history reconciliation (XZM-006C), production backup verification (#216), and an actual Android WebView acceptance run. |
 | Next action | Review the draft and check the isolated CI results before release. |
 
