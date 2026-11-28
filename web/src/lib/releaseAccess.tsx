@@ -79,7 +79,7 @@ export function ReleaseProvider({ children }: PropsWithChildren) {
   const allows = (id: string) => id === 'core' || data?.[id]?.allowed === true
   const addressAllowed = (address: string) => {
     const id = moduleForAddress(address)
-    return id === undefined || allows(id)
+    return id !== undefined && allows(id)
   }
   const order = (id: string) => data?.[id]?.order ?? null
   const menuOrder = (address: string) => order(moduleForAddress(address) ?? '')
