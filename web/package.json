@@ -16,6 +16,7 @@
     "test:routes": "node --experimental-strip-types --test tests/routeModule.test.mjs",
     "test:plan": "node --experimental-strip-types --test tests/routePlan.test.mjs",
     "test:checkin": "node --experimental-strip-types --test tests/routeOffline.test.mjs",
+    "test:release": "node --experimental-strip-types --test tests/moduleRelease.test.mjs tests/moduleReleaseRegistry.test.mjs",
     "test:offline": "node tests/offline.mjs"
   },
   "dependencies": {

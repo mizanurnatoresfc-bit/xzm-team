@@ -14,6 +14,7 @@ import { Badge, Field, Modal, Stat, useLoad, useToast } from '../accounts/ui'
 import { useOrg } from '../hr/common'
 import { HistoryModal, SummaryView } from './HubOpsParts'
 
+import { useRelease } from '../../lib/releaseAccess'
 import { OperationsCollection } from './OperationsCollection'
 
 type Tab = 'collection' | 'hubs' | 'summary' | 'boss' | 'log' | 'settings'
@@ -29,6 +30,7 @@ const weekStart = (iso: string) => { const d = new Date(iso + 'T00:00:00Z'); con
 export function HubOps() {
   const { L } = usePrefs()
   const o = useOrg()
+  const collectionAllowed = useRelease().allows('operation')
   const [sp, setSp] = useSearchParams()
   const tab = (sp.get('tab') as Tab) || 'hubs'
   const zones = o.data?.zones ?? []
@@ -44,13 +46,13 @@ export function HubOps() {
     </section>}
     <nav className="emp-tabs no-print" role="tablist">
       {([['hubs', 'হাবগুলো', 'Hubs', 'hub'], ['summary', 'জোনাল সারাংশ', 'Zonal summary', 'chart'], ['boss', 'বসের রিপোর্ট', 'Boss reports', 'doc'],
-        ['collection', 'তথ্য সংগ্রহ কেন্দ্র', 'Operations Data Collection', 'doc'], ['log', 'স্ট্যাটাস লগ', 'Status log', 'log'], ['settings', 'সেটিং', 'Settings', 'gear']] as const).map(([k, b, e, ic]) =>
+        ['collection', 'তথ্য সংগ্রহ কেন্দ্র', 'Operations Data Collection', 'doc'], ['log', 'স্ট্যাটাস লগ', 'Status log', 'log'], ['settings', 'সেটিং', 'Settings', 'gear']] as const).filter(([k]) => k !== 'collection' || collectionAllowed).map(([k, b, e, ic]) =>
         <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={16} />{L(b, e)}</button>)}
     </nav>
     {o.loading && !zone && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
     {!o.loading && !zones.length && <p className="da-error">{L('আপনার কোনো জোন দেখার অনুমতি নেই।', 'You cannot see any zone.')}</p>}
     {zone && tab === 'hubs' && <HubsDay zone={zone} />}
-    {zone && tab === 'collection' && <OperationsCollection key={zone} zone={zone} />}
+    {zone && tab === 'collection' && collectionAllowed && <OperationsCollection key={zone} zone={zone} />}
     {zone && tab === 'summary' && <PeriodSummary zone={zone} />}
     {zone && tab === 'boss' && <BossReports zone={zone} />}
     {zone && tab === 'log' && <StatusLog zone={zone} />}

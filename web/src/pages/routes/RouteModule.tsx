@@ -11,6 +11,7 @@ import { Field, Stat, useLoad, useToast } from '../accounts/ui'
 import { RiderPicker } from '../zonal/RouteSettings'
 import { RouteEditor, type NewDraft } from './RouteEditor'
 import { PANE_VIEWS, type PaneCtx } from './panes'
+import { useRelease } from '../../lib/releaseAccess'
 import { usePrefs } from '../../lib/prefs'
 import { runChecks } from '../../lib/routeChecks'
 import { PANE_GROUPS, panesFor, pickPane, type PaneGroup } from '../../lib/routeModule'
@@ -21,6 +22,7 @@ export function RouteModule() {
   const { L, n } = usePrefs()
   const fmt = { L, n }
   const { can, menu } = useAuth()
+  const release = useRelease()
   const { toast, node } = useToast()
   const [sp, setSp] = useSearchParams()
   const zones = useLoad(() => routeApi.zones(), [])
@@ -40,7 +42,8 @@ export function RouteModule() {
 
   const zonesReady = zones.data !== null || zones.error !== null
   const hasZone = (zones.data?.length ?? 0) > 0
-  const panes = useMemo(() => panesFor({ can, menu, hasZone, visits: base ? base.can.visits : undefined }), [can, menu, hasZone, base])
+  const panes = panesFor({ can, menu, hasZone, visits: base ? base.can.visits : undefined })
+    .filter(pane => release.allows('routes.tab-' + pane.id))
   const cur = zonesReady ? pickPane(panes, want) : undefined
   const zonePane = cur?.needs === 'zone'
   // The road lines (thousands of points a route) are not in the zone data: they are fetched only while something draws or keeps them (the map, the route editor).

@@ -1,0 +1,66 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync, readdirSync } from 'node:fs'
+import { moduleForAddress, moduleRegistry, routeModules } from '../src/lib/moduleRelease.ts'
+import { linkAllowed, pageState } from '../src/lib/navAccess.ts'
+
+test('every declared route and configurable function has a database registry entry', () => {
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  const routes = [...app.matchAll(/<Route path="([^"]+)"/g)].map(([, path]) => path)
+  assert.equal(new Set(routes).size, routes.length)
+  assert.ok(routes.length >= 102)
+  for (const path of routes) assert.ok(Object.hasOwn(routeModules, path), path)
+  const migrations = new URL('../../supabase/migrations/', import.meta.url)
+  const seeds = readdirSync(migrations)
+    .filter(name => name.includes('module_release'))
+    .map(name => readFileSync(new URL(name, migrations), 'utf8')).join('\n')
+  for (const [id, parent] of Object.entries(moduleRegistry)) {
+    assert.ok(seeds.includes(`('${id}', ${parent ? `'${parent}'` : 'null'})`), id)
+    if (parent) assert.ok(Object.hasOwn(moduleRegistry, parent), parent)
+  }
+  for (const id of Object.values(routeModules)) assert.ok(id === 'core' || Object.hasOwn(moduleRegistry, id), id)
+})
+
+test('exact routes, nested routes, and legacy aliases share the expected release scope', () => {
+  assert.equal(moduleForAddress('/app/hub/pickup'), 'hub.pickup')
+  assert.equal(moduleForAddress('/app/accounts/daily/abc/main/'), 'accounts.daily.id.main')
+  assert.equal(moduleForAddress('/APP/VEHICLES/mine'), 'fleet.mine')
+  assert.equal(moduleForAddress('/app/vehicles/historical/abc'), 'fleet')
+  assert.equal(moduleForAddress('/app/routes/plan'), moduleForAddress('/app/routes?tab=plan'))
+  assert.equal(moduleForAddress('/app/sorting/routes'), moduleForAddress('/app/routes?tab=sorting'))
+  assert.equal(moduleForAddress('/app/zonal/hub-ops?tab=collection'), 'operation')
+  assert.equal(moduleForAddress('/app/zonal/hub-ops?tab=hubs'), 'zonal.hub-ops')
+  assert.equal(moduleForAddress('/app/module-control'), 'core')
+})
+
+test('release decisions can only restrict role permissions and menu visibility', () => {
+  const access = { can: p => p === 'da.sheet.view', menu: ['/app/accounts/daily'], releaseAllowed: () => true }
+  const path = '/app/accounts/daily'
+  assert.equal(pageState(path, access), 'open')
+  assert.equal(pageState(path, { ...access, can: () => false }), 'no-permission')
+  assert.equal(pageState(path, { ...access, menu: [] }), 'not-listed')
+  assert.equal(pageState(path, { ...access, releaseAllowed: () => false }), 'release-unavailable')
+  assert.equal(linkAllowed(path, { ...access, releaseAllowed: () => false }), false)
+})
+
+test('shared hub detection follows URL first, then workHub, and unscopes under Super Admin preview', () => {
+  // Contract tests for the hub-detection helper used by ReleaseProvider. Kept standalone so it runs under Node without ts-loader.
+  const valid = '00000000-0000-4000-8000-000000000001'
+  const q = s => new URLSearchParams(s)
+  function detect(path, params, workHub, preview) {
+    if (preview) return null
+    const ok = id => id && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) ? id : null
+    const routePlanTab = path === '/app/routes' && ['plan', 'morning'].includes(params.get('tab') ?? '')
+    const urlHub = ok(routePlanTab ? params.get('hub') : path.match(/^\/app\/zonal\/hub-ops\/hub\/([^/]+)$/)?.[1])
+    if (urlHub) return urlHub
+    const queryHub = ok(params.get('hub'))
+    if (queryHub) return queryHub
+    return ok(workHub)
+  }
+  assert.equal(detect('/app/routes', q('tab=plan&hub=' + valid), '', null), valid)
+  assert.equal(detect('/app/zonal/hub-ops/hub/' + valid, q(''), '', null), valid)
+  assert.equal(detect('/app/attendance', q('hub=' + valid), '', null), valid)
+  assert.equal(detect('/app/attendance', q(''), valid, null), valid)
+  assert.equal(detect('/app/routes', q('tab=plan&hub=xyz'), valid, null), valid, 'query junk falls through to workHub')
+  assert.equal(detect('/app/attendance', q('hub=' + valid), valid, 'any-role'), null, 'Super Admin preview unscopes hub')
+})

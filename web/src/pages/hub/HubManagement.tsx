@@ -1,3 +1,4 @@
+import { useRelease } from '../../lib/releaseAccess'
 import { askReason, askText } from '../../components/ask'
 import { useMemo, useState } from 'react'
 import { HUB_SECTION_PERMS, hasPageAccess, linkAllowed } from '../../lib/menu'
@@ -33,6 +34,7 @@ export function HubManagement() {
   const { section } = useParams()
   const { can, menu, session } = useAuth()
   const { L } = usePrefs()
+  const release = useRelease()
   const o = useOrg()
   const preferred = useWorkHub(session?.user.id ?? '')
   const hubs = useMemo(() => (o.data?.hubs ?? []).filter(h => !h.archived_at), [o.data])
@@ -46,7 +48,7 @@ export function HubManagement() {
   const current = resolveWorkHub(hubs, preferred)
   // "আজকের হিসাব" is off the strip (see HIDDEN_PAGES in AppShell); it still opens by address.
   const offStrip = (k: HubSection) => k === 'accounts' && section !== k
-  const tabs = HUB_SECTIONS.filter(s => linkAllowed(`/app/hub/${s.key}`, { can, menu }, s.perms) && !offStrip(s.key))
+  const tabs = HUB_SECTIONS.filter(s => linkAllowed(`/app/hub/${s.key}`, { can, menu, releaseAllowed: release.addressAllowed }, s.perms) && !offStrip(s.key))
 
   return <AppShell title={L(sec.bn, sec.en)} subtitle={current ? `${current.name} · ${L('আজ', 'Today')} ${hubToday()}` : undefined}>
     <section className="da-filters panel no-print hub-top">

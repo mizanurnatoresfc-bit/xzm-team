@@ -1,3 +1,4 @@
+import { useRelease } from '../../lib/releaseAccess'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -49,6 +50,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const rooms = useLoad(() => p ? office.rooms(p.id) : Promise.resolve([] as Room[]), [p?.id])
   const desks = useLoad(() => p ? office.desks(p.id) : Promise.resolve([] as Desk[]), [p?.id])
   const assets = useLoad(() => p && can('office.asset.view') ? office.assets(p.id) : Promise.resolve([] as Asset[]), [p?.id])
+  const release = useRelease()
   const ids = [...(rooms.data ?? []).map(r => r.responsible_id), ...(desks.data ?? []).map(d => d.responsible_id), ...(assets.data ?? []).map(a => a.holder_id)]
   const key = [...new Set(ids.filter(Boolean) as string[])].sort().join(',')
   const emps = useLoad(() => sorting.employeesByIds(key ? key.split(',') : []).catch(() => [] as EmpLite[]), [key])
@@ -77,7 +79,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   return <AppShell title={L(sec.bn, sec.en)} subtitle={p && !allFlats ? `${p.name} · ${L(PLACE_KIND[p.kind][0], PLACE_KIND[p.kind][1])}` : undefined}>
     <section className="da-filters panel no-print hub-top">
       <nav className="hub-tabs" aria-label={L('জায়গার ধরন', 'Property type')}>
-        {scopes.map(({ target, entry }) => entry && <Link key={target} to={scopePath(target, entry.key)}
+        {scopes.map(({ target, entry }) => entry && release.addressAllowed(scopePath(target, entry.key)) && <Link key={target} to={scopePath(target, entry.key)}
           className={target === scope ? 'on' : ''} aria-current={target === scope ? 'location' : undefined}>
           <Icon name={target === 'residential' ? 'home' : 'hub'} size={15} />
           <span>{target === 'residential' ? L('আবাসিক', 'Residential') : L('অফিস', 'Office')}</span>
@@ -87,7 +89,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
         {list.map(x => <option key={x.id} value={x.id}>{PLACE_KIND[x.kind][2]} {x.name}</option>)}</select></Field>}
       <nav className="hub-tabs" aria-label={res ? L('আবাসিক', 'Residential') : L('আমার অফিস', 'My office')}>
         {res && can('issue.issue.create') && <Link to={'/app/issues?new=residential' + (p?.hub_id && !allFlats ? '&hub=' + p.hub_id : '')}><Icon name="alert" size={15} /><span>{L('আবাসিক ইস্যু জানান', 'Report a residential issue')}</span></Link>}
-        {tabs.map(t => <Link key={t.key} to={scopePath(scope, t.key)} className={t.key === sec.key ? 'on' : ''}
+        {tabs.filter(part => release.addressAllowed(scopePath(scope, part.key))).map(t => <Link key={t.key} to={scopePath(scope, t.key)} className={t.key === sec.key ? 'on' : ''}
           aria-current={t.key === sec.key ? 'page' : undefined}><Icon name={t.icon} size={15} />
           <span>{L(...(shortLabels[t.key] ?? [t.bn, t.en]))}</span>
         </Link>)}

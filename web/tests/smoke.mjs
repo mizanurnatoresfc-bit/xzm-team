@@ -1,3 +1,4 @@
+import { moduleRegistry } from '../src/lib/moduleRelease.ts'
 import { readFileSync } from 'node:fs'
 // Smoke test: opens the built site in a real browser at PC and phone size, with the
 // database answers faked, and checks the screens that every change must keep working.
@@ -227,6 +228,7 @@ try {
           { stop_id: 'st2', stop: 'আলাইপুর', seq: 2, employee_id: 'e01', at: '2026-11-19T05:00:00Z', lat: 24.4210, lng: 88.9790, distance_m: 640, near: false, accuracy_m: 20, note: null }] }] })
       if (/rpc\/(route_save|route_riders_set|route_settings_save|route_archive)(\?|$)/.test(u)) { const fn = u.split('rpc/')[1].split('?')[0]; flowCalls.push({ fn, ...r.request().postDataJSON() })
         return j(fn === 'route_save' ? 'rt9' : fn === 'route_riders_set' ? { added: 1, ended: 0 } : fn === 'route_settings_save' ? routeOverview.rules : null) }
+      if (u.includes('rpc/module_release_snapshot')) return j(Object.fromEntries(Object.keys(moduleRegistry).map(id => [id, { allowed: true, order: null }])))
       if (u.includes('rpc/nodi_settings')) return j({ enabled: true, model: 'claude-sonnet-5-5', daily_limit: 50, max_tokens: 1024, features: { ...nodiParts } })
       if (u.includes('rpc/nodi_features_configure')) { const f = r.request().postDataJSON()?.p_features ?? {}; Object.assign(nodiParts, f); flowCalls.push({ fn: 'nodi_features_configure', ...f }); return j(null) }
       if (u.includes('rpc/nodi_features')) return j({ ...nodiParts })
