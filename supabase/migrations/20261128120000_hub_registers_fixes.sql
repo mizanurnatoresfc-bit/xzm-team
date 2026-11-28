@@ -358,6 +358,10 @@ revoke all on public.wf_register_duty from public, anon, authenticated;
 
 create index if not exists wf_register_duty_hub_kind
   on public.wf_register_duty (hub_id, register_kind) where retired_at is null;
+-- Full (non-partial) indexes on each FK column so the "every foreign key has
+-- an index" database test accepts them even without the retired_at filter.
+create index if not exists wf_register_duty_hub_fk on public.wf_register_duty (hub_id);
+create index if not exists wf_register_duty_employee on public.wf_register_duty (employee_id);
 
 create or replace function public.wf_register_duty_list(p_hub uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
