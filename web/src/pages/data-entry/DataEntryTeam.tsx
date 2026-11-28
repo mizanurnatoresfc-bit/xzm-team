@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthProvider'
 import { AppShell } from '../../components/AppShell'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
+import { pickRemembered, rememberZone, rememberedZone } from '../../lib/zoneHubMemory'
 import { useLoad } from '../accounts/ui'
 import { DataEntryTargetSettings } from './DataEntryTargets'
 import { DataEntryShiftHub, dataEntryPages, type EntryPage } from './DataEntryShift'
@@ -45,8 +46,9 @@ export function DataEntryTeam({ page = 'team' }: { page?: EntryPage }) {
   const { viewAs } = useAuth()
   const preview = Boolean(viewAs)
   const zones = useLoad(() => preview ? Promise.resolve([]) : teamRpc<Choice[]>('data_entry_team_zones'), [preview])
-  const [selection, setSelection] = useState('')
-  const zone = zones.data?.find(item => item.id === selection) ?? zones.data?.[0]
+  const [selection, setSelection] = useState(() => rememberedZone())
+  const zone = pickRemembered(zones.data, selection)
+  function chooseZone(id: string) { setSelection(id); rememberZone(id) }
 
   if (preview) return <AppShell title={L(dataEntryPages[page][0], dataEntryPages[page][1])}>
     <p>{L('টিম পরিচালনার জন্য নিজের অ্যাকাউন্টের ভিউতে ফিরুন।', 'Return to your own account view to manage the team.')}</p>
@@ -57,11 +59,11 @@ export function DataEntryTeam({ page = 'team' }: { page?: EntryPage }) {
     {zones.error ? <p className="da-error" role="alert">{errorText(zones.error)}</p> : null}
     {!zones.loading && !zones.error && !zone && <p>{L('এই টিম পরিচালনার জন্য কোনো জোনে আপনার অনুমতি নেই।', 'You do not have access to manage this team in a zone.')}</p>}
     {zone && <>
-      <label className="data-entry-field">{L('জোন', 'Zone')}
-        <select value={zone.id} onChange={e => setSelection(e.currentTarget.value)}>
+      {(zones.data?.length ?? 0) > 1 && <label className="data-entry-field">{L('জোন', 'Zone')}
+        <select value={zone.id} onChange={e => chooseZone(e.currentTarget.value)}>
           {zones.data?.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
         </select>
-      </label>
+      </label>}
       <ZoneTeam key={zone.id + page} zone={zone.id} page={page} />
     </>}
   </AppShell>
