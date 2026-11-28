@@ -37,29 +37,34 @@
 
 **PENDING VERIFICATION:** কোন branch/project-এ কোন function deployed, RLS policy summary, trigger inventory (`private.prevent_delete`, `private.da_append_only`)।
 
-## 3. Netlify — ⏳ PENDING VERIFICATION
+## 3. Netlify — ✅ VERIFIED NOT PRODUCTION (2026-11-28)
 
-| Field | Expected (per memory) | Verified? |
-|---|---|---|
-| Project name | `xzm-team-erp` | PENDING |
-| Plan | free dev plan | PENDING |
-| Production URL | https://xzmteam.com | PENDING |
-| Site ID | — | PENDING |
-| Deployment source | GitHub repo `mizanurnatoresfc-bit/xzm-team` | PENDING |
-| Production branch | expected `main` | PENDING |
-
-> XZM-003 continuation-এ Netlify step এখনো সম্পন্ন হয়নি।
-
-## 4. Cloudflare — ⏳ PENDING VERIFICATION
-
-| Field | Status |
+| Field | Status (verified via `.github/workflows/android-apk.yml` + GitHub check-runs) |
 |---|---|
-| Account / Zone | PENDING |
-| Domain `xzmteam.com` | PENDING |
-| DNS records | PENDING |
-| Proxy status (orange cloud) | PENDING |
-| SSL mode | PENDING |
-| Wrangler project | `wrangler.jsonc` exists in repo root — PENDING review |
+| Project name | `xzm-team-erp` (still exists as the historical project) |
+| Role in production | **NOT the production host.** Netlify credits ran out on 27 Nov 2026; the Netlify upload step in CI runs with `continue-on-error: true`, and the project's PR deploy-preview is skipped (`netlify.toml [context.deploy-preview] ignore = "exit 0"`). |
+| Release-blocker status | **Not a blocker.** The three Netlify check-runs that appear on every PR (`Redirect rules`, `Header rules`, `Pages changed`) resolve as `neutral` by design — not failures. A canceled Netlify deploy-preview on a draft PR is routine Netlify behavior and does not block merge. |
+| Source | GitHub repo `mizanurnatoresfc-bit/xzm-team`, workflow step `Publish the website to Netlify (soft)` |
+
+## 4. Cloudflare — ✅ VERIFIED PRODUCTION HOST (2026-11-28)
+
+**Production hosting = Cloudflare Pages project `xzm-team`.**
+
+| Field | Verified value |
+|---|---|
+| Account | Owner's Cloudflare account (account id held off-repo per §10 redaction policy; email: `mizanurnatore.sfc@gmail.com`) |
+| Zone | `xzmteam.com` — status `active` (zone id held off-repo per §10) |
+| Pages project (production) | `xzm-team` — production branch `main`, GitHub auto-build on push |
+| Custom domains on `xzm-team` project | `xzmteam.com`, `www.xzmteam.com`, `xzm-team.pages.dev` |
+| DNS records (both proxied) | `xzmteam.com` CNAME → `xzm-team.pages.dev` (orange cloud ON); `www.xzmteam.com` CNAME → `xzm-team.pages.dev` (orange cloud ON) |
+| Pages project (staging) | `xzm-team-staging-web` — custom domain `staging.xzmteam.com` + subdomain `xzm-team-staging-web.pages.dev`, production branch `main`, GitHub auto-build |
+| Additional Pages project | `xzm-team-staging` (subdomain-only `xzm-team-staging.pages.dev`, no custom domain, no deployments yet) |
+| Cloudflare Worker `xzm-team` | Exists and deployed by `.github/workflows/android-apk.yml` via `wrangler deploy` on push-to-main. **Currently serves no traffic** — zero worker routes in the zone and zero custom domains attached to the worker. The Worker is dormant / backup config; `wrangler.jsonc` at repo root defines it. |
+| SSL | Cloudflare proxied (SSL mode managed by zone settings; not yet audited here) |
+
+**Chain:** GitHub `main` push → Cloudflare Pages `xzm-team` auto-build (clone_repo → build → deploy, ~85s total for a React/Vite build) → aliases `xzmteam.com` and `www.xzmteam.com` cut over to the new deployment.
+
+**Verification method (2026-11-28):** `/accounts/*/pages/projects`, `/zones/*/dns_records`, `/zones/*/workers/routes`, `/accounts/*/workers/domains`, and a production deployment of commit `45f527a` (PR #228) end-to-end observed through the stage history.
 
 ## 5. Figma — ⏳ PENDING VERIFICATION
 
@@ -83,11 +88,12 @@
 | Stewdio | ✅ |
 | Google Drive | ❌ (not connected) |
 
-## 8. Live Website Deployment Source
+## 8. Live Website Deployment Source — ✅ VERIFIED (2026-11-28)
 
-- **Expected chain:** GitHub `main` → Netlify `xzm-team-erp` → `https://xzmteam.com` (DNS via Cloudflare)।
-- **Verified:** GitHub repo ও branch নাম।
-- **PENDING VERIFICATION:** Netlify build settings, Cloudflare DNS, actual deploy hook।
+- **Verified chain:** GitHub `main` → Cloudflare Pages project `xzm-team` auto-build (production branch `main`) → aliases `https://xzmteam.com` + `https://www.xzmteam.com`. DNS (proxied CNAME to `xzm-team.pages.dev`) sits in the same Cloudflare zone.
+- **Netlify is NOT in the production chain** (see §3). Cloudflare Worker `xzm-team` is also NOT in the serving path (see §4).
+- **Staging chain:** GitHub `main` → Cloudflare Pages `xzm-team-staging-web` → `https://staging.xzmteam.com`.
+- **Reference evidence:** DEPLOYMENT_LOG.md 2026-11-28 DE-V2-R1 entry — full stage timing for commit `45f527a`.
 
 ## 9. Secrets Policy
 

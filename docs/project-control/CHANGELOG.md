@@ -11,6 +11,12 @@
 - Snapshot's per-worker output gains `rank_multiplier_pct` and `effective_forecast_capacity` for transparency. The `rule` key is bumped from `smart_auto_v1` to `smart_auto_v1_rank`.
 - No table/column/signature change; no new permission; no frontend change.
 
+## 2026-11-28 — Hosting architecture verified (docs-only)
+
+- `PROJECT_CONNECTIONS.md` §3 (Netlify) marked NOT PRODUCTION; §4 (Cloudflare) fully populated with the verified account/zone/Pages projects/DNS/Workers inventory; §8 "Live Website Deployment Source" rewritten to the verified GitHub → Cloudflare Pages `xzm-team` → `xzmteam.com` chain.
+- `DEPLOYMENT_LOG.md` gained a "Hosting architecture (verified 2026-11-28)" preamble and a full DE-V2-R1 production-deploy entry (PR #228 merge, Cloudflare Pages deployment stages, Supabase migration apply, smoke test).
+- Earlier "PENDING VERIFICATION" and Netlify-auto-deploy lines corrected.
+
 ## 2026-11-28 — DE-V2-R1 Senior Rank 1–8 (Data Entry V2 · Release 1)
 
 - New migration `20261128190000_data_entry_senior_ranks.sql`: adds `public.data_entry_ranks` (zone-scoped, rank 1–8, editable `name_bn` and `target_multiplier_pct` default 100), adds nullable `rank_id` on `data_entry_team_members`, four RPCs (`data_entry_rank_list`, `data_entry_rank_seed_defaults`, `data_entry_rank_save`, `data_entry_rank_assign`), and extends `data_entry_team_snapshot` with `rank_id` + `rank_number` member fields. Permission reused: `data_entry.team.edit`.
