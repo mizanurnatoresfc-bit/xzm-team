@@ -1743,6 +1743,8 @@ try {
     const entryDialog = page.getByRole('dialog')
     await entryDialog.getByRole('heading', { name: /শুরুর রিপোর্ট|Opening report/ }).waitFor({ timeout: 12000 })
     await entryDialog.getByRole('button', { name: /পরে জমা দেব|Submit later/ }).click()
+    check(await page.locator('.sp-hero').count() === 1 && await page.locator('#sp-att').count() === 1,
+      `${size}: a Data Entry team member still gets the rest of the staff panel (hero and attendance), not only the Data Entry card`)
     await entryDialog.getByRole('heading', { name: /অগ্রগতি রিপোর্ট|Progress report/ }).waitFor({ timeout: 5000 })
     await entryDialog.locator('input[name=attempted]').fill('25')
     await entryDialog.getByRole('button', { name: /রিপোর্ট জমা দিন|Submit report/ }).click()

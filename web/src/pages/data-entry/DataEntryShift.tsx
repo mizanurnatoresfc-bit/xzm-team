@@ -378,7 +378,6 @@ function OwnShift({ children }: { children: ReactNode }) {
     !state.data?.hubs.some(hub => hub.id === report.hub_id && hub.day === report.date))
   if (state.loading && !state.data && !state.error) return <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
   if (!state.data?.hubs.length && !state.data?.heads.length && !unmatched.length) return <>{children}</>
-  const dedicated = Boolean(state.data?.hubs.length || unmatched.length)
   const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await Promise.all([reload(), reloadTargets()]) }
   return <>
   <section className="panel data-entry-panel">
@@ -477,7 +476,8 @@ function OwnShift({ children }: { children: ReactNode }) {
       </ActionForm>
     </Modal>}
   </section>
-  {!dedicated && children}
+  {/* The rest of the staff panel (attendance, accounts, bills, route, complaints) stays for Data Entry staff too. */}
+  {children}
   </>
 }
 
