@@ -411,6 +411,19 @@ function OwnShift({ children }: { children: ReactNode }) {
         ]} />
         <p>{target == null ? L('প্রকৃত বরাদ্দ নিশ্চিত হওয়ার অপেক্ষায়।', 'Waiting for confirmed allocation.') : target === 0 ? L('বর্তমানে কোনো বরাদ্দ নেই।', 'No current allocation.') : L('জমা এন্ট্রি ও যাচাইকৃত এন্ট্রি আলাদা।', 'Reported and verified entries are separate.')}</p>
       </section>
+      <section className="data-entry-chart" aria-label={L('আজকের রিপোর্ট', 'Today’s reports')}>
+        <h3>{L('রিপোর্টের অবস্থা', 'Report status')}</h3>
+        <ol>{stages.map((stage, index) => {
+          const pending = due.some(item => item.hub.id === hub.id && item.slot === index + 1)
+          return <li key={index}>
+            <div className="data-entry-chart-label">
+              <span>{L(...stage)}</span>
+              <strong>{pending ? L('এখন জমা দিন', 'Due now') : L('এখন জমা দেওয়ার প্রয়োজন নেই', 'Not currently due')}</strong>
+            </div>
+            {pending && <button type="button" onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,index + 1)))}>{L('রিপোর্ট খুলুন', 'Open report')}</button>}
+          </li>
+        })}</ol>
+      </section>
       <div className="data-entry-actions">
       {due.filter(item => item.hub.id === hub.id).map(({slot}) => <button type="button" key={slot}
         onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,slot)))}>
