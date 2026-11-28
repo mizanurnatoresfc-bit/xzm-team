@@ -72,11 +72,15 @@ try {
         assert.equal(await workflow.locator('.hub-register-card').count(), 5)
         const attendance = workflow.locator('.hub-register-card').first()
         if (configure) {
-          await attendance.locator('form input').fill('Correct the demo record')
-          await attendance.locator('form button').click()
+          await attendance.locator(':scope > form input').fill('Correct the demo record')
+          await attendance.locator(':scope > form button').click()
           await attendance.locator('summary').filter({ hasText: /দায়িত্ব|Assignments/ }).click()
           await attendance.locator('details form input[maxlength="120"]').fill('Morning register')
-          await attendance.locator('details form button').click()
+          await Promise.all([
+            page.waitForResponse(response => response.url().endsWith('/hub_register_write')
+              && response.request().postDataJSON()?.p_action === 'rule'),
+            attendance.locator('details form button').click(),
+          ])
           assert.deepEqual(calls.map(call => call.p_action), ['reopen', 'rule'])
           await Promise.all([
             page.waitForResponse(response => response.url().endsWith('/hub_register_read')
