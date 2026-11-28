@@ -15,6 +15,8 @@ type Summary = {
   actual_pickups: number | null; actual_merchants: number; complex_parcels: number | null
   actual_work_points: number | null; verified_completed: number
   forecast_summary: Totals; actual_summary: Totals | null
+  distribution_mode?: 'smart' | 'equal'
+  fair_equal_share_parcels?: number | null
 }
 type Detail = {
   attendance: string; hub_count: number; working_minutes: number | null; break_minutes: number | null
@@ -210,6 +212,15 @@ function HubTargetSettings({ hub, date }: { hub: string; date: string }) {
     } catch (error) { setError(error instanceof Error ? error.message : String(error)) }
     finally { setBusy(false) }
   }
+  async function setMode(next: 'smart' | 'equal') {
+    setBusy(true); setError(''); setNotice(false)
+    try {
+      await targetRpc('data_entry_distribution_mode_set', { p_hub: hub, p_mode: next })
+      await settings.reload()
+      setNotice(true)
+    } catch (error) { setError(error instanceof Error ? error.message : String(error)) }
+    finally { setBusy(false) }
+  }
   const data = settings.data
   if (settings.error) return <div><p className="da-error" role="alert">{String(settings.error)}</p>
     <button type="button" onClick={() => void settings.reload()}>{L('আবার চেষ্টা করুন', 'Retry')}</button></div>
@@ -218,6 +229,22 @@ function HubTargetSettings({ hub, date }: { hub: string; date: string }) {
     <button type="button" className="secondary" onClick={() => void save('hub', { enabled: !data.enabled })}>
       {data.enabled ? L('অটো বণ্টন বন্ধ করুন', 'Disable automatic distribution') : L('অটো বণ্টন চালু করুন', 'Enable automatic distribution')}
     </button>
+    <div className="data-entry-mode-toggle">
+      <span>{L('বণ্টন মোড', 'Distribution mode')}:</span>
+      <strong>{(data.latest?.distribution_mode ?? 'smart') === 'equal'
+        ? L('সমান (Equal)', 'Equal')
+        : L('স্মার্ট — র‍্যাংক অনুযায়ী (Smart)', 'Smart — rank-weighted')}</strong>
+      {(data.latest?.distribution_mode ?? 'smart') === 'smart'
+        ? <button type="button" className="secondary" onClick={() => void setMode('equal')}>
+            {L('সমান বণ্টনে বদলান', 'Switch to equal split')}
+          </button>
+        : <button type="button" className="secondary" onClick={() => void setMode('smart')}>
+            {L('স্মার্ট বণ্টনে ফিরে যান', 'Switch back to smart split')}
+          </button>}
+      {data.latest?.fair_equal_share_parcels != null && <small>
+        {L('সমান ভাগ', 'Equal share')}: {n(Math.round(Number(data.latest.fair_equal_share_parcels)))}
+      </small>}
+    </div>
     {notice && <p role="status">{L('সংরক্ষণ হয়েছে', 'Saved')}</p>}
     {error && <p className="da-error" role="alert">{error}</p>}
     {data.latest && <p>{L('সম্ভাব্য পিকআপ', 'Forecast pickups')} {data.latest.forecast_pickups ?? '—'} · {L('প্রকৃত পিকআপ', 'Actual pickups')} {data.latest.actual_pickups ?? '—'}
