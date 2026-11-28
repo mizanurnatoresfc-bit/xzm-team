@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
+import { pickRemembered, rememberHub, rememberedHub } from '../../lib/zoneHubMemory'
 import { Modal, useLoad } from '../accounts/ui'
 import { TargetExplanation, useOwnDataEntryTargets } from './DataEntryTargets'
 import './data-entry.css'
@@ -109,11 +110,12 @@ export function DataEntryShiftHub({ hubs, page, delegated = false, renderTargetS
   hubs: Choice[]; page: EntryPage; delegated?: boolean; renderTargetSettings?: (hub: Choice) => ReactNode
 }) {
   const { L } = usePrefs()
-  const [selected, setSelected] = useState('')
-  const hub = hubs.find(h => h.id === selected) ?? hubs[0]
+  const [selected, setSelected] = useState(() => rememberedHub())
+  const hub = pickRemembered(hubs, selected)
   if (!hub) return <p>{L('এই জোনে সক্রিয় হাব নেই।', 'This zone has no active hubs.')}</p>
+  function chooseHub(id: string) { setSelected(id); rememberHub(id) }
   return <section className="panel data-entry-panel">
-    <label className="data-entry-field">{L('হাব', 'Hub')}<select value={hub.id} onChange={e => setSelected(e.target.value)}>
+    <label className="data-entry-field">{L('হাব', 'Hub')}<select value={hub.id} onChange={e => chooseHub(e.target.value)}>
       {hubs.map(h => <option value={h.id} key={h.id}>{h.name}</option>)}
     </select></label>
     <ShiftPanel key={hub.id + page} hub={hub.id} page={page} delegated={delegated} />

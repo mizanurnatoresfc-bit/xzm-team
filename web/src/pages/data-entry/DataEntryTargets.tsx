@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { usePrefs } from '../../lib/prefs'
 import { supabase } from '../../lib/supabase'
+import { pickRemembered, rememberHub, rememberedHub } from '../../lib/zoneHubMemory'
 import { useLoad } from '../accounts/ui'
 import './data-entry.css'
 
@@ -172,16 +173,17 @@ const complexityFields = [field('complex_parcels', 'অনুমোদিত জ
 export function DataEntryTargetSettings({ hubs }: { hubs: Choice[] }) {
   const { L } = usePrefs()
   const [open, setOpen] = useState(false)
-  const [hub, setHub] = useState('')
+  const [hub, setHub] = useState(() => rememberedHub())
   const [date, setDate] = useState(dhakaDay)
-  const selected = hubs.find(h => h.id === hub) ?? hubs[0]
+  const selected = pickRemembered(hubs, hub)
+  function chooseHub(id: string) { setHub(id); rememberHub(id) }
   if (!selected) return null
   return <section className="panel data-entry-panel">
     <details onToggle={e => setOpen(e.currentTarget.open)}>
       <summary>{L('সক্ষমতা ও কর্মীদের শুরুর তথ্য', 'Capacity and opening employee records')}</summary>
       {open && <>
         {hubs.length > 1 && <label className="data-entry-field">{L('হাব', 'Hub')}
-          <select value={selected.id} onChange={e => setHub(e.currentTarget.value)}>
+          <select value={selected.id} onChange={e => chooseHub(e.currentTarget.value)}>
             {hubs.map(h => <option value={h.id} key={h.id}>{h.name}</option>)}
           </select>
         </label>}
