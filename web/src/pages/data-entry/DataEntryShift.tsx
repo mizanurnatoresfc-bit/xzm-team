@@ -439,6 +439,7 @@ function OwnShift({ children }: { children: ReactNode }) {
         {L(...stages[slot - 1])} · {L('জমা দিন', 'Submit')}
       </button>)}
       </div>
+      <StaffWeek hubId={hub.id} />
       {report && <TargetExplanation report={report} compact />}
       <DutyList duties={hub.duties} onAction={save(hub)} own />
       {!!hub.colleagues.length && <details><summary>{L('জোনাল ম্যানেজারকে আপডেট দিন', 'Update the Zonal Manager')}</summary>
@@ -474,4 +475,31 @@ function OwnShift({ children }: { children: ReactNode }) {
   </section>
   {!dedicated && children}
   </>
+}
+
+function StaffWeek({ hubId }: { hubId: string }) {
+  const { L } = usePrefs()
+  const [week, setWeek] = useState<{rows: {work_date: string; hub_id: string; target: number | null; assigned: number | null; submitted: number | null; verified: number | null}[]} | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let active = true
+    supabase.rpc('data_entry_staff_week', {p_days: 7}).then(({data,error}) => {
+      if (!active) return
+      if (error || !data || !Array.isArray(data.rows)) setFailed(true)
+      else setWeek(data)
+    })
+    return () => { active = false }
+  }, [])
+  const rows = (week?.rows ?? []).filter(row => row.hub_id === hubId).sort((a,b) => a.work_date.localeCompare(b.work_date))
+  const max = Math.max(1, ...rows.flatMap(row => [row.target ?? 0,row.assigned ?? 0,row.submitted ?? 0,row.verified ?? 0]))
+  return <section className="data-entry-chart">
+    <h3>{L('আমার গত ৭ দিনের কাজ', 'My last seven days')}</h3>
+    {failed ? <p role="status">{L('ইতিহাস এখন পাওয়া যাচ্ছে না।', 'History is currently unavailable.')}</p> : !week ? <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p> : !rows.length ? <p>{L('এই হাবে কাজের ইতিহাস নেই।', 'No work history for this hub.')}</p> : rows.map(row => <div key={row.work_date}>
+      <strong>{row.work_date}</strong>
+      {([{label:L('টার্গেট','Target'),value:row.target},{label:L('বরাদ্দ','Assigned'),value:row.assigned},{label:L('জমা','Submitted'),value:row.submitted},{label:L('যাচাইকৃত','Verified'),value:row.verified}]).map(item => <div key={item.label}>
+        <div className="data-entry-chart-label"><span>{item.label}</span><strong>{item.value ?? '—'}</strong></div>
+        {item.value != null && <div className="data-entry-track data-entry-remaining" aria-hidden="true"><span className="data-entry-verified" style={{width:Math.max(0,Math.min(100,item.value/max*100))+'%'}} /></div>}
+      </div>)}
+    </div>)}
+  </section>
 }
