@@ -1,0 +1,10 @@
+# XZM-013 Phase 2A — Duty settings
+Owner approved development. ChatGPT branch; coordinate with PRs 219, 220, 222 and any Claude duty work. No production writes or deployment.
+## Evidence
+Main Duties.tsx and lib/hub.ts use job_duties direct RLS CRUD. Production read-only catalog confirms job_duties (position/employee/zone/frequency/focus), tasks (due_date, assignee, accountable manager, submission and completion), task_reminders. Existing task_assign and task_reassign check active profile but not target scope explicitly. task_complete requires independent manager confirmation only when requires_submission is true. Existing job_duties RLS edit is global or zone scoped; own position read predicate requires further scope review.
+## Phase 2A contract
+Add optional local deadline, verification mode, evidence source, reviewer role and hub scope; preserve old rows and legacy clients. Asia/Dhaka time. Global/zone/hub/employee authorization must be enforced server-side, including target membership, old and new scope and transfer history. No self-approval for evidence-required duties. Leave exceptions and daily generation are later integration work; do not claim them implemented.
+## Evidence candidates
+attendance_self_marks, attendance_records, wf_morning_subs, pickup_submissions, pickup_consolidations, route_day_plans, route_stop_visits, wf_daily_ops, sorting_handovers, sorting_dispatches, sorting_driver_reports, issues, hub_ops_reports, da_import_reports, vehicle_day_logs, hub_ops_boss_reports. Schema presence only, not proof of actor attribution. Map actual actor, hub, date, approved status and immutable record ID before enabling automatic verification. Missing evidence is unknown, not failure. Do not count hub submission as all employees completing duty.
+## Acceptance
+Existing CRUD and old rows unchanged; scoped role tests including cross-zone/hub denial; Dhaka boundary; mobile/web build; leave and transfer cases; staging only. Draft SQL is not a deployable migration until reviewed. No merge or deployment from this audit.
