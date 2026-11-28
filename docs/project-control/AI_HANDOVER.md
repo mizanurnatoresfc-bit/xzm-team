@@ -155,7 +155,11 @@ Before starting a task:
 - No business-rule change without approved task।
 - No "RESOLVED" label on a risk until merge + both-AI read verification (R-008 lesson, XZM-004R Review-Response)।
 
-## Priority 01 — Master Module Control Center, 2026-11-28
+## Priority 01 — System Control Center (formerly "Master Module Control Center"), 2026-11-28
+
+> **Rename, 2026-11-28 (owner-directed):** user-facing label is now **"সিস্টেম নিয়ন্ত্রণ কেন্দ্র" / "System Control Center"**. Structural identifiers (URL `/app/module-control`, React component `ModuleControl`, module id `core`, DB tables `private.release_*`, RPC names `public.module_release_*`) are unchanged, keeping ChatGPT Backend Team's audit surface and Codex's test suite stable. Rename touched two UI strings only: Dashboard shortcut (`web/src/pages/Dashboard.tsx:81`) and the page's AppShell title (`web/src/pages/users/ModuleControl.tsx:48`).
+
+
 
 - [Draft PR #226](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/226) contains the persistent registry and control center. Enter from the Super Admin dashboard or through `/app/module-control`. Enforce normal auth and password recovery before entering. The database checks the real Super Admin grant.
 - Add each future route to `web/src/lib/moduleRelease.ts` and seed each new module and parent using a forward migration. New database registry rows default to Planning. Wire new endpoints into the release guard with the resource's real hub and retain the endpoint's existing authorization.
@@ -213,3 +217,10 @@ Before starting a task:
 - **Staging frontend deployment verified live.** `https://staging.xzmteam.com/` serves the real XZM TEAM app (title `XZM TEAM`, Brand Green `#16A34A`, description `XZM TEAM — Employee and Management`). Cloudflare Workers Git-integration auto-built from the branch push.
 - **Remaining RPC coverage audit documented** in TEST_REPORT with the three deferred families (session-id-first `da_*` family, `operation_*` after module seed, remaining p_hub-first wrappers) — each with the per-family vet-plus-wrap template already proven by batches 1-3, awaiting the ChatGPT Backend Team Contract-report pattern.
 - **Browser-level DEMO acceptance for the five roles still not reachable from this session** — the outbound proxy allowlist doesn't include `staging.xzmteam.com` so Playwright / curl / direct URL fetches get connection-refused. The deep SQL-level verification across T1–T12 (87 assertions) reconstructs exactly what each role would see at the UI level, driven off the real DEMO account UUIDs and the real DEMO-HUB(…) hub codes.
+
+### Priority 01 — 2026-11-28 eighth Claude pass: UI rename + fully green CI + audit-ready snapshot
+
+- **UI rename applied** (user-facing label only): `web/src/pages/Dashboard.tsx` dashboard shortcut and `web/src/pages/users/ModuleControl.tsx` AppShell title now read `"সিস্টেম নিয়ন্ত্রণ কেন্দ্র" / "System Control Center"`. Structural identifiers kept as-is so ChatGPT's audit surface stays stable: the URL stays `/app/module-control`, the React component stays `ModuleControl`, the module id stays `core`, and every `private.release_*` table + `public.module_release_*` RPC is untouched. `grep -rn "মডিউল নিয়ন্ত্রণ\|Module Control" web/src` returns zero after the rename.
+- **GitHub CI on `d7f2808` — BOTH workflows green.** `Tests` job applied all five Priority-01 migrations and ran every SQL test file through (including the fixed `99_release_control_expansion_batch_3.sql`); `Website` built the Vite production bundle, type-checked, ran the five node suites, passed Playwright smoke. This is the **first commit on PR #226 where both workflows are green at the same time**.
+- **Local regression after rename**: 93/93 PASS (all seven node test files).
+- **DEMO environment snapshot on staging ready for independent audit:** 5 DEMO accounts active, 3 DEMO hubs seeded, 150 modules registered, 9 release_config rows all at clean published default (every test suite ended in restore), 38 release_audit entries preserved for replay, 34 guarded wrapper entry points, 1 restrictive RLS policy. No Claude-side writes touched ChatGPT's RPC/DB surface this pass.

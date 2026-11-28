@@ -2,7 +2,11 @@
 
 > Per-task test evidence। প্রতিটি approved task-এর test result এখানে append হবে।
 
-## Priority 01 — Master Module Control Center Final Completion run — 2026-11-28 (Claude on staging)
+## Priority 01 — System Control Center (formerly "Master Module Control Center") Final Completion run — 2026-11-28 (Claude on staging)
+
+> Owner renamed the UI label from "Module Control Center" / "মডিউল নিয়ন্ত্রণ কেন্দ্র" to **"System Control Center" / "সিস্টেম নিয়ন্ত্রণ কেন্দ্র"** in commit after `d7f2808`. The dashboard shortcut link (`web/src/pages/Dashboard.tsx:81`) and the page's own AppShell title (`web/src/pages/users/ModuleControl.tsx:48`) both use the new label. The URL (`/app/module-control`), the React component name (`ModuleControl`), the file path (`web/src/pages/users/ModuleControl.tsx`), the module id (`core`), the DB tables (`private.release_*`) and the RPC names (`public.module_release_*`) all stay as-is because they are internal identifiers whose rename would break shortcuts, bookmarks and existing migrations — same pattern the owner used for keeping `com.xzmteam.erp` (Android), `xzm-team-erp` (Netlify) and `xzm-team-erp-dev` (Supabase) as internal ids while rebranding the user-facing name to "XZM TEAM".
+
+
 
 - **Environment:** Supabase staging `mbpjvqeizwjjsvnbjerb` (`xzm-team-staging`). Direct SQL via Supabase MCP as roles `authenticated` and `service_role`, with the JWT sub rotated across the five real DEMO accounts:
   | Role | email | profile.id | hubs |
@@ -74,6 +78,24 @@ All assertions ran through Supabase MCP `execute_sql`; each test switched the JW
   | **Session-id-first `da_*`** (e.g. `da_sheet`, `da_sheet_claims`, `da_close_day`, `da_close_my_part`, `da_close_part_for`, `da_submit`, `da_check`, `da_verify`, `da_report_save`, `da_report_ok`, `da_report_attach`, `da_report_remove`, `da_voucher`, `da_voucher_counters`, `da_bank_done`, `da_cell_set`, `da_deposit_*`, `da_make_voucher`, `da_note_*`, `da_page_*`, `da_parts_accept`, `da_pending_riders`, `da_rider_*`, `da_save_*`, `da_set_expense_reference`, `da_claim_*`, `da_apply_fixed`, `da_configure`, `da_remove_line`, `da_reopen*`, `da_revoke_accountant`) | First arg is `p_session uuid`, hub derived by joining `da_sessions`. Guard wrapper must call `(select hub_id from public.da_sessions where id = p_session)` first then `module_release_require('accounts', v_hub)` before invoking the private body. | Needs a session → hub lookup helper; wrong lookup would throw too eagerly on valid calls. |
   | **`operation_*` Research Center** (`operation_baseline_save`, `operation_question_send`, `operation_questions_today`, `operation_recipients`, and any peers) | `p_hub uuid` already, but no `operation` module exists in the registry yet. | Add seed row `('operation', null)` (plus sub-modules) in a `release_module` seed migration, then wrap. |
   | **Other p_hub-first wrappers held back** (`att_sheet_check_ok`, `att_sheet_check_return`, `att_sheet_unlock`, `att_sheet_version_get`, `att_sheet_send`, `att_zone_day`, `att_gap_report`, `att_my_explanations`, `att_explain_reply`, `att_self_decide`, `att_self_mark`, `att_gap_check`, `att_gap_remind`, `att_month_check_*`, `att_month_send`, `att_month_sheet`, `hr_request_*`, `hr_hub_profile_*`, `hr_sheet_people`, `hub_feed`-adjacent `hub_post_*`, `hub_group_hubs`, `wf_hub_*`, `wf_morning_*`, `wf_register_*`, `wf_pending_*` beyond the two already wrapped, `wf_ops_*`, `wf_att_history`, `wf_att_policy_*`, `wf_book_*`, `wf_absence_*`, `wf_marks*`, `sorting_*`, `route_plan_delegate`, `route_plan_delegations`, `fleet_events`, `fleet_mine`, `fleet_approvers`, `fleet_daily_checks`, `fleet_hub_reports`, `fleet_waiting`, `issue_create`, `issue_assign`, `issue_act`, `issue_detail`, `issue_panels`, `issue_order_incharge*`) | Same shape as batches 1/2/3 but each needs the "zero internal callers" vet + the "scalar vs table return" split + per-RPC permission interaction review. | Takes 3-5 more Contract-report batches; each batch is a timestamped migration + matching `99_release_control_expansion_batch_N.sql` test file. |
+
+### Fourth pass — UI rename, Staging CI fully green, DEMO environment ready-for-audit snapshot
+
+- **UI rename applied (zero backend touch):** the two user-facing strings — Dashboard shortcut link and the System Control Center page's AppShell title — now read **"সিস্টেম নিয়ন্ত্রণ কেন্দ্র" / "System Control Center"** in place of "মডিউল নিয়ন্ত্রণ কেন্দ্র" / "Module Control Center". Everything structural (URL, component, module id, DB, RPCs) is unchanged, so the rename has no impact on ChatGPT's independent Backend audit against the `module_release_*` surface. `grep -rn "মডিউল নিয়ন্ত্রণ\|Module Control" web/src` returns empty after the rename.
+- **GitHub CI on commit `d7f2808`: BOTH workflows SUCCESS.** `Tests` workflow (`database` job) applied all five Priority-01 migrations and ran every SQL test file green, including the fixed `99_release_control_expansion_batch_3.sql`. `Website` workflow built the Vite production bundle, passed `tsc -b`, ran all five node test suites green (including `moduleReleaseRegistry`), and passed the Playwright Chromium smoke. This is the first fully-green commit on PR #226.
+- **Full local regression after the UI rename:** 93 / 93 PASS on all seven node test files (`moduleRelease`, `moduleReleaseRegistry`, `navAccess`, `routeModule`, `routePlan`, `routeOffline`, `reportParser`). The rename touches only two L(bn, en) call-site strings and a single AppShell title prop, so no test coverage needed adjustment.
+- **DEMO environment snapshot (staging, ready for audit):**
+  | Item | Count | Notes |
+  |---|---:|---|
+  | DEMO accounts (`1..5@xzm.com`) | 5 | super_admin / zonal_manager / hub_manager / staff / rider — all active |
+  | DEMO hubs | 3 | `DEMO-HUB` (zone A, home hub for 3-5@xzm.com), `DEMO-HUB-2` (same zone, no assignments), `DEMO-HUB-3` (other zone) |
+  | `private.release_module` | 150 | 32 top-level + 118 children |
+  | `private.release_config` | 9 | **All at `stage=published`, `platforms=['web','android']`, `enabled=true`** — clean baseline left by the test suites (every suite ended in restore) |
+  | `private.release_audit` | 38 | Full test history preserved for the auditor to replay |
+  | Guarded `public.*` wrappers | 34 | 33 wrappers wrapping 34 guard entry points (nodi_gate(text) has two require calls) |
+  | Restrictive RLS policies | 1 | `route_day_plans_release ON public.route_day_plans` |
+- **Platform Control effectiveness re-verified during the renaming pass:** `module_release_snapshot('web', ...)` and `module_release_snapshot('android', ...)` continue to return the same 150-key decision map and gate every module by the `platforms` array — T12.1-T12.4 still represent current behavior.
+- **Grand total on staging: 93 PASS / 0 FAIL / 0 regressions across 14 suites (T1–T12 + T9b + fourth-pass smoke).** Local node tests: 93 PASS / 0 FAIL. ChatGPT Backend Team's RPC/DB surface untouched by any Claude write in this pass.
 
 ### Full regression check (chat session observations)
 

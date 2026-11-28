@@ -45,7 +45,7 @@ export default function ModuleControl() {
   }, [reload])
   const entry = catalog?.modules.find(module => module.id === selected)
   const matches = catalog?.modules.filter(module => module.id.includes(query.trim().toLowerCase()))
-  return <AppShell title="মডিউল নিয়ন্ত্রণ কেন্দ্র">
+  return <AppShell title="সিস্টেম নিয়ন্ত্রণ কেন্দ্র">
     {error && <p role="alert" className="da-error">{error} <button onClick={() => setReload(n => n + 1)}>আবার চেষ্টা করুন</button></p>}
     {viewAs && <button onClick={() => setViewAs(null)}>সুপার অ্যাডমিনে ফিরুন</button>}
     {!catalog && !error && <p role="status">লোড হচ্ছে…</p>}
