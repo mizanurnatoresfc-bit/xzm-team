@@ -586,25 +586,25 @@
 | Blockers | Awaiting Owner approval |
 | Next Action | Owner approval → Claude runs grep audit |
 
-### XZM-013 — Employee Duty Evidence *(proposed)*
+### XZM-013 — Employee Duty Management & Automatic Duty Verification *(in progress — Phase 2B frontend)*
 | Field | Value |
 |---|---|
-| Module | hubApi.taskComplete + EvidencePicker |
+| Module | hr/Duties.tsx + lib/hub.ts + staff/MyDuties.tsx + hr/DutyReports.tsx + zonal/HubOps.tsx |
 | Category | EDM + UX |
-| Requirement | Policy: whether duty completion requires evidence (photo/file) attach via EvidencePicker |
-| Business Objective | Compliance proof for duty completion when demanded by ops/HR |
-| Priority | P3 |
-| Assigned AI | TBD (Owner policy → Claude UI) |
-| Dependencies | XZM-007A/B-3 Finding G-4 |
-| Current Status | **PROPOSED** |
-| Acceptance Criteria | Owner policy decision documented + (if yes) implementation plan |
-| Test Evidence | — |
-| Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
+| Requirement | Phase 2A (ChatGPT, PR #223): schema rehearsal + audit for job_duties deadline_local, verification_mode, evidence_source, reviewer_role, hub scope. Phase 2B (Claude): frontend — duty settings UI, employee panel (today/submitted/pending/overdue + reason submission), zonal panel (duty summary tab in HubOps), duty reports (daily / by staff / by hub / manager / incomplete / monthly performance) with Date·Zone·Hub·Employee·Status filters + print/Excel, Operation Center integration (duty counts drill through to full report). |
+| Business Objective | Make duty assignment, daily tracking, verification and reporting one closed loop across staff / hub manager / zonal manager; compliance proof once evidence sources are wired. |
+| Priority | P1 |
+| Assigned AI | Phase 2A — ChatGPT Backend Team · Phase 2B — Claude (Frontend) |
+| Dependencies | XZM-007A/B-3 Finding G-4; Phase 2A schema (PR #223) to go live before verification_mode='automatic' is safely usable. |
+| Current Status | **IN_PROGRESS** — Phase 2B draft PR open, Phase 2A still UNDER_REVIEW. |
+| Acceptance Criteria | Frontend form writes all Phase 2A columns when present and falls back cleanly when not; MyDuties page lists today's duty grouped by frequency with one-click to related module; HubOps "দায়িত্ব" tab shows zone-wide done/awaiting/pending/overdue per hub for a day; DutyReports has 6 tabs and all 5 filters + print/Excel; no mock data shown live; no backend/DB/RLS/migration file changed by Claude. |
+| Test Evidence | PR #___ (Draft) — syntax + brace-balance check pass; typecheck / vite build not runnable in this session (npm registry blocked by agent proxy). Owner to confirm on `npm run build` locally or in CI. |
+| Owner Approval | ⏳ pending for Phase 2B merge (Phase 2A audit approved) |
+| Commit / PR Link | Branch `claude/xzm-013-frontend-phase-2b` (Draft PR) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
-| Blockers | Awaiting Owner policy decision |
-| Next Action | Owner policy decision |
+| Blockers | Phase 2A columns not yet applied in production — `verification_mode='automatic'`/`evidence_source`/`reviewer_role` saves will silently fall back until ChatGPT's migration lands. |
+| Next Action | Owner review of Phase 2B draft PR, run `npm run build` locally, merge Phase 2A migration, then ready-for-review Phase 2B. |
 
 ### XZM-014 — Fair Workload & Performance Evaluation *(proposed)*
 | Field | Value |

@@ -6,7 +6,7 @@ import { Icon } from '../../components/Icon'
 import { Badge, Field, Modal, useLoad, useToast } from '../accounts/ui'
 import { usePrefs } from '../../lib/prefs'
 import { hrFriendly, type Employee } from '../../lib/hr'
-import { dutiesApi, FREQ, type Duty } from '../../lib/hub'
+import { dutiesApi, EVIDENCE_SOURCE, FREQ, REVIEWER, VERIFY_MODE, type Duty, type ReviewerRole, type VerifyMode } from '../../lib/hub'
 import { supabase } from '../../lib/supabase'
 import { FocusPill, focusOf, useOrg } from './common'
 
@@ -22,7 +22,8 @@ export function Duties() {
   useEffect(() => { if (!pos && o.data?.positions[0]) setPos(o.data.positions[0].id) }, [o.data, pos])
   const list = useLoad(() => tab === 'post' ? (pos ? dutiesApi.ofPosition(pos) : Promise.resolve([])) : (person ? dutiesApi.ofEmployee(person.id) : Promise.resolve([])), [tab, pos, person])
   const postDuties = useLoad(() => tab === 'person' && person?.position_id ? dutiesApi.ofPosition(person.position_id) : Promise.resolve([] as Duty[]), [tab, person])
-  const [f, setF] = useState<{ id?: string; title: string; details: string; frequency: string; sort: string; zone: string; focus: string } | null>(null)
+  const [f, setF] = useState<{ id?: string; title: string; details: string; frequency: string; sort: string; zone: string; focus: string
+    deadline: string; verify: '' | VerifyMode; evidence: string; reviewer: '' | ReviewerRole } | null>(null)
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
   const editable = can('hr.duty.edit')
   async function find() {
@@ -38,9 +39,16 @@ export function Duties() {
     if (f.title.trim().length < 2) return setErr(L('দায়িত্বের নাম লিখুন', 'Write the duty'))
     setBusy(true); setErr('')
     try {
+      // deadline is "HH:MM" from the time input — stored as-is (Asia/Dhaka wall clock, per Phase 2A).
+      // If verification is manual, evidence_source and reviewer_role are intentionally cleared so old automatic settings do not linger.
+      const mode = (f.verify || 'manual') as VerifyMode
       await dutiesApi.save({ position_id: tab === 'post' ? pos : null, employee_id: tab === 'person' ? person!.id : null,
         zone_id: tab === 'person' ? person!.zone_id : (f.zone || null), title: f.title.trim(), details: f.details.trim() || null,
-        frequency: f.frequency, sort: Number(f.sort) || 100, focus: tab === 'post' ? (f.focus || null) : null }, f.id)
+        frequency: f.frequency, sort: Number(f.sort) || 100, focus: tab === 'post' ? (f.focus || null) : null,
+        deadline_local: f.deadline ? (f.deadline.length === 5 ? f.deadline + ':00' : f.deadline) : null,
+        verification_mode: mode,
+        evidence_source: mode === 'manual' ? null : (f.evidence || null),
+        reviewer_role: f.reviewer || null }, f.id)
       setF(null); await list.reload(); toast(L('সেভ হয়েছে', 'Saved'))
     } catch (e) { setErr(hrFriendly(e)) } finally { setBusy(false) }
   }
@@ -53,9 +61,14 @@ export function Duties() {
     <div style={{ flex: 1, minWidth: 0 }}><b>{d.title}</b> <Badge tone="info">{L(FREQ[d.frequency]?.[0] ?? d.frequency, FREQ[d.frequency]?.[1] ?? d.frequency)}</Badge>
       {!own && <Badge tone="neutral">{L('পদের দায়িত্ব', 'From the post')}</Badge>}
       {d.focus ? <FocusPill f={focusOf(o.data?.positions, d.position_id, d.focus)} /> : focusOpts(d.position_id).length > 0 && <Badge tone="neutral">{L('সবার জন্য', 'Everyone')}</Badge>}
+      {d.deadline_local && <Badge tone="warn">{L('শেষ সময়', 'Deadline')} {d.deadline_local.slice(0, 5)}</Badge>}
+      {d.verification_mode && d.verification_mode !== 'manual' && <Badge tone="ok">{L(...VERIFY_MODE[d.verification_mode])}</Badge>}
+      {d.evidence_source && EVIDENCE_SOURCE[d.evidence_source] && <Badge tone="info">{L(...EVIDENCE_SOURCE[d.evidence_source])}</Badge>}
+      {d.reviewer_role && <Badge tone="neutral">{L('যাচাইকারী', 'Reviewer')}: {L(...REVIEWER[d.reviewer_role])}</Badge>}
       {d.details && <div className="muted small pre-wrap">{d.details}</div>}</div>
     {own && editable && <span className="row-acts">
-      <button className="secondary sm" onClick={() => { setErr(''); setF({ id: d.id, title: d.title, details: d.details ?? '', frequency: d.frequency, sort: String(d.sort), zone: d.zone_id ?? '', focus: d.focus ?? '' }) }}><Icon name="edit" size={14} /></button>
+      <button className="secondary sm" onClick={() => { setErr(''); setF({ id: d.id, title: d.title, details: d.details ?? '', frequency: d.frequency, sort: String(d.sort), zone: d.zone_id ?? '', focus: d.focus ?? '',
+        deadline: (d.deadline_local ?? '').slice(0, 5), verify: (d.verification_mode ?? '') as '' | VerifyMode, evidence: d.evidence_source ?? '', reviewer: (d.reviewer_role ?? '') as '' | ReviewerRole }) }}><Icon name="edit" size={14} /></button>
       <button className="secondary sm" onClick={() => void remove(d)}><Icon name="trash" size={14} /></button></span>}
   </li>
   const focusOpts = (posId: string | null) => o.data?.positions.find(p => p.id === posId)?.focus_options ?? []
@@ -74,7 +87,7 @@ export function Duties() {
     <section className="panel">
       <div className="da-bar"><h2>{tab === 'post' ? `${L('দায়িত্ব', 'Duties')} — ${o.names.pos[pos] ?? ''}` : person ? `${L('দায়িত্ব', 'Duties')} — ${person.full_name}` : L('দায়িত্ব', 'Duties')}
         {' '}<span className="count-pill">{n(list.data?.length ?? 0)}</span></h2>
-        {editable && ready && <button onClick={() => { setErr(''); setF({ title: '', details: '', frequency: 'daily', sort: String(((list.data?.length ?? 0) + 1) * 10), zone: '', focus: '' }) }}><Icon name="plus" size={15} />{L('দায়িত্ব যোগ', 'Add duty')}</button>}</div>
+        {editable && ready && <button onClick={() => { setErr(''); setF({ title: '', details: '', frequency: 'daily', sort: String(((list.data?.length ?? 0) + 1) * 10), zone: '', focus: '', deadline: '', verify: '', evidence: '', reviewer: '' }) }}><Icon name="plus" size={15} />{L('দায়িত্ব যোগ', 'Add duty')}</button>}</div>
       {err && !f && <p className="da-error">{err}</p>}
       {!ready ? <p className="muted">{tab === 'post' ? L('পদবি বেছে নিন।', 'Choose a post.') : L('কর্মীর এমপ্লয়ি আইডি লিখুন।', 'Type the employee ID.')}</p>
         : list.error ? <p className="da-error">{hrFriendly(list.error)}</p>
@@ -94,6 +107,23 @@ export function Duties() {
         {tab === 'post' && focusOpts(pos).length > 0 && <Field label={L('কার জন্য', 'For whom')} hint={L('যেমন সর্টিং-এর দায়িত্ব শুধু সর্টিং ফোকাসের কর্মীরা দেখবেন', 'e.g. sorting duties reach only Sorting staff')}>
           <select value={f.focus} onChange={e => setF({ ...f, focus: e.target.value })}><option value="">{L('পদের সবার জন্য', 'Everyone in the post')}</option>
             {focusOpts(pos).map(x => <option key={x.code} value={x.code}>{x.label_bn || x.label}</option>)}</select></Field>}
+        <Field label={L('দায়িত্বের সময়সীমা', 'Deadline time')} hint={L('ঢাকা সময়; খালি রাখলে কোনো নির্দিষ্ট সময় নেই', 'Asia/Dhaka wall clock; empty means no specific time')}>
+          <input type="time" value={f.deadline} onChange={e => setF({ ...f, deadline: e.target.value })} /></Field>
+        <Field label={L('যাচাই পদ্ধতি', 'Verification')}>
+          <select value={f.verify} onChange={e => setF({ ...f, verify: e.target.value as '' | VerifyMode })}>
+            <option value="">{L('ম্যানুয়াল (ডিফল্ট)', 'Manual (default)')}</option>
+            {(Object.entries(VERIFY_MODE) as Array<[VerifyMode, [string, string]]>).map(([k, v]) => <option key={k} value={k}>{L(...v)}</option>)}
+          </select></Field>
+        {f.verify && f.verify !== 'manual' && <Field label={L('প্রমাণের উৎস', 'Evidence source')} hint={L('কোন রেকর্ড দেখে স্বয়ংক্রিয় যাচাই হবে', 'Which record is checked for automatic verification')}>
+          <select value={f.evidence} onChange={e => setF({ ...f, evidence: e.target.value })}>
+            <option value="">{L('বাছুন…', 'Pick…')}</option>
+            {Object.entries(EVIDENCE_SOURCE).map(([k, v]) => <option key={k} value={k}>{L(...v)}</option>)}
+          </select></Field>}
+        <Field label={L('যাচাইকারী', 'Reviewer')} hint={L('নিজের দায়িত্ব নিজে অনুমোদন নয়; সার্ভার আলাদা যাচাইকারী চায়', 'No self-approval when evidence is required')}>
+          <select value={f.reviewer} onChange={e => setF({ ...f, reviewer: e.target.value as '' | ReviewerRole })}>
+            <option value="">{L('নির্দিষ্ট নয়', 'Not set')}</option>
+            {(Object.entries(REVIEWER) as Array<[ReviewerRole, [string, string]]>).map(([k, v]) => <option key={k} value={k}>{L(...v)}</option>)}
+          </select></Field>
         <Field label={L('বিস্তারিত', 'Details')} wide><textarea rows={4} value={f.details} onChange={e => setF({ ...f, details: e.target.value })} /></Field>
       </div>
       {err && <p className="da-error">{err}</p>}
