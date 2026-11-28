@@ -4,6 +4,12 @@
 
 ---
 
+## 2026-11-28 — DE-V2-R2.A Staff weekly RPC + Phase 1 surface documented
+
+- New public RPC `data_entry_staff_week(p_days integer default 7)` — self-scoped, returns per-day `{work_date, hub_id, hub_name, target, assigned, submitted, verified}` for the trailing N days (1–90). Days with no engine run / report / observation are omitted so the UI draws a sparse series rather than misleading zeros. Owner-requested for ChatGPT's staff-dashboard charts.
+- `docs/project-control/RPC_CONTRACTS.md` extended with the full Phase 1 shift-popup schedule + three-slot cumulative report flow, the complete extra-duty assignment flow with kind ↔ owner-category mapping, and the zonal override surface (`limit`, `availability`, `seed_pickups`, `appoint_head`/`revoke_head`, `schedule`). Equal-distribution mode flagged as R2.B.
+- Backend-only. Zero frontend touch — ChatGPT's `chatgpt/de-v2-frontend` branch unaffected.
+
 ## 2026-11-28 — DE-V2-R1.1 Rank system correctness hotfix (post-merge)
 
 - Addresses ChatGPT's independent SQL review of PR #228 (real correctness items):
