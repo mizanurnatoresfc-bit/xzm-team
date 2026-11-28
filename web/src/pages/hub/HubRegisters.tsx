@@ -7,14 +7,13 @@ import { ATTENDANCE_HUB, ATTENDANCE_ZONE, linkAllowed } from '../../lib/navAcces
 import { usePrefs } from '../../lib/prefs'
 import { ManagerPendingCard } from './ManagerPendingCard'
 import { StaffPendingCard } from './StaffPendingCard'
+import { RegisterWorkflow } from './RegisterWorkflow'
 import { MyHubRegisterMonth } from './MyHubRegisterMonth'
 import './hub-registers.css'
 
 export function HubRegisters() {
   const { L } = usePrefs()
   const access = useAuth()
-  const [showQueue, setShowQueue] = useState(false)
-  const [showPending, setShowPending] = useState(false)
   const [showMonth, setShowMonth] = useState(false)
   const zone = ATTENDANCE_ZONE.some(access.can)
   const hub = ATTENDANCE_HUB.some(access.can)
@@ -35,7 +34,6 @@ export function HubRegisters() {
     {
       icon: 'back', title: L('পেন্ডিং ও রিটার্ন খাতা', 'Pending and return register'),
       links: [[operations, L('ডেলিভারি রিটার্নের এন্ট্রি', 'Delivery return entries')]],
-      pending: true,
     },
     {
       icon: 'table', title: L('হাজিরা খাতা', 'Attendance register'),
@@ -55,24 +53,18 @@ export function HubRegisters() {
   ] as const
 
   return <AppShell title={L('হাবের খাতা', 'Hub registers')}>
+    <RegisterWorkflow />
     <div className="hub-register-grid">
       {books.map(book => {
         const links = book.links.filter(([to]) => linkAllowed(to, access))
         if (!links.length) return null
         return <section key={book.icon} className="panel hub-register-card">
-          <h2><Icon name={book.icon} size={22} />{book.title}</h2>
-          {'pending' in book && <>
-            <button type="button" className="secondary" aria-expanded={showPending} onClick={() => setShowPending(value => !value)}>
-              {L('আমার পেন্ডিং জমা', 'Submit my pending count')}
-            </button>
-            {showPending && <StaffPendingCard />}
-            {access.can('ops.staff_daily.view') && <div>
-              <button type="button" className="secondary" aria-expanded={showQueue} onClick={() => setShowQueue(value => !value)}>
-                {L('হাবের পেন্ডিং যাচাই', 'Review hub pending counts')}
-              </button>
-              {showQueue && <ManagerPendingCard />}
-            </div>}
-          </>}
+          <h2><Icon name={book.icon} size={22} />{book.title} · {L('মূল এন্ট্রি', 'Source entries')}</h2>
+          {book.icon === 'back' && <details>
+            <summary>{L('পেন্ডিংয়ের মূল এন্ট্রি', 'Pending source entries')}</summary>
+            <StaffPendingCard />
+            {access.can('ops.staff_daily.view') && <ManagerPendingCard />}
+          </details>}
           {links.map(([to, label]) => <Link key={to} to={to} className="hub-register-link">{label}</Link>)}
         </section>
       })}

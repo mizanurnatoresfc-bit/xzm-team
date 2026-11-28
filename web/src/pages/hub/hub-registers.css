@@ -41,3 +41,15 @@
   padding-block: .65rem;
   border-top: 1px solid var(--line);
 }
+
+.hub-register-workflow { display: grid; gap: 1rem; margin-bottom: 1.5rem; }
+.hub-register-filters, .hub-register-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  gap: 0.75rem;
+}
+.hub-register-stats { margin: 0; }
+.hub-register-stats dd { margin: 0; font-size: 1.4rem; font-weight: 700; }
+.hub-register-workflow details summary { cursor: pointer; padding: 0.5rem 0; }
+.hub-register-workflow form { display: grid; gap: 0.5rem; }
+.hub-register-history { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; }

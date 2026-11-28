@@ -60,5 +60,7 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Browser smoke tests
         run: npm run test:smoke
+      - name: Hub registers on web and Android bridge
+        run: node tests/hubRegisters.mjs
       - name: Offline check-in in a browser
         run: npm run test:offline
