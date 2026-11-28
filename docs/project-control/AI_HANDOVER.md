@@ -154,3 +154,9 @@ Before starting a task:
 - No branding drift (XZM TEAM only, ERP suffix gone from UI)।
 - No business-rule change without approved task।
 - No "RESOLVED" label on a risk until merge + both-AI read verification (R-008 lesson, XZM-004R Review-Response)।
+
+## XZM-013 Backend Handover — 2026-11-28
+
+Draft PR #223 on `chatgpt/xzm-013-duty-phase-2a` contains the duty migration and `API_CONTRACT.md` for frontend integration. Use the existing tasks list for generated rows and the four duty RPCs for submission, review, reports and service-side processing. The rollout requires a trusted per-hub scheduler. No frontend files were edited.
+
+The staging DEMO rehearsal used a disposable SQL fixture because staging had no public ERP tables. It verified the workflow with simulated grants. Full ERP regression, scheduled execution and automatic mappings for dedicated Hub Registers, Vehicle and Driver, and Company Reporting remain open. Keep the PR in draft and keep the migration out of production pending full validation.

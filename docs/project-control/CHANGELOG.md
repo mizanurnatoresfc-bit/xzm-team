@@ -78,3 +78,7 @@
 - Staff consolidation → `/app/staff/list`।
 - Attendance consolidation → `/app/workforce/hub`; old URLs redirect।
 - NODI AI chat UI + edge functions `nodi-ai`, `nodi-route-plan`, `osm-fetch-places` deployed।
+
+## 2026-11-28 — XZM-013 Duty Backend (Draft PR #223)
+
+Added opt-in recurring duty generation, scoped assignment checks, Dhaka deadlines, evidence-linked verification, absence reconciliation, in-app overdue notices and escalation, and daily/monthly reporting RPCs. Added an integration contract, reversible schema SQL for unused installations, and a staging DEMO regression fixture. Full ERP validation and scheduler setup are pending.

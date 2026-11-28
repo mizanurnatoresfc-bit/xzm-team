@@ -586,25 +586,26 @@
 | Blockers | Awaiting Owner approval |
 | Next Action | Owner approval → Claude runs grep audit |
 
-### XZM-013 — Employee Duty Evidence *(proposed)*
+### XZM-013 — Employee Duty Evidence
 | Field | Value |
 |---|---|
-| Module | hubApi.taskComplete + EvidencePicker |
-| Category | EDM + UX |
-| Requirement | Policy: whether duty completion requires evidence (photo/file) attach via EvidencePicker |
-| Business Objective | Compliance proof for duty completion when demanded by ops/HR |
-| Priority | P3 |
-| Assigned AI | TBD (Owner policy → Claude UI) |
-| Dependencies | XZM-007A/B-3 Finding G-4 |
-| Current Status | **PROPOSED** |
-| Acceptance Criteria | Owner policy decision documented + (if yes) implementation plan |
-| Test Evidence | — |
-| Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
+| Module | Job Duties / Tasks / Module Evidence |
+| Category | EDM |
+| Requirement | Scoped recurring duties with Dhaka deadlines, absence reconciliation, record-specific verification, reports and escalation |
+| Business Objective | Attribute completed work to the employee who performed it and enforce independent review |
+| Priority | P1 |
+| Assigned AI | ChatGPT Backend Team (backend) + Claude (frontend integration) |
+| Dependencies | Restored ERP baseline in isolated staging and approved module evidence mappings |
+| Current Status | **IN_PROGRESS** |
+| Acceptance Criteria | Verify real ERP roles and legacy data, prove actor and scope across modules, exercise the scheduled runner and review frontend integration |
+| Test Evidence | TEST_REPORT.md, XZM-013 DEMO fixture and rollback |
+| Owner Approval | ✅ Approved for development in the 2026-11-28 brief |
+| Commit / PR Link | #223 |
 | GitHub Issue # | — |
-| Deployment Status | N/A |
-| Blockers | Awaiting Owner policy decision |
-| Next Action | Owner policy decision |
+| Deployment Status | Staging transaction rehearsal |
+| Blockers | Staging ERP baseline is empty. Dedicated Hub Registers, Vehicle and Driver, and Company Reporting evidence mappings, production-equivalent regression and scheduler testing remain open. |
+| Next Action | Restore an isolated ERP baseline and exercise the full role and evidence matrix before requesting live approval. |
+
 
 ### XZM-014 — Fair Workload & Performance Evaluation *(proposed)*
 | Field | Value |

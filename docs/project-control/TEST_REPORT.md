@@ -74,3 +74,14 @@ Format:
 - PR #177 (route setup OSM load + draw area) — merged, user-tested OK।
 - PR #178 (sidebar personal rows) — merged।
 - Supabase edge functions `nodi-ai`, `nodi-route-plan`, `osm-fetch-places` — deployed & tested by owner।
+
+## XZM-013 — Duty backend rehearsal — 2026-11-28
+
+- Environment — `xzm-team-staging` (`mbpjvqeizwjjsvnbjerb`, Postgres 17). The ERP schema was empty. All fixture changes were rolled back. The DEMO hub plus two comparison hubs used synthetic users, records, and test doubles for ERP grants and notification delivery.
+- **Pass** — Daily, weekly and monthly generation, Dhaka deadline conversion, duplicate-free sequential retry, leave and approved absence reconciliation, retention of completed duties, automatic submitter attribution, rejection of auto-submitted hub rows, and retention of the real module UUID.
+- **Pass** — Invalid source, employee, hub, approval and timestamp rejected. Combined submission, return and zonal approval passed. Independent hub-manager approval passed. The fixture confirmed Problem Center solver attribution from an approved issue and its solve event.
+- **Pass** — Authenticated and anonymous privilege checks, employee task visibility, cross-hub template RLS, cross-hub and cross-zone assignment and reassignment denial, denial of legacy self-approval, and daily and monthly report access.
+- **Pass** — One overdue notification to each of the assignee and accountable manager, then one escalation to the zonal manager. The retry produced no additional notifications.
+- **Pass** — Rollback removed the duty RPC and schema additions from an unused DEMO baseline.
+- **Pending** — Full restored-ERP regression, real module RPC and RLS integration, concurrent request verification, scheduled Cron execution, and production authorization. No production SQL was applied.
+- Reproduction — In a transaction on an empty isolated Supabase project, load `audits/xzm-013-demo-baseline.sql`, the migration body without its outer transaction statements, and `audits/xzm-013-demo-test.sql`. Finish with `ROLLBACK`. For the rollback case, use the rollback body in place of the test file and check that `to_regprocedure('public.duty_run(uuid)')` is null.
