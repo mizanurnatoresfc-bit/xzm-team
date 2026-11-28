@@ -375,7 +375,7 @@ function OwnShift({ children }: { children: ReactNode }) {
   if (state.loading && !state.data && !state.error) return <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
   if (!state.data?.hubs.length && !state.data?.heads.length && !unmatched.length) return <>{children}</>
   const dedicated = Boolean(state.data?.hubs.length || unmatched.length)
-  const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await reload() }
+  const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await Promise.all([reload(), reloadTargets()]) }
   return <>
   <section className="panel data-entry-panel">
     <h2>{L('আজকের ডাটা এন্ট্রি', 'Today’s data entry')}</h2>
@@ -395,12 +395,51 @@ function OwnShift({ children }: { children: ReactNode }) {
         { label: L('যাচাইকৃত সম্পন্ন', 'Verified complete'), value: worker?.completed ?? null },
         { label: L('প্রকৃত কাজ বাকি', 'Actual remaining'), value: remaining },
       ]} />
+      <section className="data-entry-chart" aria-label={L('আজকের অগ্রগতি', 'Today’s progress')}>
+        <div className="data-entry-chart-label">
+          <strong>{L('আজকের যাচাইকৃত অগ্রগতি', 'Verified progress today')}</strong>
+          <strong>{target != null && target > 0 && worker != null ? Math.round(worker.completed / target * 100) + '%' : '—'}</strong>
+        </div>
+        {target != null && target > 0 && worker != null && <div className="data-entry-track data-entry-remaining" aria-hidden="true">
+          <span className="data-entry-verified" style={{ width: Math.max(0, Math.min(100, worker.completed / target * 100)) + '%' }} />
+        </div>}
+        <EntryMetrics metrics={[
+          { label: L('রিপোর্ট বাকি', 'Reports due'), value: due.filter(item => item.hub.id === hub.id).length },
+          { label: L('এন্ট্রি মিনিট', 'Entry minutes'), value: hub.last_minutes },
+          { label: L('দায়িত্ব সম্পন্ন', 'Duties completed'), value: hub.duties.filter(duty => duty.completed_at).length },
+          { label: L('মোট দায়িত্ব', 'Total duties'), value: hub.duties.length },
+        ]} />
+        <p>{target == null ? L('প্রকৃত বরাদ্দ নিশ্চিত হওয়ার অপেক্ষায়।', 'Waiting for confirmed allocation.') : target === 0 ? L('বর্তমানে কোনো বরাদ্দ নেই।', 'No current allocation.') : L('জমা এন্ট্রি ও যাচাইকৃত এন্ট্রি আলাদা।', 'Reported and verified entries are separate.')}</p>
+      </section>
+      <section className="data-entry-chart" aria-label={L('আজকের রিপোর্ট', 'Today’s reports')}>
+        <h3>{L('রিপোর্টের অবস্থা', 'Report status')}</h3>
+        <ol>{stages.map((stage, index) => {
+          const pending = due.some(item => item.hub.id === hub.id && item.slot === index + 1)
+          return <li key={index}>
+            <div className="data-entry-chart-label">
+              <span>{L(...stage)}</span>
+              <strong>{pending ? L('এখন জমা দিন', 'Due now') : L('এখন জমা দেওয়ার প্রয়োজন নেই', 'Not currently due')}</strong>
+            </div>
+            {pending && <button type="button" onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,index + 1)))}>{L('রিপোর্ট খুলুন', 'Open report')}</button>}
+          </li>
+        })}</ol>
+      </section>
+      <section className="data-entry-chart" aria-label={L('কাজের সারাংশ', 'Work summary')}>
+        <h3>{L('কাজের সারাংশ', 'Work summary')}</h3>
+        <EntryMetrics metrics={[
+          { label: L('যাচাইয়ের অপেক্ষায় দায়িত্ব', 'Completed duties awaiting approval'), value: hub.duties.filter(duty => duty.completed_at && !duty.approved_at).length },
+          { label: L('অনুমোদিত দায়িত্ব', 'Approved duties'), value: hub.duties.filter(duty => duty.approved_at).length },
+          { label: L('অসম্পূর্ণ দায়িত্ব', 'Incomplete duties'), value: hub.duties.filter(duty => !duty.completed_at).length },
+        ]} />
+        <p>{L('এন্ট্রি সময়', 'Entry time')}: {hub.last_minutes == null ? '—' : Math.floor(hub.last_minutes / 60) + ' ' + L('ঘণ্টা', 'h') + ' ' + (hub.last_minutes % 60) + ' ' + L('মিনিট', 'min')}</p>
+      </section>
       <div className="data-entry-actions">
       {due.filter(item => item.hub.id === hub.id).map(({slot}) => <button type="button" key={slot}
         onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,slot)))}>
         {L(...stages[slot - 1])} · {L('জমা দিন', 'Submit')}
       </button>)}
       </div>
+      <StaffWeek hubId={hub.id} />
       {report && <TargetExplanation report={report} compact />}
       <DutyList duties={hub.duties} onAction={save(hub)} own />
       {!!hub.colleagues.length && <details><summary>{L('জোনাল ম্যানেজারকে আপডেট দিন', 'Update the Zonal Manager')}</summary>
@@ -436,4 +475,31 @@ function OwnShift({ children }: { children: ReactNode }) {
   </section>
   {!dedicated && children}
   </>
+}
+
+function StaffWeek({ hubId }: { hubId: string }) {
+  const { L } = usePrefs()
+  const [week, setWeek] = useState<{rows: {work_date: string; hub_id: string; target: number | null; assigned: number | null; submitted: number | null; verified: number | null}[]} | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let active = true
+    supabase.rpc('data_entry_staff_week', {p_days: 7}).then(({data,error}) => {
+      if (!active) return
+      if (error || !data || !Array.isArray(data.rows)) setFailed(true)
+      else setWeek(data)
+    })
+    return () => { active = false }
+  }, [])
+  const rows = (week?.rows ?? []).filter(row => row.hub_id === hubId).sort((a,b) => a.work_date.localeCompare(b.work_date))
+  const max = Math.max(1, ...rows.flatMap(row => [row.target ?? 0,row.assigned ?? 0,row.submitted ?? 0,row.verified ?? 0]))
+  return <section className="data-entry-chart">
+    <h3>{L('আমার গত ৭ দিনের কাজ', 'My last seven days')}</h3>
+    {failed ? <p role="status">{L('ইতিহাস এখন পাওয়া যাচ্ছে না।', 'History is currently unavailable.')}</p> : !week ? <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p> : !rows.length ? <p>{L('এই হাবে কাজের ইতিহাস নেই।', 'No work history for this hub.')}</p> : rows.map(row => <div key={row.work_date}>
+      <strong>{row.work_date}</strong>
+      {([{label:L('টার্গেট','Target'),value:row.target},{label:L('বরাদ্দ','Assigned'),value:row.assigned},{label:L('জমা','Submitted'),value:row.submitted},{label:L('যাচাইকৃত','Verified'),value:row.verified}]).map(item => <div key={item.label}>
+        <div className="data-entry-chart-label"><span>{item.label}</span><strong>{item.value ?? '—'}</strong></div>
+        {item.value != null && <div className="data-entry-track data-entry-remaining" aria-hidden="true"><span className="data-entry-verified" style={{width:Math.max(0,Math.min(100,item.value/max*100))+'%'}} /></div>}
+      </div>)}
+    </div>)}
+  </section>
 }
