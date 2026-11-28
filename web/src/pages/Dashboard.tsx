@@ -241,6 +241,11 @@ function DashboardMorning({ user }: { user: string }) {
     g.is_super || (g.permission_code === 'hr.attendance.create' &&
       (g.scope_type === 'global' || (g.scope_type === 'zone' && g.zone_id === h.zone_id) ||
        (g.scope_type === 'hub' && g.hub_id === h.id)))))
-  const hub = resolveWorkHub(allowed, savedHub, params.get('morningHub'))
-  return hub ? <MorningTab key={hub.id} hubId={hub.id} /> : null
+  const linkedHub = params.get('morningHub')
+  const hub = resolveWorkHub(allowed, savedHub, linkedHub)
+  const { L } = usePrefs()
+  return hub ? <>
+    {linkedHub && linkedHub !== savedHub && <p className="notice">{L('রেকর্ডের হাব', 'Record hub')} · {hub.name}</p>}
+    <MorningTab key={hub.id} hubId={hub.id} />
+  </> : null
 }

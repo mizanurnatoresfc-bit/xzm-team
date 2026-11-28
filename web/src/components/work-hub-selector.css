@@ -1,0 +1,5 @@
+.top .work-hub-select {
+  width: clamp(5rem, 25vw, 13rem);
+  min-width: 0;
+  text-overflow: ellipsis;
+}

@@ -566,25 +566,25 @@
 | Blockers | Awaiting Owner approval |
 | Next Action | Owner approval → backend contract to ChatGPT Backend Team |
 
-### XZM-012 — Hub Switching Verification *(proposed)*
+### XZM-012 — Hub Switching Development
 | Field | Value |
 |---|---|
-| Module | AppShell + all pages |
-| Category | UX + AU |
-| Requirement | grep-verify singleton hub-switcher widget in global header; UI QA confirms no per-page duplicate |
-| Business Objective | Confirm Owner memory rule — single hub switcher — holds across all pages |
-| Priority | P3 |
-| Assigned AI | Claude |
+| Module | Global working hub |
+| Category | UX |
+| Requirement | Move the existing working hub selector into the shared header and verify hub-scoped pages and backend boundaries |
+| Business Objective | Keep the selected working hub consistent and prevent saving an open form under a different hub |
+| Priority | P1 |
+| Assigned AI | ChatGPT |
 | Dependencies | XZM-007A/B-3 Finding G-3 |
-| Current Status | **PROPOSED** |
-| Acceptance Criteria | grep-backed inventory of HubPicker usages + screenshot evidence; zero duplicates found |
-| Test Evidence | — |
-| Owner Approval | ⏳ pending |
-| Commit / PR Link | — |
+| Current Status | **REVIEW** (independent review fixes on draft #219) |
+| Acceptance Criteria | Shared header, per-user persistence, safe switching, server-enforced access and verified web/Android module coverage |
+| Test Evidence | TEST_REPORT.md, XZM-012 |
+| Owner Approval | ✅ Development approved in the XZM-012 request |
+| Commit / PR Link | `6506ef3` / [Draft #219](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/219) |
 | GitHub Issue # | — |
 | Deployment Status | N/A |
-| Blockers | Awaiting Owner approval |
-| Next Action | Owner approval → Claude runs grep audit |
+| Blockers | Data Entry depends on open draft #207 and its route/RPC contracts. Physical Android WebView and production authorization parity remain unverified. Existing offline route SQL fixture can fail across Dhaka midnight. |
+| Next Action | Review draft, coordinate open PR overlap and complete the remaining module and role checks before requesting deployment approval. |
 
 ### XZM-013 — Employee Duty Evidence *(proposed)*
 | Field | Value |

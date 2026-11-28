@@ -20,7 +20,23 @@ Format:
 
 ## Open
 
-_No bugs registered in this initialization pass. New bugs to be appended here with ID `B-001`, `B-002`, ...。_
+### B-001 — Problem Center mobile UI review
+- Reported: 2026-11-27
+- Severity: low
+- Area: web / android
+- Follow-up: Review report filters and history drawer layout on real Android WebView after backend rollout. The current browser fixture covers only its tested viewport.
+- Owner: Problem Center module
+- Status: OPEN
+- Reference: [PR #220](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/220)
+
+### B-002 — Problem Center optional reporting and metadata
+- Reported: 2026-11-27
+- Severity: low
+- Area: web / integration
+- Follow-up: Review extra report formats and richer category/reference fields in a module-specific update after the basic workflow is verified.
+- Owner: Problem Center module
+- Status: OPEN
+- Reference: [PR #220](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/220)
 
 ## Closed
 

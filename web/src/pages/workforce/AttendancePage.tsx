@@ -105,12 +105,15 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   const reviewDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && requestedDate <= today ? requestedDate : today
 
   // the days on which staff gave attendance that no final register has settled yet — one tap opens that day's register
-  const waitingQ = useLiveLoad<Mark[]>(() => hubId && can?.attendance ? wf.marks({ hub: hubId }, prevMonth(today), today, 'waiting') : Promise.resolve([]), [hubId, today, can?.attendance], LIVE.manage)
+  const waitingQ = useLiveLoad(async () => ({
+    hubId,
+    marks: hubId && can?.attendance ? await wf.marks({ hub: hubId }, prevMonth(today), today, 'waiting') : [] as Mark[],
+  }), [hubId, today, can?.attendance], LIVE.manage)
   const backlog = useMemo(() => {
     const m = new Map<string, number>()
-    for (const x of waitingQ.data ?? []) m.set(x.work_date, (m.get(x.work_date) ?? 0) + 1)
+    for (const x of waitingQ.data?.hubId === hubId ? waitingQ.data.marks : []) m.set(x.work_date, (m.get(x.work_date) ?? 0) + 1)
     return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  }, [waitingQ.data])
+  }, [waitingQ.data, hubId])
 
   const tabs: Array<{ key: HubTab; label: string; count?: number; tone?: 'warn' | 'bad' }> = [
     { key: 'review', label: L('অনুমোদনের তালিকা', 'Approval queue') },
@@ -122,10 +125,10 @@ function HubView({ sp, put, canResend }: { sp: URLSearchParams; put: Put; canRes
   ]
 
   return <div className="wm">
-    {hub && <div className="da-bar no-print"><span className="muted small">{hub.name}</span><LiveDot on={ovQ.live} /></div>}
+    {hub && <div className="da-bar no-print"><span className="muted small">{linkedHub && linkedHub !== preferred ? L('রেকর্ডের হাব', 'Record hub') + ' · ' : ''}{hub.name}</span><LiveDot on={ovQ.live} /></div>}
     {hubs.length > 0 && !hub && <Notice>{linkedHub
       ? <Link to="/app/attendance?view=hub">{L('লিংকের হাবটি দেখা যাচ্ছে না। কাজের হাব খুলুন।', 'This link’s hub is unavailable. Open your working hub.')}</Link>
-      : <Link to="/app/me/permissions">{L('আমার অনুমতি থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in My permissions.')}</Link>}</Notice>}
+      : L('হেডার থেকে কাজের হাব বেছে নিন।', 'Choose a working hub in the header.')}</Notice>}
 
     {hubsQ.error ? <p className="da-error" role="alert">{wfFriendly(hubsQ.error)}</p> : null}
     {hubsQ.data && !hubs.length ? <Notice>{L('আপনার দেখার মতো কোনো হাব নেই।', 'There is no hub you can see.')}</Notice> : null}

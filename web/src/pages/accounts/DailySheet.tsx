@@ -29,7 +29,7 @@ export function DailySheet() {
   const settings = useLoad(() => da.settings(), [])
   const templates = useLoad(() => da.templates().catch(() => [] as Template[]), [])
   const { toast, node } = useToast()
-  const s = sheet.data
+  const s = sheet.data?.session.id === id ? sheet.data : null
   // ?tab=expense etc. opens a part directly (links from the accounts centre and the lessons)
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'riders')
   const [viewing, setViewing] = useState<string | null>(null)
@@ -72,6 +72,7 @@ export function DailySheet() {
     actions={<><StatusBadge status={s.session.status} /><button className="secondary" onClick={() => printArea(`Daily-account-${s.hub.code}-${s.session.account_date}`)}>প্রিন্ট / পিডিএফ</button></>}>
     {node}
     <div className="nv-sheet">
+    <p className="muted small">রেকর্ডের হাব · {s.hub.name}</p>
     {s.session.status === 'correction' && s.session.verify_note && <p className="notice">সংশোধন প্রয়োজন: {s.session.verify_note}</p>}
     {s.session.status === 'approved' && <p className="da-ok">অনুমোদিত — {s.session.verified_by_name} · {timeBn(s.session.verified_at)}{s.session.verify_note ? ` · “${s.session.verify_note}”` : ''}</p>}
     {s.session.closed_at && <p className="da-ok">আজকের হিসাব ক্লোজ — {timeBn(s.session.closed_at)}</p>}
