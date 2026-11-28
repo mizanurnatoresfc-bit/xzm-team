@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-11-28 — DE-V2-R2.C Smart/Equal distribution-mode UI toggle
+
+- `DataEntryTargets.tsx` `HubTargetSettings` gains a small mode toggle (Smart ↔ Equal) wired to the R2.B public RPC `data_entry_distribution_mode_set`. Reads the current mode from `data.latest.distribution_mode` (snapshot root), shows the human label in Bangla/English, and offers the "switch to the other" button. When the snapshot carries `fair_equal_share_parcels`, it is shown as a hint next to the toggle.
+- Minimal CSS additions in `data-entry.css` (one flex row).
+- No type change beyond extending the `Summary` type with the two additive fields R2.B already exposed.
+- Backend unchanged; owner directive "Smart ও Equal UI Control সচল করো" met without any new RPC.
+
 ## 2026-11-28 — DE-V2-R2.B Equal distribution mode + fair-share protection flags
 
 - New column `private.data_entry_target_hubs.distribution_mode text` (`'smart'`|`'equal'`, default `'smart'`) + new public RPC `data_entry_distribution_mode_set(p_hub uuid, p_mode text)` (zone-owner only; also triggers a target refresh so the new mode takes effect immediately).
