@@ -25,6 +25,6 @@ export function RegisterProgressStrip() {
       {' '}{L('ফেরত', 'Returned')} {n(data.returned)}
       {data.locked && <strong> · {L('🔒 লক', '🔒 Locked')}</strong>}
     </p>
-    {query.error && <p role="alert">{wfFriendly(query.error)}</p>}
+    {Boolean(query.error) && <p role="alert">{wfFriendly(query.error)}</p>}
   </section>
 }

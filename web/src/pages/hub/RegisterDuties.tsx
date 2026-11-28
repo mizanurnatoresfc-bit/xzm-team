@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { AppShell } from '../../components/AppShell'
 import { usePrefs } from '../../lib/prefs'
 import { useLiveLoad, wf, wfFriendly, type DutyRow, type RegisterKind } from '../../lib/workforce'
@@ -35,7 +35,7 @@ export function RegisterDuties() {
     </Field>}
     {hub && KINDS.map(([kind, bn, en]) => <DutySection key={kind} hub={hub} kind={kind}
       title={L(bn, en)} rows={byKind[kind]} onChange={() => void query.reload()} />)}
-    {query.error && <p role="alert">{wfFriendly(query.error)}</p>}
+    {Boolean(query.error) && <p role="alert">{wfFriendly(query.error)}</p>}
   </AppShell>
 }
 
@@ -51,7 +51,7 @@ function DutySection({ hub, kind, title, rows, onChange }: {
   const primary = rows.filter(r => !r.is_backup)
   const backup = rows.filter(r => r.is_backup)
 
-  async function add(event: React.FormEvent) {
+  async function add(event: FormEvent) {
     event.preventDefault()
     if (!employee.trim() || busy) return
     setBusy(true); setErr('')
