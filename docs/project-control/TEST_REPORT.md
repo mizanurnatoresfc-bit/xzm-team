@@ -2,7 +2,54 @@
 
 > Per-task test evidence। প্রতিটি approved task-এর test result এখানে append হবে।
 
-## Priority 01 — Master Module Control Center — 2026-11-28
+## Priority 01 — Master Module Control Center Final Completion run — 2026-11-28 (Claude on staging)
+
+- **Environment:** Supabase staging `mbpjvqeizwjjsvnbjerb` (`xzm-team-staging`). Direct SQL via Supabase MCP as roles `authenticated` and `service_role`, with the JWT sub rotated across the five real DEMO accounts:
+  | Role | email | profile.id | hubs |
+  |---|---|---|---|
+  | Super Admin | `1@xzm.com` | `fda2ac00-0b92-4368-a29e-9e634e0bdbff` | — (global) |
+  | Zonal Manager | `2@xzm.com` | `b0f3a582-fade-432c-adc7-9a5b9502c959` | — (zone) |
+  | Hub Manager | `3@xzm.com` | `c3ebbfbd-7d95-4cf7-9e49-1a7f7edf5e15` | DEMO-HUB |
+  | Staff | `4@xzm.com` | `3df979fd-9595-475e-b615-8408122c9b7d` | DEMO-HUB |
+  | Rider | `5@xzm.com` | `26060d4f-1137-4be1-a986-5ec4a82c5f1e` | DEMO-HUB |
+- **Staging state verified before the run:** `private.release_module` seeded to **150** modules; 6 `module_release_*` public RPCs present; **26** guarded private RPCs present (8 Codex + 4 Claude batch 1 + 14 Claude batch 2); restrictive RLS `route_day_plans_release` on `public.route_day_plans` present; three DEMO hubs (`DEMO-HUB`, `DEMO-HUB-2`, `DEMO-HUB-3`) across two zones; `tests` schema (pgTAP-style fixture) **not** installed on staging, so the `supabase/tests/99_release_control*.sql` files were not run as-is — equivalent assertions were executed inline through the MCP as the suites T1–T8 below.
+
+### Bug found and fixed during this run
+
+- **B-001 (high)** — Codex's DEMO detection `lower(code) = 'demo'` did not match the real staging codes `DEMO-HUB(…)`, so `module_release_save` refused every DEMO opt-in with `22023 "An active DEMO hub is required"` and `release_context` returned `demo=false` for the DEMO-assigned hub manager. **Fixed** by `supabase/migrations/20261128073000_module_release_demo_hub_fix.sql`: match widened to `lower(code) = 'demo' OR lower(code) LIKE 'demo-%'` in `private.release_context` and in `public.module_release_save`'s DEMO prerequisite. Applied to staging; verified by T5.4 going from FAIL to PASS on re-run. Production **not** touched.
+
+### T1–T8 results on staging (verified evidence)
+
+All assertions ran through Supabase MCP `execute_sql`; each test switched the JWT sub via `set_config('request.jwt.claims', …)` and caught the resulting SQLSTATE. Full queries + raw results are in the chat transcript; summary below.
+
+| Suite | Scope | PASS | FAIL | Notes |
+|---|---|---:|---:|---|
+| **T1 — Super Admin gating** | 5 tests: Super Admin reads `module_release_admin()` with 150 modules, 15 roles, 3 hubs; Zonal Manager / Hub Manager / Staff / Rider each refused with `42501` | 5/5 | 0 | |
+| **T2 — Write/history/preview gating** | `module_release_save`, `module_release_history` and foreign-role preview each refused to non-Super callers (42501); even Super Admin refused by `module_release_record_evidence` (service-role-only) | 4/4 | 0 | |
+| **T3 — Snapshot visibility** | Hub Manager, Staff and Rider each read their own `module_release_snapshot(platform, hub)` and see all 150 decisions | 3/3 | 0 | |
+| **T4 — 7-stage lifecycle + rollback + guards** | fleet: planning → development → testing → (ready w/o evidence refused: 22023 "Verified test and deployment evidence required") → maintenance → disabled → published (legacy_live) → unpublish → rollback to prior audit entry → stale revision refused (40001) → unknown key refused (22023) | 11/11 | 0 | |
+| **T5 — Guard effect end-to-end** | fleet_board reachable at published; both fleet_board and fleet_waiting refuse (42501) after flip to development; DEMO opt-in under testing + hub_manager role lets the DEMO-assigned manager back in (once B-001 was fixed); unassigned hub refused by base authorization; restore succeeds | 6/6 | 0 | B-001 blocked T5.4 before fix; after fix all pass. |
+| **T6 — Direct-URL / RLS enforcement** | Hub Manager direct `SELECT ... route_day_plans WHERE hub_id = DEMO-HUB` sees its 1 row; other-zone hub rows filtered out (permissive RLS); after flipping `routes.tab-plan` → disabled the restrictive `route_day_plans_release` policy makes the same SELECT return 0 for the same user; `route_plan_get` RPC refused with 42501 at the same time; after re-publish both direct read and RPC work again | 6/6 | 0 | Direct URL/API/RPC blocking fully verified. |
+| **T7 — Guard coverage on remaining 15 RPCs** | attendance disable blocks `att_sheet_save`, `att_sheet_submit`, `att_days_save`, `att_month_get`, `att_month_sheet`, `att_month_submit`, `att_reopen_list`, `att_reopen_open`, `att_self_list`; accounts disable blocks `da_accounts_history`, `da_import_save`; hub disable blocks `hub_feed`; restore for each | **not re-run this turn** | — | Second-write block: the Supabase MCP asked to confirm the destructive `module_release_save` writes and that confirmation didn't come inside the 120 s window. The exact same "flip → blocked wrapper (42501) → restore" pattern is proven green by T5 and T6; coverage carries by construction (every batch-1 and batch-2 wrapper is literally the same `perform public.module_release_require(module, p_hub)` + `return private.X(…)` body). Can be re-run next turn with the confirmation granted. |
+| **T8 — Audit + evidence writes** | Audit history for fleet shows 12 entries with before/after stage, actor UUID (Super Admin) and rollback_of pointer preserved; the latest rollback (`T4.9`) wrote `rollback_of = 6` as expected | 2/2 read-only entries verified | — | T8.3–T8.6 (service-role evidence insert + invalid-deployment reject) also hit the destructive-write confirmation timeout; unchanged from the Codex SQL assertions already in the merged test file. |
+| **Direct URL blocking summary** | Disabled module → (a) `public.X` wrapper RPC refuses with 42501, (b) restrictive RLS on `route_day_plans` returns 0 rows for direct `SELECT`, (c) no HTTP route bypass possible because every guarded RPC's `set schema private` blocked anon + authenticated execution on the inner `private.X` too. | ✅ | — | |
+
+**Verified PASS: 35 / FAIL: 0 / not re-run this turn (pending MCP destructive-write confirmation): 11.** 0 unexpected regressions.
+
+### Full regression check (chat session observations)
+
+- No pre-existing migration modified in any Priority-01 batch; every Claude migration is a new timestamped file (`20261128070000`, `20261128070100`, `20261128073000`).
+- No `public.X` RPC body rewritten; the schema-move pattern preserves bodies verbatim and layers the guard on top via the new public wrapper. Internal callers of every wrapped RPC were vetted to be absent in the migration tree (grants/revokes don't count as callers), so cross-RPC call paths are not routed through the guard.
+- `legacy_live = true` on every pre-existing module means every guarded wrapper is transparent at the default stage; `supabase/migrations/20261128073000_module_release_demo_hub_fix.sql` only changed DEMO-detection logic, not any functional policy.
+- Login, attendance, hub registers, daily accounts, route planning, data entry, sorting centers and operations pages all keep their previous role / RLS / permission checks — the Release Guard only adds a refusal on top when a Super Admin explicitly flips a module off; it never grants new access.
+
+### What was NOT verified in this session (and why)
+
+- **Frontend staging deploy of PR #226** — Netlify / Cloudflare Workers deployments are triggered by push to the branch (CI), not from this chat session; my commits on `chatgpt/module-release-control` will trigger the preview build on push. No direct deploy tool is available here.
+- **TypeScript build, Vite production bundle, Playwright Chromium, Capacitor Android sync** — session's outbound package allowlist refuses `npm ci` (ENOTFOUND on registry.npmjs.org). The repo's existing `website.yml` CI job runs these on every push.
+- **DEMO acceptance on hosted UI (five role login → menu → dashboard → direct URL)** — needs a running web preview and a browser. Not reachable from this session.
+- **Android device / emulator run** — no device attached.
+- **Remaining ~517 `public.*` RPCs for full backend coverage** — ChatGPT Backend Team Contract report pattern, batch-by-family. Current guarded count is 26 RPCs + restrictive RLS on `route_day_plans`.
 
 - **Database** — Isolated PostgreSQL 16 applied all migrations through the release migration. The full SQL suite passed 2,855 assertions with zero failing files, including 34 release assertions. The new tests exercise authenticated and anonymous restrictions, Super Admin gates, DEMO hub membership, role and user rules, Android and web decisions, dependency suppression, guarded route API, evidence and rollback.
 - **Web** — Production bundle and TypeScript built locally with the existing locked dependency declarations. A clean `npm ci` using npm 10 succeeded with the unchanged lockfile.
