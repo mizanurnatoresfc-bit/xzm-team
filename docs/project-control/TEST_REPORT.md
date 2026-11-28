@@ -238,3 +238,5 @@ Staging verified report-ID and bank-deposit writes with the DEMO Hub Manager in 
 The shared Accounts sheet-edit helper now checks the release policy before updating the sheet. On staging, DEMO Hub Manager report removal, deposit removal and preset application were blocked in Disabled and restored by audited rollback. The transaction was rolled back.
 
 Staging verified the Accounts approval/correction and sheet-visit RPCs against the stored sheet hub. Verification notes and visit tracking worked in Published, all three RPCs rejected requests in Disabled, and the original workflows resumed after audited rollback. The test transaction was rolled back.
+
+Staging verification covered the Accounts sheet-start RPC and both Fleet daily-check RPCs using the DEMO Hub Manager and Super Admin. Disabled Accounts denied sheet start before creation. Disabled Fleet hid the stored vehicle from daily-check results and denied writes. Audited rollback restored all three paths. The test transaction was rolled back.

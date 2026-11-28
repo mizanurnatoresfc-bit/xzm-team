@@ -35,6 +35,9 @@ select tests.throws($q$select public.da_deposit_save(tests.id('release_sheet'), 
 select tests.throws($q$select public.da_apply_fixed(tests.id('release_sheet'))$q$,
   'disabled accounts block sheet presets through shared edit authorization', '42501');
 
+select tests.throws($q$select public.da_start_session(tests.id('hub_a1'))$q$,
+  'disabled accounts block starting a sheet before duplicate-sheet validation', '42501');
+
 select tests.login(tests.id('super'));
 select tests.throws($q$select public.da_verify(tests.id('release_sheet'), 'note', 'blocked')$q$,
   'disabled accounts block sheet verification', '42501');
