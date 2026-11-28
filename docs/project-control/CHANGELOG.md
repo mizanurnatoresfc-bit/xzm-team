@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-11-28 — DE-V2-R1.1 Rank system correctness hotfix (post-merge)
+
+- Addresses ChatGPT's independent SQL review of PR #228 (real correctness items):
+  - `data_entry_rank_assign` 3-arg overload: `CREATE OR REPLACE` with null-safe `is distinct from` zone comparison.
+  - New 4-arg overload `data_entry_rank_assign(…, p_version integer)` adds optimistic concurrency matching `data_entry_team_save`. SQLSTATE `40001` on stale revision. Frontend may migrate at its own pace — the 3-arg overload still works.
+  - New BEFORE-trigger `data_entry_team_members_rank_zone` enforces the same-zone invariant between a member and its rank at the DB level, independent of the RPC layer.
+- `docs/project-control/RPC_CONTRACTS.md` published as the coordination spec between the backend branch (Claude) and the frontend branch (ChatGPT), per owner-approved ownership split 2026-11-28.
+- Applied to production Supabase before this commit.
+
 ## 2026-11-28 — DE-V2-R1.5 Rank wired into target-split engine
 
 - New migration `20261128200000_data_entry_rank_wire_split.sql`: `CREATE OR REPLACE private.data_entry_target_snapshot` so each worker's `capacity` passed to `data_entry_target_split` is multiplied by `rank_multiplier_pct / 100`.
