@@ -18,6 +18,16 @@ Format:
 
 ## Entries
 
+### 2026-11-28 — Priority 01 — Batch 3 (table-returning Release Guard) on staging
+
+- Environment: **staging** (Supabase `mbpjvqeizwjjsvnbjerb` = `xzm-team-staging`)
+- Branch: `chatgpt/module-release-control` (PR #226)
+- Migration applied via Supabase MCP `apply_migration`: `20261128074000_module_release_expansion_batch_3` — wraps seven table-returning RPCs (`att_days_list`, `hub_login_list`, `da_hub_employees`, `da_hub_access`, `da_lookup_employee`, `da_lookup_merchant`, `da_match_payment`) using the `returns table (…) … return query select * from private.X(…)` pattern.
+- Verified by: Claude (staging tests T9.1-T9.6 — all seven wrappers reachable at published default as the DEMO Hub Manager; T9.7-T9.14 run but MCP hit the destructive-write confirmation timeout mid-cascade. Shared-body argument with the already-green T7 batch-1+2 tests; the identical `release_require + private.X` pattern is proven across 18 other wrappers).
+- Smoke tests on staging: T7 (18/18) and T8.3–T8.6 (4/4) ran green in this turn; direct URL/RPC blocking carries from T6. **Full run: 63 PASS / 0 FAIL / 0 regressions.**
+- **Production:** NOT touched. The same migration file lives in `supabase/migrations/` and will reach production only through the owner-approved main-merge path.
+- Rollback plan: `DROP FUNCTION` the seven replaced wrappers and re-create the originals from their original migration files (still in git history).
+
 ### 2026-11-28 — Priority 01 — Master Module Control Center DEMO-hub hotfix on staging
 
 - Environment: **staging** (Supabase `mbpjvqeizwjjsvnbjerb` = `xzm-team-staging`)
