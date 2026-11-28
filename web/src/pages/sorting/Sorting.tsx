@@ -1,3 +1,4 @@
+import { useRelease } from '../../lib/releaseAccess'
 import { DispatchBoard } from './DispatchBoard'
 import { askReason, askText } from '../../components/ask'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -40,6 +41,7 @@ type Ctx = { center: Center; hubs: Hub[]; hubName: Record<string, string>; from:
 export function Sorting() {
   const { section } = useParams()
   const { can } = useAuth()
+  const release = useRelease()
   const { L } = usePrefs()
   const o = useOrg()
   const centers = useLoad(() => sorting.centers(), [])
@@ -51,7 +53,7 @@ export function Sorting() {
   if (section === 'routes') return <Navigate to="/app/routes?tab=sorting" replace />   // sorting-to-hub routes moved into the route module
   const sec = SORTING_SECTIONS.find(s => s.key === section)
   if (!sec) return <Navigate to="/app/sorting/dashboard" replace />
-  const tabs = SORTING_SECTIONS.filter(s => s.perms.some(p => can(p)))
+  const tabs = SORTING_SECTIONS.filter(s => s.perms.some(can) && release.addressAllowed('/app/sorting/' + s.key))
   const center = list.find(c => c.id === cid) ?? null
   const zoneHubs = (o.data?.hubs ?? []).filter(h => !h.archived_at && (!center || h.zone_id === center.zone_id))
   const assigned = center ? zoneHubs.filter(h => h.sorting_center_id === center.id) : []

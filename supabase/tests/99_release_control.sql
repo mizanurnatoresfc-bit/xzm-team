@@ -4,6 +4,8 @@ insert into public.hubs(zone_id, code, name) values (tests.id('zone_a'), 'DEMO',
 insert into tests.ids select 'demo', id from public.hubs where code = 'DEMO';
 insert into tests.ids select 'manager_role', id from public.roles where code = 'hub_manager';
 select tests.grant_role(tests.id('hub_mgr'), 'hub_manager', 'hub', null, tests.id('demo'));
+insert into public.route_day_plans (hub_id, zone_id, plan_date)
+values (tests.id('demo'), tests.id('zone_a'), current_date), (tests.id('hub_a1'), tests.id('zone_a'), current_date);
 insert into private.release_module(id, parent) values ('routes.future', 'routes');
 
 select tests.login_anon();
@@ -33,6 +35,9 @@ select tests.ok((public.module_release_snapshot('web',tests.id('demo'),tests.id(
 select tests.login(tests.id('hub_mgr'));
 select tests.ok((public.module_release_snapshot('android',tests.id('demo'))->'routes.tab-plan'->>'allowed')::boolean, 'DEMO assigned role sees testing module on Android');
 select tests.ok(not (public.module_release_snapshot('web',tests.id('hub_a1'))->'routes.tab-plan'->>'allowed')::boolean, 'ordinary hub does not see testing module');
+select tests.ok((public.route_plan_get(tests.id('demo'))->'hub'->>'id')::uuid = tests.id('demo'), 'authorized caller can use the guarded RPC in DEMO');
+select tests.ok((select count(*) from public.route_day_plans where hub_id = tests.id('hub_a1')) = 0, 'direct table read is filtered outside DEMO');
+select tests.ok((select count(*) from public.route_day_plans where hub_id = tests.id('demo')) = 1, 'direct table read retains authorized DEMO rows');
 select tests.throws($q$select public.route_plan_get(tests.id('hub_a1'))$q$, 'direct plan RPC is blocked outside DEMO', '42501');
 
 select tests.login(tests.id('noroles'));

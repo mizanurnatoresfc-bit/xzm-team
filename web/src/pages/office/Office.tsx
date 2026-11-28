@@ -1,3 +1,4 @@
+import { useRelease } from '../../lib/releaseAccess'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthProvider'
@@ -36,6 +37,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const PKEY = scope === 'residential' ? 'xzm_office_residence' : 'xzm_office_property'
   const { section } = useParams()
   const { can, menu, menuUnavailable } = useAuth()
+  const release = useRelease()
   const { L } = usePrefs()
   const o = useOrg()
   const props = useLoad(() => office.properties(), [])
@@ -56,7 +58,7 @@ export function Office({ scope = 'office' }: { scope?: OfficeScope }) {
   const sec = SECTIONS.find(s => s.key === section)
   if (!sec) return <Navigate to={scopePath(scope, 'overview')} replace />
   const visibleParts = (target: OfficeScope) => (target === 'residential' ? RESIDENTIAL_PARTS : OFFICE_PARTS)
-    .filter(part => part.perms.some(can) && pageLinkAllowed(scopePath(target, part.key), { can, menu, menuUnavailable }))
+    .filter(part => part.perms.some(can) && pageLinkAllowed(scopePath(target, part.key), { can, menu, menuUnavailable, releaseAllowed: release.addressAllowed }))
   const tabs = visibleParts(scope)
   const scopes = (['office', 'residential'] as const).map(target => {
     const parts = target === scope ? tabs : visibleParts(target)

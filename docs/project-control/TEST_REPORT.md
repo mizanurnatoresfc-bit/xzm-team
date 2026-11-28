@@ -2,6 +2,13 @@
 
 > Per-task test evidence। প্রতিটি approved task-এর test result এখানে append হবে।
 
+## Priority 01 — Master Module Control Center — 2026-11-28
+
+- **Database** — Isolated PostgreSQL 16 applied all migrations through the release migration. The full SQL suite passed 2,850 assertions with zero failing files, including 29 release assertions. The new tests exercise authenticated and anonymous restrictions, Super Admin gates, DEMO hub membership, role and user rules, Android and web decisions, dependency suppression, guarded route API, evidence and rollback.
+- **Web** — Production bundle and TypeScript built locally with the existing locked dependency declarations. The installed npm version required a local install that preserved the existing platform-specific lockfile.
+- **Offline** — Existing Chromium check-in suite passed using the last successful release snapshot while disconnected.
+- **Production readiness** — PARTIAL. Existing direct API coverage beyond the listed Nodi and route plan endpoints, hosted DEMO acceptance and an Android device or emulator run are pending. The environment has Chromium and a Capacitor fixture. Production migration and deployment were withheld.
+
 Format:
 ```
 ## <Task ID> — <Title> — <Date>
@@ -16,13 +23,6 @@ Format:
 ```
 
 ---
-
-## Priority 01 — Master Module Control Center — 2026-11-28
-
-- **Database** — Isolated PostgreSQL 16 applied all migrations through the release migration. The full SQL suite passed 2,850 assertions with zero failing files, including 29 release assertions. The new tests exercise authenticated and anonymous restrictions, Super Admin gates, DEMO hub membership, role and user rules, Android and web decisions, dependency suppression, guarded route API, evidence and rollback.
-- **Web** — Production bundle and TypeScript built locally with the existing locked dependency declarations. The installed npm version required a local install that preserved the existing platform-specific lockfile.
-- **Offline** — Existing Chromium check-in suite passed using the last successful release snapshot while disconnected.
-- **Production readiness** — PARTIAL. Existing direct API coverage beyond the listed Nodi and route plan endpoints, hosted DEMO acceptance and an Android device or emulator run are pending. The environment has Chromium and a Capacitor fixture. Production migration and deployment were withheld.
 
 ## XZM-006 — Backup & Recovery Deep Verification — 2026-11-27 (post-merge)
 
