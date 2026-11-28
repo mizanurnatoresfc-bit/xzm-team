@@ -5,7 +5,7 @@ import { Icon } from '../../components/Icon'
 import { usePrefs } from '../../lib/prefs'
 import { referrals } from '../../lib/extra'
 import { hr } from '../../lib/hr'
-import { dutiesApi, FREQ, EVIDENCE_SOURCE, VERIFY_MODE } from '../../lib/hub'
+import { dutiesApi, FREQ } from '../../lib/hub'
 import { supabase } from '../../lib/supabase'
 import { Badge, Field, useLoad, useToast } from '../accounts/ui'
 

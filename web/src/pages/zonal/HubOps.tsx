@@ -395,12 +395,12 @@ function DutiesTab({ zone }: { zone: string }) {
       <Link className="secondary btn-ghost" to={`/app/hr/duties/reports?zone=${zone}&from=${date}&to=${date}`}><Icon name="chart" size={16} />{L('বিস্তারিত রিপোর্ট', 'Full report')}</Link>
     </section>
     {q.loading && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
-    {q.error ? <p className="da-error">{(q.error as Error).message}</p> : null}
+    {q.error ? <p className="da-error">{String((q.error as { message?: string }).message ?? q.error)}</p> : null}
     {q.data && <>
       <div className="da-stats">
         <Stat icon="tasks" label={L('মোট দায়িত্ব', 'Total duties')} value={n(total.total)} />
         <Stat icon="check" tone="ok" label={L('সম্পন্ন', 'Done')} value={n(total.done)} />
-        <Stat icon="form" tone="info" label={L('জমা, যাচাই বাকি', 'Submitted, awaiting')} value={n(total.submitted)} />
+        <Stat icon="form" label={L('জমা, যাচাই বাকি', 'Submitted, awaiting')} value={n(total.submitted)} />
         <Stat icon="warn" tone={total.pending ? 'warn' : undefined} label={L('অপেক্ষায়', 'Pending')} value={n(total.pending)} />
         <Stat icon="x" tone={total.overdue ? 'bad' : undefined} label={L('সময় শেষ', 'Overdue')} value={n(total.overdue)} />
       </div>

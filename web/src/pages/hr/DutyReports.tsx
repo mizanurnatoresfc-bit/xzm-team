@@ -163,7 +163,7 @@ export function DutyReports() {
     </section>
 
     {rowsQ.loading && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
-    {rowsQ.error && <p className="da-error">{(rowsQ.error as Error).message}</p>}
+    {rowsQ.error ? <p className="da-error">{String((rowsQ.error as { message?: string }).message ?? rowsQ.error)}</p> : null}
 
     {kind === 'by_hub' && <DataTable<typeof hubAgg[number]> title={L('হাব অনুযায়ী দায়িত্ব', 'Duty by hub')} rows={hubAgg} cols={hubCols} rowKey={r => r.hub} file={`duty-by-hub-${from}-${to}`} phoneView="list" />}
     {kind === 'monthly_perf' && <DataTable<typeof monthlyPerf[number]> title={L('মাসিক পারফরম্যান্স', 'Monthly performance')} rows={monthlyPerf} cols={perfCols} rowKey={r => r.name + (r.code ?? '')} file={`duty-perf-${from}-${to}`} phoneView="list" />}
