@@ -350,12 +350,12 @@ function Leaderboard({ people }: { people: Performance[] }) {
     </article>)}</div>
   </>
 }
-export function MyDataEntryShift() {
+export function MyDataEntryShift({ children }: { children: ReactNode }) {
   const { session, viewAs } = useAuth()
-  if (!session || viewAs) return null
-  return <OwnShift key={session.user.id} />
+  if (!session || viewAs) return <>{children}</>
+  return <OwnShift key={session.user.id}>{children}</OwnShift>
 }
-function OwnShift() {
+function OwnShift({ children }: { children: ReactNode }) {
   const { L } = usePrefs()
   const state = useLoad(() => rpc<Own>('data_entry_shift_mine'), [])
   const { reload } = state
@@ -372,9 +372,12 @@ function OwnShift() {
   const popup = due.find(({hub,slot}) => !dismissed.includes(hubKey(hub,slot)))
   const unmatched = (targets.data ?? []).filter(report =>
     !state.data?.hubs.some(hub => hub.id === report.hub_id && hub.day === report.date))
-  if (!state.data?.hubs.length && !state.data?.heads.length && !unmatched.length) return null
+  if (state.loading && !state.data && !state.error) return <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
+  if (!state.data?.hubs.length && !state.data?.heads.length && !unmatched.length) return <>{children}</>
+  const dedicated = Boolean(state.data?.hubs.length || unmatched.length)
   const save = (hub: OwnHub): Action => async (name,values) => { await action(hub.id,hub.day,name,values); await reload() }
-  return <section className="panel data-entry-panel">
+  return <>
+  <section className="panel data-entry-panel">
     <h2>{L('আজকের ডাটা এন্ট্রি', 'Today’s data entry')}</h2>
     {targets.error ? <p role="status">{L('সর্বশেষ টার্গেট লোড হয়নি।', 'Could not refresh the target.')}</p> : null}
     {unmatched.map(report => <TargetExplanation key={report.hub_id} report={report} />)}
@@ -431,4 +434,6 @@ function OwnShift() {
       </ActionForm>
     </Modal>}
   </section>
+  {!dedicated && children}
+  </>
 }

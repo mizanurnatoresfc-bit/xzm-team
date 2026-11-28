@@ -290,8 +290,8 @@ export function StaffPanel() {
   }
   return <AppShell title={L('স্টাফ প্যানেল', 'Staff panel')} subtitle={who || L('আমার আজকের সব কাজ এক জায়গায়', 'My whole day in one place')}>
     <div className="sd sp">
+      <MyDataEntryShift>
       <OperationsQuestions />
-      <MyDataEntryShift />
       {node}
       <div className="sp-hero">
         <MyAvatarUpload className="sp-av" onDone={m => { toast(m); void d.reload() }} />
@@ -327,6 +327,7 @@ export function StaffPanel() {
         <p className="muted small">{L('হাব ম্যানেজার অনুমোদন দিলে আজ "অনুপস্থিত" হিসেবে খাতায় উঠবে।', 'Once your hub manager approves, today goes on the register as absent.')}</p>
         {attErr && <p className="da-error">{attErr}</p>}
       </Modal>}
+      </MyDataEntryShift>
     </div>
     <AppDownloadCard />
   </AppShell>
