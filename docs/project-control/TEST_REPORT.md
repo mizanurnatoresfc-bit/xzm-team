@@ -5,7 +5,7 @@
 ## Priority 01 — Master Module Control Center — 2026-11-28
 
 - **Database** — Isolated PostgreSQL 16 applied all migrations through the release migration. The full SQL suite passed 2,855 assertions with zero failing files, including 34 release assertions. The new tests exercise authenticated and anonymous restrictions, Super Admin gates, DEMO hub membership, role and user rules, Android and web decisions, dependency suppression, guarded route API, evidence and rollback.
-- **Web** — Production bundle and TypeScript built locally with the existing locked dependency declarations. The installed npm version required a local install that preserved the existing platform-specific lockfile.
+- **Web** — Production bundle and TypeScript built locally with the existing locked dependency declarations. A clean `npm ci` using npm 10 succeeded with the unchanged lockfile.
 - **Direct HTTP** — Local PostgREST against PostgreSQL 16 passed seven checks for anonymous and authenticated access, Super Admin writes, scoped RPC calls, direct-table RLS and unknown release keys.
 - **Browser and Android** — Chromium desktop and Capacitor Android bridge fixtures passed direct URL, platform selection, Super Admin recovery, DEMO role preview, unpublish and permission checks. Capacitor generated and synced an isolated Android project with all six existing plugins.
 - **Offline** — Existing Chromium check-in suite passed using the last successful release snapshot while disconnected.

@@ -78,7 +78,7 @@ export function Dashboard() {
     {panelLevel(can) === 1 && can('hr.attendance.create') && <DashboardMorning user={session?.user.id ?? ''} />}
     {/* the three personal entries under the name card, and what is waiting on me (attendance, daily numbers, approvals) */}
     <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
-    {isSuperAdmin && <Link to="/app/module-control" className="dash-edit"><Icon name="shield" size={15} />{L('মডিউল নিয়ন্ত্রণ কেন্দ্র', 'Module Control Center')}</Link>}
+    {isSuperAdmin && <Link to="/app/module-control" className="btn secondary"><Icon name="shield" size={15} />{L('মডিউল নিয়ন্ত্রণ কেন্দ্র', 'Module Control Center')}</Link>}
     {isSuperAdmin && !viewAs && <Link to="/app/role-dashboards" className="dash-edit"><Icon name="gear" size={15} />{L('ড্যাশবোর্ড সাজান', 'Arrange dashboard')}</Link>}
     {views.length > 1 && <div className="view-switch" role="tablist" aria-label={L('ড্যাশবোর্ড', 'Dashboard')}>
       {views.map(([v, bn, en, ic]) => <button key={v} type="button" role="tab" aria-selected={cur === v} className={cur === v ? 'on' : ''} onClick={() => pickView(v)}>
