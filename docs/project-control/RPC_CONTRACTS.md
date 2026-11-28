@@ -133,7 +133,13 @@ The worker closes the duty with `data_entry_shift_action(..., 'complete_duty', {
 | `shift_action('appoint_head' / 'revoke_head', …)` | Named Head per hub with report-review/duty-assign flags. |
 | `shift_action('schedule', …)` | Edit shift start, open minutes, three popup offsets. |
 
-**Equal distribution:** not a separate mode in Phase 1 — the smart engine splits proportional to each member's capacity × rank multiplier. To force an equal share temporarily, set the same `maximum` on every member via `shift_action('limit')`. A first-class `distribution_mode='equal'` is tracked for R2.B.
+**Equal distribution (R2.B — shipped):** `data_entry_distribution_mode_set(p_hub uuid, p_mode text)` flips a hub between `'smart'` (rank-weighted capacity split, the default) and `'equal'` (every eligible member with positive capacity gets an equal slice of the forecast, rank ignored). Mode is stored on `private.data_entry_target_hubs.distribution_mode` and applied by the engine on the next refresh (the RPC also triggers one). The snapshot's root and every worker carry `distribution_mode` so the UI can label the current state. Per-member `shift_action('limit')` still works on top — it caps individuals inside whichever mode is active.
+
+### R2.B protection flags (in `data_entry_target_snapshot` per-worker output)
+
+- `fair_equal_share_parcels` (snapshot root, numeric) — `forecast_pickups / count(eligible active members)`. A member whose `forecast.parcels` falls below this baseline was, by definition, under-assigned by the current mode.
+- `under_assigned` (worker, boolean) — true when the member's forecast parcels are strictly below `fair_equal_share_parcels`. Owner's rule: a member who received less work because colleagues absorbed more should not be scored negatively — the UI can render a "Protected · কম বরাদ্দ" badge.
+- `protected_from_negative_eval` (worker, boolean) — true when `under_assigned` OR when the member completed every parcel they were actually given today. Performance dashboards should honour this flag and cap the negative half of the score at zero for such a member.
 
 ## Database-level invariants (R1.1)
 
@@ -154,4 +160,5 @@ The worker closes the duty with `data_entry_shift_action(..., 'complete_duty', {
 ## Change log for this file
 
 - 2026-11-28 — initial publication alongside DE-V2-R1.1 (PR #231) to coordinate with the newly-split frontend ownership.
-- 2026-11-28 — R2.A (PR #TBD): add `data_entry_staff_week(p_days)` for ChatGPT's staff-dashboard charts; document the full Phase 1 shift-popup / extra-duty / zonal-override surface so the frontend branch doesn't rebuild existing RPCs. Equal-distribution mode remains tracked for R2.B.
+- 2026-11-28 — R2.A (PR #232): add `data_entry_staff_week(p_days)` for ChatGPT's staff-dashboard charts; document the full Phase 1 shift-popup / extra-duty / zonal-override surface so the frontend branch doesn't rebuild existing RPCs.
+- 2026-11-28 — R2.B (PR #TBD): equal-distribution mode shipped — `data_entry_distribution_mode_set(p_hub, p_mode)`, new column `private.data_entry_target_hubs.distribution_mode`, `data_entry_target_snapshot` rewritten to honour mode and to expose `fair_equal_share_parcels`, `under_assigned`, `protected_from_negative_eval`. Snapshot rule key is now `smart_or_equal_v1`.

@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-11-28 — DE-V2-R2.B Equal distribution mode + fair-share protection flags
+
+- New column `private.data_entry_target_hubs.distribution_mode text` (`'smart'`|`'equal'`, default `'smart'`) + new public RPC `data_entry_distribution_mode_set(p_hub uuid, p_mode text)` (zone-owner only; also triggers a target refresh so the new mode takes effect immediately).
+- `private.data_entry_target_snapshot` rewritten:
+  - honours the hub's `distribution_mode` — in `'equal'` every eligible active member (positive `forecast_capacity`) contributes capacity 1 to `data_entry_target_split`, so shares are exactly equal via largest-remainder rounding. Rank is ignored in equal mode, by design.
+  - adds `fair_equal_share_parcels` at the snapshot root (`forecast_pickups / eligible_count`).
+  - adds per-worker `distribution_mode`, `under_assigned` (forecast parcels below the fair equal share), and `protected_from_negative_eval` (under-assigned OR completed every parcel actually given today). Owner's "কম কাজ পেয়ে নেতিবাচক মূল্যায়ন নয়" rule now has first-class backend support.
+  - `rule` key bumped to `smart_or_equal_v1`.
+- Backend-only; chatgpt/de-v2-frontend branch unaffected.
+
 ## 2026-11-28 — DE-V2-R2.A Staff weekly RPC + Phase 1 surface documented
 
 - New public RPC `data_entry_staff_week(p_days integer default 7)` — self-scoped, returns per-day `{work_date, hub_id, hub_name, target, assigned, submitted, verified}` for the trailing N days (1–90). Days with no engine run / report / observation are omitted so the UI draws a sparse series rather than misleading zeros. Owner-requested for ChatGPT's staff-dashboard charts.
