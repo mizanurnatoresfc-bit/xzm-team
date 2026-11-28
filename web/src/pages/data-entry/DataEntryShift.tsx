@@ -156,15 +156,17 @@ function LiveCharts({ data }: { data: Shift }) {
       <ul>{data.team.map(person => {
         const total = person.completed != null && person.remaining != null ? person.completed + person.remaining : null
         const percent = total && person.completed != null ? person.completed / total * 100 : 0
-        return <li key={person.id}>
-          <div className="data-entry-chart-label">
-            <strong>{person.name}</strong>
-            <span>{L(...(attendanceNames[person.attendance ?? 'pending'] ?? ['হাজিরা দেখা যাবে', 'Attendance available']))}</span>
+        const status = person.attendance ?? 'pending'
+        const chipClass = `data-entry-chip data-entry-chip-${status === 'half_day' ? 'halfday' : status}`
+        return <li key={person.id} className="data-entry-team-row">
+          <div className="data-entry-team-head">
+            <span className="data-entry-team-name">{person.name}</span>
+            <span className={chipClass}>{L(...(attendanceNames[status] ?? ['হাজিরা দেখা যাবে', 'Attendance available']))}</span>
           </div>
           {total != null && total > 0 && <div className="data-entry-track data-entry-remaining" aria-hidden="true">
             <span className="data-entry-verified" style={{ width: `${percent}%` }} />
           </div>}
-          <p>{L('যাচাইকৃত', 'Verified')} {person.completed == null ? '—' : n(person.completed)}
+          <p className="data-entry-team-stats">{L('যাচাইকৃত', 'Verified')} {person.completed == null ? '—' : n(person.completed)}
             {' · '}{L('প্রকৃত বাকি', 'Actual remaining')} {person.remaining == null ? '—' : n(person.remaining)}
             {person.expected != null && <> · {L('সম্ভাব্য টার্গেট', 'Forecast target')} {n(person.expected)}</>}
             {person.limit != null && <> · {L('সীমা', 'Limit')} {n(person.limit)}</>}
