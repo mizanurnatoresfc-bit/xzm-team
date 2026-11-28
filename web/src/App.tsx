@@ -59,6 +59,8 @@ const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.S
 const Sorting = lazy(() => import('./pages/sorting/Sorting').then(m => ({ default: m.Sorting })))
 const Requests = lazy(() => import('./pages/hr/Requests').then(m => ({ default: m.Requests })))
 const Duties = lazy(() => import('./pages/hr/Duties').then(m => ({ default: m.Duties })))
+const DutyReports = lazy(() => import('./pages/hr/DutyReports').then(m => ({ default: m.DutyReports })))
+const MyDuties = lazy(() => import('./pages/staff/MyDuties').then(m => ({ default: m.MyDuties })))
 const ProfileGaps = lazy(() => import('./pages/hr/ProfileGaps').then(m => ({ default: m.ProfileGaps })))
 const Office = lazy(() => import('./pages/office/Office').then(m => ({ default: m.Office })))
 const Issues = lazy(() => import('./pages/issues/Issues').then(m => ({ default: m.Issues })))
@@ -128,6 +130,8 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/sorting/Sorting', () => import('./pages/sorting/Sorting')],
   ['./pages/hr/Requests', () => import('./pages/hr/Requests')],
   ['./pages/hr/Duties', () => import('./pages/hr/Duties')],
+  ['./pages/hr/DutyReports', () => import('./pages/hr/DutyReports')],
+  ['./pages/staff/MyDuties', () => import('./pages/staff/MyDuties')],
   ['./pages/hr/ProfileGaps', () => import('./pages/hr/ProfileGaps')],
   ['./pages/office/Office', () => import('./pages/office/Office')],
   ['./pages/issues/Issues', () => import('./pages/issues/Issues')],
@@ -253,6 +257,8 @@ export default function App() {
       <Route path="/app/sorting/:section" element={<Sorting />} />
       <Route path="/app/hr/requests" element={<Requests />} />
       <Route path="/app/hr/duties" element={<Duties />} />
+      <Route path="/app/hr/duties/reports" element={<DutyReports />} />
+      <Route path="/app/my-duties" element={<MyDuties />} />
       <Route path="/app/hr/profile-gaps" element={<ProfileGaps />} />
       <Route path="/app/office" element={<Navigate to="/app/office/overview" replace />} />
       <Route path="/app/office/:section" element={<Office />} />

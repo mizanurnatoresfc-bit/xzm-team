@@ -15,8 +15,9 @@ import { useOrg } from '../hr/common'
 import { HistoryModal, SummaryView } from './HubOpsParts'
 
 import { OperationsCollection } from './OperationsCollection'
+import { supabase } from '../../lib/supabase'
 
-type Tab = 'collection' | 'hubs' | 'summary' | 'boss' | 'log' | 'settings'
+type Tab = 'collection' | 'hubs' | 'duties' | 'summary' | 'boss' | 'log' | 'settings'
 const monthStart = (iso: string) => iso.slice(0, 8) + '01'
 /** Bangladesh week: Saturday to Friday. */
 const weekStart = (iso: string) => { const d = new Date(iso + 'T00:00:00Z'); const back = (d.getUTCDay() - 6 + 7) % 7; return shiftDay(iso, -back) }
@@ -43,13 +44,14 @@ export function HubOps() {
       <Field label={L('জোন', 'Zone')}><select value={zone} onChange={e => setZone(e.target.value)}>{zones.map(z => <option key={z.id} value={z.id}>{z.name}</option>)}</select></Field>
     </section>}
     <nav className="emp-tabs no-print" role="tablist">
-      {([['hubs', 'হাবগুলো', 'Hubs', 'hub'], ['summary', 'জোনাল সারাংশ', 'Zonal summary', 'chart'], ['boss', 'বসের রিপোর্ট', 'Boss reports', 'doc'],
+      {([['hubs', 'হাবগুলো', 'Hubs', 'hub'], ['duties', 'দায়িত্ব', 'Duties', 'tasks'], ['summary', 'জোনাল সারাংশ', 'Zonal summary', 'chart'], ['boss', 'বসের রিপোর্ট', 'Boss reports', 'doc'],
         ['collection', 'তথ্য সংগ্রহ কেন্দ্র', 'Operations Data Collection', 'doc'], ['log', 'স্ট্যাটাস লগ', 'Status log', 'log'], ['settings', 'সেটিং', 'Settings', 'gear']] as const).map(([k, b, e, ic]) =>
         <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}><Icon name={ic} size={16} />{L(b, e)}</button>)}
     </nav>
     {o.loading && !zone && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
     {!o.loading && !zones.length && <p className="da-error">{L('আপনার কোনো জোন দেখার অনুমতি নেই।', 'You cannot see any zone.')}</p>}
     {zone && tab === 'hubs' && <HubsDay zone={zone} />}
+    {zone && tab === 'duties' && <DutiesTab zone={zone} />}
     {zone && tab === 'collection' && <OperationsCollection key={zone} zone={zone} />}
     {zone && tab === 'summary' && <PeriodSummary zone={zone} />}
     {zone && tab === 'boss' && <BossReports zone={zone} />}
@@ -350,5 +352,66 @@ function ZoneSettings({ zone }: { zone: string }) {
     </section>
     {err && <p className="da-error">{err}</p>}
     {can && <div className="hop-bar"><button type="button" disabled={busy} onClick={() => void save()}><Icon name="save" size={16} />{busy ? L('সেভ হচ্ছে…', 'Saving…') : L('সেটিং সেভ করুন', 'Save settings')}</button></div>}
+  </>
+}
+
+/**
+ * XZM-013 Phase 2B — জোনাল ম্যানেজারের দায়িত্ব সারাংশ ট্যাব।
+ * Reads tasks for the whole zone's hubs for the chosen day: total, submitted, overdue, awaiting review.
+ * Tap a count to drill into the full duty report with the matching filter.
+ */
+function DutiesTab({ zone }: { zone: string }) {
+  const { L, n } = usePrefs()
+  const t = dhakaToday()
+  const [date, setDate] = useState(t)
+  const o = useOrg()
+  type HubAgg = { hub: string; name: string; total: number; done: number; submitted: number; overdue: number; pending: number }
+  const q = useLoad(async () => {
+    const hubIds = (o.data?.hubs ?? []).filter(h => h.zone_id === zone).map(h => h.id)
+    if (!hubIds.length) return [] as HubAgg[]
+    const { data, error } = await supabase.from('tasks').select('id, hub_id, status, due_date').in('hub_id', hubIds).eq('due_date', date).limit(5000)
+    if (error) throw error
+    const by: Record<string, HubAgg> = {}
+    const nameOf = Object.fromEntries((o.data?.hubs ?? []).map(h => [h.id, h.name]))
+    for (const r of ((data ?? []) as Array<{ hub_id: string | null; status: string; due_date: string }>)) {
+      const h = r.hub_id ?? '—'
+      by[h] = by[h] ?? { hub: h, name: nameOf[h] ?? '—', total: 0, done: 0, submitted: 0, overdue: 0, pending: 0 }
+      by[h].total++
+      if (r.status === 'completed') by[h].done++
+      else if (r.status === 'submitted') by[h].submitted++
+      else if (r.due_date < date) by[h].overdue++
+      else by[h].pending++
+    }
+    return Object.values(by).sort((a, b) => a.name.localeCompare(b.name))
+  }, [zone, date, o.data])
+  const rows = q.data ?? []
+  const total = rows.reduce((s, r) => ({
+    total: s.total + r.total, done: s.done + r.done, submitted: s.submitted + r.submitted,
+    overdue: s.overdue + r.overdue, pending: s.pending + r.pending,
+  }), { total: 0, done: 0, submitted: 0, overdue: 0, pending: 0 })
+  return <>
+    <section className="da-filters panel no-print">
+      <Field label={L('তারিখ', 'Date')}><input type="date" value={date} max={t} onChange={e => e.target.value && setDate(e.target.value)} /></Field>
+      <Link className="secondary btn-ghost" to={`/app/hr/duties/reports?zone=${zone}&from=${date}&to=${date}`}><Icon name="chart" size={16} />{L('বিস্তারিত রিপোর্ট', 'Full report')}</Link>
+    </section>
+    {q.loading && <p className="muted">{L('লোড হচ্ছে…', 'Loading…')}</p>}
+    {q.error ? <p className="da-error">{(q.error as Error).message}</p> : null}
+    {q.data && <>
+      <div className="da-stats">
+        <Stat icon="tasks" label={L('মোট দায়িত্ব', 'Total duties')} value={n(total.total)} />
+        <Stat icon="check" tone="ok" label={L('সম্পন্ন', 'Done')} value={n(total.done)} />
+        <Stat icon="form" tone="info" label={L('জমা, যাচাই বাকি', 'Submitted, awaiting')} value={n(total.submitted)} />
+        <Stat icon="warn" tone={total.pending ? 'warn' : undefined} label={L('অপেক্ষায়', 'Pending')} value={n(total.pending)} />
+        <Stat icon="x" tone={total.overdue ? 'bad' : undefined} label={L('সময় শেষ', 'Overdue')} value={n(total.overdue)} />
+      </div>
+      {rows.length === 0 ? <p className="muted">{L('এই তারিখে এই জোনের কোনো দায়িত্ব রেকর্ড নেই।', 'No duty record for this zone on this date.')}</p>
+        : <div className="da-table-wrap"><table className="da-table"><thead><tr>
+            <th>{L('হাব', 'Hub')}</th><th>{L('মোট', 'Total')}</th><th>{L('সম্পন্ন', 'Done')}</th><th>{L('যাচাই বাকি', 'Awaiting')}</th><th>{L('অপেক্ষায়', 'Pending')}</th><th>{L('সময় শেষ', 'Overdue')}</th>
+          </tr></thead><tbody>
+            {rows.map(r => <tr key={r.hub}>
+              <td>{r.name}</td><td>{n(r.total)}</td><td>{n(r.done)}</td><td>{n(r.submitted)}</td><td>{n(r.pending)}</td><td>{n(r.overdue)}</td>
+            </tr>)}
+          </tbody></table></div>}
+    </>}
   </>
 }

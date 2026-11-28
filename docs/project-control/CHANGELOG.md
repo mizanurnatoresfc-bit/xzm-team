@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-11-28 — XZM-013 Phase 2B Frontend (Claude, Draft PR)
+- `web/src/lib/hub.ts`: extend `Duty` type with optional Phase 2A fields (`deadline_local`, `verification_mode`, `evidence_source`, `reviewer_role`, `hub_id`); add `VERIFY_MODE`, `REVIEWER`, `EVIDENCE_SOURCE` label maps; `dutiesApi.save` sends the new keys and gracefully retries without them if the column does not yet exist (Phase 2A migration pending).
+- `web/src/pages/hr/Duties.tsx`: new form fields for deadline (time input, Asia/Dhaka wall clock), verification mode, evidence source (only when non-manual), reviewer role; card surfaces each of those when the row carries them.
+- `web/src/pages/staff/MyDuties.tsx` (new, route `/app/my-duties`): four tabs — today's duty grouped by frequency with quick-links to related modules, submitted, pending, overdue with inline reason submission via existing `task_update_progress` RPC.
+- `web/src/pages/hr/DutyReports.tsx` (new, route `/app/hr/duties/reports`): six report views — daily / by staff / by hub / manager's duty / incomplete / monthly performance — sharing one filter bar (Date·Zone·Hub·Employee·Status) with print and Excel via existing `DataTable`.
+- `web/src/pages/zonal/HubOps.tsx`: new "দায়িত্ব" tab in the Zone Operations center showing zone-wide total / done / submitted / pending / overdue per hub for a chosen day; "বিস্তারিত রিপোর্ট" link drills into DutyReports with the current filter preserved.
+- `web/src/App.tsx`: register the two new routes and preloader entries.
+- Backend untouched: no DB, SQL, migration, RLS, or edge-function change. Phase 2A audit columns are consumed only when present (feature-flagged by presence, not by env). No mock data is rendered live.
+
 > Human-readable change log, reverse chronological। Follows task IDs।
 
 ---

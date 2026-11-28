@@ -126,8 +126,38 @@ export const hubApi = {
 // ---------------------------------------------------------------- rider routes and duties
 export type HubRoute = { id: string; hub_id: string; zone_id: string; code: string; name: string; areas: string[]; note: string | null; status: string }
 export type RiderRoute = { id: string; route_id: string; employee_id: string; hub_id: string; effective_from: string; effective_to: string | null }
-export type Duty = { id: string; position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number; focus?: string | null }
+export type VerifyMode = 'manual' | 'automatic' | 'both'
+export type ReviewerRole = 'hub_manager' | 'zonal_manager' | 'super_admin'
+/** job_duties row. Phase 2A (XZM-013) added optional deadline_local, verification_mode, evidence_source, reviewer_role;
+ *  older rows and older clients may not carry these — the UI treats them as optional, Asia/Dhaka wall clock for deadline. */
+export type Duty = {
+  id: string; position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null
+  frequency: string; sort: number; focus?: string | null
+  hub_id?: string | null; deadline_local?: string | null; verification_mode?: VerifyMode | null
+  evidence_source?: string | null; reviewer_role?: ReviewerRole | null
+}
 export const FREQ: Record<string, [string, string]> = { daily: ['প্রতিদিন', 'Daily'], weekly: ['সাপ্তাহিক', 'Weekly'], monthly: ['মাসিক', 'Monthly'], as_needed: ['দরকার হলে', 'As needed'] }
+export const VERIFY_MODE: Record<VerifyMode, [string, string]> = { manual: ['ম্যানুয়াল যাচাই', 'Manual'], automatic: ['স্বয়ংক্রিয় যাচাই', 'Automatic'], both: ['দুটোই', 'Both'] }
+export const REVIEWER: Record<ReviewerRole, [string, string]> = { hub_manager: ['হাব ম্যানেজার', 'Hub manager'], zonal_manager: ['জোনাল ম্যানেজার', 'Zonal manager'], super_admin: ['সুপার অ্যাডমিন', 'Super admin'] }
+/** Evidence sources the UI offers for automatic/both verification. Adding more keys is safe — the backend stores the string. */
+export const EVIDENCE_SOURCE: Record<string, [string, string]> = {
+  attendance_self_marks: ['নিজে হাজিরা দেওয়া', 'Self attendance mark'],
+  attendance_records: ['হাজিরা খাতা', 'Attendance register'],
+  wf_morning_subs: ['সকালের কাজ জমা', 'Morning submission'],
+  pickup_submissions: ['পিকআপ জমা', 'Pickup submission'],
+  pickup_consolidations: ['পিকআপ কনসলিডেশন', 'Pickup consolidation'],
+  route_day_plans: ['রুট প্ল্যান', 'Route day plan'],
+  route_stop_visits: ['রুট স্টপ ভিজিট', 'Route stop visit'],
+  wf_daily_ops: ['দৈনিক কাজের খাতা', 'Daily ops sheet'],
+  sorting_handovers: ['সর্টিং হ্যান্ডওভার', 'Sorting handover'],
+  sorting_dispatches: ['সর্টিং ডিসপ্যাচ', 'Sorting dispatch'],
+  sorting_driver_reports: ['সর্টিং ড্রাইভার রিপোর্ট', 'Sorting driver report'],
+  issues: ['সমস্যা রিপোর্ট', 'Issue report'],
+  hub_ops_reports: ['হাব অপস রিপোর্ট', 'Hub ops report'],
+  da_import_reports: ['DA ইমপোর্ট', 'DA import'],
+  vehicle_day_logs: ['গাড়ির দৈনিক লগ', 'Vehicle day log'],
+  hub_ops_boss_reports: ['বসের রিপোর্ট', 'Boss report'],
+}
 
 export const routesApi = {
   list: async (hub: string) => {
@@ -170,8 +200,22 @@ export const dutiesApi = {
     return (data ?? []) as Duty[]
   },
   mine: (employee?: string) => rpc<Array<{ id: string; title: string; details: string | null; frequency: string; source: 'person' | 'post' }>>('my_duties', { p_employee: employee ?? null }),
-  save: async (d: { position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null; frequency: string; sort: number; focus?: string | null }, id?: string) => {
-    const { error } = id ? await supabase.from('job_duties').update(d).eq('id', id) : await supabase.from('job_duties').insert(d); fail(error)
+  /** Phase 2A (XZM-013) extends the payload with optional deadline_local, verification_mode, evidence_source, reviewer_role,
+   *  hub_id. The payload intentionally omits undefined keys so older servers accept it; when the Phase 2A columns are not
+   *  yet live the save falls back and retries without them, so the frontend ships ahead of the backend without crashing. */
+  save: async (d: { position_id: string | null; employee_id: string | null; zone_id: string | null; title: string; details: string | null;
+    frequency: string; sort: number; focus?: string | null; hub_id?: string | null; deadline_local?: string | null;
+    verification_mode?: VerifyMode | null; evidence_source?: string | null; reviewer_role?: ReviewerRole | null }, id?: string) => {
+    const payload = Object.fromEntries(Object.entries(d).filter(([_k, v]) => v !== undefined))
+    const run = (p: Record<string, unknown>) => id ? supabase.from('job_duties').update(p).eq('id', id) : supabase.from('job_duties').insert(p)
+    let { error } = await run(payload)
+    if (error && /deadline_local|verification_mode|evidence_source|reviewer_role|hub_id/i.test(error.message)) {
+      // Phase 2A columns not yet live on this server — retry without them so the base save still goes through.
+      const { deadline_local: _1, verification_mode: _2, evidence_source: _3, reviewer_role: _4, hub_id: _5, ...rest } = payload as Record<string, unknown>
+      void _1; void _2; void _3; void _4; void _5
+      ;({ error } = await run(rest))
+    }
+    fail(error)
   },
   remove: async (id: string) => {
     const { error } = await supabase.from('job_duties').update({ archived_at: new Date().toISOString(), archive_reason: 'removed' }).eq('id', id); fail(error)
