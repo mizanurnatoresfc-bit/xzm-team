@@ -424,6 +424,15 @@ function OwnShift({ children }: { children: ReactNode }) {
           </li>
         })}</ol>
       </section>
+      <section className="data-entry-chart" aria-label={L('কাজের সারাংশ', 'Work summary')}>
+        <h3>{L('কাজের সারাংশ', 'Work summary')}</h3>
+        <EntryMetrics metrics={[
+          { label: L('যাচাইয়ের অপেক্ষায় দায়িত্ব', 'Completed duties awaiting approval'), value: hub.duties.filter(duty => duty.completed_at && !duty.approved_at).length },
+          { label: L('অনুমোদিত দায়িত্ব', 'Approved duties'), value: hub.duties.filter(duty => duty.approved_at).length },
+          { label: L('অসম্পূর্ণ দায়িত্ব', 'Incomplete duties'), value: hub.duties.filter(duty => !duty.completed_at).length },
+        ]} />
+        <p>{L('এন্ট্রি সময়', 'Entry time')}: {hub.last_minutes == null ? '—' : Math.floor(hub.last_minutes / 60) + ' ' + L('ঘণ্টা', 'h') + ' ' + (hub.last_minutes % 60) + ' ' + L('মিনিট', 'min')}</p>
+      </section>
       <div className="data-entry-actions">
       {due.filter(item => item.hub.id === hub.id).map(({slot}) => <button type="button" key={slot}
         onClick={() => setDismissed(items => items.filter(k => k !== hubKey(hub,slot)))}>
