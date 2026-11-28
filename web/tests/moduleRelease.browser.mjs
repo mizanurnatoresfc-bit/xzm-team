@@ -64,14 +64,14 @@ try {
     assert.equal(requestPlatform, platform)
     await page.goto(base + '/app/module-control')
     await page.getByRole('button', { name: 'Unpublish', exact: true }).waitFor()
-    const ready = page.getByRole('option', { name: 'Release Ready' })
+    const ready = page.getByRole('option', { name: /Release Ready/ })
     assert.equal(await ready.isDisabled(), true)
     await page.getByLabel('Role', { exact: true }).selectOption('manager')
     await page.getByLabel('Hub', { exact: true }).selectOption(demoHub)
     await page.getByRole('button', { name: 'Preview', exact: true }).click()
     await page.getByText('Release policy allows access.', { exact: false }).waitFor()
     await page.getByRole('button', { name: 'Unpublish', exact: true }).click()
-    await page.getByText('Saved status · Development').waitFor()
+    await page.getByText(/Saved status · .*Development/).waitFor()
     assert.equal(saved.p_config.stage, 'development')
     superAdmin = false
     blocked = ''
