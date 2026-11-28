@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-28 — DE-01 Data Entry integration
+
+- Verified the Data Entry draft against current main, recorded the panel, database and RPC inventory, and added regression evidence to the draft PR.
+
 ## 2026-11-27 (XZM-006A + XZM-006B Critical Backup Recovery — docs + read-only verification)
 
 - **XZM-006A — Android Signing Key** audit doc added: `docs/project-control/audits/XZM-006A_ANDROID_SIGNING_KEY.md`. Covers (a) six-location Owner checklist for finding the original keystore; (b) `apksigner verify --print-certs` fingerprint extraction from the public live APK + `keytool -list -v` match verification against any found `.jks`; (c) GPG-AES256 encrypted bundle (keystore + keystore.properties + README) stored in two independent locations (password-manager vault + offline media), with passphrase kept separately. Cites `.github/workflows/android-apk.yml` lines 115–140 and 171–196 for the production signer-match logic. XZM-006A status → UNDER_REVIEW; follow-up XZM-006A-impl opens helper scripts + PROJECT_CONNECTIONS.md §11 fingerprint record.

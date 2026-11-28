@@ -72,6 +72,26 @@
 
 ## 4. Task Records
 
+### DE-01 — Data Entry inventory and main integration
+| Field | Value |
+|---|---|
+| Module | Data Entry |
+| Category | AU — Audit |
+| Requirement | Review PR #207 and current main, preserve existing behavior, integrate main into the draft, and run build and regression checks. |
+| Business Objective | Establish a verified baseline for Staff and Zonal Data Entry workflows. |
+| Priority | P1 |
+| Assigned AI | ChatGPT Work |
+| Dependencies | PR #207, project-control rules, current main at `6831f29`. |
+| Current Status | **REVIEW** — DE-01 validation recorded on the existing draft. |
+| Acceptance Criteria | Feature and RPC inventory, conflict check, build, regression evidence and handover. |
+| Test Evidence | [DE-01 inventory](audits/DE-01_DATA_ENTRY_INVENTORY.md) and [Test Report](TEST_REPORT.md#de-01--data-entry-integration--2026-11-28). |
+| Owner Approval | ✅ DE-01 only, 2026-11-28 (Asia/Dhaka). |
+| Commit / PR Link | [Draft PR #207](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/207), tested code tree `61a7859`. |
+| GitHub Issue # | — |
+| Deployment Status | N/A |
+| Blockers | Hosted DEMO sign-in, staging scheduler and Android-device evidence remain release checks outside DE-01. |
+| Next Action | Keep PR #207 in draft pending separate release review. |
+
 ### XZM-001 — ChatGPT Workspace Setup (historical)
 | Field | Value |
 |---|---|
