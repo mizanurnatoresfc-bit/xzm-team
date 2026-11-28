@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useRelease } from '../../lib/releaseAccess'
 import { usePrefs } from '../../lib/prefs'
 import { Field, useLoad } from '../accounts/ui'
 
@@ -260,6 +261,10 @@ function PlanningSuggestions({ hub, questions, loading }: { hub: Hub; questions:
 }
 
 export function OperationsQuestions() {
+  return useRelease().allows('operation') ? <OperationsInbox /> : null
+}
+
+function OperationsInbox() {
   const { L } = usePrefs()
   const questions = useLoad(() => rpc<Question[]>('operation_questions_today'), [])
   if (!questions.data?.length) return null

@@ -239,3 +239,7 @@ Before starting a task:
 - **No backend write this pass.** No `private.release_*`, no `public.module_release_*`, no migration file was touched. `grep -rn "মডিউল নিয়ন্ত্রণ\|Module Control" web/src` still returns zero after this pass (the earlier rename stands).
 - **Regression**: local node tests 93/93 PASS across all seven files after the UI edits.
 - **Self-caught CI regression (fixed in the same pass)**: `Website` workflow on commit `ad820745` failed with a Playwright `TimeoutError` waiting for the literal text `"Saved status · Development"` in `web/tests/moduleRelease.browser.mjs` — the bilingual rename this pass changed the rendered text to `"Saved status · ডেভেলপমেন্ট · Development"`. Fix in `d74a84a`: regex matchers (`/Release Ready/`, `/Saved status · .*Development/`). Both `Tests` and `Website` workflows on `d74a84a` SUCCESS — the second fully-green commit on PR #226 and the first that carries the full UI/UX + Contract Report delta.
+
+## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
+
+ChatGPT Work took ownership from Claude at PR head ed61011. Follow-on migrations 20261128103000 and 20261128103100 were applied only to Supabase staging. Accounts guards preserve the edit permission and original validations. Operations applies release checks per hub on list endpoints and before writes. Continue endpoint-by-endpoint review of remaining session and hub RPCs, then independently verify roles and web/native clients.

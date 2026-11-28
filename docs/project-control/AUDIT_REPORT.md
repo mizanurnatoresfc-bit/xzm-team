@@ -60,3 +60,7 @@
 - Hub isolation enforced; hub switcher consolidated to global header।
 - Route pages audit — `/app/zonal/routes` already clean (no merge needed)।
 - HR page cleanup done — no stale routes left live।
+
+## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
+
+Independent staging catalog baseline: 150 registry rows and 33 public RPC bodies calling the shared release guard. The two follow-on migrations add one registry row, two Accounts wrappers, three Operations writes and three row-scoped Operations reads. This is a partial backend audit. Direct URL/API, cross-scope role/position/user checks, RLS, Storage and Edge Function verification remain open.

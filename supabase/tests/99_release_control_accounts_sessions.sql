@@ -1,0 +1,33 @@
+begin;
+select tests.fixture();
+
+insert into public.da_sessions (hub_id, zone_id, account_date, started_by)
+values (tests.id('hub_a1'), tests.id('zone_a'), current_date, tests.id('hub_mgr'));
+insert into tests.ids
+select 'release_sheet', id from public.da_sessions where hub_id = tests.id('hub_a1');
+
+select tests.ok(not has_function_privilege('authenticated', 'private.da_release_session_hub(uuid)', 'execute'),
+  'authenticated callers cannot invoke the internal session lookup');
+select tests.login(tests.id('hub_mgr'));
+select tests.throws($q$select public.da_bank_done(tests.id('release_sheet'))$q$,
+  'published bank workflow keeps deposit validation', '22023');
+select tests.throws($q$select public.da_cell_set(tests.id('release_sheet'), 'riders', null, 'invalid', 'test')$q$,
+  'published cell workflow keeps column validation', '22023');
+select tests.throws($q$select public.da_bank_done(null)$q$,
+  'unknown session does not fall back to unscoped release access', '42501');
+
+select tests.login(tests.id('super'));
+select public.module_release_save('accounts', 0, '{"stage":"disabled","enabled":false}');
+select tests.login(tests.id('hub_mgr'));
+select tests.throws($q$select public.da_bank_done(tests.id('release_sheet'))$q$,
+  'disabled accounts block bank confirmation for the stored hub', '42501');
+select tests.throws($q$select public.da_cell_set(tests.id('release_sheet'), 'riders', null, 'invalid', 'test')$q$,
+  'disabled accounts block editing cells for the stored hub', '42501');
+
+select tests.login(tests.id('super'));
+select public.module_release_save('accounts', (public.module_release_history('accounts')->0->>'id')::bigint, null,
+  (public.module_release_history('accounts')->0->>'id')::bigint);
+select tests.login(tests.id('hub_mgr'));
+select tests.throws($q$select public.da_bank_done(tests.id('release_sheet'))$q$,
+  'rollback restores bank workflow validation', '22023');
+rollback;

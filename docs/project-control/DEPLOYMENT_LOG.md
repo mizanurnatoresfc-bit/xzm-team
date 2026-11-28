@@ -56,3 +56,7 @@ _No entries yet from this control-plane documentation branch (XZM-004 is docs-on
 - 2026-11-xx — Edge function `nodi-route-plan` deployed; `route_day_plans.ai_plan` jsonb column added।
 - 2026-11-xx — Edge function `osm-fetch-places` deployed।
 - 2026-11-xx — PR #177, PR #178 merged ও Netlify auto-deployed (**PENDING VERIFICATION** — exact deploy IDs needed from Netlify)।
+
+## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
+
+Staging only: applied module_release_accounts_sessions and module_release_operations using Supabase management. Verification changed fixture and policy rows inside a rolled-back transaction. Previous Cloudflare PR preview succeeded; Netlify skipped the PR preview. Production migration, deployment and Android release are pending.

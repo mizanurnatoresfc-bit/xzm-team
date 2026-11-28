@@ -308,6 +308,7 @@ export const moduleRegistry: Readonly<Record<string, string | null>> = Object.fr
   'zonal.assistant': 'zonal',
   'zonal.files': 'zonal',
   'zonal.hr-records': 'zonal',
+  operation: null,
   'zonal.hub-ops': 'zonal',
   'zonal.hub-ops.hub': 'zonal.hub-ops',
   'zonal.hub-ops.hub.hub': 'zonal.hub-ops.hub',
@@ -323,6 +324,7 @@ export function moduleForAddress(to: string): string | undefined {
     const tab = new URLSearchParams(query).get('tab')
     if (tab && Object.hasOwn(moduleRegistry, `routes.tab-${tab}`)) return `routes.tab-${tab}`
   }
+  if (path === '/app/zonal/hub-ops' && new URLSearchParams(query).get('tab') === 'collection') return 'operation'
   if (Object.hasOwn(routeModules, path)) return routeModules[path]
   // Follow router precedence: exact routes first, then parameterized routes, then splats.
   return matchedPatterns.find(({ pattern }) => pattern.test(path))?.module

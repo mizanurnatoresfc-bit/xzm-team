@@ -28,6 +28,8 @@ test('exact routes, nested routes, and legacy aliases share the expected release
   assert.equal(moduleForAddress('/app/vehicles/historical/abc'), 'fleet')
   assert.equal(moduleForAddress('/app/routes/plan'), moduleForAddress('/app/routes?tab=plan'))
   assert.equal(moduleForAddress('/app/sorting/routes'), moduleForAddress('/app/routes?tab=sorting'))
+  assert.equal(moduleForAddress('/app/zonal/hub-ops?tab=collection'), 'operation')
+  assert.equal(moduleForAddress('/app/zonal/hub-ops?tab=hubs'), 'zonal.hub-ops')
   assert.equal(moduleForAddress('/app/module-control'), 'core')
 })
 

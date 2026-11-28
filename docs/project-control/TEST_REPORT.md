@@ -228,3 +228,7 @@ Format:
 - PR #177 (route setup OSM load + draw area) — merged, user-tested OK।
 - PR #178 (sidebar personal rows) — merged।
 - Supabase edge functions `nodi-ai`, `nodi-route-plan`, `osm-fetch-places` — deployed & tested by owner।
+
+## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
+
+On ed61011, GitHub Database run 46133853167 and Website run 46133853149 passed. After the new changes, 93 local Node tests and eight staging SQL assertions passed. The staging test covered private lookup ACL, original Accounts validation, published Operations collection, disable behavior, and rollback of the test transaction. Full CI on the new revision, five-role browser acceptance, and native Android remain release gates.

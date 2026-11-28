@@ -745,3 +745,7 @@
 - **Batch 3 disable/restore completed on staging** — T9.7-T9.14 that timed out earlier ran green this pass: `attendance` disable blocks `att_days_list`; `accounts` disable blocks all 5 `da_*` table returns; `hub.logins` disable blocks `hub_login_list`; final restore smoke `da_hub_employees` returns 3 rows as Super Admin.
 - **Staging frontend deployment verified live** at `https://staging.xzmteam.com/` — Cloudflare Workers Git-integration auto-built on push, HTML title `XZM TEAM`, theme color `#16A34A` (Brand Green).
 - **B-001 fix shipped in the same session** — DEMO-hub detection in `release_context` and `module_release_save` now matches both bare `demo` and prefixed `demo-%` codes. Migration `supabase/migrations/20261128073000_module_release_demo_hub_fix.sql`; applied to staging via Supabase MCP; production untouched (will apply through normal main-merge CI).
+
+## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
+
+IN_PROGRESS on draft PR #226. Staging has the session-to-hub helper, two Accounts guards and the Operations registry with six guarded RPCs. Remaining backend families and native acceptance are open. Production release is held.

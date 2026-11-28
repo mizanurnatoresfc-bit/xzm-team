@@ -157,3 +157,7 @@
 Supplementary Owner-input sub-tasks:
 - **XZM-006B** — Supabase recovery coverage + production-binding documentation
 - **XZM-006G** — RPO/RTO Owner questionnaire + target definition
+
+## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
+
+Priority 01 release risks remain OPEN. B-002 couples server-side web and Android switches because shared API credentials carry no verified platform identity. Keep the intersection policy until trusted platform identification is implemented and verified. Unreviewed RPCs and native acceptance also remain release gates.
