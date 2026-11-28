@@ -29,7 +29,7 @@ type Detail = {
 }
 type Report = { hub: string; hub_id: string; date: string; enabled: boolean; summary: Summary; worker: Detail | null; history: History[] }
 type TargetAdmin = {
-  enabled: boolean; complex_parcels: number | null; team: Choice[]
+  enabled: boolean; distribution_mode?: 'smart' | 'equal'; complex_parcels: number | null; team: Choice[]
   rule: NumberMap | null; observation: NumberMap | null; profile: NumberMap | null
   latest: Summary | null; history: History[]
 }
@@ -227,16 +227,18 @@ function HubTargetSettings({ hub, date }: { hub: string; date: string }) {
   if (settings.error) return <div><p className="da-error" role="alert">{String(settings.error)}</p>
     <button type="button" onClick={() => void settings.reload()}>{L('আবার চেষ্টা করুন', 'Retry')}</button></div>
   if (!data || settings.loading) return <p role="status">{L('লোড হচ্ছে…', 'Loading…')}</p>
+  // The saved mode comes from the hub itself; the latest cached run can be missing or stale (hub off, no run yet).
+  const mode = data.distribution_mode ?? data.latest?.distribution_mode ?? 'smart'
   return <fieldset disabled={busy}>
     <button type="button" className="secondary" onClick={() => void save('hub', { enabled: !data.enabled })}>
       {data.enabled ? L('অটো বণ্টন বন্ধ করুন', 'Disable automatic distribution') : L('অটো বণ্টন চালু করুন', 'Enable automatic distribution')}
     </button>
     <div className="data-entry-mode-toggle">
       <span>{L('বণ্টন মোড', 'Distribution mode')}:</span>
-      <strong>{(data.latest?.distribution_mode ?? 'smart') === 'equal'
+      <strong>{mode === 'equal'
         ? L('সমান (Equal)', 'Equal')
         : L('স্মার্ট — র‍্যাংক অনুযায়ী (Smart)', 'Smart — rank-weighted')}</strong>
-      {(data.latest?.distribution_mode ?? 'smart') === 'smart'
+      {mode === 'smart'
         ? <button type="button" className="secondary" onClick={() => void setMode('equal')}>
             {L('সমান বণ্টনে বদলান', 'Switch to equal split')}
           </button>
