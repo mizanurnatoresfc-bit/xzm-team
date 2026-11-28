@@ -78,3 +78,9 @@
 - Staff consolidation → `/app/staff/list`।
 - Attendance consolidation → `/app/workforce/hub`; old URLs redirect।
 - NODI AI chat UI + edge functions `nodi-ai`, `nodi-route-plan`, `osm-fetch-places` deployed।
+
+## 2026-11-28 — Priority 01, Master Module Control Center (draft)
+
+- Classified the existing 101 React Router routes and registered concrete subroutes, route tabs and dashboard panels. Existing permissions and role menu limits still apply.
+- Added Super Admin controls for stage, enablement, rollout scope, platforms, menu and dashboard order, saved role preview, verification evidence and audited rollback.
+- Added private Supabase configuration and verified-evidence storage, authorized RPCs, and server-side enforcement for selected Nodi and route planning APIs. Production release is pending broader API mapping and hosted and native acceptance.

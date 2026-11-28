@@ -24,24 +24,29 @@ import { WorkforceAlerts } from '../components/WorkforceAlerts'
 import { AppDownloadCard } from '../components/AppDownloadCard'
 import { reportImport } from '../lib/reportImport'
 import { todayDhaka } from '../lib/dailyAccounts'
+import { useRelease } from '../lib/releaseAccess'
 import { pageLinkAllowed } from '../lib/menu'
 
 export function Dashboard() {
   const { session, grants, can, viewAs, isSuperAdmin, menu } = useAuth()
+  const release = useRelease()
   const { L, n, lang } = usePrefs()
   const home = useLoad(() => dashboard.home(), [])
   const d = home.data
   const name = d?.me?.name || session?.user.user_metadata?.full_name || session?.user.email || L('ব্যবহারকারী', 'User')
   // Previewing a role: show that role's panels (numbers stay the Super Admin's own).
   const panels: PanelCode[] = (viewAs?.panels as PanelCode[] | null | undefined) ?? d?.panels ?? []
-  const has = (p: PanelCode) => panels.includes(p)
+  const moduleId = (panel: PanelCode) => 'dashboard.' + panel.replaceAll('_', '-')
+  const has = (panel: PanelCode) => panels.includes(panel) && release.allows(moduleId(panel))
   // Views (আমি / হাব / জোন): only those with at least one panel this person may see.
-  const views = VIEWS.filter(([v]) => panels.some(p => VIEW_OF[p]?.includes(v)))
+  const views = VIEWS.filter(([v]) => panels.some(p => has(p) && VIEW_OF[p]?.includes(v)))
   const [view, setV] = useState<DashView | null>(pickedView())
   const [defView, setDefView] = useState<DashView | null>(null)
   useEffect(() => { if (viewAs) { setDefView(viewAs.view); setV(null) } else void dashboard.defaultView().then(setDefView) }, [viewAs])
   const cur: DashView | null = views.find(x => x[0] === view)?.[0] ?? views.find(x => x[0] === defView)?.[0] ?? views[views.length - 1]?.[0] ?? null
   const vis = (p: PanelCode) => has(p) && !!cur && !!VIEW_OF[p]?.includes(cur)
+  const shownPanels = panels.filter(vis).map((panel, index) => ({ panel, order: release.order(moduleId(panel)) ?? index }))
+    .sort((a, b) => a.order - b.order)
   const pickView = (v: DashView) => { setV(v); setView(v) }
   // Let the tab bar follow the view on show, without saving it as the person's choice.
   useEffect(() => { if (cur) setView(cur, false) }, [cur])
@@ -73,6 +78,7 @@ export function Dashboard() {
     {panelLevel(can) === 1 && can('hr.attendance.create') && <DashboardMorning user={session?.user.id ?? ''} />}
     {/* the three personal entries under the name card, and what is waiting on me (attendance, daily numbers, approvals) */}
     <div className="wf-under"><PersonalMenu variant="card" /><WorkforceAlerts /></div>
+    {isSuperAdmin && <Link to="/app/module-control" className="dash-edit"><Icon name="shield" size={15} />{L('মডিউল নিয়ন্ত্রণ কেন্দ্র', 'Module Control Center')}</Link>}
     {isSuperAdmin && !viewAs && <Link to="/app/role-dashboards" className="dash-edit"><Icon name="gear" size={15} />{L('ড্যাশবোর্ড সাজান', 'Arrange dashboard')}</Link>}
     {views.length > 1 && <div className="view-switch" role="tablist" aria-label={L('ড্যাশবোর্ড', 'Dashboard')}>
       {views.map(([v, bn, en, ic]) => <button key={v} type="button" role="tab" aria-selected={cur === v} className={cur === v ? 'on' : ''} onClick={() => pickView(v)}>
@@ -85,11 +91,11 @@ export function Dashboard() {
     {d?.me && photo === null && !firstSteps && <Link to="/app/me" className="alert-card warn"><span className="ai"><Icon name="user" size={20} /></span>
       <span>{L('প্রোফাইলের ছবি নেই — নিজেই ছবি দিন', 'No profile photo — add it yourself')}</span></Link>}
     {/* one card for everything waiting on me: riders' pickup, delivery and money, staff bills, other approvals */}
-    <MyApprovalCard />
+    {release.allows('dashboard.approvals') && <MyApprovalCard />}
     <RiderSendCard />
-    {pageLinkAllowed('/app/accounts/report-import', { can, menu: menu ?? null }) && <ReportUploadCard />}
+    {pageLinkAllowed('/app/accounts/report-import', { can, menu, releaseAllowed: release.addressAllowed }) && <ReportUploadCard />}
     {/* Panels come in the order saved for the person's role (রোল অনুযায়ী ড্যাশবোর্ড). */}
-    {panels.filter(vis).map(p => <Fragment key={p}>{draw(p)}</Fragment>)}
+    {shownPanels.map(({ panel }) => <Fragment key={panel}>{draw(panel)}</Fragment>)}
     <AppDownloadCard />
     </div>
   </AppShell>

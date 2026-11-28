@@ -154,3 +154,13 @@ Before starting a task:
 - No branding drift (XZM TEAM only, ERP suffix gone from UI)।
 - No business-rule change without approved task।
 - No "RESOLVED" label on a risk until merge + both-AI read verification (R-008 lesson, XZM-004R Review-Response)।
+
+## Priority 01 — Master Module Control Center, 2026-11-28
+
+- [Draft PR #226](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/226) contains the persistent registry and control center. Enter from the Super Admin dashboard or through `/app/module-control`. Enforce normal auth and password recovery before entering. The database checks the real Super Admin grant.
+- Add each future route to `web/src/lib/moduleRelease.ts` and seed each new module and parent using a forward migration. New database registry rows default to Planning. Wire new endpoints into the release guard with the resource's real hub and retain the endpoint's existing authorization.
+- The app uses the selected platform and reads current release decisions from Supabase. A user's last successful decision can be used offline. Guarded operations must pass the current server policy when they reconnect.
+- Eight guarded RPC signatures cover Nodi gates and selected route planning operations. `route_day_plans` adds a restrictive RLS policy. Direct APIs share credentials across web and Android, so guarded endpoints require both platform switches. Continue the API mapping and test shared or delegated permissions before enabling broad production controls.
+- DEMO derives from a verified active hub whose code is `DEMO` and from the caller's actual assignments. Current page-level hub detection covers explicit hub-operations links and unambiguous single-hub assignments. Hook other hub selectors and evaluate their resource APIs before broad DEMO rollout.
+- The evidence collector verifies GitHub workflow and deployment status for the PR commit with `scripts/record-module-release.mjs`. It writes to the explicitly selected Supabase origin using the service role. GitHub deployments use the environment names `preview` and `production`. Browser administrators can review evidence and cannot record it.
+- Keep the PR in draft until outstanding checks in TEST_REPORT pass. Coordinate shared files with PRs #219, #222, #224 and #225. Website rollout depends on the Supabase migration being in place.

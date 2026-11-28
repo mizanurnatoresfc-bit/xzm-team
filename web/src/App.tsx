@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthProvider'
+import { ReleaseProvider, useRelease } from './lib/releaseAccess'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { panelLevel } from './lib/menu'
 import { Login } from './pages/Login'
@@ -19,6 +20,7 @@ import { Terms } from './pages/Terms'
 import { advancedAccessHere, isNativeApp } from './lib/native'
 
 // Pages load on first visit, so the first screen downloads only what it needs.
+const ModuleControl = lazy(() => import('./pages/users/ModuleControl'))
 const FlowMockups = lazy(() => import('./pages/previews/FlowMockups'))
 const StaffEntry = lazy(() => import('./pages/staff/StaffEntry'))
 const DailyDashboard = lazy(() => import('./pages/accounts/DailyDashboard').then(m => ({ default: m.DailyDashboard })))
@@ -201,14 +203,17 @@ function LegacyAttendanceRedirect({ view }: { view: 'me' | 'hub' | 'zone' }) {
 /** The home page: a staff member gets the staff panel, everyone else the dashboard. */
 function HomeOrPanel() {
   const { grants, can } = useAuth()
-  return grants.length > 0 && panelLevel(can) === 0 ? <StaffPanel /> : <Dashboard />
+  const release = useRelease()
+  const staff = grants.length > 0 && panelLevel(can) === 0
+  if (staff && release.status === 'loading') return <Loading />
+  return staff && release.allows('staff') ? <StaffPanel /> : <Dashboard />
 }
 
 export default function App() {
   // Pull to refresh in the Android app (lib/nativeFeel.tsx): the page is mounted again, so it loads its data afresh.
   const [fresh, setFresh] = useState(0)
   useEffect(() => { const f = () => setFresh(k => k + 1); window.addEventListener('app:refresh', f); return () => window.removeEventListener('app:refresh', f) }, [])
-  return <PrefsProvider><AuthProvider><BrowserRouter><Suspense fallback={<Loading />}><Routes key={fresh}>
+  return <PrefsProvider><AuthProvider><BrowserRouter><ReleaseProvider><Suspense fallback={<Loading />}><Routes key={fresh}>
     <Route path="/staff/login" element={<Login />} />
     <Route element={<ProtectedRoute />}>
       <Route path="/app" element={<HomeOrPanel />} />
@@ -311,6 +316,7 @@ export default function App() {
       <Route path="/app/menu-roles" element={<RoleMenuMatrix />} />
       <Route path="/app/accounts/reports" element={<AccountsReports />} />
       <Route path="/app/accounts/settings" element={<AccountsSettings />} />
+      <Route path="/app/module-control" element={<ModuleControl />} />
       <Route path="/secure-control" element={<Dashboard />} />
     </Route>
     <Route path="/" element={isNativeApp() ? <Navigate to="/app" replace /> : <Home />} />
@@ -320,5 +326,5 @@ export default function App() {
     <Route path="/zonal/requests" element={<Navigate to="/app/zonal/requests" replace />} />
     <Route path="/zonal/hr-records" element={<Navigate to="/app/zonal/hr-records" replace />} />
     <Route path="*" element={<Navigate to="/staff/login" replace />} />
-  </Routes></Suspense></BrowserRouter></AuthProvider></PrefsProvider>
+  </Routes></Suspense></ReleaseProvider></BrowserRouter></AuthProvider></PrefsProvider>
 }

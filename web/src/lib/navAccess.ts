@@ -144,12 +144,12 @@ export function hasPageAccess(to: string, can: (permission: string) => boolean):
 }
 
 /** What a person holds: their permissions, their role's page list, and whether that list could be loaded. */
-export type Access = { can: (permission: string) => boolean; menu: string[] | null; menuUnavailable?: boolean }
+export type Access = { can: (permission: string) => boolean; menu: string[] | null; menuUnavailable?: boolean; releaseAllowed?: (to: string) => boolean }
 
 /** THE rule for a link (sidebar row, phone tab, quick action, alert, shortcut): the role's page list names it, and the person holds what the page needs.
  *  `perms` is the link's own "any of" list; `also` is a second "any of" list that must hold as well (for a link that does something only a part of the page offers). */
 export function linkAllowed(to: string, a: Access, perms?: readonly string[] | null, also?: readonly string[] | null): boolean {
-  if (a.menuUnavailable) return false
+  if (a.menuUnavailable || a.releaseAllowed?.(to) === false) return false
   if (perms && !perms.some(a.can)) return false
   if (also && !also.some(a.can)) return false
   return inMenu(a.menu, to) && hasPageAccess(to, a.can)
@@ -158,16 +158,17 @@ export function linkAllowed(to: string, a: Access, perms?: readonly string[] | n
 /** A link that is not a menu row (a card or shortcut on a page that opens a page *under* a listed one, like the report upload under accounts):
  *  the same rule as a page opened by its address. */
 export function pageLinkAllowed(to: string, a: Access): boolean {
-  return !a.menuUnavailable && pageAllowed(a.menu, to) && hasPageAccess(to, a.can)
+  return !a.menuUnavailable && a.releaseAllowed?.(to) !== false && pageAllowed(a.menu, to) && hasPageAccess(to, a.can)
 }
 
-export type PageState = 'open' | 'menu-unavailable' | 'not-listed' | 'no-permission'
+export type PageState = 'open' | 'menu-unavailable' | 'not-listed' | 'no-permission' | 'release-unavailable'
 /** THE rule for a page opened by its address. `permission` is a route's own single requirement (ProtectedRoute's prop).
  *  Only the change-password page opens while the role's page list is unavailable. */
 export function pageState(pathname: string, a: Access, permission?: string): PageState {
   if (a.menuUnavailable && bare(pathname) !== '/app/password') return 'menu-unavailable'
   if (!pageAllowed(a.menu, pathname)) return 'not-listed'
   if ((permission && !a.can(permission)) || !hasPageAccess(pathname, a.can)) return 'no-permission'
+  if (a.releaseAllowed?.(pathname) === false) return 'release-unavailable'
   return 'open'
 }
 

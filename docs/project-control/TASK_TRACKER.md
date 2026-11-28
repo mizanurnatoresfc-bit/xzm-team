@@ -724,3 +724,10 @@
 - Recommended convention: এই tracker-এর কোনো task যদি Owner বা ChatGPT GitHub Issue হিসেবে খুলতে চান, issue title prefix-এ **`[XZM-###]`** দেবেন; সেই issue number এখানে `GitHub Issue #` row-এ যোগ হবে।
 - Custom labels suggestion (future task): `xzm-task`, `zm`, `cop`, `edm`, `cr`, `hm`, `ac`, `tr`, `wa`, `ux`, `ds`, `au`, `bf`, `dp`, `fd` — সম্মতি পেলে XZM-### task-এ setup।
 - এই markdown tracker ও GitHub Issues-এর মধ্যে conflict হলে **GitHub Issues** = live state, এই markdown = durable context।
+
+### Priority 01 — Master Module Control Center
+
+- **Status** — REVIEW, draft implementation in PR #226. Production release remains gated.
+- **Scope** — Route registry, Super Admin controls, restrictive role and hub rollout, Android and web navigation, release evidence, audit and rollback.
+- **Evidence** — See the Priority 01 entry in TEST_REPORT and the migration and tests in [PR #226](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/226).
+- **Release gate** — Complete the API and in-page function inventory, hosted DEMO acceptance, native Android verification, and integration checks against the final working-hub changes.

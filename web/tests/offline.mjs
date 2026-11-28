@@ -1,3 +1,4 @@
+import { moduleRegistry } from '../src/lib/moduleRelease.ts'
 // Offline check-in, in a real browser with the internet switched off: the built site opens from the saved copy, a check-in is kept on the phone with its time,
 // and it is sent (with that time) when the internet is back. The database is faked. Needs the built site:  npm run build && npm run test:offline
 // CHROME=/path/to/chrome uses a browser already on the machine. (The ordinary smoke test blocks service workers; this one needs them.)
@@ -47,6 +48,7 @@ try {
     if (req.method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
     if (u.includes('/auth/v1/user')) return j(user)
     if (u.includes('/auth/v1/token')) { calls.push({ fn: 'token' }); return j(session({ access_token: jwt })) }
+    if (u.includes('rpc/module_release_snapshot')) return j(Object.fromEntries(Object.keys(moduleRegistry).map(id => [id, { allowed: true, order: null }])))
     if (u.includes('rpc/my_permissions')) return j([{ permission_code: 'hr.attendance.self', scope_type: 'global', zone_id: null, hub_id: null, is_super: false }])
     if (u.includes('rpc/my_menu')) return j(null)
     if (u.includes('rpc/my_employee_id')) return j('e01')

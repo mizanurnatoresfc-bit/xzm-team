@@ -36,6 +36,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: TypeScript check
         run: npm run typecheck
+      - name: Release registry and access tests
+        run: node --experimental-strip-types --test tests/moduleRelease.test.mjs
       - name: Route module tests
         run: npm run test:routes
       - name: Parcel plan tests
@@ -60,5 +62,7 @@ jobs:
         run: npx playwright install-deps chromium
       - name: Browser smoke tests
         run: npm run test:smoke
+      - name: Module Release Control in Web and Android fixtures
+        run: node tests/moduleRelease.browser.mjs
       - name: Offline check-in in a browser
         run: npm run test:offline

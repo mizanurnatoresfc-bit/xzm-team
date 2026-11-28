@@ -1,3 +1,4 @@
+import { moduleRegistry } from '../src/lib/moduleRelease.ts'
 import { readFileSync } from 'node:fs'
 // Smoke test: opens the built site in a real browser at PC and phone size, with the
 // database answers faked, and checks the screens that every change must keep working.
@@ -165,6 +166,7 @@ try {
       if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
       if (u.includes('/auth/v1/user')) return j(session.user)
       if (u.includes('/functions/v1/admin-users')) { const b = r.request().postDataJSON(); if (b?.action === 'change_password') { pwChanged.push(b); return j({ ok: true }) } }
+      if (u.includes('rpc/module_release_snapshot')) return j(Object.fromEntries(Object.keys(moduleRegistry).map(id => [id, { allowed: true, order: null }])))
       if (u.includes('rpc/my_permissions') && permsNow) return j(permsNow.map(c => ({ permission_code: c, scope_type: 'global', zone_id: null, hub_id: null, is_super: false })))
       if (u.includes('rpc/my_permissions')) return j(plainStaff ? [{ permission_code: 'hr.attendance.self', scope_type: 'global', zone_id: null, hub_id: null, is_super: false }]
         : [{ permission_code: '*', scope_type: 'global', zone_id: null, hub_id: null, is_super: true }])

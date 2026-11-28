@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject }
 import { Link, NavLink, useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { HUB_SECTION_PERMS, linkAllowed, panelLevel, tabActive } from '../lib/menu'
+import { useRelease } from '../lib/releaseAccess'
 import { QUICK, tabsFor } from '../lib/navTabs'
 import { PulsePopup } from './PulsePopup'
 import { UpdateBar } from './UpdateBar'
@@ -386,7 +387,8 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const quickRef = useRef<HTMLDivElement>(null)
   usePageFocus(loc.pathname, title, h1Ref)
   // One rule for every link (sidebar row, phone tab, quick action, alert, shortcut) — the same one the page routes use (lib/navAccess.ts).
-  const access = { can, menu, menuUnavailable }
+  const release = useRelease()
+  const access = { can, menu, menuUnavailable, releaseAllowed: release.addressAllowed }
   const dailyRegister: Item = { to: '/app/hub-registers', icon: 'table', bn: 'হাবের খাতা', en: 'Hub registers', perms: null }
   const canOpen = (to: string) => linkAllowed(to, access)
   const forMe = (i: Item) => (!nativeApp || i.to !== '/app/attendance') && linkAllowed(i.to, access, i.perms) && (!i.only || (i.only === 'web') === advancedAccessHere())
@@ -411,12 +413,16 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const defaultOpenGroup = 'zone'
   // Only show what this person can use: + needs at least one quick action, search needs the staff list.
   const quickItems = QUICK.filter(x => linkAllowed(x.to, access, x.perms, x.also))
-  const canSearch = can('hr.employee.view')
+  const canSearch = can('hr.employee.view') && release.addressAllowed('/app/staff/list')
   // A role's saved menu list also defines page order; keep the existing category headings and sort within each section.
   const orderMenuItems = (items: Item[]) => {
-    if (!menu?.length) return items
-    const rank = new Map(menu.map((to, index) => [to, index]))
-    return [...items].sort((a, b) => (rank.get(a.to) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.to) ?? Number.MAX_SAFE_INTEGER))
+    if (!menu?.length && items.every(item => release.menuOrder(item.to) === null)) return items
+    const rank = new Map(menu?.map((to, index) => [to, index]))
+    const order = (item: Item, index: number) => release.menuOrder(item.to)
+      ?? (menu?.length ? rank.get(item.to) ?? Number.MAX_SAFE_INTEGER : index)
+    return items.map((item, index) => ({ item, order: order(item, index) }))
+      .sort((a, b) => a.order - b.order)
+      .map(({ item }) => item)
   }
   const shown = GROUPS.map(g0 => layoutGroup(g0, layout)).map(g => ({ g, secs: g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i)
     && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length) }))
