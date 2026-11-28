@@ -97,6 +97,24 @@ All assertions ran through Supabase MCP `execute_sql`; each test switched the JW
 - **Platform Control effectiveness re-verified during the renaming pass:** `module_release_snapshot('web', ...)` and `module_release_snapshot('android', ...)` continue to return the same 150-key decision map and gate every module by the `platforms` array — T12.1-T12.4 still represent current behavior.
 - **Grand total on staging: 93 PASS / 0 FAIL / 0 regressions across 14 suites (T1–T12 + T9b + fourth-pass smoke).** Local node tests: 93 PASS / 0 FAIL. ChatGPT Backend Team's RPC/DB surface untouched by any Claude write in this pass.
 
+### Fifth pass — UI/UX finalisation + Backend Contract Report + Playwright fixture repair
+
+- **UI/UX delta on `web/src/pages/users/ModuleControl.tsx`:** bilingual stage labels (Bangla + English for all 7 stages), per-stage `stageHelp[]` one-liners under the Status drop-down, `<fieldset legend="Platforms · প্ল্যাটফর্ম">` wrapper, yellow warning banner when the admin selected only one platform (pointing to the Backend Contract Report by path), and a red "জরুরি বন্ধ · Emergency Disable" danger button with a Bangla confirmation dialog that flips `stage='disabled', enabled=false` in one click. Styles for `.da-warn`, `.hint`, `.btn.danger` added to `web/src/accounts.css`. **No backend change.**
+- **Backend Contract Report** `docs/project-control/audits/PRIORITY_01_PLATFORM_COUPLING_CONTRACT.md` filed for the ChatGPT Backend Team — the `module_release_require` + `release_rule(cfg, null, …)` intersection behaviour that makes direct APIs refuse on both platforms as soon as Super Admin picks one. Four fix options (A document-only, B signed JWT platform claim, C platform-aware wrapper sigs, D UI-only `platforms` field). **B-002 OPEN** in BUG_REGISTER with Backend Team ownership.
+- **DEMO acceptance runbook** `docs/project-control/audits/PRIORITY_01_DEMO_ACCEPTANCE_RUNBOOK.md` — the two tasks this chat session cannot run (browser login as the five DEMO accounts, Android APK install on a device or emulator) with a per-account click path and a PASS/FAIL table the human tester fills in and pastes into PR #226. Every row ties back to a verified SQL-layer assertion (T1-T12).
+- **CI regression caught by the fifth pass (self-test):** `Website` workflow on commit `ad820745` **failed** with a Playwright `TimeoutError` waiting for the text `"Saved status · Development"` in `web/tests/moduleRelease.browser.mjs`. **Root cause:** the bilingual-label rename this pass changed the rendered text to `"Saved status · ডেভেলপমেন্ট · Development"`. **Fix:** switched the two affected matchers to regex (`/Release Ready/`, `/Saved status · .*Development/`) in `d74a84a`.
+- **CI final status on commit `d74a84a`: BOTH workflows SUCCESS.** `Tests` (`database` job: five migrations applied + four SQL test files all green including the batch-3 fix) + `Website` (Vite production build, `tsc -b`, five node test suites, Playwright Chromium fixture through the whole System Control Center happy path on both `web` and `android` viewports) — every workflow Priority 01 touches is passing. This is the second commit on PR #226 where both workflows are green at the same time, and the first one that includes the full UI/UX + Contract Report delta.
+- **Local node regression after the fix:** 93/93 PASS across all seven files.
+
+### Grand total across all passes
+
+- **SQL-layer evidence on staging:** T1 (5) + T2 (4) + T3 (3) + T4 (11) + T5 (6) + T6 (6) + T7 (18) + T8 (6) + T9 (6) + T9b (8) + T10 (9) + T11 (5) + T12 (8) = **95 PASS / 0 FAIL / 0 regressions** across the real DEMO accounts (`1..5@xzm.com`) and real DEMO hubs (`DEMO-HUB`, `DEMO-HUB-2`, `DEMO-HUB-3`).
+- **Node tests local:** 93 PASS (`moduleRelease` 4, `moduleReleaseRegistry` 5, `navAccess` 16, `routeModule` 22, `routePlan` 16, `routeOffline` 19, `reportParser` 11) + the Codex-authored SQL test suites in CI: `99_release_control.sql` 34 + `99_release_control_expansion.sql` 9 + `99_release_control_expansion_batch_2.sql` 17 + `99_release_control_expansion_batch_3.sql` all PASS on isolated PG16 + PG17.
+- **Browser fixture `moduleRelease.browser.mjs`:** PASS on both `web` and `android` viewports in CI on commit `d74a84a`.
+- **Guarded `public.*` wrappers:** 33 wrapping 34 guard entry points across 12 modules + 1 restrictive RLS policy.
+- **Open deferred for Backend Team Contract report:** B-002 (platform-coupling behaviour, options enumerated) + session-id-first `da_*` family + `operation_*` after module seed + the long tail of p_hub-first wrappers.
+- **Browser + Android native acceptance:** still requires a human tester running the runbook; not executable from this session.
+
 ### Full regression check (chat session observations)
 
 - No pre-existing migration modified in any Priority-01 batch; every Claude migration is a new timestamped file (`20261128070000`, `20261128070100`, `20261128073000`).
