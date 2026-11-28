@@ -236,3 +236,5 @@ On ed61011, GitHub Database run 46133853167 and Website run 46133853149 passed. 
 Staging verified report-ID and bank-deposit writes with the DEMO Hub Manager in Published, Disabled, and after audited rollback. The transaction was rolled back. The SQL regression suite covers both entry points.
 
 The shared Accounts sheet-edit helper now checks the release policy before updating the sheet. On staging, DEMO Hub Manager report removal, deposit removal and preset application were blocked in Disabled and restored by audited rollback. The transaction was rolled back.
+
+Staging verified the Accounts approval/correction and sheet-visit RPCs against the stored sheet hub. Verification notes and visit tracking worked in Published, all three RPCs rejected requests in Disabled, and the original workflows resumed after audited rollback. The test transaction was rolled back.

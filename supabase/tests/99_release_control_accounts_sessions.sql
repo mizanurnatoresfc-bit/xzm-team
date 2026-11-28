@@ -36,6 +36,12 @@ select tests.throws($q$select public.da_apply_fixed(tests.id('release_sheet'))$q
   'disabled accounts block sheet presets through shared edit authorization', '42501');
 
 select tests.login(tests.id('super'));
+select tests.throws($q$select public.da_verify(tests.id('release_sheet'), 'note', 'blocked')$q$,
+  'disabled accounts block sheet verification', '42501');
+select tests.throws($q$select public.da_reopen(tests.id('release_sheet'), 'blocked')$q$,
+  'disabled accounts block reopening a sheet', '42501');
+select tests.throws($q$select public.da_page_enter(tests.id('release_sheet'))$q$,
+  'disabled accounts block tracking a sheet visit', '42501');
 select public.module_release_save('accounts', (public.module_release_history('accounts')->0->>'id')::bigint, null,
   (public.module_release_history('accounts')->0->>'id')::bigint);
 select tests.login(tests.id('hub_mgr'));
