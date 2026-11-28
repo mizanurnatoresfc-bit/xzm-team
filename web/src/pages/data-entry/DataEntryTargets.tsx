@@ -84,6 +84,17 @@ export function TargetExplanation({ report, compact = false }: { report: Report;
     {!compact && <p>{L('সম্ভাব্য টার্গেট', 'Forecast target')} <strong>{show(w?.forecast?.parcels)}</strong>
       {' · '}{L('প্রকৃত বরাদ্দ বাকি', 'Actual allocation remaining')} <strong>{show(w?.actual_remaining?.parcels)}</strong>
       {' · '}{L('যাচাইকৃত সম্পন্ন', 'Verified complete')} <strong>{show(w?.completed)}</strong></p>}
+    <section className="data-entry-chart" aria-label={L('গত ৭ দিনের হাব পিকআপ', 'Seven-day hub pickups')}>
+      <h4>{L('গত ৭ দিনের হাব পিকআপ', 'Seven-day hub pickups')}</h4>
+      <p>{L('সম্ভাব্য পিকআপ', 'Forecast pickups')}: <strong>{show(s.forecast_pickups)}</strong> · {n(s.forecast_sample_days)}/7</p>
+      {[...s.forecast_days].sort((a,b) => a.date.localeCompare(b.date)).map(day => <div key={day.date}>
+        <div className="data-entry-chart-label"><span>{day.date}</span><strong>{show(day.verified_parcels)}</strong></div>
+        {day.verified_parcels != null ? <div className="data-entry-track data-entry-remaining" aria-hidden="true">
+          <span className="data-entry-verified" style={{width: Math.max(0, Math.min(100, day.verified_parcels / Math.max(1, ...s.forecast_days.map(d => d.verified_parcels ?? 0)) * 100)) + '%'}} />
+        </div> : <p>{L('যাচাইকৃত তথ্য নেই', 'No verified data')}</p>}
+      </div>)}
+      <p>{L('এটি হাবের পিকআপ ইতিহাস, ব্যক্তিগত পারফরম্যান্স নয়।', 'This is hub pickup history, not individual performance.')}</p>
+    </section>
     <details>
       <summary>{L('আমাকে কেন এই টার্গেট দেওয়া হয়েছে?', 'Why did I receive this target?')}</summary>
       <p>{L('গত ৭ দিনের যাচাইকৃত পিকআপ থেকে হাবের সম্ভাব্য পিকআপ', 'Hub forecast from verified pickups in the last 7 days')} <strong>{show(s.forecast_pickups)}</strong> · {n(s.forecast_sample_days)}/7 {s.forecast_work_points != null && <> · {L('সম্ভাব্য ওয়ার্ক পয়েন্ট', 'Forecast Work Points')} {n(s.forecast_work_points)}</>}</p>
