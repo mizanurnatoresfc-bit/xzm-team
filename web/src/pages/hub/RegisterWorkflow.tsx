@@ -18,7 +18,7 @@ type Row = {
 }
 type Rule = { rule_id: number; book: BookId; position_id: string | null; employee_id: string | null; duty: string; due_at: string; required: boolean }
 type Book = {
-  id: BookId; locked: boolean; rows: Row[]; totals: Payload
+  id: BookId; locked: boolean; reopened: boolean; rows: Row[]; totals: Payload
   history: { id: number; action: string; happened_at: string; actor: string; data: unknown }[]
 }
 type Register = {
@@ -190,7 +190,7 @@ function RegisterBook({ book, register, busy, write }: { book: Book; register: R
             </button>}
           {!book.locked && row.employee_id && row.source !== 'existing' &&
             (row.employee_id === register.me ? register.manage || register.day === todayDhaka() : register.manage && row.source !== 'self') &&
-            (!row.reviewed || book.history.some(event => event.action === 'reopen')) &&
+            (!row.reviewed || book.reopened) &&
             <EntryForm key={JSON.stringify(row.payload)} book={book.id} row={row} proxy={row.employee_id !== register.me} busy={busy} write={write} />}
         </li>)}</ul>
     </details>

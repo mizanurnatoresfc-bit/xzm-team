@@ -59,6 +59,24 @@ select tests.logout();
 insert into public.wf_daily_ops(employee_id,hub_id,work_date,pickup,pickup_return,delivery,delivery_return)
 values(tests.id('demo_rider_employee'),tests.id('hub_a1'),tests.register_day(),5,2,7,1);
 
+-- A staff bill can be taken into a later Accounts session. It stays on the original bill date once.
+with claim as (
+  insert into public.da_expense_claims(employee_id,hub_id,zone_id,expense_name,category,amount,bill_date)
+  values(tests.id('demo_staff_employee'),tests.id('hub_a1'),tests.id('zone_a'),'DEMO supplies','office',60,tests.register_day()-1)
+  returning id
+), session as (
+  insert into public.da_sessions(hub_id,zone_id,account_date,started_by)
+  values(tests.id('hub_a1'),tests.id('zone_a'),tests.register_day(),tests.id('demo_manager'))
+  returning id
+)
+insert into public.da_expenses(session_id,hub_id,zone_id,kind,employee_id,expense_name,category,amount,bill_date,claim_id)
+select session.id,tests.id('hub_a1'),tests.id('zone_a'),'employee',tests.id('demo_staff_employee'),
+  'DEMO supplies','office',60,tests.register_day()-1,claim.id from session cross join claim;
+select tests.ok(private.hub_register_source(tests.id('hub_a1'),tests.register_day()-1,'expense',tests.id('demo_staff_employee'))
+  = '{"expense":60,"bills":1}'
+  and private.hub_register_source(tests.id('hub_a1'),tests.register_day(),'expense',tests.id('demo_staff_employee')) is null,
+  'linked staff claim and Accounts expense count once on the original bill date');
+
 select tests.login(tests.id('demo_manager'));
 select tests.ok(jsonb_array_length(public.hub_register_read(tests.id('hub_a1'))->'books') = 5
   and jsonb_array_length(tests.register_book('pickup')->'rows') >= 2,'DEMO Manager sees five books and auto roster');
@@ -99,7 +117,7 @@ select tests.logout();
 
 select tests.login(tests.id('zonal_a'));
 select tests.register_write('pending','reopen',null,null,'Correct pending count');
-select tests.ok(tests.register_book('pending')->>'locked' = 'false'
+select tests.ok(tests.register_book('pending')->>'locked' = 'false' and tests.register_book('pending')->>'reopened' = 'true'
   and tests.register_book('pending') #>> '{history,0,data,reason}' = 'Correct pending count',
   'zonal manager reopens with a recorded reason');
 select tests.logout();

@@ -229,6 +229,7 @@ begin
   end if;
 
   select jsonb_agg(jsonb_build_object('id', b.book, 'locked', coalesce(e.action = 'submit',false),
+    'reopened', coalesce(e.action = 'reopen',false),
     'rows', q.rows, 'totals', private.hub_register_totals(q.rows),
     'history', case when can_manage then (
       select coalesce(jsonb_agg(to_jsonb(hist) order by hist.id desc),'[]')
