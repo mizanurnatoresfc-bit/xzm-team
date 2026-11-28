@@ -17,6 +17,37 @@ Format:
 
 ---
 
+## XZM-018 — Operation Center Phase 1 (independent-review corrections of PR #222) — 2026-11-28 (Asia/Dhaka)
+
+- **Environment:** Isolated session clone of `feat/xzm-014-operation-center-phase-1` on top of commit `8a2f66e`. Owner's local repo runs the full `npm run build` / `test:smoke` (see "Deferred" below).
+- **Scope of code change:**
+  - `web/src/pages/zonal/HubOps.tsx` — `OperationCenterDashboard` rewritten with the 7 independent-review fixes listed below; task-ID comments updated to **XZM-018** (XZM-014 Fair Workload entry in TASK_TRACKER is intact and untouched).
+  - `web/src/components/AppShell.tsx` — comment on the ROUTES group updated to reference XZM-018 (no menu-row change beyond PR #222's original 11-row structure, so navAccess unique-href + duplicate-free rules still hold).
+  - No other source file changed. No new RPC. No new DB table. No migration. No change to `supabase/`, `scripts/`, or `.github/workflows/`.
+- **Independent-review fixes verified by code inspection:**
+  1. **Missing data vs actual zero:** every KPI value goes through `numOr(v, n)` so `null`/`undefined` → "—" and a real `0` → "০"; this replaces the earlier `?? 0` that silently collapsed both.
+  2. **Zone / Hub / Date context on drill-down:** a `ctx({…})` helper assembles `?zone=…&hub=…&date=…` and every tile & quick link now uses it (`/app/staff/list${ctx()}`, `/app/attendance${ctx({view:'zone'})}`, `/app/hub/pickup${ctx()}`, etc.).
+  3. **Permission check on every KPI tile and quick link:** `tile(allowed, …)` returns `null` when `allowed` is false. Per-tile gates are derived from the existing permission catalogue (`zonal.hub_ops.view`, `zonal.dashboard.view`, `hr.employee.view`, `hr.attendance.view`, `ops.pickup.view`, `zonal.hub_metric.view`, `zonal.task.view`, `hr.request.approve`, `route.plan.view`, `hr.duty.view`). Users with no `zonal.hub_ops.view` see the explicit "অনুমতি নেই" message; the Quick-links panel is hidden when no row survives the gates.
+  4. **"অসম্পূর্ণ কাজ" drill-down:** tile now links to `/app/zonal?tab=tasks${ctx}` (the `ZonalDashboard` tasks tab that shows the pending-submission list) instead of `/app/hub/tasks` (which shows today's assigned tasks).
+  5. **Approval count and Approval details share one source:** the tile value is `(d?.claims_pending ?? 0) + (d?.tasks?.awaiting_confirmation ?? 0)` and the drill-down goes to `/app/zonal/requests${ctx}` — both use the same `zm_dashboard` payload; the earlier split that sent the user to the boss-reports tab is removed.
+  6. **Hub filter:** new `<Field label="হাব">` select in the filter bar, writes `?hub=…` to the query string. Options are built from `s.hubs` (summary payload) with `o.data.hubs` fallback filtered to the current zone. When a hub is picked, `scope = s.hubs.find(h => h.hub_id === hub)` is substituted for `s.zone`, so every KPI recomputes from `HubSummary` without a second RPC round-trip.
+  7. **No stale data on zone change:** `OperationCenterDashboard` is wrapped `key={zone}` in `HubOps` (full remount on zone change); additionally `const fresh = sum.data && sum.data.zone_id === zone ? sum.data : null` hides the previous zone's cached summary while the new one loads.
+- **Node-based unit tests (ran here, green):**
+  - `test:nav` → 16/16 pass (sidebar hrefs still unique after the rename; every row's permissions match the destination page's permissions; redirects keep query & hash).
+  - `test:parser` → 11/11 pass.
+  - `test:routes` → 22/22 pass.
+  - `test:plan` → 16/16 pass.
+  - `test:checkin` → 19/19 pass.
+  - **Total 84/84 node tests green.**
+- **esbuild syntax check:** `esbuild --loader:.tsx=tsx --bundle=false --format=esm` on both `HubOps.tsx` and `AppShell.tsx` → 0 errors (produces ESM output cleanly).
+- **Deferred to Owner / independent reviewer (session network constraint):** `npm run typecheck` (`tsc -b --pretty`), `npm run build` (`tsc -b && vite build`), and `npm run test:smoke` (Playwright + `vite preview`) could not run here because this working session's `npm install` is blocked by outbound-HTTP restrictions (`ENOTFOUND` on `registry.npmjs.org` for `@capacitor/*`, `@napi-rs/canvas-linux-x64-gnu`, `yauzl`, etc.). TypeScript has only type-level changes within already-imported symbols (`useMemo`, `Summary`, `numOr`, `useOrg`) — no new import added that is not already in scope. Owner runs these three locally before merge.
+- **Regression checks (code inspection):**
+  - Sidebar: no new href introduced; all pre-existing `?from=opsctr` disambiguator suffixes preserved.
+  - `HubOps` tabs: `center / collection / hubs / summary / boss / log / settings` unchanged; only the `OperationCenterDashboard` body was rewritten.
+  - RPC surface: zero change — only `hub_ops.summary` + `zonal.dashboard` are called, same signatures as before.
+  - Mobile: tile grid uses the existing `da-stats` + `zd-stat` classes (same as `ZonalDashboard`), the filter bar uses `da-filters panel no-print` as in HubsDay; nothing new added to CSS. On a narrow phone viewport the filter bar wraps and tiles stack the same way `HubsDay` / `ZonalDashboard` already do.
+- **Outcome:** PASS (code review + node-based tests). Owner / ChatGPT independent reviewer runs `typecheck` + `build` + `test:smoke` on their local checkout before final approval.
+
 ## XZM-006 — Backup & Recovery Deep Verification — 2026-11-27 (post-merge)
 
 - **Environment:** N/A (read-only audit, no runtime).

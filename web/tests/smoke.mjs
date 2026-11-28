@@ -1222,7 +1222,7 @@ try {
           `${size}: one tap sends pickup, delivery and amount (Bangla digits too) to the chosen manager`) }
       check(await extras() === '0,0,0' && await page.locator('.first-steps').count() === 0, `${size}: nor has a staff member's screen (their home is the staff panel)`)
       check((await panels()).split(',').sort().join() === 'routes' && await inPanel('routes', 'রুট কেন্দ্র') === 1 && await inPanel('routes', 'তথ্য সংগ্রহ কেন্দ্র') === 0 && await inPanel('routes', 'রোল ও অনুমতি') === 0,
-        `${size}: a rider sees only Route Centre under Operations Central, no staff panel`)
+        `${size}: a rider sees only Route Centre under Operations Center, no staff panel`)
       if (process.env.SHOTS && size === 'pc') await page.locator('.side').screenshot({ path: `${process.env.SHOTS}/menu-rider.png` })
       permsNow = null; asEmployee = false }
     // arranging a role's home page: add, remove, put in order — and the home page follows the saved order
