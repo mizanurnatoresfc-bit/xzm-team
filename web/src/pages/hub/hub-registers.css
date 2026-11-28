@@ -41,3 +41,97 @@
   padding-block: .65rem;
   border-top: 1px solid var(--line);
 }
+
+/* --- Progress strip + queue summary --- */
+.hub-register-progress {
+  padding: .75rem 1rem;
+  margin-bottom: .75rem;
+}
+.hub-register-progress h3 {
+  margin: 0 0 .25rem;
+  font-size: .95rem;
+}
+.hub-progress-bar {
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: .25rem 0 .4rem;
+}
+.hub-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--brand, #16A34A);
+  transition: width .3s ease-out;
+}
+
+.hub-pending-summary {
+  margin-bottom: .75rem;
+  padding: .5rem .75rem;
+  background: var(--panel-alt, rgba(0,0,0,.03));
+  border-left: 3px solid var(--brand, #16A34A);
+  border-radius: 4px;
+  font-size: .9rem;
+}
+.hub-pending-missing {
+  margin: .4rem 0;
+}
+.hub-pending-missing > ul {
+  margin: .4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.hub-pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: .5rem 0;
+}
+.hub-pending-unlock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: flex-end;
+  margin: .5rem 0;
+}
+.hub-pending-row.absent {
+  opacity: .7;
+}
+.hub-att-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  margin-left: .35rem;
+  font-size: .75rem;
+  border-radius: 10px;
+  background: var(--chip, rgba(0,0,0,.08));
+}
+.hub-pending-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: .3rem;
+}
+
+.hub-approved-badge { color: var(--brand, #16A34A); }
+.hub-locked-badge { color: var(--danger, #DC2626); }
+.hub-returned { color: var(--danger, #DC2626); }
+
+/* --- Duty page --- */
+.hub-duty-section { padding: 1rem; margin-top: 1rem; }
+.hub-duty-section h3 { margin: 0 0 .5rem; }
+.hub-duty-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1rem;
+}
+.hub-duty-list h4 { margin: 0 0 .3rem; font-size: .9rem; }
+.hub-duty-list ul { padding-left: 1.1rem; margin: 0; }
+.hub-duty-add {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: .5rem;
+  align-items: end;
+  margin-top: .75rem;
+  padding-top: .75rem;
+  border-top: 1px dashed var(--line);
+}
