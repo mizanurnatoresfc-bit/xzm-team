@@ -123,6 +123,17 @@ export const ADMIN: Group = panel('admin', 'gear', 'সেটিং ও অন�
 ])
 
 /** Sorting work is its own department and should not sit under the zonal manager heading. */
+export const DATA_ENTRY: Group = panel('data-entry', 'ledger', 'ডাটা এন্ট্রি', 'Data Entry', [
+  { bn: '', en: '', items: [
+    { to: '/app/data-entry/live', icon: 'activity', bn: 'লাইভ কন্ট্রোল', en: 'Live control', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/team', icon: 'users', bn: 'টিম ও দায়িত্ব', en: 'Team and duties', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/targets', icon: 'tasks', bn: 'টার্গেট ও কাজ বণ্টন', en: 'Targets and allocation', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/reports', icon: 'ledger', bn: 'দৈনিক রিপোর্ট', en: 'Daily reports', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/updates', icon: 'message', bn: 'কর্মীদের আপডেট', en: 'Employee updates', perms: ['data_entry.team.edit'] },
+    { to: '/app/data-entry/performance', icon: 'chart', bn: 'পারফরম্যান্স ও লিডারবোর্ড', en: 'Performance and leaderboard', perms: ['data_entry.team.edit'] },
+  ] },
+])
+
 export const SORTING: Group = panel('sorting', 'box', 'সর্টিং সেন্টার', 'Sorting centre', [
   { bn: 'সর্টিং কাজ', en: 'Sorting work', items: [
     { to: '/app/sorting/dashboard', icon: 'dash', bn: 'সর্টিং সেন্টার', en: 'Sorting dashboard', perms: ['sorting.center.view', 'sorting.report.view'] },
@@ -428,7 +439,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const zoneRows = level < 2 ? shown.flatMap(x => x.secs.flatMap(sc => sc.items)) : []
   if (level < 2) shown.forEach(x => { x.secs = [] })
   const own = (g: Group) => g.secs.map(x => ({ ...x, items: orderMenuItems(x.items.filter(i => forMe(i) && (hit(i) || `${g.bn} ${g.en} ${x.bn} ${x.en}`.toLowerCase().includes(mq)))) })).filter(x => x.items.length)
-  const [accG, hrG, officeG, routesG, sortingG, adminG] = [ACCOUNTS, HR, OFFICE, ROUTES, SORTING, ADMIN].map(g => layoutGroup(g, layout))
+  const [accG, hrG, officeG, routesG, sortingG, dataEntryG, adminG] = [ACCOUNTS, HR, OFFICE, ROUTES, SORTING, DATA_ENTRY, ADMIN].map(g => layoutGroup(g, layout))
   // A staff member (level 0) gets no HR department heading for the one or two HR pages they may open: those are plain main rows.
   const hrAll = own(hrG)
   const hrSecs = level === 0 ? [] : hrAll
@@ -482,7 +493,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
       {layoutItems(HOME, layout).filter(i => forMe(i) && hit(i)).map(link)}
       {zoneRows.map(link)}
       {/* Divisions (owner, 23 Nov 2026): departments, my own panels, then system — each with a heading, so the menu reads like an org chart. */}
-      {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: routesG, secs: routesSecs }, { g: sortingG, secs: sortingSecs }] },
+      {[{ key: 'dept', bn: 'বিভাগ', en: 'Departments', list: [{ g: accG, secs: accSecs }, { g: hrG, secs: hrSecs }, { g: officeG, secs: officeSecs }, { g: routesG, secs: routesSecs }, { g: sortingG, secs: sortingSecs }, { g: dataEntryG, secs: own(dataEntryG) }] },
         { key: 'work', bn: 'আমার কাজের প্যানেল', en: 'My work panels', list: shown },
         { key: 'sys', bn: 'সিস্টেম', en: 'System', list: [{ g: adminG, secs: adminSecs }] }].map(d => {
         const groups = d.list.filter(x => x.secs.some(sc => sc.items.length))

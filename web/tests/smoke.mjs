@@ -121,6 +121,8 @@ try {
     let asEmployee = false, withGaps = false, mineOpen = false, menuNow = null, menuFail = false, plainStaff = false, permsNow = null, homePanels = ['my_work', 'quick_links'], ownInstalled = false, staffSecs = null
     let opsDeadlines = { zone_id: 'z1', pickup: '18:00', pickup_return: null, delivery_return: '19:20', delivery: '21:00' }
     let withOpsDeadlineCard = false
+    let entryDemoSlots = null
+    const entryDemoReports = []
     const prospects = []
     const routePlaces = [['আমহাটি', 'Amhati', 24.4315, 89.0003], ['দিঘাপতিয়া', 'Dighapatia', 24.4400, 88.9800], ['ছাতনী', 'Chhatni', 24.4500, 88.9500], ['হালসা', 'Halsa', 24.3800, 89.0400],
       ['বড়হরিশপুর', 'Barahorishpur', 24.4000, 89.0300], ['তেবাড়িয়া', 'Tebaria', 24.4200, 88.9500], ['কাফুরিয়া', 'Kafuria', 24.3900, 88.9600], ['লক্ষীপুর', 'Laxmipur', 24.4600, 89.0200]]
@@ -217,6 +219,16 @@ try {
       if (/rpc\/(role_admin_save|access_overrides_save|user_admin_assign_role|user_admin_revoke_role)(\?|$)/.test(u)) { const fn = u.split('rpc/')[1].split('?')[0]
         flowCalls.push({ fn, ...r.request().postDataJSON() }); return j(fn === 'role_admin_save' ? r.request().postDataJSON()?.p_id ?? 'r9' : fn === 'access_overrides_save' ? { added: 1, kept: 1, removed: 0 } : fn === 'user_admin_assign_role' ? 'a9' : null) }
       if (u.includes('rpc/role_dashboard_list')) return j([{ role_id: 'r2', code: 'hub_manager', name: 'Hub Manager', name_bn: null, is_super: false, panels: ['my_work', 'quick_links'], user_count: 4, default_view: 'self' }])
+      if (u.includes('rpc/data_entry_shift_mine')) return j({ heads:[], hubs:entryDemoSlots ? [
+        { id:'h1', name:'DEMO Data Entry Hub', day:dhakaToday, running:true, attendance:'present', due_slots:entryDemoSlots,
+          last_attempted:0, last_minutes:0, colleagues:[], duties:[] },
+      ] : [] })
+      if (u.includes('rpc/data_entry_shift_action')) {
+        const request = r.request().postDataJSON()
+        entryDemoReports.push(request)
+        entryDemoSlots = entryDemoSlots?.filter(slot => slot !== request.p_values.slot) ?? null
+        return j(null)
+      }
       if (u.includes('rpc/staff_panel_sections')) return j(staffSecs)
       if (u.includes('rpc/role_staff_sections_save')) { flowCalls.push({ fn: 'role_staff_sections_save', ...r.request().postDataJSON() }); return j(null) }
       if (u.includes('rpc/role_dashboard_save')) { flowCalls.push({ fn: 'role_dashboard_save', ...r.request().postDataJSON() }); return j(null) }
@@ -1726,6 +1738,18 @@ try {
     // a staff member's home page is the staff panel
     await page.goto(`${BASE}/app`); await page.waitForSelector('.sp .nv-row', { timeout: 10000 }).catch(() => {})
     check(await page.locator('.sp-hero').count() === 1 && await page.locator('.bottom-nav a[href="/app/staff"]').count() === 0, `${size}: a staff member's home is the staff panel`)
+    entryDemoSlots = [1,2]
+    await page.goto(`${BASE}/app/staff`)
+    const entryDialog = page.getByRole('dialog')
+    await entryDialog.getByRole('heading', { name: /শুরুর রিপোর্ট|Opening report/ }).waitFor({ timeout: 12000 })
+    await entryDialog.getByRole('button', { name: /পরে জমা দেব|Submit later/ }).click()
+    await entryDialog.getByRole('heading', { name: /অগ্রগতি রিপোর্ট|Progress report/ }).waitFor({ timeout: 5000 })
+    await entryDialog.locator('input[name=attempted]').fill('25')
+    await entryDialog.getByRole('button', { name: /রিপোর্ট জমা দিন|Submit report/ }).click()
+    await entryDialog.waitFor({ state:'hidden', timeout:5000 })
+    check(entryDemoReports.at(-1)?.p_values?.slot === 2 && entryDemoReports.at(-1)?.p_values?.attempted === 25,
+      `${size}: DEMO Data Entry popup submits the new stage even after the earlier stage was deferred`)
+    entryDemoSlots = null
     // staff panel: one screen with the person's whole day, in the owner's order
     await page.goto(`${BASE}/app/staff`); await page.waitForSelector('.sp .nv-row')
     await page.waitForFunction(() => document.querySelector('.sp')?.textContent?.includes('১ জন'), null, { timeout: 5000 }).catch(() => {})

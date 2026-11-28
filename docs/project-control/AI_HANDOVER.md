@@ -96,6 +96,8 @@ Existing `docs/*.md` (pre-tracker) **রাখতে হবে**, overwrite ন�
 
 ## 7. In-flight Tasks (see TASK_TRACKER.md for full detail)
 
+- **DE-01 — REVIEW** — Integrated main at `6831f29` into [draft PR #207](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/207). Clean integration preserved the 21 Data Entry paths and current main behavior. See the [inventory](audits/DE-01_DATA_ENTRY_INVENTORY.md) and [test evidence](TEST_REPORT.md#de-01--data-entry-integration--2026-11-28). Hosted DEMO sign-in, staging scheduler and Android-device evidence remain separate release work.
+
 - **XZM-003** IN_PROGRESS — connection verification (Figma/Subframe pending).
 - **XZM-004** REVIEW — central docs seed PR #211.
 - **XZM-004R** REVIEW — this consolidation PR.

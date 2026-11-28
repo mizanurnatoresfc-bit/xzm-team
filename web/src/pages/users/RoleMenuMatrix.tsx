@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AppShell, ACCOUNTS, ADMIN, GROUPS, HOME, HR, OFFICE, PANEL_PAGES, ROUTES, SORTING, type MenuGroup } from '../../components/AppShell'
+import { AppShell, ACCOUNTS, ADMIN, DATA_ENTRY, GROUPS, HOME, HR, OFFICE, PANEL_PAGES, ROUTES, SORTING, type MenuGroup } from '../../components/AppShell'
 import { useAuth } from '../../auth/AuthProvider'
 import { menuApi, type RoleMenu } from '../../lib/menu'
 import { advancedAccessHere } from '../../lib/native'
@@ -36,7 +36,7 @@ const CSS = `.rm-wrap{overflow:auto;max-height:70vh;border:1px solid var(--borde
 
 const GROUPS_ALL: MenuGroup[] = [
   { key: 'home', icon: 'dash', bn: 'শুরু', en: 'Start', secs: [], items: HOME.filter(i => i.to !== '/app') },
-  ACCOUNTS, HR, OFFICE, ROUTES, SORTING, ADMIN, ...GROUPS, PANEL_PAGES,
+  ACCOUNTS, HR, OFFICE, ROUTES, SORTING, DATA_ENTRY, ADMIN, ...GROUPS, PANEL_PAGES,
 ]
 
 type Draft = Record<string, string[] | null>

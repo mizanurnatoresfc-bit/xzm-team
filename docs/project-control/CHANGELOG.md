@@ -4,6 +4,10 @@
 
 ---
 
+## 2026-11-28 — DE-01 Data Entry integration
+
+- Verified the Data Entry draft against current main, recorded the panel, database and RPC inventory, and added regression evidence to the draft PR.
+
 ## 2026-11-27 (XZM-012 Hub Switching Development)
 
 - Moved the user-keyed working hub selector to the shared header and synchronized tabs.

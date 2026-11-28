@@ -75,6 +75,7 @@ const AccessCenter = lazy(() => import('./pages/access/AccessCenter').then(m => 
 const RoleBuilder = lazy(() => import('./pages/access/RoleBuilder').then(m => ({ default: m.RoleBuilder })))
 const UserAccess = lazy(() => import('./pages/access/UserAccess').then(m => ({ default: m.UserAccess })))
 const Fleet = lazy(() => import('./pages/fleet/Fleet').then(m => ({ default: m.Fleet })))
+const DataEntryTeam = lazy(() => import('./pages/data-entry/DataEntryTeam').then(m => ({ default: m.DataEntryTeam })))
 const FleetMine = lazy(() => import('./pages/fleet/FleetMine').then(m => ({ default: m.FleetMine })))
 const StaffPanel = lazy(() => import('./pages/staff/StaffPanel').then(m => ({ default: m.StaffPanel })))
 const NoticeBoard = lazy(() => import('./pages/NoticeBoard').then(m => ({ default: m.NoticeBoard })))
@@ -142,6 +143,7 @@ const ALL: Array<[string, () => Promise<unknown>]> = [
   ['./pages/access/RoleBuilder', () => import('./pages/access/RoleBuilder')],
   ['./pages/access/UserAccess', () => import('./pages/access/UserAccess')],
   ['./pages/fleet/Fleet', () => import('./pages/fleet/Fleet')],
+  ['./pages/data-entry/DataEntryTeam', () => import('./pages/data-entry/DataEntryTeam')],
   ['./pages/fleet/FleetMine', () => import('./pages/fleet/FleetMine')],
   ['./pages/staff/StaffPanel', () => import('./pages/staff/StaffPanel')],
   ['./pages/NoticeBoard', () => import('./pages/NoticeBoard')],
@@ -260,6 +262,12 @@ export default function App() {
       <Route path="/app/office/residential/:section" element={<Office key="residential" scope="residential" />} />
       <Route path="/app/issues" element={<Issues />} />
       <Route path="/app/fleet" element={<Fleet />} />
+      <Route path="/app/data-entry/live" element={<DataEntryTeam page="live" />} />
+      <Route path="/app/data-entry/team" element={<DataEntryTeam page="team" />} />
+      <Route path="/app/data-entry/targets" element={<DataEntryTeam page="targets" />} />
+      <Route path="/app/data-entry/reports" element={<DataEntryTeam page="reports" />} />
+      <Route path="/app/data-entry/updates" element={<DataEntryTeam page="updates" />} />
+      <Route path="/app/data-entry/performance" element={<DataEntryTeam page="performance" />} />
       <Route path="/app/fleet/mine" element={<FleetMine />} />
       {/* the old vehicle pages were replaced by /app/fleet (owner, 16 Nov) */}
       <Route path="/app/vehicles/mine" element={<Navigate to="/app/fleet/mine" replace />} />

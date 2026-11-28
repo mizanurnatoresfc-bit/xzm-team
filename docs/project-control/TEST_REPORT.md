@@ -17,6 +17,17 @@ Format:
 
 ---
 
+## DE-01 — Data Entry integration — 2026-11-28
+
+- **Environment:** Local verification of GitHub test merge `61a7859` for main `6831f29` and the original draft head `be83e42`. Materialized snapshot checked against GitHub blob hashes.
+- **Web build:** `npm run build` passed (TypeScript and Vite). Vite reported its bundle-size warning.
+- **Web unit regression:** Parser, navigation, route, plan and offline check-in suites passed, 84 tests total.
+- **Browser regression:** Chromium passed 989 smoke checks across PC and phone viewports and 24 offline checks. Both viewport runs passed the mocked Staff Data Entry scenario that defers the first checkpoint and submits the second. The regression fixtures supplied all backend responses.
+- **SQL regression:** All 144 migrations applied against isolated PGlite using the repository Supabase shim. All 98 SQL test files passed, with 2,879 assertions. The three Data Entry suites account for 58 assertions (team 16, targets 16, evening workflow 26). The local test harness handled psql `gset` commands and left repository SQL intact.
+- **Release checks outside DE-01:** Hosted DEMO sign-in, staging scheduler and physical Android device.
+- **Evidence:** [Data Entry inventory](audits/DE-01_DATA_ENTRY_INVENTORY.md) and [draft PR #207](https://github.com/mizanurnatoresfc-bit/xzm-team/pull/207). Integration commit [ae4d916](https://github.com/mizanurnatoresfc-bit/xzm-team/commit/ae4d91640a3676df311ca6704c831cd1666d6017). GitHub Actions [Tests](https://github.com/mizanurnatoresfc-bit/xzm-team/actions/runs/46134384827) and [Website](https://github.com/mizanurnatoresfc-bit/xzm-team/actions/runs/46134384962).
+- **Outcome:** PASS for local DE-01 regression. GitHub Actions Tests passed on the integration commit. The Website job was still running when the evidence was recorded.
+
 ## XZM-012 — Hub Switching Development — 2026-11-27
 
 - Base revision `6831f29`. The existing selector was in My Permissions, with a same-tab custom event. The manager staff view had a second, non-user-keyed preference. Hub rider routes had a local override.
