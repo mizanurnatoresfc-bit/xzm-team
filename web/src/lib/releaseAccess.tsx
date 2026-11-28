@@ -5,6 +5,7 @@ import { moduleForAddress, type ReleasePlatform } from './moduleRelease'
 import { isNativeApp } from './native'
 import { classifyError, withTimeout } from './routeOffline'
 import { supabase } from './supabase'
+import { useWorkHub } from './workHub'
 
 export type ReleaseDecisions = Record<string, { allowed: boolean; order: number | null }>
 
@@ -29,15 +30,29 @@ const ReleaseContext = createContext({
 const validHub = (id: string | null | undefined) =>
   id && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) ? id : null
 
+/** The hub this request is scoped to. The URL wins whenever it names one — explicit route params and `?hub=` on any page —
+ *  otherwise the shared workHub store (the global header's hub selector) is used, so release decisions on hub-scoped pages
+ *  follow the same hub the user selected elsewhere. `viewAs` previews ignore both: Super Admin role previews run unscoped. */
+function detectHub(path: string, params: URLSearchParams, workHub: string, preview: string | null): string | null {
+  if (preview) return null
+  const routePlanTab = path === '/app/routes' && ['plan', 'morning'].includes(params.get('tab') ?? '')
+  const urlHub = validHub(routePlanTab ? params.get('hub') : path.match(/^\/app\/zonal\/hub-ops\/hub\/([^/]+)$/)?.[1])
+  if (urlHub) return urlHub
+  // Any page may carry an explicit ?hub= in its query (reports, dashboards, drill-throughs). Prefer that over the stored one.
+  const queryHub = validHub(params.get('hub'))
+  if (queryHub) return queryHub
+  return validHub(workHub)
+}
+
 export function ReleaseProvider({ children }: PropsWithChildren) {
   const { session, viewAs } = useAuth()
   const { pathname, search } = useLocation()
   const path = pathname.toLowerCase().replace(/\/+$/, '')
   const params = new URLSearchParams(search)
-  const routePoint = path === '/app/routes' && ['plan', 'morning'].includes(params.get('tab') ?? '')
-  const hub = validHub(routePoint ? params.get('hub') : path.match(/^\/app\/zonal\/hub-ops\/hub\/([^/]+)$/)?.[1])
   const user = session?.user.id
+  const workHub = useWorkHub(user ?? '')
   const preview = viewAs?.id ?? null
+  const hub = detectHub(path, params, workHub, preview)
   const platform = isNativeApp() ? 'android' : 'web'
   const key = JSON.stringify([user, preview, platform, hub])
   const [snapshot, setSnapshot] = useState<{ key: string; data: ReleaseDecisions | null }>()

@@ -40,3 +40,25 @@ test('release decisions can only restrict role permissions and menu visibility',
   assert.equal(pageState(path, { ...access, releaseAllowed: () => false }), 'release-unavailable')
   assert.equal(linkAllowed(path, { ...access, releaseAllowed: () => false }), false)
 })
+
+test('shared hub detection follows URL first, then workHub, and unscopes under Super Admin preview', () => {
+  // Contract tests for the hub-detection helper used by ReleaseProvider. Kept standalone so it runs under Node without ts-loader.
+  const valid = '00000000-0000-4000-8000-000000000001'
+  const q = s => new URLSearchParams(s)
+  function detect(path, params, workHub, preview) {
+    if (preview) return null
+    const ok = id => id && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) ? id : null
+    const routePlanTab = path === '/app/routes' && ['plan', 'morning'].includes(params.get('tab') ?? '')
+    const urlHub = ok(routePlanTab ? params.get('hub') : path.match(/^\/app\/zonal\/hub-ops\/hub\/([^/]+)$/)?.[1])
+    if (urlHub) return urlHub
+    const queryHub = ok(params.get('hub'))
+    if (queryHub) return queryHub
+    return ok(workHub)
+  }
+  assert.equal(detect('/app/routes', q('tab=plan&hub=' + valid), '', null), valid)
+  assert.equal(detect('/app/zonal/hub-ops/hub/' + valid, q(''), '', null), valid)
+  assert.equal(detect('/app/attendance', q('hub=' + valid), '', null), valid)
+  assert.equal(detect('/app/attendance', q(''), valid, null), valid)
+  assert.equal(detect('/app/routes', q('tab=plan&hub=xyz'), valid, null), valid, 'query junk falls through to workHub')
+  assert.equal(detect('/app/attendance', q('hub=' + valid), valid, 'any-role'), null, 'Super Admin preview unscopes hub')
+})

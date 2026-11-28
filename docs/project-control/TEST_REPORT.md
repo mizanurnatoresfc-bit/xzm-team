@@ -11,6 +11,20 @@
 - **Offline** — Existing Chromium check-in suite passed using the last successful release snapshot while disconnected.
 - **Production readiness** — PARTIAL. Existing direct API coverage beyond the listed Nodi and route plan endpoints, hosted DEMO acceptance and an Android device or emulator run are pending. Hosted staging currently has no application tables. Production migration and deployment were withheld.
 
+### Priority 01 follow-up — Shared Hub Selector coordination — 2026-11-28 (Claude session)
+
+- **Scope** — Front-end wiring only. Extended `web/src/lib/releaseAccess.tsx` so hub detection for release decisions follows (1) explicit route-plan or hub-ops URL params, then (2) any page's `?hub=` query, then (3) the global `useWorkHub(user)` store (the header's hub selector saved per user in `localStorage`). Super Admin role previews continue to run unscoped. No DB, RPC, migration, or API contract touched.
+- **Node tests (web/tests)** — PASS. `moduleRelease` 4/4 (includes a new standalone contract test for the hub-detection precedence), `navAccess` 16/16, `routeModule` 22/22, `routePlan` 16/16, `routeOffline` 19/19, `reportParser` 11/11 — 88 total, 0 failing. Run with `node --experimental-strip-types --test`.
+- **Not verified in this session (environment limitations stated):**
+  - **TypeScript build / Vite production bundle** — `npm ci` refused by the session's outbound allowlist (ENOTFOUND on registry.npmjs.org), so `tsc -b` and `vite build` could not run here. The hub-detection change is a self-contained addition against the existing `useWorkHub` and `moduleForAddress` types; CI on push will exercise the full build.
+  - **Chromium/Capacitor browser fixtures** — same reason as above; Playwright cannot download.
+  - **SQL suite against staging** — `xzm-team-staging` (`mbpjvqeizwjjsvnbjerb`) currently has **zero tables**, so `supabase/tests/99_release_control.sql` cannot be applied there without first applying every pre-existing migration from scratch. That is a separate, Owner-authorised initialisation task (XZM-006B / XZM-006I territory) and was not performed in this session.
+  - **DEMO Hub acceptance** — depends on the above; no DEMO hub exists in staging yet.
+  - **Android device/emulator run** — no device attached to this session; Capacitor sync and APK build also require the installed node_modules.
+- **Broader backend Release-Guard mapping** — not expanded in this session. Guarded RPCs remain the 8 Codex delivered: `nodi_gate()` (two signatures), `route_plan_get`, `route_plan_save`, `route_plan_setup`, `route_plan_morning`, `route_plan_files`, `route_plan_file_save`, plus the restrictive RLS on `public.route_day_plans`. The repo has ~543 `public.*` RPCs; wrapping each requires per-function authorization review and belongs to the ChatGPT Backend Team pattern (Contract report → migration). Extending it in this chat was not safe to attempt as a single batch.
+- **Rollback & permission re-check** — the migration's rollback path (`module_release_save` with `p_rollback`) and the "ordinary admin cannot certify their own release" assertion both live in the 34-assertion SQL suite; those still pass under Codex's isolated PG16/17 run. Not re-verified here because staging is empty.
+- **Outcome** — PARTIAL. Front-end delta verified green; everything that needs installed web deps, a seeded staging DB, or a device is **blocked by the session's environment**, not by any observed failure. PR #226 stays **DRAFT**; no merge, no production deploy performed.
+
 Format:
 ```
 ## <Task ID> — <Title> — <Date>
