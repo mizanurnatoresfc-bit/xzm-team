@@ -121,4 +121,20 @@ select tests.ok(tests.register_book('pending')->>'locked' = 'false' and tests.re
   and tests.register_book('pending') #>> '{history,0,data,reason}' = 'Correct pending count',
   'zonal manager reopens with a recorded reason');
 select tests.logout();
+-- Once a work day has passed, the author can correct their own supplemental entry after a zonal reopen.
+select tests.login(tests.id('rider_login'));
+select tests.ok(tests.register_error($$select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,
+  'attendance','save',tests.id('demo_rider_employee'),'{"status":"present"}')$$) = '42501',
+  'staff cannot post on a past day without reopening');
+select tests.logout();
+insert into private.hub_register_events(hub_id,work_date,book,action,actor,data)
+values (tests.id('hub_a1'),tests.register_day()-1,'attendance','submit',tests.id('demo_manager'),'{"rows":[],"totals":{}}');
+select tests.login(tests.id('zonal_a'));
+select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,'attendance','reopen',null,null,'DEMO correction');
+select tests.logout();
+select tests.login(tests.id('rider_login'));
+select public.hub_register_write(tests.id('hub_a1'),tests.register_day()-1,'attendance','save',tests.id('demo_rider_employee'),'{"status":"present"}');
+select tests.ok(public.hub_register_read(tests.id('hub_a1'),tests.register_day()-1) #>> '{books,0,rows,0,payload,status}' = 'present',
+  'staff can correct their own past-day register after zonal reopening');
+select tests.logout();
 rollback;

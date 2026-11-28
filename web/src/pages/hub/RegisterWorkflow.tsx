@@ -189,7 +189,7 @@ function RegisterBook({ book, register, busy, write }: { book: Book; register: R
               {L('যাচাই করুন', 'Verify entry')}
             </button>}
           {!book.locked && row.employee_id && row.source !== 'existing' &&
-            (row.employee_id === register.me ? register.manage || register.day === todayDhaka() : register.manage && row.source !== 'self') &&
+            (row.employee_id === register.me ? register.manage || register.day === todayDhaka() || book.reopened : register.manage && row.source !== 'self') &&
             (!row.reviewed || book.reopened) &&
             <EntryForm key={JSON.stringify(row.payload)} book={book.id} row={row} proxy={row.employee_id !== register.me} busy={busy} write={write} />}
         </li>)}</ul>

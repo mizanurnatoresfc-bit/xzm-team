@@ -310,7 +310,7 @@ begin
   if (p_action in ('rule','remove_rule','reopen') and not can_configure)
     or (p_action in ('review','submit') and not can_manage)
     or (p_action = 'save' and (p_employee is null or (not can_manage and
-      ((p_hub,p_employee) is distinct from (me.hub_id,me.id) or p_date <> private.wf_today())))) then
+      ((p_hub,p_employee) is distinct from (me.hub_id,me.id))))) then
     raise exception 'Register action is outside your scope' using errcode = '42501';
   end if;
 
@@ -341,6 +341,10 @@ begin
   where (j.hub_id,j.work_date,j.book) = (p_hub,p_date,p_book) and j.action in ('submit','reopen')
   order by id desc limit 1;
 
+  if p_action = 'save' and not can_manage and p_date <> private.wf_today()
+     and last_action is distinct from 'reopen' then
+    raise exception 'A past register must be reopened before you can edit it' using errcode = '42501';
+  end if;
   if p_action = 'reopen' then
     if last_action is distinct from 'submit' or reason is null then
       raise exception 'Choose a locked register and enter a reason' using errcode = '22023';
