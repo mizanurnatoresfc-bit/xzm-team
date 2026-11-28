@@ -216,3 +216,18 @@ test('a redirect has no gate of its own: the page it leads to decides', () => {
   assert.equal(pageState('/app/manager/staff', acc('zonalManager')), 'open')
   assert.equal(pageState('/app/staff/list', acc('staff')), 'no-permission')
 })
+
+test('garage pages follow the office pages until a role is given any garage page', async () => {
+  const { inMenu, pageAllowed } = await import('../src/lib/navAccess.ts')
+  // a page list saved before the garage split: office pages open their garage twins, and "autos" follows the list page
+  const old = ['/app/office/overview', '/app/office/places']
+  assert.equal(inMenu(old, '/app/office/garage/overview'), true)
+  assert.equal(pageAllowed(old, '/app/office/garage/places'), true)
+  assert.equal(pageAllowed(old, '/app/office/garage/autos'), true)
+  // once a garage page is picked for the role, the list is taken as it is
+  const picked = ['/app/office/overview', '/app/office/places', '/app/office/garage/overview']
+  assert.equal(pageAllowed(picked, '/app/office/garage/overview'), true)
+  assert.equal(pageAllowed(picked, '/app/office/garage/places'), false)
+  // residential keeps its own rule
+  assert.equal(pageAllowed(old, '/app/office/residential/places'), true)
+})

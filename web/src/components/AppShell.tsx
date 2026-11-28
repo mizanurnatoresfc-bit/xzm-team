@@ -19,7 +19,7 @@ import { useWorkHub } from '../lib/workHub'
 import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
 import { PersonalMenu, WfCountsHost } from './PersonalMenu'
-import { OFFICE_GROUPS, RESIDENTIAL_BASE, RESIDENTIAL_GROUP } from '../lib/office'
+import { GARAGE_BASE, GARAGE_GROUP, OFFICE_GROUPS, RESIDENTIAL_BASE, RESIDENTIAL_GROUP } from '../lib/office'
 import { myPhoto, onMyPhotoChange } from '../lib/myPhoto'
 import { MyFace } from './MyAvatar'
 import { menuKeys, useDialog, usePageFocus } from '../lib/a11y'
@@ -36,7 +36,7 @@ type CountKey = 'sheets' | 'team' | 'hrreq'
 export const NEW_UNTIL: Record<string, string> = {
   '/app/manpower': '2026-11-30', '/app/attendance': '2026-11-30',
   '/app/staff/list': '2026-12-15', '/app/zonal/requests': '2026-12-15', '/app/zonal/hr-records': '2026-12-15',
-  '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/menu-roles': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15',
+  '/app/zonal/hub-ops': '2026-11-30', '/app/menu': '2026-12-15', '/app/menu-roles': '2026-12-15', '/app/office/overview': '2026-11-30', '/app/office/residential/overview': '2026-12-15', '/app/office/monthly': '2026-12-31', '/app/office/garage/autos': '2026-12-31',
 }
 const panel = (key: string, icon: string, bn: string, en: string, secs: Sec[]): Group => ({ key, icon, bn, en, secs, items: secs.flatMap(s => s.items) })
 export type { Group as MenuGroup, Item as MenuItem }
@@ -239,10 +239,12 @@ export const ACCOUNTS: Group = panel('accounts', 'ledger', 'হিসাব ও 
  * আমার অফিস — a menu of its own (owner, 19 Nov 2026), arranged by what the database keeps: places and people,
  * things, rent and bills, security and reports. Like হিসাব it is not a level panel: anyone whose role may see an office sees it.
  */
-export const OFFICE: Group = panel('office', 'home', 'অফিস ও আবাসিক', 'Office & residential', [
+export const OFFICE: Group = panel('office', 'home', 'হাব, আবাসিক ও গ্যারেজ', 'Hub, residential & garage', [
   ...OFFICE_GROUPS.map(g => ({ bn: g.bn, en: g.en, items: g.parts.map(p => ({ to: `/app/office/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) })),
   // আবাসিক: the residences on pages of their own (owner, 21 Nov 2026) — same tables, same permissions.
   { bn: RESIDENTIAL_GROUP.bn, en: RESIDENTIAL_GROUP.en, items: RESIDENTIAL_GROUP.parts.map(p => ({ to: `${RESIDENTIAL_BASE}/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) },
+  // গ্যারেজ: car-parking garages and auto garages on pages of their own (owner, 27 Nov 2026).
+  { bn: GARAGE_GROUP.bn, en: GARAGE_GROUP.en, items: GARAGE_GROUP.parts.map(p => ({ to: `${GARAGE_BASE}/${p.key}`, icon: p.icon, bn: p.bn, en: p.en, perms: p.perms })) },
 ])
 
 /**
