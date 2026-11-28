@@ -14,6 +14,7 @@ import { advancedAccessHere, isNativeApp, setupPush } from '../lib/native'
 import { hasIcon, Icon } from './Icon'
 import { BrandName, useBrandText } from './Brand'
 import { hrReq } from '../lib/hrreq'
+import { WorkHubSelector } from './WorkHubSelector'
 import { useWorkHub } from '../lib/workHub'
 import { getView, type DashView } from '../lib/dashboard'
 import { ViewAsBar, ViewAsPicker } from './ViewAs'
@@ -356,7 +357,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   const [mSearch, setMSearch] = useState(false)
   const [roles, setRoles] = useState<MyRole[]>([])
   const [photo, setPhoto] = useState<string | null>(null)
-  const [cnt, setCnt] = useState<Record<CountKey, number>>({ sheets: 0, team: 0, hrreq: 0 })
+  const countScope = JSON.stringify([user, workHub])
+  const [loadedCounts, setLoadedCounts] = useState<{ scope: string; values: Record<CountKey, number> }>()
+  const cnt = loadedCounts?.scope === countScope ? loadedCounts.values : { sheets: 0, team: 0, hrreq: 0 }
   const nt = useNotices()
   const notes = nt.list
   const [dview, setDview] = useState<DashView | null>(getView())
@@ -370,9 +373,9 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
   useEffect(() => {
     if (!user) return
     let current = true
-    void counts(user, can, workHub).then(result => { if (current) setCnt(result) })
+    void counts(user, can, workHub).then(result => { if (current) setLoadedCounts({ scope: countScope, values: result }) })
     return () => { current = false }
-  }, [user, can, workHub])
+  }, [user, can, workHub, countScope])
   const [photoTick, setPhotoTick] = useState(0)
   useEffect(() => onMyPhotoChange(() => setPhotoTick(t => t + 1)), [])
   useEffect(() => { if (user) void myPhoto(user).then(setPhoto) }, [user, photoTick])
@@ -534,6 +537,7 @@ export function AppShell({ title, subtitle, actions, children }: { title: string
           <Icon name="search" size={16} /><input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder={L('কর্মীর নাম, আইডি বা মোবাইল খুঁজুন…', 'Search employee name, ID or mobile…')} aria-label={L('খুঁজুন', 'Search')} />
         </form>}
         <span className="spacer" />
+        <WorkHubSelector />
         {quickItems.length > 0 && <button className="quick-btn" aria-label={L('দ্রুত যোগ করুন', 'Quick add')} onClick={() => setQuick(true)}><Icon name="plus" size={22} /></button>}
         {canSearch && <button className="icon search-btn" aria-label={L('খুঁজুন', 'Search')} onClick={() => setMSearch(v => !v)}><Icon name="search" /></button>}
         <div className="rel" ref={pop === 'bell' ? popRef : undefined}>

@@ -5,8 +5,9 @@ import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 const { chromium } = createRequire(import.meta.url)('playwright')
 
+const authStorageKey = process.env.TEST_AUTH_STORAGE_KEY ?? 'sb-ndgnhvbpmtxrpplgsslz-auth-token'
 const PORT = 4180, BASE = `http://localhost:${PORT}`
-const KEY = 'sb-ndgnhvbpmtxrpplgsslz-auth-token'
+const KEY = authStorageKey
 const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url')
 const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'u9', role: 'authenticated', exp: 4102444800, email: 'rider@example.com' })}.sig`
 const user = { id: 'u9', email: 'rider@example.com', user_metadata: { full_name: 'Test Rider' }, app_metadata: {}, aud: 'authenticated', role: 'authenticated' }
@@ -39,7 +40,7 @@ try {
   let down = false
   const offline = async v => { down = v; await ctx.setOffline(v) }
   await ctx.route(/fonts\.(googleapis|gstatic)|tile\.openstreetmap\.org|nominatim|router\.project-osrm/, r => r.abort())
-  await ctx.route(/supabase\.co/, r => {
+  await ctx.route(/supabase\.co|xzm-hub-test\.invalid/, r => {
     const req = r.request(), u = req.url()
     const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' }
     const j = (d, status = 200) => r.fulfill({ status, contentType: 'application/json', headers: { ...cors, 'content-range': '0-0/0' }, body: JSON.stringify(d) })
@@ -106,7 +107,7 @@ try {
   await page.evaluate(k => { const s = JSON.parse(localStorage.getItem(k)); s.expires_at = 1000; localStorage.setItem(k, JSON.stringify(s)) }, KEY)
   await page.reload()
   check(await until(async () => (await card().count()) > 0 && (await text()).includes('সর্বশেষ সেভ করা রুট'), 30000), 'offline, login expired: the app still opens with the saved route')
-  if (process.env.DEBUG) { console.log('URL2', page.url()); console.log((await text()).slice(0, 600)); console.log(await page.evaluate(k => localStorage.getItem(k), 'sb-ndgnhvbpmtxrpplgsslz-auth-token').then(x => (x || '').slice(0, 120))) }
+  if (process.env.DEBUG) { console.log('URL2', page.url()); console.log((await text()).slice(0, 600)); console.log(await page.evaluate(k => localStorage.getItem(k), KEY).then(x => (x || '').slice(0, 120))) }
   check(!/\/staff\/login/.test(page.url()), 'offline, login expired: not thrown to the login page')
   check(((await queued())?.items?.length ?? 0) === 1, 'the check-in is still on the phone after the restart')
 

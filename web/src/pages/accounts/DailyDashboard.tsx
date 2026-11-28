@@ -1,3 +1,5 @@
+import { useAuth } from '../../auth/AuthProvider'
+import { useWorkHub, useWorkHubBlocker } from '../../lib/workHub'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { collectorsNeeded, da, num, taka, dateBn, timeBn, todayDhaka, addDays, STATUS_LABEL, type SheetStatus, type SessionRow, type FlowRow } from '../../lib/dailyAccounts'
@@ -13,6 +15,8 @@ const wide = () => typeof matchMedia === 'function' && matchMedia('(min-width:90
 // Accounts Management → Daily Accounts (আজকের হিসাব খাতা): which hubs have given today's sheet, and the way into each one.
 export function DailyDashboard() {
   const nav = useNavigate()
+  const { session } = useAuth()
+  const workHub = useWorkHub(session?.user.id ?? '')
   const today = todayDhaka()
   const [range, setRange] = useState<Range>('today')
   const [from, setFrom] = useState(today)
@@ -25,6 +29,7 @@ export function DailyDashboard() {
   const [pick, setPick] = useState(false)
   const [start, setStart] = useState<{ hub: string; date: string } | null>(null)
   const [busy, setBusy] = useState(false)
+  useWorkHubBlocker(session?.user.id ?? '', !!start || busy)
   const [err, setErr] = useState<unknown>(null)
   const { toast, node } = useToast()
 
@@ -58,7 +63,7 @@ export function DailyDashboard() {
     else setPick(true)
   }
   async function doStart() {
-    if (!start) return
+    if (!start || busy || !canStart(start.hub)) return
     setBusy(true); setErr(null)
     try {
       const id = await da.start(start.hub, start.date)
@@ -67,8 +72,11 @@ export function DailyDashboard() {
     } catch (e) { setErr(e) } finally { setBusy(false) }
   }
   const existingFor = (h: string, date: string) => all.find(r => r.hub_id === h && r.account_date === date)
-  const begin = (h?: string) => { setErr(null); setStart({ hub: h ?? startable[0].hub_id, date: oneDay ? from : today }) }
   const canStart = (h: string) => startable.some(x => x.hub_id === h)
+  const begin = (hubId = workHub) => {
+    setErr(null)
+    setStart({ hub: canStart(hubId) ? hubId : '', date: oneDay ? from : today })
+  }
   const RANGES: Array<[Range, string]> = [['today', 'আজ'], ['yesterday', 'গতকাল'], ['week', '৭ দিন'], ['month', 'এ মাস'], ['custom', range === 'custom' ? `${dateBn(from)} – ${dateBn(to)}` : 'তারিখ বাছুন']]
   const STATUSES: Array<[SheetStatus | 'none' | '', string, number, string]> = [['', 'সব', total, ''], ['open', STATUS_LABEL.open, count('open'), ''], ['submitted', 'যাচাই বাকি', count('submitted'), count('submitted') ? 'warn' : ''],
     ['correction', 'সংশোধন', count('correction'), count('correction') ? 'bad' : ''], ['approved', STATUS_LABEL.approved, count('approved'), ''], ...(oneDay ? [['none', 'শুরু হয়নি', missing.length, ''] as [SheetStatus | 'none' | '', string, number, string]] : [])]
@@ -141,16 +149,17 @@ export function DailyDashboard() {
         <Field label="শেষ তারিখ"><input type="date" value={to} min={from} max={today} onChange={e => setTo(e.target.value)} /></Field>
       </div>
     </Modal>}
-    {start && <Modal title="হিসাব শুরু করবেন?" onClose={() => setStart(null)}
-      actions={<><button className="secondary" onClick={() => setStart(null)}>না</button>
+    {start && <Modal title="হিসাব শুরু করবেন?" onClose={() => { if (!busy) setStart(null) }}
+      actions={<><button className="secondary" disabled={busy} onClick={() => setStart(null)}>না</button>
         {existingFor(start.hub, start.date)
           ? <button onClick={() => nav(`/app/accounts/daily/${existingFor(start.hub, start.date)!.id}`)}>খোলা হিসাবে যান</button>
-          : <button disabled={busy} onClick={() => void doStart()}>{busy ? 'শুরু হচ্ছে…' : 'হ্যাঁ, শুরু করুন'}</button>}</>}>
+          : <button disabled={busy || !canStart(start.hub) || !start.date} onClick={() => void doStart()}>{busy ? 'শুরু হচ্ছে…' : 'হ্যাঁ, শুরু করুন'}</button>}</>}>
       <p className="muted">হিসাব শুরু করলে এই তারিখে নতুন খাতা তৈরি হবে, আর আপনার আইডি, নাম ও সময় সংরক্ষিত হবে।</p>
       <div className="da-grid2">
-        <Field label="হাব"><select value={start.hub} onChange={e => setStart({ ...start, hub: e.target.value })}>
+        <Field label="হাব"><select value={canStart(start.hub) ? start.hub : ''} disabled={busy} onChange={e => setStart({ ...start, hub: e.target.value })}>
+          <option value="" disabled>অনুমোদিত হাব বেছে নিন</option>
           {startable.map(h => <option key={h.hub_id} value={h.hub_id}>{h.name} · {h.zone_name}</option>)}</select></Field>
-        <Field label="তারিখ"><input type="date" value={start.date} max={today} onChange={e => setStart({ ...start, date: e.target.value })} /></Field>
+        <Field label="তারিখ"><input type="date" value={start.date} max={today} disabled={busy} onChange={e => setStart({ ...start, date: e.target.value })} /></Field>
       </div>
       {existingFor(start.hub, start.date) && <p className="notice">এই হাব ও তারিখের হিসাব আগে থেকেই আছে — নতুন করে শুরু করা যাবে না।</p>}
       <ErrorNote error={err} />
