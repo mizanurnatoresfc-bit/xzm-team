@@ -20,7 +20,19 @@ Format:
 
 ## Open
 
-_No bugs registered in this initialization pass. New bugs to be appended here with ID `B-001`, `B-002`, ...。_
+### B-002: `module_release_require` refuses direct APIs on both platforms when a module is restricted to one
+
+- Reported: 2026-11-28 (Asia/Dhaka)
+- Severity: **medium** (feature correct for the UI; incorrect for direct-API callers once a Super Admin picks a single platform)
+- Area: db (Supabase private function `release_rule` + public `module_release_require`)
+- Repro: in the System Control Center set any module's `platforms` to `["web"]` (or `["android"]`). The UI gates correctly for the chosen platform. But every guarded `public.X(hub)` RPC for that module refuses with 42501 on **both** platforms, including the one the admin left enabled.
+- Expected: the chosen platform keeps working end-to-end (menu AND API); the other platform is gated off.
+- Actual: Codex's `release_rule(cfg, p_platform text, …)` intersects `['web','android']` when `p_platform` is NULL, and `module_release_require` always passes NULL (direct APIs have no verified Android-vs-Web identity), so both platforms refuse.
+- Owner: ChatGPT Backend Team
+- Status: OPEN (documented; UI warning banner added by Claude in the same commit that landed this entry)
+- Fix PR: pending — options A/B/C/D enumerated in `docs/project-control/audits/PRIORITY_01_PLATFORM_COUPLING_CONTRACT.md`. Recommendation: Option A (document + warn — shipped now) for Priority 01 release, Option B (signed `platform` claim in the Supabase JWT) as a follow-up.
+
+_No further bugs registered in this initialization pass. New bugs to be appended here with ID `B-00N`._
 
 ## Closed
 

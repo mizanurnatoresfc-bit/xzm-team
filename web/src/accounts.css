@@ -47,6 +47,12 @@ select,textarea{width:100%;margin-top:6px;border:1px solid #cbd5e1;border-radius
 .da-chips{display:flex;gap:4px 16px;flex-wrap:wrap}
 .da-pick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .da-error{color:#b91c1c;background:#fee2e2;border-radius:8px;padding:10px 12px;margin:8px 0}
+.da-warn{color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px 12px;margin:8px 0;font-size:.9375rem;line-height:1.45}
+.da-warn code{background:rgba(0,0,0,.08);padding:1px 5px;border-radius:4px;font-size:.875em}
+.hint{color:#475569;font-size:.875rem;margin:4px 0 8px;font-style:italic}
+.btn.danger,button.danger{background:#b91c1c;color:#fff;border-color:#991b1b}
+.btn.danger:hover:not(:disabled),button.danger:hover:not(:disabled){background:#991b1b}
+.btn.danger:disabled,button.danger:disabled{opacity:.5;cursor:not-allowed}
 .da-ok{color:#166534;background:#dcfce7;border-radius:8px;padding:10px 12px;margin:0}
 .da-modal-bg{position:fixed;inset:0;background:rgba(8,20,14,.45);display:grid;place-items:center;padding:16px;z-index:50}
 .da-modal{background:#fff;border-radius:16px;width:100%;max-width:520px;padding:22px;max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:12px}

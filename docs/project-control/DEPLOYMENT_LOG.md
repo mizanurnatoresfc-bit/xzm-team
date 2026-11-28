@@ -18,6 +18,16 @@ Format:
 
 ## Entries
 
+### 2026-11-28 — Priority 01 — System Control Center UI/UX finalisation (frontend only, no DB)
+
+- Environment: **staging** (frontend will build on next CI push on branch `chatgpt/module-release-control`)
+- Commit: (to be assigned when pushed from this pass)
+- Files: `web/src/pages/users/ModuleControl.tsx`, `web/src/accounts.css` (UI + styles). Docs: `docs/project-control/audits/PRIORITY_01_PLATFORM_COUPLING_CONTRACT.md`, `docs/project-control/audits/PRIORITY_01_DEMO_ACCEPTANCE_RUNBOOK.md`, plus BUG_REGISTER / TASK_TRACKER / AI_HANDOVER / CHANGELOG updates.
+- Verified by: Claude (local node regression 93/93 PASS; `grep -rn "মডিউল নিয়ন্ত্রণ\|Module Control" web/src` empty after the earlier rename). Browser + Android acceptance deferred to a human tester following the new runbook.
+- Smoke tests on staging: no backend write performed; `private.release_config` still at 9 clean published rows; the frontend will pick up the UI change on the next Cloudflare Workers build.
+- **Production:** NOT touched. No new migration this pass.
+- Rollback plan: `git revert <this commit>` — the change is three UI edits + CSS + two new audit docs; a revert restores the previous UI verbatim.
+
 ### 2026-11-28 — Priority 01 — Batch 3 (table-returning Release Guard) on staging
 
 - Environment: **staging** (Supabase `mbpjvqeizwjjsvnbjerb` = `xzm-team-staging`)

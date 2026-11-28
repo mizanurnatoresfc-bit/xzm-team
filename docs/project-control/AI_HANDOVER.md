@@ -224,3 +224,17 @@ Before starting a task:
 - **GitHub CI on `d7f2808` — BOTH workflows green.** `Tests` job applied all five Priority-01 migrations and ran every SQL test file through (including the fixed `99_release_control_expansion_batch_3.sql`); `Website` built the Vite production bundle, type-checked, ran the five node suites, passed Playwright smoke. This is the **first commit on PR #226 where both workflows are green at the same time**.
 - **Local regression after rename**: 93/93 PASS (all seven node test files).
 - **DEMO environment snapshot on staging ready for independent audit:** 5 DEMO accounts active, 3 DEMO hubs seeded, 150 modules registered, 9 release_config rows all at clean published default (every test suite ended in restore), 38 release_audit entries preserved for replay, 34 guarded wrapper entry points, 1 restrictive RLS policy. No Claude-side writes touched ChatGPT's RPC/DB surface this pass.
+
+### Priority 01 — 2026-11-28 ninth Claude pass: UI/UX finalisation + Backend Contract Report (no backend write)
+
+- **UI/UX polish on the System Control Center** page (`web/src/pages/users/ModuleControl.tsx`):
+  - `stageLabels` now bilingual (`'পরিকল্পনা · Planning'`, `'ডেভেলপমেন্ট · Development'`, …, `'বন্ধ · Disabled'`).
+  - New `stageHelp[]` gives a one-line explanation under the Status drop-down for each stage (e.g. "DEMO Hubs + listed roles only (turn on DEMO Hub testing + pick roles).").
+  - Platforms checkboxes now in a `<fieldset><legend>Platforms · প্ল্যাটফর্ম</legend>…</fieldset>` wrapper.
+  - **Warning banner** when the Platforms list has exactly one entry — yellow `da-warn` box pointing readers to the Backend Contract Report at `docs/project-control/audits/PRIORITY_01_PLATFORM_COUPLING_CONTRACT.md`.
+  - **"জরুরি বন্ধ · Emergency Disable"** danger-styled button next to Save / Publish / Unpublish; confirmation dialog in Bangla; flips `stage='disabled'` + `enabled=false` in one click.
+- **Styles added** in `web/src/accounts.css`: `.da-warn` (amber), `.hint` (grey italic), `.btn.danger / button.danger` (red).
+- **Backend Contract Report** shipped as `docs/project-control/audits/PRIORITY_01_PLATFORM_COUPLING_CONTRACT.md` for the ChatGPT Backend Team — root-cause walk-through of why `module_release_require` refuses direct APIs on both platforms when a module is restricted to one, four fix options (A document-only, B signed JWT platform claim, C platform-aware wrapper sigs, D UI-only `platforms` field), and Claude's recommendation (A now, B as follow-up). **B-002** opened in `BUG_REGISTER.md` with Backend Team as owner.
+- **DEMO acceptance runbook** shipped as `docs/project-control/audits/PRIORITY_01_DEMO_ACCEPTANCE_RUNBOOK.md` — the two tasks this chat session can't run (browser login as all five DEMO accounts; Android APK install on a device or emulator) are tied here to each DEMO account UUID and each hub code, with an exact PASS/FAIL table the human tester fills and pastes into PR #226. Everything in the runbook maps back to an assertion that already passed at the SQL layer (T1-T12), so this is confirmation testing, not discovery.
+- **No backend write this pass.** No `private.release_*`, no `public.module_release_*`, no migration file was touched. `grep -rn "মডিউল নিয়ন্ত্রণ\|Module Control" web/src` still returns zero after this pass (the earlier rename stands).
+- **Regression**: local node tests 93/93 PASS across all seven files after the UI edits.

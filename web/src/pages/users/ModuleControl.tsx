@@ -15,8 +15,19 @@ type Audit = { id: number; actor: string; created_at: string; before_config: Mod
 
 const repo = 'https://github.com/mizanurnatoresfc-bit/xzm-team'
 const stageLabels: Record<ModuleRelease['stage'], string> = {
-  planning: 'Planning', development: 'Development', testing: 'Testing', ready: 'Release Ready',
-  published: 'Published', maintenance: 'Maintenance', disabled: 'Disabled',
+  planning: 'পরিকল্পনা · Planning', development: 'ডেভেলপমেন্ট · Development',
+  testing: 'পরীক্ষা · Testing', ready: 'রিলিজ-রেডি · Release Ready',
+  published: 'প্রকাশিত · Published', maintenance: 'রক্ষণাবেক্ষণ · Maintenance',
+  disabled: 'বন্ধ · Disabled',
+}
+const stageHelp: Record<ModuleRelease['stage'], string> = {
+  planning: 'Hidden from users; DB-level write permissions still apply.',
+  development: 'Super Admin only; still invisible to normal users.',
+  testing: 'DEMO Hubs + listed roles only (turn on DEMO Hub testing + pick roles).',
+  ready: 'Needs verified CI evidence before it can be chosen.',
+  published: 'Visible to every role whose permissions allow the page.',
+  maintenance: 'Shown but non-interactive — users see a maintenance notice.',
+  disabled: 'Fully blocked; direct URL, API and RPC refuse with 42501.',
 }
 
 function errorText(error: unknown) {
@@ -130,13 +141,20 @@ function ModuleSettings({ entry, catalog, onSaved }: { entry: Entry; catalog: Ca
           <label>Status <select value={config.stage} onChange={event => setConfig({ ...config, stage: event.target.value as ModuleRelease['stage'] })}>
             {RELEASE_STAGES.map(stage => <option key={stage} value={stage} disabled={stage === 'ready' && !entry.verified}>{stageLabels[stage]}</option>)}
           </select></label>{' '}
+          <p className="hint">{stageHelp[config.stage]}</p>
           <label><input type="checkbox" checked={config.enabled} onChange={event => setConfig({ ...config, enabled: event.target.checked })} /> Enabled</label>{' '}
           <label><input type="checkbox" checked={config.demo} onChange={event => setConfig({ ...config, demo: event.target.checked })} /> DEMO Hub testing</label>
-          <div>{(['web', 'android'] as const).map(item => <label key={item}>
-            <input type="checkbox" checked={config.platforms.includes(item)} onChange={event => setConfig({
-              ...config, platforms: event.target.checked ? [...config.platforms, item] : config.platforms.filter(value => value !== item),
-            })} /> {item}{' '}
-          </label>)}</div>
+          <fieldset>
+            <legend>Platforms · প্ল্যাটফর্ম</legend>
+            {(['web', 'android'] as const).map(item => <label key={item}>
+              <input type="checkbox" checked={config.platforms.includes(item)} onChange={event => setConfig({
+                ...config, platforms: event.target.checked ? [...config.platforms, item] : config.platforms.filter(value => value !== item),
+              })} /> {item}{' '}
+            </label>)}
+            {config.platforms.length === 1 && <p role="alert" className="da-warn">
+              ⚠ Known limitation: direct APIs (RPCs, RLS) have no verified Web-vs-Android identity, so they refuse the call on BOTH platforms until this list covers both again. The UI on the chosen platform still gates correctly; direct URL / API callers from either platform will see 42501. See <code>docs/project-control/audits/PRIORITY_01_PLATFORM_COUPLING_CONTRACT.md</code>.
+            </p>}
+          </fieldset>
           <label>Menu order <input type="number" min="-99999999" max="99999999" value={config.menu_order ?? ''}
             onChange={event => setConfig({ ...config, menu_order: event.target.value === '' ? null : event.target.valueAsNumber })} /></label>
           <ScopePicker label="Allowed roles" choices={catalog.roles} value={config.roles} onChange={roles => setConfig({ ...config, roles })} />
@@ -154,6 +172,14 @@ function ModuleSettings({ entry, catalog, onSaved }: { entry: Entry; catalog: Ca
           {entry.config.stage === 'published'
             ? <button type="button" onClick={() => void save({ ...entry.config, stage: 'development' })}>Unpublish</button>
             : <button type="button" onClick={() => void save({ ...entry.config, stage: 'published' })}>Publish</button>}
+          {' '}<button type="button" className="danger"
+            disabled={entry.config.stage === 'disabled' && !entry.config.enabled}
+            onClick={async () => {
+              if (await askConfirm('এই মডিউল সঙ্গে সঙ্গে বন্ধ করবেন? Direct URL, API ও RPC সব 42501 দিয়ে বন্ধ হবে।',
+                  { ok: 'জরুরি বন্ধ' })) {
+                await save({ ...entry.config, stage: 'disabled', enabled: false })
+              }
+            }}>জরুরি বন্ধ · Emergency Disable</button>
         </fieldset>
       </form>
     </section>
