@@ -19,8 +19,19 @@ type Member = Choice & {
   additional_hubs: string[]
   eligible: boolean
   revision: number
+  rank_id: string | null
+  rank_number: number | null
 }
 type Snapshot = { hubs: Hub[]; members: Member[] }
+type Rank = {
+  id: string
+  rank_number: number
+  name_bn: string
+  name: string | null
+  target_multiplier_pct: number
+  is_active: boolean
+  revision: number
+}
 
 async function teamRpc<T>(name: string, args: Record<string, unknown> = {}) {
   const { data, error } = await supabase.rpc(name, args)
@@ -59,6 +70,9 @@ export function DataEntryTeam({ page = 'team' }: { page?: EntryPage }) {
 function ZoneTeam({ zone, page }: { zone: string; page: EntryPage }) {
   const { L } = usePrefs()
   const team = useLoad(() => teamRpc<Snapshot>('data_entry_team_snapshot', { p_zone: zone }), [zone])
+  const ranks = useLoad(() => page === 'team'
+    ? teamRpc<Rank[]>('data_entry_rank_list', { p_zone: zone })
+    : Promise.resolve([]), [zone, page])
   const [term, setTerm] = useState('')
   const [query, setQuery] = useState('')
   const results = useLoad(() => page === 'team' && query
@@ -117,6 +131,8 @@ function ZoneTeam({ zone, page }: { zone: string; page: EntryPage }) {
         zone={zone} member={editing} candidate={candidate} hubs={team.data.hubs}
         onSaved={saved} onCancel={() => { setCandidate(null); setEditing(null) }}
       />}
+      <RankPanel zone={zone} ranks={ranks.data ?? []} loading={ranks.loading}
+        error={ranks.error} onChanged={async () => { await Promise.all([ranks.reload(), team.reload()]) }} />
       <section className="panel data-entry-panel">
         <h2>{L('টিম সদস্য', 'Team members')}</h2>
         <button type="button" className="secondary" disabled={team.loading} onClick={() => {
@@ -128,8 +144,11 @@ function ZoneTeam({ zone, page }: { zone: string; page: EntryPage }) {
         {team.data.members.map(member => <div className="data-entry-member" key={member.id}>
           <div>
             <strong>{member.name}</strong>{member.code && <span> · {member.code}</span>}
+            {member.rank_number != null && <span className="data-entry-rank-badge"> · {L('র‍্যাংক', 'Rank')} {member.rank_number}</span>}
             <div>{team.data?.hubs.find(hub => hub.id === member.primary_hub_id)?.name ?? L('প্রাথমিক হাব এখন পাওয়া যাচ্ছে না', 'Primary hub unavailable')}</div>
             <div>{member.is_active && member.eligible ? L('সক্রিয়', 'Active') : L('নিষ্ক্রিয়', 'Inactive')}</div>
+            <RankAssign zone={zone} member={member} ranks={(ranks.data ?? []).filter(r => r.is_active)}
+              onSaved={async () => { await team.reload() }} />
           </div>
           <button type="button" className="secondary" onClick={() => {
             setEditing(member)
@@ -222,4 +241,115 @@ function MemberForm({ zone, member, candidate, hubs, onSaved, onCancel }: {
       </fieldset>
     </form>
   </section>
+}
+
+function RankPanel({ zone, ranks, loading, error, onChanged }: {
+  zone: string
+  ranks: Rank[]
+  loading: boolean
+  error: unknown
+  onChanged: () => Promise<void>
+}) {
+  const { L } = usePrefs()
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState('')
+  const [edits, setEdits] = useState<Record<string, { name_bn: string; multiplier: string; active: boolean }>>({})
+
+  async function seed() {
+    setBusy(true); setFailure('')
+    try { await teamRpc('data_entry_rank_seed_defaults', { p_zone: zone }); await onChanged() }
+    catch (e) { setFailure(errorText(e)) }
+    finally { setBusy(false) }
+  }
+
+  async function save(rank: Rank) {
+    const draft = edits[rank.id] ?? { name_bn: rank.name_bn, multiplier: String(rank.target_multiplier_pct), active: rank.is_active }
+    const multiplier = Number(draft.multiplier)
+    if (!Number.isFinite(multiplier) || multiplier < 0 || multiplier > 300) {
+      setFailure(L('শতাংশ ০ থেকে ৩০০-এর মধ্যে হতে হবে।', 'Percentage must be between 0 and 300.'))
+      return
+    }
+    setBusy(true); setFailure('')
+    try {
+      await teamRpc('data_entry_rank_save', {
+        p_zone: zone, p_rank_id: rank.id,
+        p_name_bn: draft.name_bn, p_name: null,
+        p_multiplier: multiplier, p_is_active: draft.active, p_version: rank.revision,
+      })
+      setEdits(prev => { const next = { ...prev }; delete next[rank.id]; return next })
+      await onChanged()
+    } catch (e) { setFailure(errorText(e)) }
+    finally { setBusy(false) }
+  }
+
+  return <section className="panel data-entry-panel">
+    <h2>{L('সিনিয়র র‍্যাংক ১–৮', 'Senior ranks 1–8')}</h2>
+    {loading && <p role="status">{L('র‍্যাংক লোড হচ্ছে…', 'Loading ranks…')}</p>}
+    {error ? <p className="da-error" role="alert">{errorText(error)}</p> : null}
+    {failure && <p className="da-error" role="alert">{failure}</p>}
+    {!loading && !error && ranks.length === 0 && <>
+      <p>{L('এই জোনে এখনো কোনো র‍্যাংক সেট করা হয়নি।', 'No ranks have been set for this zone yet.')}</p>
+      <button type="button" disabled={busy} onClick={() => void seed()}>
+        {L('ডিফল্ট ১–৮ র‍্যাংক তৈরি করুন', 'Seed default ranks 1–8')}
+      </button>
+    </>}
+    {ranks.length > 0 && <div className="data-entry-ranks">
+      {ranks.map(rank => {
+        const draft = edits[rank.id] ?? { name_bn: rank.name_bn, multiplier: String(rank.target_multiplier_pct), active: rank.is_active }
+        const dirty = draft.name_bn !== rank.name_bn || draft.multiplier !== String(rank.target_multiplier_pct) || draft.active !== rank.is_active
+        return <div className="data-entry-rank-row" key={rank.id}>
+          <strong>#{rank.rank_number}</strong>
+          <label className="data-entry-field">{L('নাম', 'Name')}
+            <input value={draft.name_bn} maxLength={60}
+              onChange={e => setEdits(prev => ({ ...prev, [rank.id]: { ...draft, name_bn: e.currentTarget.value } }))} />
+          </label>
+          <label className="data-entry-field">{L('শতাংশ', 'Percent')}
+            <input type="number" min={0} max={300} step="0.01" value={draft.multiplier}
+              onChange={e => setEdits(prev => ({ ...prev, [rank.id]: { ...draft, multiplier: e.currentTarget.value } }))} />
+          </label>
+          <label className="data-entry-check">
+            <input type="checkbox" checked={draft.active}
+              onChange={e => setEdits(prev => ({ ...prev, [rank.id]: { ...draft, active: e.currentTarget.checked } }))} />
+            {L('সক্রিয়', 'Active')}
+          </label>
+          <button type="button" disabled={!dirty || busy} onClick={() => void save(rank)}>
+            {L('সংরক্ষণ', 'Save')}
+          </button>
+        </div>
+      })}
+      <p className="data-entry-note">{L(
+        'শতাংশ অদ্যই সংরক্ষিত হবে, কিন্তু টার্গেট বণ্টনে এটি এখনো প্রয়োগ হয়নি (পরবর্তী release)।',
+        'Percentages save now but are not yet applied to target distribution (next release).'
+      )}</p>
+    </div>}
+  </section>
+}
+
+function RankAssign({ zone, member, ranks, onSaved }: {
+  zone: string
+  member: Member
+  ranks: Rank[]
+  onSaved: () => Promise<void>
+}) {
+  const { L } = usePrefs()
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState('')
+  if (ranks.length === 0) return null
+  async function change(value: string) {
+    setBusy(true); setFailure('')
+    try {
+      await teamRpc('data_entry_rank_assign', { p_zone: zone, p_member: member.id, p_rank_id: value || null })
+      await onSaved()
+    } catch (e) { setFailure(errorText(e)) }
+    finally { setBusy(false) }
+  }
+  return <div className="data-entry-rank-assign">
+    <label>{L('র‍্যাংক', 'Rank')}
+      <select disabled={busy} value={member.rank_id ?? ''} onChange={e => void change(e.currentTarget.value)}>
+        <option value="">{L('নির্ধারিত নয়', 'Unassigned')}</option>
+        {ranks.map(r => <option key={r.id} value={r.id}>#{r.rank_number} · {r.name_bn} · {r.target_multiplier_pct}%</option>)}
+      </select>
+    </label>
+    {failure && <span className="da-error" role="alert">{failure}</span>}
+  </div>
 }
