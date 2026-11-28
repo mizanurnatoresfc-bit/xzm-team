@@ -243,3 +243,5 @@ Before starting a task:
 ## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
 
 ChatGPT Work took ownership from Claude at PR head ed61011. Follow-on migrations 20261128103000 and 20261128103100 were applied only to Supabase staging. Accounts guards preserve the edit permission and original validations. Operations applies release checks per hub on list endpoints and before writes. Continue endpoint-by-endpoint review of remaining session and hub RPCs, then independently verify roles and web/native clients.
+
+The next Accounts batch adds guards to da_report_save and da_deposit_save using the existing edit-authorized session-to-hub helper. Original validation and default arguments are preserved. Applied and verified on staging only.

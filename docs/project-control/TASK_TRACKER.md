@@ -749,3 +749,5 @@
 ## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
 
 IN_PROGRESS on draft PR #226. Staging has the session-to-hub helper, two Accounts guards and the Operations registry with six guarded RPCs. Remaining backend families and native acceptance are open. Production release is held.
+
+Accounts follow-up: report-ID and deposit save guards implemented and verified on staging. Remaining Accounts RPCs and other release gates stay open.

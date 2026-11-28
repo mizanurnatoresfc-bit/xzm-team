@@ -13,6 +13,10 @@ select tests.throws($q$select public.da_bank_done(tests.id('release_sheet'))$q$,
   'published bank workflow keeps deposit validation', '22023');
 select tests.throws($q$select public.da_cell_set(tests.id('release_sheet'), 'riders', null, 'invalid', 'test')$q$,
   'published cell workflow keeps column validation', '22023');
+select tests.ok(public.da_report_save(tests.id('release_sheet'), 'RELEASE-TEST', 5) is not null,
+  'published accounts allow saving a report ID');
+select tests.ok(public.da_deposit_save(tests.id('release_sheet'), 5) is not null,
+  'published accounts allow saving a deposit');
 select tests.throws($q$select public.da_bank_done(null)$q$,
   'unknown session does not fall back to unscoped release access', '42501');
 
@@ -23,6 +27,11 @@ select tests.throws($q$select public.da_bank_done(tests.id('release_sheet'))$q$,
   'disabled accounts block bank confirmation for the stored hub', '42501');
 select tests.throws($q$select public.da_cell_set(tests.id('release_sheet'), 'riders', null, 'invalid', 'test')$q$,
   'disabled accounts block editing cells for the stored hub', '42501');
+
+select tests.throws($q$select public.da_report_save(tests.id('release_sheet'), 'BLOCKED', 5)$q$,
+  'disabled accounts block saving report IDs', '42501');
+select tests.throws($q$select public.da_deposit_save(tests.id('release_sheet'), 5)$q$,
+  'disabled accounts block saving deposits', '42501');
 
 select tests.login(tests.id('super'));
 select public.module_release_save('accounts', (public.module_release_history('accounts')->0->>'id')::bigint, null,

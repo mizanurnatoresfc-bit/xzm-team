@@ -232,3 +232,5 @@ Format:
 ## Priority 01 — ChatGPT Work backend continuation — 2026-11-28 (Asia/Dhaka)
 
 On ed61011, GitHub Database run 46133853167 and Website run 46133853149 passed. After the new changes, 93 local Node tests and eight staging SQL assertions passed. The staging test covered private lookup ACL, original Accounts validation, published Operations collection, disable behavior, and rollback of the test transaction. Full CI on the new revision, five-role browser acceptance, and native Android remain release gates.
+
+Staging verified report-ID and bank-deposit writes with the DEMO Hub Manager in Published, Disabled, and after audited rollback. The transaction was rolled back. The SQL regression suite covers both entry points.
